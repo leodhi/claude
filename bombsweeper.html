@@ -5,97 +5,70 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="theme-color" media="(prefers-color-scheme: light)" content="#eef3f7">
-<meta name="theme-color" media="(prefers-color-scheme: dark)" content="#0c1a29">
-<title>Minesweeper — DWG MS-01</title>
+<meta name="theme-color" media="(prefers-color-scheme: light)" content="#5c94fc">
+<meta name="theme-color" media="(prefers-color-scheme: dark)" content="#0b1330">
+<title>BOMBSWEEPER — 1-1</title>
 <style>
   :root {
-    /* diazo print — blue ink on pale paper */
-    --bg: #eef3f7;
-    --bg-line: rgba(20, 38, 59, 0.07);
-    --panel: #ffffff;
-    --panel-2: #dfe8ef;
-    --panel-3: #cddbe6;
-    --line: #b9c9d6;
-    --line-strong: #8fa6b8;
-    --ink: #14263b;
-    --ink-dim: #5b7086;
-    --accent: #1f6f8f;
-    --accent-soft: rgba(31, 111, 143, 0.14);
-    --danger: #c0392b;
-    --danger-soft: rgba(192, 57, 43, 0.14);
-    --flag: #b9720c;
-    --n1: #1f6f8f;
-    --n2: #2f7d4f;
-    --n3: #c0392b;
-    --n4: #5b4a9e;
-    --n5: #b9720c;
-    --n6: #1a8a8a;
-    --n7: #14263b;
-    --n8: #5b7086;
+    /* overworld — daytime stage */
+    --sky: #5c94fc;
+    --sky-band: #4a80e0;
+    --block: #f6b552;
+    --block-dark: #b9762a;
+    --block-face: #fbd28a;
+    --panel: #f8f4e8;
+    --panel-2: #e9dfc4;
+    --ink: #1c1c1c;
+    --ink-soft: #5b5343;
+    --brick: #d94f30;
+    --brick-dark: #8a2f1c;
+    --coin: #ffd83d;
+    --pipe: #00a800;
+    --pipe-dark: #006400;
+    --danger: #e4000f;
+    --danger-dark: #8f0009;
+    --n1: #4a80e0; --n2: #00a800; --n3: #e4000f; --n4: #7b3fb3;
+    --n5: #b9762a; --n6: #009999; --n7: #1c1c1c; --n8: #5b5343;
+    --bevel: 6px;
   }
   @media (prefers-color-scheme: dark) {
     :root {
-      /* cyanotype blueprint — cyan ink on navy */
-      --bg: #0c1a29;
-      --bg-line: rgba(255, 255, 255, 0.05);
-      --panel: #12233a;
-      --panel-2: #1a3150;
-      --panel-3: #24405f;
-      --line: rgba(255, 255, 255, 0.14);
-      --line-strong: rgba(255, 255, 255, 0.28);
-      --ink: #eaf3fa;
-      --ink-dim: #86a2ba;
-      --accent: #5fd4ff;
-      --accent-soft: rgba(95, 212, 255, 0.14);
-      --danger: #ff6b5b;
-      --danger-soft: rgba(255, 107, 91, 0.16);
-      --flag: #ffb648;
-      --n1: #5fd4ff;
-      --n2: #6fe3a0;
-      --n3: #ff6b5b;
-      --n4: #b6a3ff;
-      --n5: #ffb648;
-      --n6: #4fe0e0;
-      --n7: #eaf3fa;
-      --n8: #86a2ba;
+      /* underground / castle — night stage */
+      --sky: #0b1330;
+      --sky-band: #060b1f;
+      --block: #6b4a2f;
+      --block-dark: #3a2a1a;
+      --block-face: #8a6440;
+      --panel: #1b1430;
+      --panel-2: #2a2050;
+      --ink: #f4f0e6;
+      --ink-soft: #b7a9d6;
+      --brick: #ff6b4a;
+      --brick-dark: #a83a24;
+      --coin: #ffd83d;
+      --pipe: #2ee06a;
+      --pipe-dark: #14803a;
+      --danger: #ff5a4a;
+      --danger-dark: #a12a1e;
+      --n1: #7ec4ff; --n2: #2ee06a; --n3: #ff5a4a; --n4: #c79bff;
+      --n5: #ffbd6b; --n6: #4adede; --n7: #f4f0e6; --n8: #b7a9d6;
     }
   }
   :root[data-theme="dark"] {
-    --bg: #0c1a29;
-    --bg-line: rgba(255, 255, 255, 0.05);
-    --panel: #12233a;
-    --panel-2: #1a3150;
-    --panel-3: #24405f;
-    --line: rgba(255, 255, 255, 0.14);
-    --line-strong: rgba(255, 255, 255, 0.28);
-    --ink: #eaf3fa;
-    --ink-dim: #86a2ba;
-    --accent: #5fd4ff;
-    --accent-soft: rgba(95, 212, 255, 0.14);
-    --danger: #ff6b5b;
-    --danger-soft: rgba(255, 107, 91, 0.16);
-    --flag: #ffb648;
-    --n1: #5fd4ff; --n2: #6fe3a0; --n3: #ff6b5b; --n4: #b6a3ff;
-    --n5: #ffb648; --n6: #4fe0e0; --n7: #eaf3fa; --n8: #86a2ba;
+    --sky: #0b1330; --sky-band: #060b1f; --block: #6b4a2f; --block-dark: #3a2a1a;
+    --block-face: #8a6440; --panel: #1b1430; --panel-2: #2a2050; --ink: #f4f0e6;
+    --ink-soft: #b7a9d6; --brick: #ff6b4a; --brick-dark: #a83a24; --coin: #ffd83d;
+    --pipe: #2ee06a; --pipe-dark: #14803a; --danger: #ff5a4a; --danger-dark: #a12a1e;
+    --n1: #7ec4ff; --n2: #2ee06a; --n3: #ff5a4a; --n4: #c79bff;
+    --n5: #ffbd6b; --n6: #4adede; --n7: #f4f0e6; --n8: #b7a9d6;
   }
   :root[data-theme="light"] {
-    --bg: #eef3f7;
-    --bg-line: rgba(20, 38, 59, 0.07);
-    --panel: #ffffff;
-    --panel-2: #dfe8ef;
-    --panel-3: #cddbe6;
-    --line: #b9c9d6;
-    --line-strong: #8fa6b8;
-    --ink: #14263b;
-    --ink-dim: #5b7086;
-    --accent: #1f6f8f;
-    --accent-soft: rgba(31, 111, 143, 0.14);
-    --danger: #c0392b;
-    --danger-soft: rgba(192, 57, 43, 0.14);
-    --flag: #b9720c;
-    --n1: #1f6f8f; --n2: #2f7d4f; --n3: #c0392b; --n4: #5b4a9e;
-    --n5: #b9720c; --n6: #1a8a8a; --n7: #14263b; --n8: #5b7086;
+    --sky: #5c94fc; --sky-band: #4a80e0; --block: #f6b552; --block-dark: #b9762a;
+    --block-face: #fbd28a; --panel: #f8f4e8; --panel-2: #e9dfc4; --ink: #1c1c1c;
+    --ink-soft: #5b5343; --brick: #d94f30; --brick-dark: #8a2f1c; --coin: #ffd83d;
+    --pipe: #00a800; --pipe-dark: #006400; --danger: #e4000f; --danger-dark: #8f0009;
+    --n1: #4a80e0; --n2: #00a800; --n3: #e4000f; --n4: #7b3fb3;
+    --n5: #b9762a; --n6: #009999; --n7: #1c1c1c; --n8: #5b5343;
   }
 
   * {
@@ -111,14 +84,19 @@
   }
   body {
     background:
-      repeating-linear-gradient(0deg, var(--bg-line) 0 1px, transparent 1px 24px),
-      repeating-linear-gradient(90deg, var(--bg-line) 0 1px, transparent 1px 24px),
-      var(--bg);
+      linear-gradient(var(--sky-band), var(--sky-band) 6px, transparent 6px) 0 0 / 100% 46px,
+      var(--sky);
     color: var(--ink);
-    font-family: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    font-family: "Courier New", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
   }
-  .mono {
-    font-family: ui-monospace, "SF Mono", "Cascadia Mono", Menlo, Consolas, monospace;
+
+  .pixel {
+    clip-path: polygon(
+      0 var(--bevel), var(--bevel) var(--bevel), var(--bevel) 0,
+      calc(100% - var(--bevel)) 0, calc(100% - var(--bevel)) var(--bevel), 100% var(--bevel),
+      100% calc(100% - var(--bevel)), calc(100% - var(--bevel)) calc(100% - var(--bevel)), calc(100% - var(--bevel)) 100%,
+      var(--bevel) 100%, var(--bevel) calc(100% - var(--bevel)), 0 calc(100% - var(--bevel))
+    );
   }
 
   #sheet {
@@ -126,127 +104,152 @@
     margin: 0 auto;
     min-height: 100vh;
     min-height: 100dvh;
-    padding: calc(22px + env(safe-area-inset-top)) calc(16px + env(safe-area-inset-right))
-             calc(44px + env(safe-area-inset-bottom)) calc(16px + env(safe-area-inset-left));
+    padding: calc(20px + env(safe-area-inset-top)) calc(14px + env(safe-area-inset-right))
+             calc(40px + env(safe-area-inset-bottom)) calc(14px + env(safe-area-inset-left));
     display: flex;
     flex-direction: column;
-    gap: 16px;
+    gap: 14px;
   }
 
-  /* ---------- Title block ---------- */
-  .titleblock {
-    border: 1.5px solid var(--line-strong);
-    border-radius: 3px;
-    background: var(--panel);
+  /* ---------- Marquee ---------- */
+  .marquee {
+    text-align: center;
+    padding: 10px 0 4px;
   }
-  .tb-main {
-    display: flex;
-    align-items: baseline;
-    gap: 10px;
-    padding: 14px 16px 10px;
-    border-bottom: 1px solid var(--line);
-  }
-  .tb-mark { color: var(--danger); font-size: 1.1rem; line-height: 1; }
-  .tb-main h1 {
+  .marquee h1 {
     margin: 0;
-    font-size: 1.5rem;
+    font-size: 2rem;
+    font-weight: 900;
+    letter-spacing: 0.04em;
+    color: var(--coin);
+    text-shadow:
+      3px 0 0 var(--ink), -3px 0 0 var(--ink),
+      0 3px 0 var(--ink), 0 -3px 0 var(--ink),
+      3px 3px 0 var(--ink), -3px -3px 0 var(--ink),
+      3px -3px 0 var(--ink), -3px 3px 0 var(--ink),
+      5px 6px 0 rgba(0,0,0,0.35);
+  }
+  .marquee p {
+    margin: 6px 0 0;
+    color: var(--panel);
+    font-size: 0.72rem;
+    font-weight: 700;
     letter-spacing: 0.06em;
     text-transform: uppercase;
-    font-weight: 800;
-  }
-  .tb-sub {
-    margin: 0 0 0 auto;
-    color: var(--ink-dim);
-    font-size: 0.72rem;
-    letter-spacing: 0.05em;
-    text-transform: uppercase;
-    align-self: center;
-  }
-  .tb-fields {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-  }
-  .tb-field {
-    padding: 8px 16px;
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-    border-right: 1px solid var(--line);
-  }
-  .tb-field:last-child { border-right: none; }
-  .tb-label {
-    font-size: 0.62rem;
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
-    color: var(--ink-dim);
-  }
-  .tb-value {
-    font-size: 0.95rem;
-    font-weight: 700;
-    font-variant-numeric: tabular-nums;
+    text-shadow: 1px 1px 0 var(--ink);
   }
 
-  /* ---------- Control panels ---------- */
-  .panel {
-    border: 1px solid var(--line);
-    border-radius: 3px;
+  /* ---------- HUD (status bar) ---------- */
+  .hud-row {
+    display: flex;
+    gap: 10px;
+    align-items: stretch;
+  }
+  .hud-bar {
+    flex: 1;
     background: var(--panel);
+    border: 3px solid var(--ink);
+    padding: 8px 10px;
+    display: flex;
+    gap: 6px;
+  }
+  .hud-cell {
+    flex: 1;
+    text-align: center;
+    padding: 4px 2px;
+    border-right: 2px dashed var(--panel-2);
+  }
+  .hud-cell:last-child { border-right: none; }
+  .hud-label {
+    display: block;
+    font-size: 0.58rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    color: var(--ink-soft);
+    text-transform: uppercase;
+  }
+  .hud-value {
+    display: block;
+    font-size: 1.15rem;
+    font-weight: 900;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 0.04em;
+    margin-top: 1px;
+  }
+  .hud-cell.bombs .hud-value { color: var(--danger); }
+  .hud-cell.time .hud-value { color: var(--n1); }
+  .hud-cell.stage .hud-value { color: var(--pipe-dark); }
+
+  /* ---------- Panels ---------- */
+  .panel {
+    background: var(--panel);
+    border: 3px solid var(--ink);
     padding: 12px 14px;
   }
-  .spec-label {
-    font-size: 0.68rem;
-    letter-spacing: 0.12em;
+  .panel-label {
+    font-size: 0.62rem;
+    font-weight: 800;
+    letter-spacing: 0.1em;
     text-transform: uppercase;
-    color: var(--ink-dim);
+    color: var(--ink-soft);
     margin: 0 0 8px;
   }
-  .toggle-group, .btn-row { display: flex; flex-wrap: wrap; gap: 8px; }
-  .toggle-btn {
-    padding: 8px 14px;
+  .world-group, .btn-row { display: flex; flex-wrap: wrap; gap: 8px; }
+  .world-btn {
     min-height: 44px;
+    padding: 6px 12px;
     display: flex;
+    flex-direction: column;
     align-items: center;
-    border-radius: 3px;
-    border: 1px solid var(--line-strong);
-    background: var(--panel-2);
-    color: var(--ink-dim);
-    font-size: 0.82rem;
-    font-weight: 600;
-    letter-spacing: 0.02em;
+    justify-content: center;
+    gap: 0;
+    background: var(--block);
+    border: 3px solid var(--ink);
+    color: var(--ink);
     cursor: pointer;
     user-select: none;
     -webkit-user-select: none;
   }
-  .toggle-btn.selected {
-    background: var(--accent);
+  .world-btn .num {
+    font-weight: 900;
+    font-size: 0.95rem;
+    letter-spacing: 0.02em;
+  }
+  .world-btn .name {
+    font-size: 0.58rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+  .world-btn.selected {
+    background: var(--pipe);
     color: var(--panel);
-    border-color: var(--accent);
   }
+
   .footnote {
-    color: var(--ink-dim);
-    font-size: 0.76rem;
-    line-height: 1.4;
+    color: var(--ink-soft);
+    font-size: 0.74rem;
+    line-height: 1.45;
     margin: 10px 0 0;
+    font-weight: 600;
   }
-  .btn-row { }
   .mode-btn {
     flex: 1;
     min-height: 44px;
     padding: 10px;
-    border-radius: 3px;
-    border: 1px solid var(--line-strong);
-    background: transparent;
+    background: var(--panel-2);
+    border: 3px solid var(--ink);
     color: var(--ink);
-    font-size: 0.8rem;
-    font-weight: 700;
+    font-size: 0.78rem;
+    font-weight: 800;
     letter-spacing: 0.06em;
     text-transform: uppercase;
     cursor: pointer;
   }
-  .mode-btn.active { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); }
+  .mode-btn.active { background: var(--pipe); color: var(--panel); }
 
-  button:focus-visible, .toggle-btn:focus-visible {
-    outline: 2px solid var(--accent);
+  button:focus-visible, .world-btn:focus-visible {
+    outline: 3px solid var(--coin);
     outline-offset: 2px;
   }
 
@@ -254,72 +257,42 @@
   .status-banner {
     display: none;
     text-align: center;
-    padding: 11px;
-    border-radius: 3px;
-    font-weight: 700;
-    font-size: 0.9rem;
-    letter-spacing: 0.02em;
-    border: 1px solid transparent;
+    padding: 12px;
+    font-weight: 900;
+    font-size: 0.95rem;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+    border: 3px solid var(--ink);
   }
   .status-banner.show { display: block; }
-  .status-win { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); }
-  .status-lose { background: var(--danger-soft); border-color: var(--danger); color: var(--danger); }
+  .status-win { background: var(--pipe); color: var(--panel); }
+  .status-lose { background: var(--danger); color: var(--panel); }
 
-  /* ---------- HUD ---------- */
-  .hud {
-    display: flex;
-    align-items: stretch;
-    gap: 10px;
-  }
-  .readout {
-    flex: 1;
-    background: var(--panel);
-    border: 1px solid var(--line-strong);
-    border-radius: 3px;
-    padding: 8px 12px;
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-  }
-  .readout-label {
-    font-size: 0.62rem;
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
-    color: var(--ink-dim);
-  }
-  .readout-value {
-    font-size: 1.5rem;
-    font-weight: 700;
-    font-variant-numeric: tabular-nums;
-    letter-spacing: 0.04em;
-  }
-  .readout.mines .readout-value { color: var(--danger); }
-  .readout.timer .readout-value { color: var(--accent); }
+  /* ---------- Reset (1-Up) button ---------- */
   .reset-btn {
     width: 52px;
-    background: var(--panel);
-    border: 1px solid var(--line-strong);
-    border-radius: 3px;
-    color: var(--ink);
+    background: var(--brick);
+    border: 3px solid var(--ink);
+    color: var(--panel);
     font-size: 1.3rem;
+    font-weight: 900;
     cursor: pointer;
     line-height: 1;
   }
-  .reset-btn:active { background: var(--panel-2); }
+  .reset-btn:active { background: var(--brick-dark); }
 
   /* ---------- Board ---------- */
   .board-wrap {
     overflow: auto;
     -webkit-overflow-scrolling: touch;
     overscroll-behavior: contain;
-    border: 1px solid var(--line-strong);
-    border-radius: 3px;
     background: var(--panel);
-    padding: 8px;
+    border: 3px solid var(--ink);
+    padding: 10px;
   }
   .board {
     display: grid;
-    gap: 2px;
+    gap: 3px;
     width: max-content;
     margin: 0 auto;
     user-select: none;
@@ -329,50 +302,53 @@
   .cell {
     width: 28px;
     height: 28px;
-    background: var(--panel-3);
     border: none;
-    border-radius: 2px;
     display: flex;
     align-items: center;
     justify-content: center;
     font-size: 0.85rem;
-    font-weight: 800;
+    font-weight: 900;
     cursor: pointer;
     padding: 0;
     color: var(--ink);
-    font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    font-family: "Courier New", ui-monospace, monospace;
     touch-action: manipulation;
     -webkit-user-select: none;
     user-select: none;
   }
-  .cell.hidden { box-shadow: inset 0 0 0 1px var(--line); }
-  .cell.hidden:active { background: var(--panel-2); }
+  .cell.hidden {
+    background: var(--block);
+    box-shadow:
+      inset 3px 3px 0 var(--block-face),
+      inset -3px -3px 0 var(--block-dark);
+  }
+  .cell.hidden::after { content: "?"; color: var(--ink); }
+  .cell.hidden:active {
+    box-shadow: inset 2px 2px 0 var(--block-face), inset -2px -2px 0 var(--block-dark);
+  }
+  .cell.hidden.flag::after { content: "\1F6A9"; font-size: 0.85rem; }
   .cell.revealed {
-    background: var(--bg);
-    box-shadow: inset 0 0 0 1px var(--line);
+    background: var(--panel-2);
+    box-shadow: inset 0 0 0 2px var(--panel);
     cursor: default;
   }
   .cell.mine-hit { background: var(--danger); color: var(--panel); }
+  .cell.mine-hit::after, .cell.mine::after { content: "\1F4A3"; font-size: 0.85rem; }
   .cell.mine-shown { background: var(--panel-2); }
-  .cell.flag { color: var(--flag); font-size: 0.95rem; }
-  .cell.flag::after { content: "▲"; }
-  .cell.mine::after { content: "✳"; }
   .n1 { color: var(--n1); } .n2 { color: var(--n2); } .n3 { color: var(--n3); }
   .n4 { color: var(--n4); } .n5 { color: var(--n5); } .n6 { color: var(--n6); }
   .n7 { color: var(--n7); } .n8 { color: var(--n8); }
 
   @media (max-width: 420px) {
-    .tb-fields { grid-template-columns: 1fr; }
-    .tb-field { border-right: none; border-bottom: 1px solid var(--line); }
-    .tb-field:last-child { border-bottom: none; }
-    .cell { width: 24px; height: 24px; font-size: 0.75rem; }
+    .marquee h1 { font-size: 1.5rem; }
+    .cell { width: 24px; height: 24px; font-size: 0.72rem; }
   }
 
   @media (prefers-reduced-motion: no-preference) {
-    .cell.revealed { animation: reveal-in 0.12s ease-out; }
+    .cell.revealed { animation: pop-in 0.1s ease-out; }
   }
-  @keyframes reveal-in {
-    from { transform: scale(0.85); opacity: 0.4; }
+  @keyframes pop-in {
+    from { transform: scale(0.8); opacity: 0.5; }
     to { transform: scale(1); opacity: 1; }
   }
 </style>
@@ -380,58 +356,47 @@
 <body>
 <div id="sheet">
 
-  <header class="titleblock">
-    <div class="tb-main">
-      <span class="tb-mark">✳</span>
-      <h1>Minesweeper</h1>
-      <p class="tb-sub mono">DWG MS-01</p>
+  <div class="marquee">
+    <h1>BOMBSWEEPER</h1>
+    <p>Clear every block. Don't wake a bomb.</p>
+  </div>
+
+  <div class="hud-row">
+    <div class="hud-bar">
+      <div class="hud-cell bombs">
+        <span class="hud-label">Bombs</span>
+        <span class="hud-value" id="mine-counter">010</span>
+      </div>
+      <div class="hud-cell stage">
+        <span class="hud-label">Stage</span>
+        <span class="hud-value" id="tb-stage">1-1</span>
+      </div>
+      <div class="hud-cell time">
+        <span class="hud-label">Time</span>
+        <span class="hud-value" id="timer-display">000</span>
+      </div>
     </div>
-    <div class="tb-fields mono">
-      <div class="tb-field">
-        <span class="tb-label">Grid</span>
-        <span class="tb-value" id="tb-grid">9 × 9</span>
-      </div>
-      <div class="tb-field">
-        <span class="tb-label">Mines</span>
-        <span class="tb-value" id="tb-mines-spec">10</span>
-      </div>
-      <div class="tb-field">
-        <span class="tb-label">Status</span>
-        <span class="tb-value" id="tb-status">Ready</span>
-      </div>
-    </div>
-  </header>
+    <button class="reset-btn pixel" id="btn-reset" type="button" aria-label="New game">&#8635;</button>
+  </div>
 
   <section class="panel">
-    <p class="spec-label">Difficulty</p>
-    <div class="toggle-group" id="difficulty-chips"></div>
+    <p class="panel-label">Select World</p>
+    <div class="world-group" id="difficulty-chips"></div>
   </section>
 
   <div class="status-banner" id="status-banner"></div>
 
-  <section class="hud">
-    <div class="readout mines">
-      <span class="readout-label">Mines Left</span>
-      <span class="readout-value mono" id="mine-counter">010</span>
-    </div>
-    <button class="reset-btn" id="btn-reset" type="button" aria-label="New game">⟲</button>
-    <div class="readout timer">
-      <span class="readout-label">Time</span>
-      <span class="readout-value mono" id="timer-display">000</span>
-    </div>
-  </section>
-
-  <div class="board-wrap">
+  <div class="board-wrap pixel">
     <div class="board" id="board"></div>
   </div>
 
   <section class="panel">
-    <p class="spec-label">Input Mode</p>
+    <p class="panel-label">Input Mode</p>
     <div class="btn-row">
       <button class="mode-btn" id="btn-mode-reveal" type="button">Reveal Tap</button>
       <button class="mode-btn" id="btn-mode-flag" type="button">Flag Tap</button>
     </div>
-    <p class="footnote">Desktop: left-click to clear a cell, right-click to flag it. Touch: pick a mode above, or hold a cell to flag it regardless of mode. First click is always safe.</p>
+    <p class="footnote">Desktop: left-click clears a block, right-click flags it. Touch: pick a mode above, or hold a block to flag it either way. First tap is always safe.</p>
   </section>
 
 </div>
@@ -441,9 +406,9 @@
   "use strict";
 
   var DIFFICULTIES = {
-    "Beginner":     { rows: 9,  cols: 9,  mines: 10 },
-    "Intermediate": { rows: 16, cols: 16, mines: 40 },
-    "Expert":       { rows: 16, cols: 30, mines: 99 }
+    "Beginner":     { rows: 9,  cols: 9,  mines: 10, stage: "1-1" },
+    "Intermediate": { rows: 16, cols: 16, mines: 40, stage: "1-2" },
+    "Expert":       { rows: 16, cols: 30, mines: 99, stage: "1-3" }
   };
 
   var state = {
@@ -470,34 +435,36 @@
     return String(n).padStart(3, "0");
   }
 
-  function updateTitleBlock() {
-    $("tb-grid").textContent = state.rows + " × " + state.cols;
-    $("tb-mines-spec").textContent = state.mines;
+  function updateStage() {
+    $("tb-stage").textContent = DIFFICULTIES[state.difficulty].stage;
   }
 
-  function setStatus(text) {
-    $("tb-status").textContent = text;
-  }
-
-  // ---------- Difficulty chips ----------
+  // ---------- World select ----------
   function renderDifficultyChips() {
     var wrap = $("difficulty-chips");
     wrap.innerHTML = "";
     Object.keys(DIFFICULTIES).forEach(function (name) {
-      var chip = document.createElement("div");
-      chip.className = "toggle-btn" + (state.difficulty === name ? " selected" : "");
-      chip.textContent = name;
-      chip.setAttribute("role", "button");
-      chip.setAttribute("tabindex", "0");
-      chip.addEventListener("click", function () {
+      var d = DIFFICULTIES[name];
+      var btn = document.createElement("div");
+      btn.className = "world-btn" + (state.difficulty === name ? " selected" : "");
+      btn.setAttribute("role", "button");
+      btn.setAttribute("tabindex", "0");
+      var num = document.createElement("span");
+      num.className = "num";
+      num.textContent = d.stage;
+      var label = document.createElement("span");
+      label.className = "name";
+      label.textContent = name;
+      btn.appendChild(num);
+      btn.appendChild(label);
+      btn.addEventListener("click", function () {
         state.difficulty = name;
-        var d = DIFFICULTIES[name];
         state.rows = d.rows; state.cols = d.cols; state.mines = d.mines;
         renderDifficultyChips();
-        updateTitleBlock();
+        updateStage();
         newGame();
       });
-      wrap.appendChild(chip);
+      wrap.appendChild(btn);
     });
   }
 
@@ -528,8 +495,7 @@
     }
     $("status-banner").className = "status-banner";
     $("status-banner").textContent = "";
-    $("btn-reset").textContent = "⟲";
-    setStatus("Ready");
+    $("btn-reset").innerHTML = "&#8635;";
     updateMineCounter();
     updateTimerDisplay();
     renderBoard();
@@ -598,7 +564,6 @@
       state.started = true;
       placeMines(r, c);
       startTimer();
-      setStatus("In progress");
     }
 
     if (cell.mine) {
@@ -658,12 +623,10 @@
       state.over = true;
       state.won = true;
       stopTimer();
-      $("btn-reset").textContent = "✓";
-      setStatus("Cleared");
+      $("btn-reset").textContent = "\2605";
       var banner = $("status-banner");
       banner.className = "status-banner show status-win";
-      banner.textContent = "Cleared in " + state.timerSeconds + "s — board swept.";
-      // auto-flag remaining mines
+      banner.textContent = "Stage Clear! Swept in " + state.timerSeconds + "s";
       for (var r = 0; r < state.rows; r++) {
         for (var c = 0; c < state.cols; c++) {
           var cell = state.grid[r][c];
@@ -679,8 +642,7 @@
     state.over = true;
     state.won = false;
     stopTimer();
-    $("btn-reset").textContent = "✕";
-    setStatus("Detonated");
+    $("btn-reset").innerHTML = "&#128163;";
     for (var r = 0; r < state.rows; r++) {
       for (var c = 0; c < state.cols; c++) {
         var cell = state.grid[r][c];
@@ -689,7 +651,7 @@
     }
     var banner = $("status-banner");
     banner.className = "status-banner show status-lose";
-    banner.textContent = "Detonated — mine hit at that cell.";
+    banner.textContent = "Game Over — a bomb went off";
     renderBoard(hitR, hitC);
   }
 
@@ -759,7 +721,7 @@
   state.rows = initial.rows; state.cols = initial.cols; state.mines = initial.mines;
   renderDifficultyChips();
   renderTapMode();
-  updateTitleBlock();
+  updateStage();
   newGame();
 })();
 </script>
