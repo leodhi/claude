@@ -20,14 +20,19 @@ SYMBOLS = {
     "HG=F": "Copper futures",
 }
 
-LOOKBACK_MINUTES = int(os.environ.get("LOOKBACK_MINUTES", "5"))
-MOVE_THRESHOLD_PCT = float(os.environ.get("MOVE_THRESHOLD_PCT", "0.4"))
-R2_THRESHOLD = float(os.environ.get("R2_THRESHOLD", "0.85"))
-COOLDOWN_MINUTES = float(os.environ.get("COOLDOWN_MINUTES", "15"))
-STALE_DATA_MINUTES = float(os.environ.get("STALE_DATA_MINUTES", "20"))
+def _env(name, default):
+    value = os.environ.get(name)
+    return value if value else default
+
+
+LOOKBACK_MINUTES = int(_env("LOOKBACK_MINUTES", "5"))
+MOVE_THRESHOLD_PCT = float(_env("MOVE_THRESHOLD_PCT", "0.4"))
+R2_THRESHOLD = float(_env("R2_THRESHOLD", "0.85"))
+COOLDOWN_MINUTES = float(_env("COOLDOWN_MINUTES", "15"))
+STALE_DATA_MINUTES = float(_env("STALE_DATA_MINUTES", "20"))
 
 NTFY_TOPIC = os.environ.get("NTFY_TOPIC")
-NTFY_SERVER = os.environ.get("NTFY_SERVER", "https://ntfy.sh")
+NTFY_SERVER = _env("NTFY_SERVER", "https://ntfy.sh")
 
 STATE_PATH = os.path.join(os.path.dirname(__file__), "..", "state", "alert_state.json")
 
