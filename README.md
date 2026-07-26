@@ -39,6 +39,17 @@ alerts on the same move.
    test it manually beforehand from the Actions tab via "Run workflow"
    (workflow_dispatch) on this branch.
 
+### Testing the phone notification
+
+Clicking "Run workflow" normally just checks live prices — if the market
+hasn't made a sharp move (or is closed), nothing gets sent, which is
+expected and not a failure. To confirm the phone notification path itself
+works, regardless of market conditions: go to the Actions tab → "Metals
+Spike Alerts" → **Run workflow**, and check the **"Send a test push
+notification instead of checking prices"** box before running. That sends
+a fixed test message straight to your ntfy topic so you can confirm it
+reaches your phone.
+
 ### Notes and caveats
 
 - Yahoo's free feed for futures is delayed (typically 10–15 min), so this

@@ -124,6 +124,17 @@ def send_ntfy(title, message, priority="high", tags="rotating_light"):
 
 
 def main():
+    if _env("TEST_ALERT", "") == "true":
+        send_ntfy(
+            "Metals alert test",
+            "This is a test push from the Metals Spike Alerts workflow. "
+            "If you can see this on your phone, the ntfy setup works.",
+            priority="default",
+            tags="white_check_mark",
+        )
+        print("Sent test alert.")
+        return
+
     state = load_state()
     now = time.time()
     changed = False
