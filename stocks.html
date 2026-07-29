@@ -1,0 +1,826 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>Tickr</title>
+<style>
+  :root {
+    --bg: #0b0f17;
+    --panel: #131a27;
+    --panel-2: #1b2434;
+    --up: #22d3a8;
+    --down: #ff5d6c;
+    --accent: #4e8cff;
+    --text: #eef2f9;
+    --text-dim: #8b96ab;
+    --border: #26314a;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body {
+    margin: 0; padding: 0; min-height: 100%;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  }
+  #app {
+    max-width: 520px;
+    margin: 0 auto;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    padding: 18px 14px 90px;
+    position: relative;
+  }
+  .topbar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+  .brand { font-size: 1.4rem; font-weight: 800; letter-spacing: 0.3px; }
+  .brand span { color: var(--accent); }
+  .status-dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; background: var(--text-dim); margin-right: 6px; }
+  .status-dot.live { background: var(--up); box-shadow: 0 0 6px var(--up); }
+  .status-dot.err { background: var(--down); }
+  .status-pill { display: flex; align-items: center; font-size: 0.72rem; color: var(--text-dim); background: var(--panel); border: 1px solid var(--border); padding: 5px 10px; border-radius: 999px; cursor: pointer; }
+
+  .screen { display: none; flex-direction: column; gap: 12px; }
+  .screen.active { display: flex; }
+
+  .card { background: var(--panel); border: 1px solid var(--border); border-radius: 14px; padding: 14px; }
+  label { display: block; font-size: 0.75rem; color: var(--text-dim); margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.06em; }
+  input[type="text"], input[type="number"] {
+    width: 100%; background: var(--panel-2); border: 1px solid var(--border); color: var(--text);
+    padding: 11px 12px; border-radius: 10px; font-size: 1rem;
+  }
+  input:focus { outline: 2px solid var(--accent); }
+  .row { display: flex; gap: 8px; }
+  .row > * { flex: 1; }
+  button { font-family: inherit; cursor: pointer; }
+  button.primary {
+    background: var(--accent); color: #06101f; border: none; padding: 13px; border-radius: 12px;
+    font-size: 1rem; font-weight: 700; width: 100%;
+  }
+  button.primary:active { transform: scale(0.98); }
+  button.primary:disabled { opacity: 0.4; cursor: not-allowed; }
+  button.secondary {
+    background: transparent; color: var(--text); border: 1px solid var(--border); padding: 11px;
+    border-radius: 12px; font-size: 0.9rem; width: 100%;
+  }
+  button.icon-btn { background: var(--panel-2); border: 1px solid var(--border); color: var(--text-dim); border-radius: 10px; width: 42px; font-size: 1rem; }
+  small.hint { color: var(--text-dim); display: block; margin-top: 6px; font-size: 0.75rem; line-height: 1.4; }
+  a { color: var(--accent); }
+
+  .empty { text-align: center; color: var(--text-dim); padding: 30px 10px; font-size: 0.9rem; }
+
+  .stock-card {
+    display: flex; align-items: center; justify-content: space-between; gap: 10px;
+    background: var(--panel); border: 1px solid var(--border); border-radius: 14px; padding: 12px 14px; cursor: pointer;
+  }
+  .stock-card:active { background: var(--panel-2); }
+  .sc-left { display: flex; flex-direction: column; min-width: 0; }
+  .sc-symbol { font-weight: 800; font-size: 1rem; }
+  .sc-name { font-size: 0.72rem; color: var(--text-dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 130px; }
+  .sc-spark { flex: 1; height: 34px; margin: 0 8px; }
+  .sc-right { text-align: right; display: flex; flex-direction: column; min-width: 74px; }
+  .sc-price { font-weight: 700; font-variant-numeric: tabular-nums; }
+  .sc-change { font-size: 0.78rem; font-variant-numeric: tabular-nums; }
+  .up { color: var(--up); }
+  .down { color: var(--down); }
+  .flash-up { animation: flashUp 0.6s ease; }
+  .flash-down { animation: flashDown 0.6s ease; }
+  @keyframes flashUp { 0% { background: rgba(34,211,168,0.25); } 100% { background: transparent; } }
+  @keyframes flashDown { 0% { background: rgba(255,93,108,0.25); } 100% { background: transparent; } }
+
+  .add-row { display: flex; gap: 8px; }
+  .add-row input { flex: 1; text-transform: uppercase; }
+
+  .detail-price { font-size: 2.4rem; font-weight: 800; font-variant-numeric: tabular-nums; }
+  .detail-change { font-size: 1.05rem; font-weight: 700; }
+  .range-bar { position: relative; height: 6px; background: var(--panel-2); border-radius: 4px; margin: 14px 0 6px; }
+  .range-fill { position: absolute; top: -4px; width: 3px; height: 14px; background: var(--text); border-radius: 2px; }
+  .range-labels { display: flex; justify-content: space-between; font-size: 0.72rem; color: var(--text-dim); }
+  .stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px; }
+  .stat-box { background: var(--panel-2); border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; }
+  .stat-box .k { font-size: 0.68rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.05em; }
+  .stat-box .v { font-size: 0.95rem; font-weight: 700; margin-top: 2px; font-variant-numeric: tabular-nums; }
+
+  .summary-card { background: linear-gradient(135deg, var(--panel-2), var(--panel)); border: 1px solid var(--border); border-radius: 16px; padding: 18px; text-align: center; }
+  .summary-value { font-size: 2rem; font-weight: 800; font-variant-numeric: tabular-nums; }
+  .summary-sub { font-size: 0.85rem; margin-top: 4px; }
+
+  .holding-card { background: var(--panel); border: 1px solid var(--border); border-radius: 14px; padding: 12px 14px; }
+  .holding-top { display: flex; justify-content: space-between; align-items: baseline; }
+  .holding-meta { font-size: 0.75rem; color: var(--text-dim); margin-top: 4px; }
+  .holding-pl { display: flex; justify-content: space-between; margin-top: 8px; font-size: 0.85rem; }
+
+  .tabbar {
+    position: fixed; bottom: 0; left: 0; right: 0;
+    background: var(--panel); border-top: 1px solid var(--border);
+    display: flex; justify-content: center; padding: 6px 0 max(6px, env(safe-area-inset-bottom));
+    z-index: 10;
+  }
+  .tabbar-inner { display: flex; width: 100%; max-width: 520px; }
+  .tab-btn { flex: 1; background: none; border: none; color: var(--text-dim); font-size: 0.78rem; padding: 8px 4px; display: flex; flex-direction: column; align-items: center; gap: 2px; }
+  .tab-btn .ic { font-size: 1.15rem; }
+  .tab-btn.active { color: var(--accent); }
+
+  .backbtn { background: none; border: none; color: var(--accent); font-size: 0.95rem; padding: 4px 0 8px; text-align: left; }
+  .modal-overlay {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.55); display: none; align-items: flex-end; justify-content: center; z-index: 20;
+  }
+  .modal-overlay.active { display: flex; }
+  .modal-sheet {
+    background: var(--panel); border: 1px solid var(--border); border-radius: 18px 18px 0 0;
+    width: 100%; max-width: 520px; padding: 18px 16px calc(18px + env(safe-area-inset-bottom));
+    display: flex; flex-direction: column; gap: 12px;
+  }
+  .modal-title { font-size: 1.05rem; font-weight: 800; }
+</style>
+</head>
+<body>
+<div id="app">
+  <div class="topbar">
+    <div class="brand">Tick<span>r</span></div>
+    <div class="status-pill" id="status-pill"><span class="status-dot" id="status-dot"></span><span id="status-text">Offline</span></div>
+  </div>
+
+  <!-- WATCHLIST -->
+  <div class="screen active" id="screen-watchlist">
+    <div class="add-row">
+      <input type="text" id="add-symbol-input" placeholder="Add symbol e.g. AAPL" maxlength="10">
+      <button class="icon-btn" id="btn-add-symbol" type="button">＋</button>
+    </div>
+    <div id="watchlist-error" style="display:none;color:var(--down);font-size:0.8rem;"></div>
+    <div id="watchlist-list"></div>
+  </div>
+
+  <!-- DETAIL -->
+  <div class="screen" id="screen-detail">
+    <button class="backbtn" id="btn-detail-back" type="button">‹ Watchlist</button>
+    <div class="card">
+      <div class="sc-symbol" id="detail-symbol" style="font-size:1.1rem"></div>
+      <div class="sc-name" id="detail-name" style="max-width:100%;font-size:0.8rem;margin-bottom:6px"></div>
+      <div class="detail-price" id="detail-price">--</div>
+      <div class="detail-change" id="detail-change">--</div>
+      <canvas id="detail-spark" height="90" style="width:100%;margin-top:10px"></canvas>
+      <div class="range-bar"><div class="range-fill" id="detail-range-fill"></div></div>
+      <div class="range-labels"><span id="detail-range-low">--</span><span id="detail-range-high">--</span></div>
+      <div class="stat-grid">
+        <div class="stat-box"><div class="k">Open</div><div class="v" id="detail-open">--</div></div>
+        <div class="stat-box"><div class="k">Prev Close</div><div class="v" id="detail-pc">--</div></div>
+      </div>
+    </div>
+    <div class="row">
+      <button class="secondary" id="btn-detail-add-portfolio" type="button">Add to Portfolio</button>
+      <button class="secondary" id="btn-detail-remove" type="button">Remove from Watchlist</button>
+    </div>
+  </div>
+
+  <!-- PORTFOLIO -->
+  <div class="screen" id="screen-portfolio">
+    <div class="summary-card">
+      <div class="summary-sub" style="color:var(--text-dim)">Portfolio Value</div>
+      <div class="summary-value" id="portfolio-total">$0.00</div>
+      <div class="summary-sub" id="portfolio-pl">--</div>
+    </div>
+    <button class="primary" id="btn-open-add-holding" type="button">+ Add Holding</button>
+    <div id="portfolio-list"></div>
+  </div>
+
+  <!-- SETTINGS -->
+  <div class="screen" id="screen-settings">
+    <div class="card">
+      <label>Finnhub API Key</label>
+      <input type="text" id="api-key-input" placeholder="Paste your free API key">
+      <small class="hint">Real-time quotes are powered by <a href="https://finnhub.io/register" target="_blank" rel="noopener">Finnhub</a>'s free tier. Sign up, copy your API key, and paste it here — it's stored only in this browser.</small>
+      <button class="primary" id="btn-save-key" type="button" style="margin-top:12px">Save & Connect</button>
+    </div>
+    <div class="card" id="settings-info">
+      <label>Connection</label>
+      <div id="settings-status" style="font-size:0.85rem;color:var(--text-dim)">Not connected.</div>
+    </div>
+    <div class="card">
+      <label>Data</label>
+      <button class="secondary" id="btn-clear-data" type="button">Clear watchlist, portfolio &amp; key</button>
+    </div>
+  </div>
+</div>
+
+<!-- Add to portfolio modal -->
+<div class="modal-overlay" id="modal-add-holding">
+  <div class="modal-sheet">
+    <div class="modal-title">Add Holding</div>
+    <div>
+      <label>Symbol</label>
+      <input type="text" id="holding-symbol-input" placeholder="AAPL" maxlength="10">
+    </div>
+    <div class="row">
+      <div>
+        <label>Shares</label>
+        <input type="number" id="holding-shares-input" placeholder="10" min="0" step="any">
+      </div>
+      <div>
+        <label>Avg Cost / Share</label>
+        <input type="number" id="holding-cost-input" placeholder="150.00" min="0" step="any">
+      </div>
+    </div>
+    <button class="primary" id="btn-confirm-holding" type="button">Add</button>
+    <button class="secondary" id="btn-cancel-holding" type="button">Cancel</button>
+  </div>
+</div>
+
+<div class="tabbar">
+  <div class="tabbar-inner">
+    <button class="tab-btn active" data-tab="watchlist" type="button"><span class="ic">📈</span>Watchlist</button>
+    <button class="tab-btn" data-tab="portfolio" type="button"><span class="ic">💼</span>Portfolio</button>
+    <button class="tab-btn" data-tab="settings" type="button"><span class="ic">⚙️</span>Settings</button>
+  </div>
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  var STORAGE_KEY = "tickr_state_v1";
+  var MAX_SPARK_POINTS = 80;
+  var QUOTE_POLL_MS = 15000;
+  var RECONNECT_BASE_MS = 2000;
+
+  var state = loadState();
+  var priceCache = {};       // symbol -> {c,d,dp,h,l,o,pc}
+  var nameCache = {};        // symbol -> company name
+  var sparkData = {};        // symbol -> [prices]
+  var ws = null;
+  var wsReconnectAttempts = 0;
+  var wsReconnectTimer = null;
+  var pollTimer = null;
+  var currentDetailSymbol = null;
+  var activeTab = "watchlist";
+
+  function defaultState() {
+    return { apiKey: "", watchlist: [], portfolio: [] };
+  }
+
+  function loadState() {
+    try {
+      var raw = localStorage.getItem(STORAGE_KEY);
+      if (!raw) return defaultState();
+      var parsed = JSON.parse(raw);
+      return Object.assign(defaultState(), parsed);
+    } catch (e) {
+      return defaultState();
+    }
+  }
+
+  function saveState() {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  }
+
+  function $(id) { return document.getElementById(id); }
+
+  function fmtMoney(n) {
+    if (n === null || n === undefined || isNaN(n)) return "--";
+    var neg = n < 0;
+    var abs = Math.abs(n);
+    return (neg ? "-$" : "$") + abs.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  }
+
+  function fmtPct(n) {
+    if (n === null || n === undefined || isNaN(n)) return "--";
+    return (n >= 0 ? "+" : "") + n.toFixed(2) + "%";
+  }
+
+  function fmtChange(n) {
+    if (n === null || n === undefined || isNaN(n)) return "--";
+    return (n >= 0 ? "+" : "") + n.toFixed(2);
+  }
+
+  // ---------- Tabs ----------
+  function showTab(tab) {
+    activeTab = tab;
+    ["watchlist", "portfolio", "settings"].forEach(function (t) {
+      $("screen-" + t).classList.toggle("active", t === tab && !isDetailActive());
+    });
+    document.querySelectorAll(".tab-btn").forEach(function (b) {
+      b.classList.toggle("active", b.getAttribute("data-tab") === tab);
+    });
+    if (tab === "portfolio") renderPortfolio();
+    if (tab === "watchlist") renderWatchlist();
+    if (tab === "settings") renderSettings();
+  }
+
+  function isDetailActive() { return $("screen-detail").classList.contains("active"); }
+
+  document.querySelectorAll(".tab-btn").forEach(function (btn) {
+    btn.addEventListener("click", function () {
+      $("screen-detail").classList.remove("active");
+      showTab(btn.getAttribute("data-tab"));
+    });
+  });
+
+  // ---------- Status ----------
+  function setStatus(mode, text) {
+    var dot = $("status-dot");
+    dot.className = "status-dot" + (mode === "live" ? " live" : mode === "err" ? " err" : "");
+    $("status-text").textContent = text;
+    var settingsStatus = $("settings-status");
+    if (settingsStatus) settingsStatus.textContent = text;
+  }
+
+  $("status-pill").addEventListener("click", function () {
+    $("screen-detail").classList.remove("active");
+    showTab("settings");
+  });
+
+  // ---------- API ----------
+  function apiBase() { return "https://finnhub.io/api/v1"; }
+
+  function fetchQuote(symbol) {
+    if (!state.apiKey) return Promise.reject(new Error("no key"));
+    var url = apiBase() + "/quote?symbol=" + encodeURIComponent(symbol) + "&token=" + encodeURIComponent(state.apiKey);
+    return fetch(url).then(function (res) {
+      if (!res.ok) throw new Error("HTTP " + res.status);
+      return res.json();
+    }).then(function (data) {
+      if (data && typeof data.c === "number") {
+        priceCache[symbol] = data;
+        pushSpark(symbol, data.c);
+        return data;
+      }
+      throw new Error("invalid symbol");
+    });
+  }
+
+  function fetchProfile(symbol) {
+    if (!state.apiKey || nameCache[symbol]) return Promise.resolve(nameCache[symbol] || "");
+    var url = apiBase() + "/stock/profile2?symbol=" + encodeURIComponent(symbol) + "&token=" + encodeURIComponent(state.apiKey);
+    return fetch(url).then(function (res) { return res.ok ? res.json() : {}; }).then(function (data) {
+      nameCache[symbol] = (data && data.name) || "";
+      return nameCache[symbol];
+    }).catch(function () { return ""; });
+  }
+
+  function pushSpark(symbol, price) {
+    if (!sparkData[symbol]) sparkData[symbol] = [];
+    var arr = sparkData[symbol];
+    arr.push(price);
+    if (arr.length > MAX_SPARK_POINTS) arr.shift();
+  }
+
+  function allTrackedSymbols() {
+    var set = {};
+    state.watchlist.forEach(function (s) { set[s] = true; });
+    state.portfolio.forEach(function (h) { set[h.symbol] = true; });
+    return Object.keys(set);
+  }
+
+  function pollAllQuotes() {
+    var symbols = allTrackedSymbols();
+    symbols.forEach(function (s) {
+      fetchQuote(s).then(function () {
+        rerenderForSymbol(s);
+      }).catch(function () {});
+      fetchProfile(s).then(function () { rerenderForSymbol(s); });
+    });
+  }
+
+  function startPolling() {
+    stopPolling();
+    pollAllQuotes();
+    pollTimer = setInterval(pollAllQuotes, QUOTE_POLL_MS);
+  }
+
+  function stopPolling() {
+    if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
+  }
+
+  // ---------- WebSocket (real-time trades) ----------
+  function connectWS() {
+    if (!state.apiKey) { setStatus("off", "Offline — add API key in Settings"); return; }
+    closeWS();
+    setStatus("off", "Connecting...");
+    try {
+      ws = new WebSocket("wss://ws.finnhub.io?token=" + encodeURIComponent(state.apiKey));
+    } catch (e) {
+      setStatus("err", "Connection failed");
+      scheduleReconnect();
+      return;
+    }
+    ws.onopen = function () {
+      wsReconnectAttempts = 0;
+      setStatus("live", "Live");
+      allTrackedSymbols().forEach(subscribeSymbol);
+    };
+    ws.onmessage = function (evt) {
+      var msg;
+      try { msg = JSON.parse(evt.data); } catch (e) { return; }
+      if (msg.type === "trade" && Array.isArray(msg.data)) {
+        msg.data.forEach(function (t) {
+          var symbol = t.s, price = t.p;
+          if (!symbol || typeof price !== "number") return;
+          var prev = priceCache[symbol] || {};
+          var pc = prev.pc;
+          var updated = Object.assign({}, prev, { c: price });
+          if (typeof pc === "number" && pc > 0) {
+            updated.d = price - pc;
+            updated.dp = ((price - pc) / pc) * 100;
+          }
+          if (typeof prev.h !== "number" || price > prev.h) updated.h = price;
+          if (typeof prev.l !== "number" || price < prev.l) updated.l = price;
+          priceCache[symbol] = updated;
+          pushSpark(symbol, price);
+          rerenderForSymbol(symbol, price >= (prev.c || price) ? "up" : "down");
+        });
+      }
+    };
+    ws.onerror = function () { setStatus("err", "Connection error"); };
+    ws.onclose = function () {
+      if (state.apiKey) {
+        setStatus("err", "Disconnected — retrying...");
+        scheduleReconnect();
+      } else {
+        setStatus("off", "Offline");
+      }
+    };
+  }
+
+  function closeWS() {
+    if (ws) {
+      ws.onclose = null;
+      try { ws.close(); } catch (e) {}
+      ws = null;
+    }
+  }
+
+  function scheduleReconnect() {
+    if (wsReconnectTimer) return;
+    wsReconnectAttempts++;
+    var delay = Math.min(RECONNECT_BASE_MS * Math.pow(1.6, wsReconnectAttempts), 30000);
+    wsReconnectTimer = setTimeout(function () {
+      wsReconnectTimer = null;
+      connectWS();
+    }, delay);
+  }
+
+  function subscribeSymbol(symbol) {
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify({ type: "subscribe", symbol: symbol }));
+    }
+  }
+
+  function unsubscribeSymbol(symbol) {
+    if (allTrackedSymbols().indexOf(symbol) !== -1) return; // still needed elsewhere
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify({ type: "unsubscribe", symbol: symbol }));
+    }
+  }
+
+  function rerenderForSymbol(symbol, flashDir) {
+    if (activeTab === "watchlist" && !isDetailActive()) renderWatchlist(flashDir ? symbol : null, flashDir);
+    if (activeTab === "portfolio" && !isDetailActive()) renderPortfolio();
+    if (isDetailActive() && currentDetailSymbol === symbol) renderDetail(symbol);
+  }
+
+  // ---------- Sparkline drawing ----------
+  function drawSparkline(canvas, data, color) {
+    if (!canvas) return;
+    var ctx = canvas.getContext("2d");
+    var dpr = window.devicePixelRatio || 1;
+    var w = canvas.clientWidth || canvas.width;
+    var h = canvas.clientHeight || canvas.height;
+    canvas.width = w * dpr;
+    canvas.height = h * dpr;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, w, h);
+    if (!data || data.length < 2) {
+      ctx.strokeStyle = "#33405c";
+      ctx.setLineDash([3, 3]);
+      ctx.beginPath();
+      ctx.moveTo(0, h / 2);
+      ctx.lineTo(w, h / 2);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      return;
+    }
+    var min = Math.min.apply(null, data);
+    var max = Math.max.apply(null, data);
+    var range = max - min || 1;
+    ctx.beginPath();
+    data.forEach(function (v, i) {
+      var x = (i / (data.length - 1)) * w;
+      var y = h - ((v - min) / range) * (h - 6) - 3;
+      if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+    });
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 2;
+    ctx.lineJoin = "round";
+    ctx.stroke();
+  }
+
+  // ---------- Watchlist screen ----------
+  $("btn-add-symbol").addEventListener("click", addSymbolFromInput);
+  $("add-symbol-input").addEventListener("keydown", function (e) { if (e.key === "Enter") addSymbolFromInput(); });
+
+  function addSymbolFromInput() {
+    var input = $("add-symbol-input");
+    var symbol = input.value.trim().toUpperCase();
+    var errBox = $("watchlist-error");
+    errBox.style.display = "none";
+    if (!symbol) return;
+    if (!state.apiKey) {
+      errBox.textContent = "Add your Finnhub API key in Settings first.";
+      errBox.style.display = "";
+      return;
+    }
+    if (state.watchlist.indexOf(symbol) !== -1) {
+      input.value = "";
+      return;
+    }
+    fetchQuote(symbol).then(function () {
+      state.watchlist.push(symbol);
+      saveState();
+      input.value = "";
+      subscribeSymbol(symbol);
+      fetchProfile(symbol).then(function () { renderWatchlist(); });
+      renderWatchlist();
+    }).catch(function () {
+      errBox.textContent = "Couldn't find symbol \"" + symbol + "\". Check the ticker and try again.";
+      errBox.style.display = "";
+    });
+  }
+
+  function renderWatchlist(flashSymbol, flashDir) {
+    var list = $("watchlist-list");
+    list.innerHTML = "";
+    if (state.watchlist.length === 0) {
+      var empty = document.createElement("div");
+      empty.className = "empty";
+      empty.textContent = "Your watchlist is empty. Add a symbol above to start tracking real-time prices.";
+      list.appendChild(empty);
+      return;
+    }
+    state.watchlist.forEach(function (symbol) {
+      var q = priceCache[symbol];
+      var card = document.createElement("div");
+      card.className = "stock-card";
+      if (symbol === flashSymbol) card.className += flashDir === "up" ? " flash-up" : " flash-down";
+
+      var left = document.createElement("div");
+      left.className = "sc-left";
+      var symEl = document.createElement("div");
+      symEl.className = "sc-symbol";
+      symEl.textContent = symbol;
+      var nameEl = document.createElement("div");
+      nameEl.className = "sc-name";
+      nameEl.textContent = nameCache[symbol] || "";
+      left.appendChild(symEl);
+      left.appendChild(nameEl);
+
+      var sparkWrap = document.createElement("canvas");
+      sparkWrap.className = "sc-spark";
+
+      var right = document.createElement("div");
+      right.className = "sc-right";
+      var priceEl = document.createElement("div");
+      priceEl.className = "sc-price";
+      var changeEl = document.createElement("div");
+      changeEl.className = "sc-change";
+      if (q) {
+        priceEl.textContent = fmtMoney(q.c);
+        var isUp = (q.d || 0) >= 0;
+        changeEl.textContent = fmtChange(q.d) + " (" + fmtPct(q.dp) + ")";
+        changeEl.className = "sc-change " + (isUp ? "up" : "down");
+      } else {
+        priceEl.textContent = "--";
+        changeEl.textContent = "loading...";
+      }
+      right.appendChild(priceEl);
+      right.appendChild(changeEl);
+
+      card.appendChild(left);
+      card.appendChild(sparkWrap);
+      card.appendChild(right);
+      card.addEventListener("click", function () { openDetail(symbol); });
+      list.appendChild(card);
+      drawSparkline(sparkWrap, sparkData[symbol], q && (q.d || 0) >= 0 ? "#22d3a8" : "#ff5d6c");
+    });
+  }
+
+  // ---------- Detail screen ----------
+  function openDetail(symbol) {
+    currentDetailSymbol = symbol;
+    fetchProfile(symbol).then(function () { renderDetail(symbol); });
+    renderDetail(symbol);
+    document.querySelectorAll(".screen").forEach(function (s) { s.classList.remove("active"); });
+    $("screen-detail").classList.add("active");
+    if (!priceCache[symbol]) fetchQuote(symbol).then(function () { renderDetail(symbol); }).catch(function () {});
+  }
+
+  $("btn-detail-back").addEventListener("click", function () {
+    $("screen-detail").classList.remove("active");
+    currentDetailSymbol = null;
+    showTab(activeTab);
+  });
+
+  function renderDetail(symbol) {
+    var q = priceCache[symbol] || {};
+    $("detail-symbol").textContent = symbol;
+    $("detail-name").textContent = nameCache[symbol] || "";
+    $("detail-price").textContent = typeof q.c === "number" ? fmtMoney(q.c) : "--";
+    var isUp = (q.d || 0) >= 0;
+    var changeEl = $("detail-change");
+    changeEl.textContent = typeof q.d === "number" ? fmtChange(q.d) + " (" + fmtPct(q.dp) + ") today" : "--";
+    changeEl.className = "detail-change " + (isUp ? "up" : "down");
+
+    $("detail-open").textContent = typeof q.o === "number" ? fmtMoney(q.o) : "--";
+    $("detail-pc").textContent = typeof q.pc === "number" ? fmtMoney(q.pc) : "--";
+    $("detail-range-low").textContent = typeof q.l === "number" ? fmtMoney(q.l) : "--";
+    $("detail-range-high").textContent = typeof q.h === "number" ? fmtMoney(q.h) : "--";
+
+    var fill = $("detail-range-fill");
+    if (typeof q.l === "number" && typeof q.h === "number" && q.h > q.l && typeof q.c === "number") {
+      var pct = Math.min(1, Math.max(0, (q.c - q.l) / (q.h - q.l)));
+      fill.style.left = "calc(" + (pct * 100) + "% - 1.5px)";
+      fill.style.display = "";
+    } else {
+      fill.style.display = "none";
+    }
+
+    drawSparkline($("detail-spark"), sparkData[symbol], isUp ? "#22d3a8" : "#ff5d6c");
+  }
+
+  $("btn-detail-remove").addEventListener("click", function () {
+    if (!currentDetailSymbol) return;
+    var symbol = currentDetailSymbol;
+    state.watchlist = state.watchlist.filter(function (s) { return s !== symbol; });
+    saveState();
+    unsubscribeSymbol(symbol);
+    $("screen-detail").classList.remove("active");
+    currentDetailSymbol = null;
+    showTab("watchlist");
+  });
+
+  $("btn-detail-add-portfolio").addEventListener("click", function () {
+    if (!currentDetailSymbol) return;
+    openAddHoldingModal(currentDetailSymbol);
+  });
+
+  // ---------- Portfolio ----------
+  function renderPortfolio() {
+    var list = $("portfolio-list");
+    list.innerHTML = "";
+    var totalValue = 0, totalCost = 0;
+
+    if (state.portfolio.length === 0) {
+      var empty = document.createElement("div");
+      empty.className = "empty";
+      empty.textContent = "No holdings yet. Track shares you own to see live gain/loss.";
+      list.appendChild(empty);
+    }
+
+    state.portfolio.forEach(function (h, idx) {
+      var q = priceCache[h.symbol];
+      var price = q ? q.c : null;
+      var value = price !== null ? price * h.shares : null;
+      var cost = h.avgCost * h.shares;
+      totalCost += cost;
+      if (value !== null) totalValue += value; else totalValue += cost;
+      var pl = value !== null ? value - cost : null;
+      var plPct = cost > 0 && pl !== null ? (pl / cost) * 100 : null;
+
+      var card = document.createElement("div");
+      card.className = "holding-card";
+
+      var top = document.createElement("div");
+      top.className = "holding-top";
+      var symWrap = document.createElement("div");
+      symWrap.innerHTML = '<span class="sc-symbol">' + h.symbol + '</span>';
+      var priceWrap = document.createElement("div");
+      priceWrap.className = "sc-price";
+      priceWrap.textContent = price !== null ? fmtMoney(price) : "--";
+      top.appendChild(symWrap);
+      top.appendChild(priceWrap);
+
+      var meta = document.createElement("div");
+      meta.className = "holding-meta";
+      meta.textContent = h.shares + " sh @ " + fmtMoney(h.avgCost) + " avg cost";
+
+      var plRow = document.createElement("div");
+      plRow.className = "holding-pl";
+      var valueEl = document.createElement("span");
+      valueEl.textContent = "Value: " + (value !== null ? fmtMoney(value) : "--");
+      var plEl = document.createElement("span");
+      plEl.className = pl !== null && pl >= 0 ? "up" : "down";
+      plEl.textContent = pl !== null ? fmtChange(pl) + " (" + fmtPct(plPct) + ")" : "--";
+      plRow.appendChild(valueEl);
+      plRow.appendChild(plEl);
+
+      var removeBtn = document.createElement("button");
+      removeBtn.className = "secondary";
+      removeBtn.style.marginTop = "8px";
+      removeBtn.type = "button";
+      removeBtn.textContent = "Remove";
+      removeBtn.addEventListener("click", function () {
+        var symbol = h.symbol;
+        state.portfolio.splice(idx, 1);
+        saveState();
+        unsubscribeSymbol(symbol);
+        renderPortfolio();
+      });
+
+      card.appendChild(top);
+      card.appendChild(meta);
+      card.appendChild(plRow);
+      card.appendChild(removeBtn);
+      list.appendChild(card);
+    });
+
+    var totalPl = totalValue - totalCost;
+    var totalPlPct = totalCost > 0 ? (totalPl / totalCost) * 100 : 0;
+    $("portfolio-total").textContent = fmtMoney(totalValue);
+    var plSub = $("portfolio-pl");
+    plSub.textContent = state.portfolio.length ? (fmtChange(totalPl) + " (" + fmtPct(totalPlPct) + ") all-time") : "Add a holding to get started";
+    plSub.className = "summary-sub " + (state.portfolio.length ? (totalPl >= 0 ? "up" : "down") : "");
+  }
+
+  $("btn-open-add-holding").addEventListener("click", function () { openAddHoldingModal(""); });
+  $("btn-cancel-holding").addEventListener("click", closeAddHoldingModal);
+
+  function openAddHoldingModal(prefillSymbol) {
+    $("holding-symbol-input").value = prefillSymbol || "";
+    $("holding-shares-input").value = "";
+    $("holding-cost-input").value = "";
+    $("modal-add-holding").classList.add("active");
+  }
+  function closeAddHoldingModal() {
+    $("modal-add-holding").classList.remove("active");
+  }
+
+  $("btn-confirm-holding").addEventListener("click", function () {
+    var symbol = $("holding-symbol-input").value.trim().toUpperCase();
+    var shares = parseFloat($("holding-shares-input").value);
+    var cost = parseFloat($("holding-cost-input").value);
+    if (!symbol || !shares || shares <= 0 || isNaN(cost) || cost < 0) {
+      alert("Enter a valid symbol, share count, and average cost.");
+      return;
+    }
+    if (!state.apiKey) {
+      alert("Add your Finnhub API key in Settings first.");
+      return;
+    }
+    fetchQuote(symbol).then(function () {
+      state.portfolio.push({ symbol: symbol, shares: shares, avgCost: cost });
+      saveState();
+      subscribeSymbol(symbol);
+      fetchProfile(symbol);
+      closeAddHoldingModal();
+      showTab("portfolio");
+    }).catch(function () {
+      alert("Couldn't find symbol \"" + symbol + "\". Check the ticker and try again.");
+    });
+  });
+
+  // ---------- Settings ----------
+  function renderSettings() {
+    $("api-key-input").value = state.apiKey || "";
+    setStatus(
+      ws && ws.readyState === WebSocket.OPEN ? "live" : (state.apiKey ? "err" : "off"),
+      ws && ws.readyState === WebSocket.OPEN ? "Live" : (state.apiKey ? "Connecting / retrying..." : "No API key set")
+    );
+  }
+
+  $("btn-save-key").addEventListener("click", function () {
+    var key = $("api-key-input").value.trim();
+    state.apiKey = key;
+    saveState();
+    wsReconnectAttempts = 0;
+    if (wsReconnectTimer) { clearTimeout(wsReconnectTimer); wsReconnectTimer = null; }
+    connectWS();
+    startPolling();
+    renderSettings();
+  });
+
+  $("btn-clear-data").addEventListener("click", function () {
+    if (!confirm("This clears your watchlist, portfolio, and saved API key from this browser. Continue?")) return;
+    closeWS();
+    stopPolling();
+    state = defaultState();
+    priceCache = {}; nameCache = {}; sparkData = {};
+    saveState();
+    renderWatchlist();
+    renderPortfolio();
+    renderSettings();
+    setStatus("off", "Offline");
+  });
+
+  // ---------- Init ----------
+  renderWatchlist();
+  renderPortfolio();
+  renderSettings();
+  if (state.apiKey) {
+    connectWS();
+    startPolling();
+  } else {
+    setStatus("off", "Offline — add API key in Settings");
+  }
+})();
+</script>
+</body>
+</html>
