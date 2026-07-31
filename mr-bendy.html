@@ -1,0 +1,753 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>Mr. Bendy</title>
+<style>
+  :root {
+    --bg: #10151f;
+    --panel: #1a2233;
+    --panel-2: #232e45;
+    --accent: #ffb84e;
+    --accent-2: #ff5d8f;
+    --text: #eef2f9;
+    --text-dim: #93a0b8;
+    --border: #2c3a55;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; padding: 0; height: 100%;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    -webkit-tap-highlight-color: transparent;
+  }
+  #app {
+    max-width: 560px;
+    margin: 0 auto;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    padding: 20px 16px 40px;
+  }
+  h1 { font-size: 1.6rem; margin: 4px 0 2px; letter-spacing: 0.5px; }
+  h1 span { color: var(--accent); }
+  .subtitle { color: var(--text-dim); font-size: 0.85rem; margin-bottom: 18px; }
+  .screen { display: none; flex-direction: column; gap: 14px; flex: 1; }
+  .screen.active { display: flex; }
+  .card { background: var(--panel); border: 1px solid var(--border); border-radius: 14px; padding: 16px; }
+  label { display: block; font-size: 0.8rem; color: var(--text-dim); margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.06em; }
+  input[type="text"], select {
+    width: 100%; background: var(--panel-2); border: 1px solid var(--border); color: var(--text);
+    padding: 12px; border-radius: 10px; font-size: 1rem;
+  }
+  input[type="text"]:focus, select:focus { outline: 2px solid var(--accent); }
+  .player-row { display: flex; gap: 8px; margin-bottom: 8px; }
+  .player-row input { flex: 1; }
+  .icon-btn {
+    background: var(--panel-2); border: 1px solid var(--border); color: var(--text-dim);
+    border-radius: 10px; width: 44px; height: 44px; font-size: 1.1rem; cursor: pointer;
+  }
+  .icon-btn:active { transform: scale(0.95); }
+  button.primary {
+    background: var(--accent); color: #241000; border: none; padding: 15px; border-radius: 12px;
+    font-size: 1.05rem; font-weight: 700; cursor: pointer; width: 100%;
+  }
+  button.primary:active { transform: scale(0.98); }
+  button.primary:disabled { opacity: 0.4; cursor: not-allowed; }
+  button.secondary {
+    background: transparent; color: var(--text); border: 1px solid var(--border);
+    padding: 13px; border-radius: 12px; font-size: 0.95rem; cursor: pointer; width: 100%;
+  }
+  button.danger { background: var(--accent-2); color: #2a0713; }
+  button.small { width: auto; padding: 8px 14px; font-size: 0.85rem; }
+  .row { display: flex; gap: 8px; }
+  .row > * { flex: 1; }
+  .chip-group { display: flex; flex-wrap: wrap; gap: 8px; }
+  .chip {
+    padding: 8px 14px; border-radius: 999px; border: 1px solid var(--border); background: var(--panel-2);
+    color: var(--text-dim); font-size: 0.85rem; cursor: pointer; user-select: none;
+  }
+  .chip.selected { background: var(--accent); color: #241000; border-color: var(--accent); font-weight: 600; }
+  .center { text-align: center; }
+  .big-name { font-size: 1.8rem; font-weight: 800; margin: 6px 0; }
+  .pass-icon { font-size: 3rem; margin: 10px 0; }
+  .reveal-box { background: var(--panel-2); border: 1px solid var(--border); border-radius: 14px; padding: 20px; text-align: center; }
+  .category-label { color: var(--text-dim); font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.06em; }
+  .secret-word { font-size: 2.2rem; font-weight: 800; color: var(--accent); margin: 10px 0; }
+  .timer { font-size: 2.6rem; font-weight: 800; text-align: center; margin: 4px 0; font-variant-numeric: tabular-nums; }
+  .timer.low { color: var(--accent-2); }
+  small.hint { color: var(--text-dim); display: block; margin-top: 4px; font-size: 0.78rem; }
+  .scoreboard { display: flex; flex-direction: column; gap: 6px; }
+  .score-row { display: flex; justify-content: space-between; padding: 6px 4px; }
+  .result-banner { text-align: center; padding: 18px; border-radius: 14px; font-weight: 800; font-size: 1.2rem; margin-bottom: 4px; }
+  .result-win { background: rgba(255,184,78,0.15); border: 1px solid var(--accent); color: var(--accent); }
+  .result-lose { background: rgba(255,93,143,0.15); border: 1px solid var(--accent-2); color: var(--accent-2); }
+  .footer-nav { display: flex; gap: 8px; margin-top: auto; padding-top: 10px; }
+  .footer-nav button { flex: 1; }
+
+  .canvas-wrap {
+    background: var(--panel-2); border: 1px solid var(--border); border-radius: 14px;
+    overflow: hidden; touch-action: none; user-select: none;
+  }
+  svg#bendy-svg { display: block; width: 100%; height: auto; touch-action: none; }
+  .handle { cursor: grab; }
+  .handle:active { cursor: grabbing; }
+  .toolbar { display: flex; flex-wrap: wrap; gap: 8px; }
+  .swatch-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  .swatch {
+    width: 30px; height: 30px; border-radius: 50%; border: 2px solid var(--border); cursor: pointer; flex-shrink: 0;
+  }
+  .swatch.selected { border-color: #fff; box-shadow: 0 0 0 2px var(--accent); }
+  .slider-row { display: flex; align-items: center; gap: 10px; }
+  .slider-row input[type=range] { flex: 1; }
+  .present-figure .handle, .present-figure .prop-handle { display: none !important; }
+</style>
+</head>
+<body>
+<div id="app">
+  <h1>🖇️ Mr. <span>Bendy</span></h1>
+  <div class="subtitle">Pass-and-play party game — bend the figure into shape, everyone else guesses out loud</div>
+
+  <!-- SETUP -->
+  <div class="screen active" id="screen-setup">
+    <div class="card">
+      <label>Players (3–12)</label>
+      <div id="player-list"></div>
+      <button class="secondary" id="btn-add-player" type="button">+ Add player</button>
+    </div>
+    <div class="card">
+      <label>Word packs</label>
+      <div class="chip-group" id="category-chips"></div>
+      <small class="hint">Tap to toggle. At least one must stay selected.</small>
+    </div>
+    <div class="card">
+      <label>Round timer (seconds)</label>
+      <select id="timer-select">
+        <option value="30">30</option>
+        <option value="45">45</option>
+        <option value="60" selected>60</option>
+        <option value="90">90</option>
+        <option value="120">120</option>
+      </select>
+    </div>
+    <button class="primary" id="btn-start-game" type="button">Start Game</button>
+  </div>
+
+  <!-- PASS DEVICE -->
+  <div class="screen" id="screen-reveal">
+    <div class="card center">
+      <div class="pass-icon">📱➡️</div>
+      <div>Pass the device to</div>
+      <div class="big-name" id="reveal-name"></div>
+      <small class="hint"><span id="reveal-name-2"></span> is bending the figure this round. Everyone else — look away!</small>
+    </div>
+    <button class="primary" id="btn-show-word" type="button">I'm ready — show my word</button>
+  </div>
+
+  <!-- SECRET WORD -->
+  <div class="screen" id="screen-word">
+    <div class="reveal-box">
+      <div class="category-label" id="word-category"></div>
+      <div class="secret-word" id="word-secret"></div>
+      <small class="hint">Pose Mr. Bendy to look like this. Don't say the word or spell it out!</small>
+    </div>
+    <button class="primary" id="btn-go-edit" type="button">Start Posing</button>
+  </div>
+
+  <!-- EDIT / POSE -->
+  <div class="screen" id="screen-edit">
+    <div class="canvas-wrap">
+      <svg id="bendy-svg" viewBox="0 0 300 380" xmlns="http://www.w3.org/2000/svg"></svg>
+    </div>
+    <div class="card">
+      <label>Body color</label>
+      <div class="swatch-row" id="body-swatches"></div>
+      <label style="margin-top:12px">Head size</label>
+      <div class="slider-row">
+        <input type="range" id="head-size" min="16" max="42" value="28">
+      </div>
+    </div>
+    <div class="card">
+      <label>Add a prop</label>
+      <div class="toolbar" id="prop-toolbar"></div>
+      <label style="margin-top:12px">Prop color</label>
+      <div class="swatch-row" id="prop-swatches"></div>
+      <div id="prop-actions" class="row" style="margin-top:10px; display:none;">
+        <button class="secondary small" id="btn-prop-delete" type="button">✕ Remove selected prop</button>
+      </div>
+    </div>
+    <div class="row">
+      <button class="secondary" id="btn-reset-pose" type="button">Reset Pose</button>
+      <button class="primary" id="btn-ready" type="button">Ready — Show Others!</button>
+    </div>
+  </div>
+
+  <!-- PRESENT -->
+  <div class="screen" id="screen-present">
+    <div class="card center">
+      <div class="category-label">Everyone else: guess out loud!</div>
+      <div class="timer" id="present-timer">--</div>
+    </div>
+    <div class="canvas-wrap present-figure">
+      <svg id="bendy-svg-present" viewBox="0 0 300 380" xmlns="http://www.w3.org/2000/svg"></svg>
+    </div>
+    <div class="row">
+      <button class="danger" id="btn-mark-skip" type="button">Nobody got it</button>
+      <button class="primary" id="btn-mark-correct" type="button">Guessed it! ✅</button>
+    </div>
+  </div>
+
+  <!-- ROUND RESULT -->
+  <div class="screen" id="screen-result">
+    <div class="result-banner" id="result-banner"></div>
+    <div class="card center">
+      <div class="category-label">The word was</div>
+      <div class="secret-word" id="result-word"></div>
+    </div>
+    <button class="primary" id="btn-next-round" type="button">Next Round</button>
+  </div>
+
+  <!-- SCOREBOARD -->
+  <div class="screen" id="screen-scores">
+    <div class="card">
+      <label>Scoreboard</label>
+      <div class="scoreboard" id="scoreboard"></div>
+    </div>
+    <div class="footer-nav">
+      <button class="secondary" id="btn-back-to-round" type="button">Back to Game</button>
+      <button class="danger" id="btn-end-game" type="button">End Game</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  var WORD_PACKS = {
+    "Animals": ["Snake","Elephant","Flamingo","Octopus","Kangaroo","Camel","Scorpion","Giraffe","Crab","Swan","Spider","Snail","Bat","Frog"],
+    "Objects": ["Umbrella","Guitar","Anchor","Lightning Bolt","Wheelchair","Scissors","Wine Glass","Teapot","Slingshot","Rocket","Fishing Rod","Key","Hourglass"],
+    "Poses & Actions": ["Doing Yoga","Diving","Skiing","Praying","Ballet Dancer","Cartwheel","Superhero Flying","Sitting Cross-legged","Climbing a Ladder","Bowing","Karate Kick","Sleeping"],
+    "Letters & Numbers": ["Letter S","Letter X","Letter Y","Letter M","Number 4","Number 8","Number 7","Question Mark","Exclamation Mark","Heart Shape"],
+    "Food": ["Banana","Hot Dog","Ice Cream Cone","Taco","Croissant","Pretzel","Donut","Lollipop"]
+  };
+
+  var COLORS = ["#111318", "#e63946", "#3a86ff", "#2ec4b6", "#8338ec", "#ff9f1c", "#eef2f9"];
+
+  var state = {
+    players: ["", "", ""],
+    selectedCategories: Object.keys(WORD_PACKS),
+    timerSeconds: 60,
+    scores: {},
+    poserIndex: 0,
+    round: null,
+    pose: null,
+    props: [],
+    nextPropId: 1,
+    bodyColor: COLORS[0],
+    propColor: COLORS[1],
+    selectedPropId: null,
+    headRadius: 28,
+    timerHandle: null,
+    timerRemaining: 0
+  };
+
+  function $(id) { return document.getElementById(id); }
+  function showScreen(id) {
+    document.querySelectorAll(".screen").forEach(function (s) { s.classList.remove("active"); });
+    $(id).classList.add("active");
+  }
+  function pickRandom(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
+
+  // ---------- Setup screen ----------
+  function renderPlayerList() {
+    var wrap = $("player-list");
+    wrap.innerHTML = "";
+    state.players.forEach(function (name, i) {
+      var row = document.createElement("div");
+      row.className = "player-row";
+      var input = document.createElement("input");
+      input.type = "text";
+      input.placeholder = "Player " + (i + 1);
+      input.value = name;
+      input.maxLength = 20;
+      input.addEventListener("input", function () { state.players[i] = input.value; });
+      row.appendChild(input);
+      if (state.players.length > 3) {
+        var rm = document.createElement("button");
+        rm.className = "icon-btn";
+        rm.type = "button";
+        rm.textContent = "✕";
+        rm.addEventListener("click", function () { state.players.splice(i, 1); renderPlayerList(); });
+        row.appendChild(rm);
+      }
+      wrap.appendChild(row);
+    });
+  }
+
+  $("btn-add-player").addEventListener("click", function () {
+    if (state.players.length >= 12) return;
+    state.players.push("");
+    renderPlayerList();
+  });
+
+  function renderCategoryChips() {
+    var wrap = $("category-chips");
+    wrap.innerHTML = "";
+    Object.keys(WORD_PACKS).forEach(function (cat) {
+      var chip = document.createElement("div");
+      chip.className = "chip" + (state.selectedCategories.indexOf(cat) !== -1 ? " selected" : "");
+      chip.textContent = cat;
+      chip.addEventListener("click", function () {
+        var idx = state.selectedCategories.indexOf(cat);
+        if (idx !== -1) {
+          if (state.selectedCategories.length === 1) return;
+          state.selectedCategories.splice(idx, 1);
+        } else {
+          state.selectedCategories.push(cat);
+        }
+        renderCategoryChips();
+      });
+      wrap.appendChild(chip);
+    });
+  }
+
+  $("timer-select").addEventListener("change", function (e) {
+    state.timerSeconds = parseInt(e.target.value, 10);
+  });
+
+  $("btn-start-game").addEventListener("click", function () {
+    var names = state.players.map(function (n, i) { return n.trim() || ("Player " + (i + 1)); });
+    if (names.length < 3) { alert("Need at least 3 players."); return; }
+    state.players = names;
+    state.scores = {};
+    names.forEach(function (n) { state.scores[n] = 0; });
+    state.poserIndex = 0;
+    startRound();
+  });
+
+  // ---------- Bendy pose model ----------
+  function quadPoint(t, p0, p1, p2) {
+    var mt = 1 - t;
+    return {
+      x: mt * mt * p0.x + 2 * mt * t * p1.x + t * t * p2.x,
+      y: mt * mt * p0.y + 2 * mt * t * p1.y + t * t * p2.y
+    };
+  }
+
+  var TORSO_TOP = { x: 150, y: 130 };
+  var TORSO_BOTTOM = { x: 150, y: 250 };
+
+  function defaultPose() {
+    var ctrl = { x: 150, y: 190 };
+    var shoulderL = quadPoint(0.12, TORSO_TOP, ctrl, TORSO_BOTTOM);
+    var shoulderR = shoulderL;
+    var hip = quadPoint(0.88, TORSO_TOP, ctrl, TORSO_BOTTOM);
+    return {
+      torsoCtrl: ctrl,
+      head: { x: 150, y: 85 },
+      leftElbow: { x: shoulderL.x - 45, y: shoulderL.y + 25 },
+      leftHand: { x: shoulderL.x - 55, y: shoulderL.y + 80 },
+      rightElbow: { x: shoulderR.x + 45, y: shoulderR.y + 25 },
+      rightHand: { x: shoulderR.x + 55, y: shoulderR.y + 80 },
+      leftKnee: { x: hip.x - 18, y: hip.y + 60 },
+      leftFoot: { x: hip.x - 22, y: hip.y + 118 },
+      rightKnee: { x: hip.x + 18, y: hip.y + 60 },
+      rightFoot: { x: hip.x + 22, y: hip.y + 118 }
+    };
+  }
+
+  function shoulderAnchor() {
+    return quadPoint(0.12, TORSO_TOP, state.pose.torsoCtrl, TORSO_BOTTOM);
+  }
+  function hipAnchor() {
+    return quadPoint(0.88, TORSO_TOP, state.pose.torsoCtrl, TORSO_BOTTOM);
+  }
+
+  // ---------- Round setup ----------
+  function startRound() {
+    var cat = pickRandom(state.selectedCategories);
+    var words = WORD_PACKS[cat];
+    state.round = { category: cat, word: pickRandom(words) };
+    state.pose = defaultPose();
+    state.props = [];
+    state.selectedPropId = null;
+    state.headRadius = 28;
+    goToReveal();
+  }
+
+  function goToReveal() {
+    var name = state.players[state.poserIndex];
+    $("reveal-name").textContent = name;
+    $("reveal-name-2").textContent = name;
+    showScreen("screen-reveal");
+  }
+
+  $("btn-show-word").addEventListener("click", function () {
+    $("word-category").textContent = state.round.category;
+    $("word-secret").textContent = state.round.word;
+    showScreen("screen-word");
+  });
+
+  $("btn-go-edit").addEventListener("click", function () {
+    renderEditToolbars();
+    renderBendy("bendy-svg", true);
+    showScreen("screen-edit");
+  });
+
+  // ---------- SVG rendering ----------
+  function svgEl(tag, attrs) {
+    var el = document.createElementNS("http://www.w3.org/2000/svg", tag);
+    Object.keys(attrs || {}).forEach(function (k) { el.setAttribute(k, attrs[k]); });
+    return el;
+  }
+
+  function renderBendy(svgId, editable) {
+    var svg = $(svgId);
+    svg.innerHTML = "";
+    var pose = state.pose;
+    var shoulder = shoulderAnchor();
+    var hip = hipAnchor();
+    var color = state.bodyColor;
+
+    // props behind body (so body/limbs sit on top, feels like a figure with items around it)
+    state.props.forEach(function (p) { renderProp(svg, p, editable); });
+
+    // legs (behind torso for a layered look)
+    drawLimb(svg, hip, pose.leftKnee, pose.leftFoot, color);
+    drawLimb(svg, hip, pose.rightKnee, pose.rightFoot, color);
+
+    // torso
+    var torsoPath = svgEl("path", {
+      d: "M " + TORSO_TOP.x + " " + TORSO_TOP.y + " Q " + pose.torsoCtrl.x + " " + pose.torsoCtrl.y + " " + TORSO_BOTTOM.x + " " + TORSO_BOTTOM.y,
+      stroke: color, "stroke-width": 24, fill: "none", "stroke-linecap": "round"
+    });
+    svg.appendChild(torsoPath);
+
+    // arms (in front of torso)
+    drawLimb(svg, shoulder, pose.leftElbow, pose.leftHand, color);
+    drawLimb(svg, shoulder, pose.rightElbow, pose.rightHand, color);
+
+    // neck + head
+    var neck = svgEl("line", { x1: TORSO_TOP.x, y1: TORSO_TOP.y, x2: pose.head.x, y2: pose.head.y, stroke: color, "stroke-width": 18, "stroke-linecap": "round" });
+    svg.appendChild(neck);
+    var head = svgEl("circle", { cx: pose.head.x, cy: pose.head.y, r: state.headRadius, fill: color });
+    svg.appendChild(head);
+    // simple face
+    var eyeOffset = state.headRadius * 0.35;
+    ["left", "right"].forEach(function (side, i) {
+      var dx = i === 0 ? -eyeOffset : eyeOffset;
+      var eye = svgEl("circle", { cx: pose.head.x + dx, cy: pose.head.y - state.headRadius * 0.1, r: Math.max(2, state.headRadius * 0.09), fill: "#eef2f9" });
+      svg.appendChild(eye);
+    });
+
+    if (editable) {
+      addHandle(svg, "torsoCtrl", pose.torsoCtrl);
+      addHandle(svg, "head", pose.head);
+      addHandle(svg, "leftElbow", pose.leftElbow);
+      addHandle(svg, "leftHand", pose.leftHand);
+      addHandle(svg, "rightElbow", pose.rightElbow);
+      addHandle(svg, "rightHand", pose.rightHand);
+      addHandle(svg, "leftKnee", pose.leftKnee);
+      addHandle(svg, "leftFoot", pose.leftFoot);
+      addHandle(svg, "rightKnee", pose.rightKnee);
+      addHandle(svg, "rightFoot", pose.rightFoot);
+    }
+  }
+
+  function drawLimb(svg, anchor, mid, end, color) {
+    var seg1 = svgEl("line", { x1: anchor.x, y1: anchor.y, x2: mid.x, y2: mid.y, stroke: color, "stroke-width": 16, "stroke-linecap": "round" });
+    var seg2 = svgEl("line", { x1: mid.x, y1: mid.y, x2: end.x, y2: end.y, stroke: color, "stroke-width": 16, "stroke-linecap": "round" });
+    var joint = svgEl("circle", { cx: mid.x, cy: mid.y, r: 9, fill: color });
+    var cap = svgEl("circle", { cx: end.x, cy: end.y, r: 9, fill: color });
+    svg.appendChild(seg1);
+    svg.appendChild(seg2);
+    svg.appendChild(joint);
+    svg.appendChild(cap);
+  }
+
+  function addHandle(svg, key, point) {
+    var g = svgEl("g", { class: "handle", "data-handle": key });
+    var hit = svgEl("circle", { cx: point.x, cy: point.y, r: 16, fill: "rgba(255,255,255,0.01)" });
+    var dot = svgEl("circle", { cx: point.x, cy: point.y, r: 6, fill: "#fff", stroke: state.bodyColor, "stroke-width": 2 });
+    g.appendChild(hit);
+    g.appendChild(dot);
+    svg.appendChild(g);
+    makeDraggable(g, svg, function (pt) {
+      state.pose[key] = pt;
+      renderBendy("bendy-svg", true);
+    });
+  }
+
+  function rotatePointAround(local, deg) {
+    var rad = deg * Math.PI / 180;
+    return { x: local.x * Math.cos(rad) - local.y * Math.sin(rad), y: local.x * Math.sin(rad) + local.y * Math.cos(rad) };
+  }
+
+  function renderProp(svg, prop, editable) {
+    var g = svgEl("g", { transform: "translate(" + prop.x + "," + prop.y + ") rotate(" + prop.rotation + ")" });
+    var shape;
+    if (prop.type === "circle") {
+      shape = svgEl("ellipse", { cx: 0, cy: 0, rx: prop.w / 2, ry: prop.h / 2, fill: prop.color });
+    } else if (prop.type === "triangle") {
+      var pts = "0," + (-prop.h / 2) + " " + (prop.w / 2) + "," + (prop.h / 2) + " " + (-prop.w / 2) + "," + (prop.h / 2);
+      shape = svgEl("polygon", { points: pts, fill: prop.color });
+    } else if (prop.type === "bar") {
+      shape = svgEl("rect", { x: -prop.w / 2, y: -prop.h / 2, width: prop.w, height: prop.h, rx: prop.h / 2, fill: prop.color });
+    } else {
+      shape = svgEl("rect", { x: -prop.w / 2, y: -prop.h / 2, width: prop.w, height: prop.h, rx: 4, fill: prop.color });
+    }
+    g.appendChild(shape);
+    svg.appendChild(g);
+
+    if (!editable) return;
+
+    var hit = svgEl("rect", {
+      x: -prop.w / 2 - 6, y: -prop.h / 2 - 6, width: prop.w + 12, height: prop.h + 12,
+      fill: "rgba(255,255,255,0.01)", class: "handle"
+    });
+    g.insertBefore(hit, g.firstChild);
+    hit.addEventListener("pointerdown", function () {
+      state.selectedPropId = prop.id;
+      renderEditToolbars();
+    });
+    makeDraggable(hit, svg, function (pt) {
+      prop.x = pt.x; prop.y = pt.y;
+      renderBendy("bendy-svg", true);
+    });
+
+    if (state.selectedPropId === prop.id) {
+      var outline = svgEl("rect", {
+        x: -prop.w / 2 - 8, y: -prop.h / 2 - 8, width: prop.w + 16, height: prop.h + 16,
+        fill: "none", stroke: "#ffb84e", "stroke-width": 1.5, "stroke-dasharray": "4 3"
+      });
+      g.appendChild(outline);
+
+      var resizeLocal = { x: prop.w / 2, y: prop.h / 2 };
+      var resizeWorld = { x: prop.x + resizeLocal.x, y: prop.y + resizeLocal.y };
+      var resizeHandle = svgEl("circle", { cx: resizeWorld.x, cy: resizeWorld.y, r: 10, fill: "#ffb84e", class: "prop-handle handle" });
+      svg.appendChild(resizeHandle);
+      makeDraggable(resizeHandle, svg, function (pt) {
+        var w = Math.max(16, Math.abs(pt.x - prop.x) * 2);
+        var h = Math.max(16, Math.abs(pt.y - prop.y) * 2);
+        prop.w = w; prop.h = h;
+        renderBendy("bendy-svg", true);
+      });
+
+      var rotLocal = rotatePointAround({ x: 0, y: -prop.h / 2 - 22 }, prop.rotation);
+      var rotWorld = { x: prop.x + rotLocal.x, y: prop.y + rotLocal.y };
+      var rotHandle = svgEl("circle", { cx: rotWorld.x, cy: rotWorld.y, r: 9, fill: "#ff5d8f", class: "prop-handle handle" });
+      svg.appendChild(rotHandle);
+      makeDraggable(rotHandle, svg, function (pt) {
+        var dx = pt.x - prop.x, dy = pt.y - prop.y;
+        var angle = Math.atan2(dy, dx) * 180 / Math.PI + 90;
+        prop.rotation = Math.round(angle);
+        renderBendy("bendy-svg", true);
+      });
+    }
+  }
+
+  function makeDraggable(el, svg, onMove) {
+    el.addEventListener("pointerdown", function (evt) {
+      evt.preventDefault();
+      el.setPointerCapture && el.setPointerCapture(evt.pointerId);
+      function move(e) {
+        var pt = clientToSvgPoint(svg, e.clientX, e.clientY);
+        onMove(pt);
+      }
+      function up(e) {
+        window.removeEventListener("pointermove", move);
+        window.removeEventListener("pointerup", up);
+      }
+      window.addEventListener("pointermove", move);
+      window.addEventListener("pointerup", up);
+    });
+  }
+
+  function clientToSvgPoint(svg, clientX, clientY) {
+    var rect = svg.getBoundingClientRect();
+    var viewBox = svg.viewBox.baseVal;
+    var x = ((clientX - rect.left) / rect.width) * viewBox.width + viewBox.x;
+    var y = ((clientY - rect.top) / rect.height) * viewBox.height + viewBox.y;
+    return { x: x, y: y };
+  }
+
+  // ---------- Edit toolbars ----------
+  function renderEditToolbars() {
+    var bodyWrap = $("body-swatches");
+    bodyWrap.innerHTML = "";
+    COLORS.forEach(function (c) {
+      var sw = document.createElement("div");
+      sw.className = "swatch" + (state.bodyColor === c ? " selected" : "");
+      sw.style.background = c;
+      sw.addEventListener("click", function () {
+        state.bodyColor = c;
+        renderEditToolbars();
+        renderBendy("bendy-svg", true);
+      });
+      bodyWrap.appendChild(sw);
+    });
+
+    var propWrap = $("prop-swatches");
+    propWrap.innerHTML = "";
+    COLORS.forEach(function (c) {
+      var sw = document.createElement("div");
+      sw.className = "swatch" + (state.propColor === c ? " selected" : "");
+      sw.style.background = c;
+      sw.addEventListener("click", function () {
+        state.propColor = c;
+        var sel = state.props.filter(function (p) { return p.id === state.selectedPropId; })[0];
+        if (sel) sel.color = c;
+        renderEditToolbars();
+        renderBendy("bendy-svg", true);
+      });
+      propWrap.appendChild(sw);
+    });
+
+    var toolbar = $("prop-toolbar");
+    toolbar.innerHTML = "";
+    [
+      { type: "circle", label: "◯ Circle" },
+      { type: "triangle", label: "▲ Triangle" },
+      { type: "bar", label: "▬ Bar" },
+      { type: "square", label: "▭ Square" }
+    ].forEach(function (def) {
+      var btn = document.createElement("button");
+      btn.className = "secondary small";
+      btn.type = "button";
+      btn.textContent = def.label;
+      btn.addEventListener("click", function () { addProp(def.type); });
+      toolbar.appendChild(btn);
+    });
+
+    $("prop-actions").style.display = state.selectedPropId ? "" : "none";
+  }
+
+  function addProp(type) {
+    var w = type === "bar" ? 70 : 40;
+    var h = type === "bar" ? 16 : 40;
+    var prop = {
+      id: state.nextPropId++,
+      type: type,
+      x: 150 + (Math.random() * 40 - 20),
+      y: 190 + (Math.random() * 40 - 20),
+      w: w, h: h,
+      rotation: 0,
+      color: state.propColor
+    };
+    state.props.push(prop);
+    state.selectedPropId = prop.id;
+    renderEditToolbars();
+    renderBendy("bendy-svg", true);
+  }
+
+  $("btn-prop-delete").addEventListener("click", function () {
+    state.props = state.props.filter(function (p) { return p.id !== state.selectedPropId; });
+    state.selectedPropId = null;
+    renderEditToolbars();
+    renderBendy("bendy-svg", true);
+  });
+
+  $("head-size").addEventListener("input", function (e) {
+    state.headRadius = parseInt(e.target.value, 10);
+    renderBendy("bendy-svg", true);
+  });
+
+  $("btn-reset-pose").addEventListener("click", function () {
+    state.pose = defaultPose();
+    state.props = [];
+    state.selectedPropId = null;
+    state.headRadius = 28;
+    $("head-size").value = 28;
+    renderEditToolbars();
+    renderBendy("bendy-svg", true);
+  });
+
+  // ---------- Present phase ----------
+  $("btn-ready").addEventListener("click", function () {
+    state.selectedPropId = null;
+    renderBendy("bendy-svg-present", false);
+    startPresentTimer();
+    showScreen("screen-present");
+  });
+
+  function startPresentTimer() {
+    stopTimer();
+    state.timerRemaining = state.timerSeconds;
+    renderPresentTimer();
+    state.timerHandle = setInterval(function () {
+      state.timerRemaining--;
+      renderPresentTimer();
+      if (state.timerRemaining <= 0) {
+        stopTimer();
+        finishRound(false);
+      }
+    }, 1000);
+  }
+
+  function renderPresentTimer() {
+    var display = $("present-timer");
+    display.textContent = state.timerRemaining + "s";
+    display.classList.toggle("low", state.timerRemaining <= 10);
+  }
+
+  function stopTimer() {
+    if (state.timerHandle) { clearInterval(state.timerHandle); state.timerHandle = null; }
+  }
+
+  $("btn-mark-correct").addEventListener("click", function () { stopTimer(); finishRound(true); });
+  $("btn-mark-skip").addEventListener("click", function () { stopTimer(); finishRound(false); });
+
+  function finishRound(correct) {
+    var poser = state.players[state.poserIndex];
+    var banner = $("result-banner");
+    if (correct) {
+      state.scores[poser] += 2;
+      state.players.forEach(function (name, idx) {
+        if (idx !== state.poserIndex) state.scores[name] += 1;
+      });
+      banner.className = "result-banner result-win";
+      banner.textContent = "🎉 Guessed correctly! Everyone scores.";
+    } else {
+      banner.className = "result-banner result-lose";
+      banner.textContent = "⏱️ Time's up — nobody got it.";
+    }
+    $("result-word").textContent = state.round.word;
+    showScreen("screen-result");
+  }
+
+  $("btn-next-round").addEventListener("click", function () {
+    state.poserIndex = (state.poserIndex + 1) % state.players.length;
+    renderScoreboard();
+    showScreen("screen-scores");
+  });
+
+  // ---------- Scoreboard ----------
+  function renderScoreboard() {
+    var board = $("scoreboard");
+    board.innerHTML = "";
+    var entries = Object.keys(state.scores).map(function (name) { return { name: name, score: state.scores[name] }; });
+    entries.sort(function (a, b) { return b.score - a.score; });
+    entries.forEach(function (e) {
+      var row = document.createElement("div");
+      row.className = "score-row";
+      row.innerHTML = "<span>" + e.name + "</span><strong>" + e.score + "</strong>";
+      board.appendChild(row);
+    });
+  }
+
+  $("btn-back-to-round").addEventListener("click", function () { startRound(); });
+  $("btn-end-game").addEventListener("click", function () {
+    if (!confirm("End the game and return to setup?")) return;
+    showScreen("screen-setup");
+  });
+
+  // ---------- Init ----------
+  renderPlayerList();
+  renderCategoryChips();
+})();
+</script>
+</body>
+</html>
