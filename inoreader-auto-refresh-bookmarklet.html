@@ -1,0 +1,32 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>Inoreader Auto Refresh Bookmarklet</title>
+  </head>
+  <body>
+    <h1>Inoreader Auto Refresh</h1>
+    <p>
+      Drag this link to your bookmarks bar (desktop), or add it as a bookmark
+      and paste the URL below into it (mobile). Open Inoreader, then tap the
+      bookmark once to start auto-refreshing every 30 seconds. Tap it again
+      to stop.
+    </p>
+    <p>
+      <a href="javascript:(function()%7Bif(window.__inoAutoRefresh)%7BclearInterval(window.__inoAutoRefresh)%3Bwindow.__inoAutoRefresh%3Dnull%3Balert('Inoreader%20auto-refresh%20stopped')%3Breturn%3B%7Dfunction%20refresh()%7Bvar%20sels%3D%5B'%5Bdata-target%3D%22refresh%22%5D'%2C'.refresh_button'%2C'div.refresh'%2C'a%5Btitle%3D%22Refresh%22%5D'%2C'button%5Btitle%3D%22Refresh%22%5D'%2C'%5Baria-label%3D%22Refresh%22%5D'%5D%3Bfor(var%20i%3D0%3Bi%3Csels.length%3Bi%2B%2B)%7Bvar%20el%3Ddocument.querySelector(sels%5Bi%5D)%3Bif(el)%7Bel.click()%3Breturn%3B%7D%7Dvar%20t%3Ddocument.activeElement%7C%7Cdocument.body%3B%5B'keydown'%2C'keypress'%2C'keyup'%5D.forEach(function(type)%7Bt.dispatchEvent(new%20KeyboardEvent(type%2C%7Bkey%3A'r'%2Ccode%3A'KeyR'%2CkeyCode%3A82%2Cwhich%3A82%2Cbubbles%3Atrue%2Ccancelable%3Atrue%7D))%3B%7D)%3B%7Dwindow.__inoAutoRefresh%3DsetInterval(refresh%2C30000)%3Balert('Inoreader%20auto-refresh%20started%20(every%2030s).%20Tap%20again%20to%20stop.')%3B%7D)()%3B">
+        Inoreader Auto Refresh
+      </a>
+    </p>
+    <h2>Raw bookmarklet code (paste as the bookmark's URL/address)</h2>
+    <pre style="white-space: pre-wrap; word-break: break-all">
+javascript:(function(){if(window.__inoAutoRefresh){clearInterval(window.__inoAutoRefresh);window.__inoAutoRefresh=null;alert('Inoreader auto-refresh stopped');return;}function refresh(){var sels=['[data-target="refresh"]','.refresh_button','div.refresh','a[title="Refresh"]','button[title="Refresh"]','[aria-label="Refresh"]'];for(var i=0;i<sels.length;i++){var el=document.querySelector(sels[i]);if(el){el.click();return;}}var t=document.activeElement||document.body;['keydown','keypress','keyup'].forEach(function(type){t.dispatchEvent(new KeyboardEvent(type,{key:'r',code:'KeyR',keyCode:82,which:82,bubbles:true,cancelable:true}));});}window.__inoAutoRefresh=setInterval(refresh,30000);alert('Inoreader auto-refresh started (every 30s). Tap again to stop.');})();
+    </pre>
+    <h2>Setup on mobile Safari/Chrome</h2>
+    <ol>
+      <li>Bookmark any page (e.g. inoreader.com itself).</li>
+      <li>Edit that bookmark's name to "Inoreader Auto Refresh" and replace its URL with the raw code above.</li>
+      <li>Open Inoreader, open your bookmarks, tap "Inoreader Auto Refresh".</li>
+      <li>It refreshes every 30s until you close/reload the tab, or tap the bookmarklet again to stop it early.</li>
+    </ol>
+  </body>
+</html>
