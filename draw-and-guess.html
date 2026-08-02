@@ -70,8 +70,22 @@
     font-size: 1rem;
   }
   input[type="text"]:focus, select:focus { outline: 2px solid var(--accent); }
-  .player-row { display: flex; gap: 8px; margin-bottom: 8px; }
+  .player-row { display: flex; gap: 8px; margin-bottom: 8px; align-items: center; }
   .player-row input { flex: 1; }
+  .dots-toggle {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    width: 52px;
+    flex: none;
+    font-size: 0.65rem;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+  .dots-toggle input { width: 20px; height: 20px; accent-color: var(--accent); }
   .icon-btn {
     background: var(--panel-2);
     border: 1px solid var(--border);
@@ -211,6 +225,7 @@
       <label>Players (2–10)</label>
       <div id="player-list"></div>
       <button class="secondary" id="btn-add-player" type="button">+ Add player</button>
+      <small class="hint">Check "dots" for young artists who'd like a dot-to-dot outline to trace when it's their turn to draw.</small>
     </div>
     <div class="card">
       <label>Word difficulty</label>
@@ -236,13 +251,6 @@
       <div class="category-label" id="word-difficulty-label"></div>
       <div class="secret-word" id="word-secret"></div>
       <small class="hint">Remember it, then hand the device to the artist's drawing spot. No writing letters or numbers in your doodle!</small>
-    </div>
-    <div class="card center" id="trace-question" style="display:none;">
-      <label style="margin-bottom:10px;">Want dot-to-dot help drawing it?</label>
-      <div class="row">
-        <button class="secondary" id="btn-trace-yes" type="button">Yes, show dots</button>
-        <button class="secondary" id="btn-trace-no" type="button">No, freehand</button>
-      </div>
     </div>
     <button class="primary" id="btn-start-drawing" type="button">Start Drawing</button>
   </div>
@@ -462,6 +470,7 @@
 
   var state = {
     players: ["", ""],
+    playerDots: [false, false],
     selectedDifficulties: Object.keys(WORDS),
     scores: {},
     round: null,
@@ -491,6 +500,17 @@
       input.maxLength = 20;
       input.addEventListener("input", function () { state.players[i] = input.value; });
       row.appendChild(input);
+
+      var dotsLabel = document.createElement("label");
+      dotsLabel.className = "dots-toggle";
+      var dotsCheckbox = document.createElement("input");
+      dotsCheckbox.type = "checkbox";
+      dotsCheckbox.checked = !!state.playerDots[i];
+      dotsCheckbox.addEventListener("change", function () { state.playerDots[i] = dotsCheckbox.checked; });
+      dotsLabel.appendChild(dotsCheckbox);
+      dotsLabel.appendChild(document.createTextNode("dots"));
+      row.appendChild(dotsLabel);
+
       if (state.players.length > 2) {
         var rm = document.createElement("button");
         rm.className = "icon-btn";
@@ -498,6 +518,7 @@
         rm.textContent = "✕";
         rm.addEventListener("click", function () {
           state.players.splice(i, 1);
+          state.playerDots.splice(i, 1);
           renderPlayerList();
         });
         row.appendChild(rm);
@@ -509,6 +530,7 @@
   $("btn-add-player").addEventListener("click", function () {
     if (state.players.length >= 10) return;
     state.players.push("");
+    state.playerDots.push(false);
     renderPlayerList();
   });
 
@@ -557,14 +579,23 @@
     try { localStorage.setItem(USED_WORDS_KEY, JSON.stringify(state.usedWords)); } catch (e) { /* ignore */ }
   }
 
-  function pickWord() {
+  function pickWord(traceOnly) {
     var pool = [];
     state.selectedDifficulties.forEach(function (d) {
-      WORDS[d].forEach(function (w) { pool.push({ word: w, difficulty: d }); });
+      WORDS[d].forEach(function (w) {
+        if (traceOnly && !TRACE_SHAPES.hasOwnProperty(w)) return;
+        pool.push({ word: w, difficulty: d });
+      });
     });
+    if (traceOnly && pool.length === 0) {
+      Object.keys(TRACE_SHAPES).forEach(function (w) {
+        var d = state.selectedDifficulties.filter(function (diff) { return WORDS[diff].indexOf(w) !== -1; })[0] || state.selectedDifficulties[0];
+        pool.push({ word: w, difficulty: d });
+      });
+    }
     var available = pool.filter(function (item) { return !state.usedWords[item.word]; });
     if (available.length === 0) {
-      state.usedWords = {};
+      pool.forEach(function (item) { delete state.usedWords[item.word]; });
       available = pool;
     }
     var chosen = pickRandom(available);
@@ -574,11 +605,14 @@
   }
 
   function startRound() {
-    var chosen = pickWord();
+    var artistIdx = state.revealIndex % state.players.length;
+    var wantsTrace = !!state.playerDots[artistIdx];
+    var chosen = pickWord(wantsTrace);
     state.round = {
       difficulty: chosen.difficulty,
       word: chosen.word,
-      artistIdx: state.revealIndex % state.players.length
+      artistIdx: artistIdx,
+      useTrace: wantsTrace
     };
     goToReveal();
   }
@@ -593,30 +627,14 @@
   $("btn-show-word").addEventListener("click", function () {
     $("word-difficulty-label").textContent = state.round.difficulty + " word";
     $("word-secret").textContent = state.round.word;
-    var hasTrace = TRACE_SHAPES.hasOwnProperty(state.round.word);
-    $("trace-question").style.display = hasTrace ? "" : "none";
-    $("btn-start-drawing").style.display = hasTrace ? "none" : "";
     showScreen("screen-word");
   });
 
-  function goToDrawingScreen() {
+  $("btn-start-drawing").addEventListener("click", function () {
     $("draw-artist-name").textContent = state.players[state.round.artistIdx];
     showScreen("screen-draw");
     setupCanvasIfNeeded();
     clearCanvas();
-  }
-
-  $("btn-start-drawing").addEventListener("click", function () {
-    state.round.useTrace = false;
-    goToDrawingScreen();
-  });
-  $("btn-trace-yes").addEventListener("click", function () {
-    state.round.useTrace = true;
-    goToDrawingScreen();
-  });
-  $("btn-trace-no").addEventListener("click", function () {
-    state.round.useTrace = false;
-    goToDrawingScreen();
   });
 
   // ---------- Canvas ----------
