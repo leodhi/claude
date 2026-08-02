@@ -170,19 +170,15 @@
   .size-dot { border-radius: 50%; background: currentColor; }
   .row { display: flex; gap: 8px; }
   .row > * { flex: 1; }
-  .winner-list { display: flex; flex-direction: column; gap: 8px; }
-  .winner-btn {
-    background: var(--panel-2);
-    border: 1px solid var(--border);
-    color: var(--text);
-    padding: 14px;
-    border-radius: 10px;
-    font-size: 1rem;
-    cursor: pointer;
-    text-align: left;
+  .tally-row {
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--border);
   }
-  .winner-btn:active { transform: scale(0.98); }
-  .winner-btn.nobody { color: var(--text-dim); border-style: dashed; }
+  .tally-row:last-child { border-bottom: none; }
+  .tally-row span:last-child { color: var(--text-dim); text-align: right; }
   .result-banner {
     text-align: center;
     padding: 18px;
@@ -263,18 +259,45 @@
         <button class="secondary" id="btn-clear" type="button" style="flex:2;">Clear</button>
       </div>
     </div>
-    <button class="primary" id="btn-done-drawing" type="button">Someone guessed it! (or give up)</button>
+    <button class="primary" id="btn-done-drawing" type="button">Done Drawing — Time to Guess!</button>
   </div>
 
-  <!-- WHO GUESSED -->
-  <div class="screen" id="screen-winner">
+  <!-- PASS TO GUESS -->
+  <div class="screen" id="screen-pass-guess">
     <div class="card center">
-      <div class="category-label">The word was</div>
-      <div class="secret-word" id="winner-word"></div>
+      <div class="pass-icon">📱➡️🤔</div>
+      <div>Pass the device to</div>
+      <div class="big-name" id="pass-guess-name"></div>
+      <small class="hint">Look at the drawing and guess in private — don't say your guess out loud!</small>
+    </div>
+    <button class="primary" id="btn-ready-to-guess" type="button">I'm ready to guess</button>
+  </div>
+
+  <!-- GUESS INPUT -->
+  <div class="screen" id="screen-guess-input">
+    <div class="card center" style="padding:10px 16px;">
+      <span class="category-label">Guessing as</span>
+      <div class="big-name" id="guess-input-name" style="font-size:1.3rem; margin:2px 0;"></div>
+    </div>
+    <div class="canvas-wrap">
+      <img id="guess-drawing-img" style="width:100%; display:block;" alt="The drawing to guess">
     </div>
     <div class="card">
-      <label>Who guessed it correctly?</label>
-      <div class="winner-list" id="winner-list"></div>
+      <label>Your guess</label>
+      <input type="text" id="guess-input-field" placeholder="What is it?" maxlength="40">
+    </div>
+    <button class="primary" id="btn-submit-guess" type="button">Lock In Guess</button>
+  </div>
+
+  <!-- REVEAL GUESSES -->
+  <div class="screen" id="screen-reveal-guesses">
+    <div class="card center">
+      <div class="category-label">The word was</div>
+      <div class="secret-word" id="reveal-word"></div>
+    </div>
+    <div class="card">
+      <label>Guesses</label>
+      <div id="guess-tally"></div>
     </div>
     <button class="primary" id="btn-next-round" type="button">Next Round</button>
   </div>
@@ -510,39 +533,69 @@
     ctx.fillRect(0, 0, canvas.width, canvas.height);
   }
 
-  // ---------- Who guessed ----------
+  // ---------- Pass-around guessing ----------
   $("btn-done-drawing").addEventListener("click", function () {
-    $("winner-word").textContent = state.round.word;
-    var list = $("winner-list");
-    list.innerHTML = "";
-    state.players.forEach(function (name, idx) {
-      if (idx === state.round.artistIdx) return;
-      var btn = document.createElement("button");
-      btn.className = "winner-btn";
-      btn.type = "button";
-      btn.textContent = name;
-      btn.addEventListener("click", function () { awardPoints(idx); });
-      list.appendChild(btn);
-    });
-    var nobody = document.createElement("button");
-    nobody.className = "winner-btn nobody";
-    nobody.type = "button";
-    nobody.textContent = "No one guessed it";
-    nobody.addEventListener("click", function () { awardPoints(-1); });
-    list.appendChild(nobody);
-
-    showScreen("screen-winner");
+    state.round.image = canvas.toDataURL("image/png");
+    state.round.guesses = {};
+    state.round.guessOrder = state.players
+      .map(function (_, idx) { return idx; })
+      .filter(function (idx) { return idx !== state.round.artistIdx; });
+    state.round.guessPos = 0;
+    goToPassGuess();
   });
 
-  function awardPoints(winnerIdx) {
-    var artistName = state.players[state.round.artistIdx];
-    if (winnerIdx >= 0) {
-      var winnerName = state.players[winnerIdx];
-      state.scores[winnerName] += 2;
+  function goToPassGuess() {
+    if (state.round.guessPos >= state.round.guessOrder.length) {
+      goToRevealGuesses();
+      return;
+    }
+    var guesserIdx = state.round.guessOrder[state.round.guessPos];
+    $("pass-guess-name").textContent = state.players[guesserIdx];
+    showScreen("screen-pass-guess");
+  }
+
+  $("btn-ready-to-guess").addEventListener("click", function () {
+    var guesserIdx = state.round.guessOrder[state.round.guessPos];
+    $("guess-input-name").textContent = state.players[guesserIdx];
+    $("guess-drawing-img").src = state.round.image;
+    $("guess-input-field").value = "";
+    showScreen("screen-guess-input");
+    $("guess-input-field").focus();
+  });
+
+  $("btn-submit-guess").addEventListener("click", function () {
+    var guesserIdx = state.round.guessOrder[state.round.guessPos];
+    state.round.guesses[guesserIdx] = $("guess-input-field").value.trim();
+    state.round.guessPos++;
+    goToPassGuess();
+  });
+
+  function goToRevealGuesses() {
+    var round = state.round;
+    var artistName = state.players[round.artistIdx];
+    $("reveal-word").textContent = round.word;
+
+    var tally = $("guess-tally");
+    tally.innerHTML = "";
+    var correctCount = 0;
+    round.guessOrder.forEach(function (idx) {
+      var name = state.players[idx];
+      var guess = round.guesses[idx] || "(no guess)";
+      var isCorrect = guess.toLowerCase() === round.word.toLowerCase();
+      if (isCorrect) {
+        correctCount++;
+        state.scores[name] += 2;
+      }
+      var row = document.createElement("div");
+      row.className = "tally-row";
+      row.innerHTML = "<span>" + (isCorrect ? "✅ " : "❌ ") + name + "</span><span>" + guess + "</span>";
+      tally.appendChild(row);
+    });
+    if (correctCount > 0) {
       state.scores[artistName] += 1;
     }
-    renderScoreboard();
-    showScreen("screen-scores");
+
+    showScreen("screen-reveal-guesses");
   }
 
   $("btn-next-round").addEventListener("click", function () {
