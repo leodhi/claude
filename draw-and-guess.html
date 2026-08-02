@@ -584,16 +584,14 @@
       var isCorrect = guess.toLowerCase() === round.word.toLowerCase();
       if (isCorrect) {
         correctCount++;
-        state.scores[name] += 2;
+        state.scores[name] += 1;
       }
       var row = document.createElement("div");
       row.className = "tally-row";
       row.innerHTML = "<span>" + (isCorrect ? "✅ " : "❌ ") + name + "</span><span>" + guess + "</span>";
       tally.appendChild(row);
     });
-    if (correctCount > 0) {
-      state.scores[artistName] += 1;
-    }
+    state.scores[artistName] += correctCount;
 
     showScreen("screen-reveal-guesses");
   }
