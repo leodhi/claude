@@ -345,7 +345,13 @@
   var TRACE_SHAPES = {
     "Sun": "sun", "Star": "star", "House": "house", "Tree": "tree", "Cloud": "cloud",
     "Umbrella": "umbrella", "Fish": "fish", "Moon": "moon", "Kite": "kite",
-    "Ball": "circle", "Egg": "oval", "Heart": "heart"
+    "Ball": "circle", "Egg": "oval", "Heart": "heart",
+    "Apple": "apple", "Balloon": "balloon", "Flower": "flower", "Rainbow": "rainbow",
+    "Snowman": "snowman", "Cactus": "cactus", "Mushroom": "mushroom", "Carrot": "carrot",
+    "Pumpkin": "pumpkin", "Clock": "clock", "Cup": "cup", "Door": "door", "Window": "window",
+    "Bucket": "bucket", "Duck": "duck", "Turtle": "turtle", "Snail": "snail", "Boat": "boat",
+    "Car": "car", "Book": "book", "Lamp": "lamp", "Bridge": "bridge", "Leaf": "leaf",
+    "Mountain": "mountain", "Donut": "donut", "Ice cream": "icecream"
   };
 
   function arcPoints(cx, cy, rx, ry, startDeg, endDeg, steps) {
@@ -440,6 +446,196 @@
       var outer = arcPoints(300, 225, 110, 110, -70, 250, 40);
       var inner = arcPoints(345, 225, 92, 92, 250, -70, 40);
       return [{ points: outer.concat(inner), closed: true }];
+    },
+    apple: function () {
+      return [
+        { points: arcPoints(300, 245, 95, 100, 0, 360, 32), closed: true },
+        { points: [[300, 145], [310, 108]], closed: false },
+        { points: arcPoints(325, 118, 18, 10, 0, 360, 16), closed: true }
+      ];
+    },
+    balloon: function () {
+      return [
+        { points: arcPoints(300, 195, 80, 95, 0, 360, 32), closed: true },
+        { points: [[290, 288], [310, 288], [300, 305]], closed: true },
+        { points: [[300, 305], [288, 335], [312, 365], [288, 395], [300, 420]], closed: false }
+      ];
+    },
+    flower: function () {
+      var segs = [{ points: arcPoints(300, 245, 26, 26, 0, 360, 20), closed: true }];
+      for (var i = 0; i < 6; i++) {
+        var rad = i * 60 * Math.PI / 180;
+        var cx = 300 + 58 * Math.cos(rad), cy = 245 + 58 * Math.sin(rad);
+        segs.push({ points: arcPoints(cx, cy, 30, 30, 0, 360, 16), closed: true });
+      }
+      segs.push({ points: [[300, 275], [300, 400]], closed: false });
+      segs.push({ points: arcPoints(280, 350, 24, 12, 0, 360, 14), closed: true });
+      return segs;
+    },
+    rainbow: function () {
+      var segs = [];
+      [70, 95, 120, 145, 170].forEach(function (r) {
+        segs.push({ points: arcPoints(300, 400, r, r, 180, 360, 24), closed: false });
+      });
+      return segs;
+    },
+    snowman: function () {
+      return [
+        { points: arcPoints(300, 350, 70, 70, 0, 360, 28), closed: true },
+        { points: arcPoints(300, 235, 55, 55, 0, 360, 24), closed: true },
+        { points: arcPoints(300, 145, 38, 38, 0, 360, 20), closed: true }
+      ];
+    },
+    cactus: function () {
+      return [
+        { points: arcPoints(300, 260, 35, 110, 0, 360, 28), closed: true },
+        { points: arcPoints(255, 230, 18, 40, 0, 360, 16), closed: true },
+        { points: arcPoints(345, 200, 18, 40, 0, 360, 16), closed: true }
+      ];
+    },
+    mushroom: function () {
+      return [
+        { points: arcPoints(300, 165, 95, 60, 0, 360, 28), closed: true },
+        { points: [[275, 195], [325, 195], [325, 320], [275, 320]], closed: true }
+      ];
+    },
+    carrot: function () {
+      return [
+        { points: [[260, 160], [340, 160], [300, 340]], closed: true },
+        { points: [[300, 160], [270, 100]], closed: false },
+        { points: [[300, 160], [300, 90]], closed: false },
+        { points: [[300, 160], [330, 100]], closed: false }
+      ];
+    },
+    pumpkin: function () {
+      return [
+        { points: arcPoints(300, 250, 110, 90, 0, 360, 32), closed: true },
+        { points: [[290, 155], [310, 155], [310, 120], [290, 120]], closed: true }
+      ];
+    },
+    clock: function () {
+      return [
+        { points: arcPoints(300, 225, 100, 100, 0, 360, 32), closed: true },
+        { points: [[300, 225], [300, 170]], closed: false },
+        { points: [[300, 225], [350, 225]], closed: false }
+      ];
+    },
+    cup: function () {
+      return [
+        { points: [[230, 180], [370, 180], [350, 340], [250, 340]], closed: true },
+        { points: arcPoints(390, 250, 40, 55, -90, 90, 16), closed: false }
+      ];
+    },
+    door: function () {
+      return [
+        { points: [[240, 140], [360, 140], [360, 400], [240, 400]], closed: true },
+        { points: arcPoints(335, 270, 8, 8, 0, 360, 12), closed: true }
+      ];
+    },
+    window: function () {
+      return [
+        { points: [[220, 150], [380, 150], [380, 350], [220, 350]], closed: true },
+        { points: [[300, 150], [300, 350]], closed: false },
+        { points: [[220, 250], [380, 250]], closed: false }
+      ];
+    },
+    bucket: function () {
+      return [
+        { points: [[240, 180], [360, 180], [335, 380], [265, 380]], closed: true },
+        { points: arcPoints(300, 150, 65, 40, 180, 360, 16), closed: false }
+      ];
+    },
+    duck: function () {
+      return [
+        { points: arcPoints(290, 260, 90, 65, 0, 360, 28), closed: true },
+        { points: arcPoints(370, 190, 45, 45, 0, 360, 20), closed: true },
+        { points: [[410, 190], [440, 182], [410, 205]], closed: true }
+      ];
+    },
+    turtle: function () {
+      var segs = [
+        { points: arcPoints(300, 220, 100, 75, 0, 360, 28), closed: true },
+        { points: arcPoints(410, 220, 25, 20, 0, 360, 16), closed: true }
+      ];
+      [[220, 170], [380, 170], [220, 270], [380, 270]].forEach(function (p) {
+        segs.push({ points: arcPoints(p[0], p[1], 18, 14, 0, 360, 12), closed: true });
+      });
+      return segs;
+    },
+    snail: function () {
+      var shell = [];
+      for (var i = 0; i <= 60; i++) {
+        var t = i / 60 * 5.5 * Math.PI;
+        var r = 6 + t * 6.5;
+        shell.push([300 + r * Math.cos(t), 220 + r * Math.sin(t) * 0.85]);
+      }
+      return [
+        { points: shell, closed: false },
+        { points: arcPoints(220, 320, 90, 40, 0, 180, 20), closed: false },
+        { points: [[150, 300], [130, 260]], closed: false },
+        { points: [[170, 300], [155, 258]], closed: false }
+      ];
+    },
+    boat: function () {
+      return [
+        { points: [[200, 320], [400, 320], [360, 380], [240, 380]], closed: true },
+        { points: [[300, 320], [300, 150]], closed: false },
+        { points: [[302, 160], [302, 300], [380, 300]], closed: true }
+      ];
+    },
+    car: function () {
+      return [
+        { points: [[190, 220], [410, 220], [410, 300], [190, 300]], closed: true },
+        { points: [[240, 220], [280, 160], [320, 160], [360, 220]], closed: true },
+        { points: arcPoints(240, 310, 30, 30, 0, 360, 16), closed: true },
+        { points: arcPoints(360, 310, 30, 30, 0, 360, 16), closed: true }
+      ];
+    },
+    book: function () {
+      return [
+        { points: [[180, 160], [300, 150], [300, 380], [180, 370]], closed: true },
+        { points: [[300, 150], [420, 160], [420, 370], [300, 380]], closed: true }
+      ];
+    },
+    lamp: function () {
+      return [
+        { points: [[250, 150], [350, 150], [380, 230], [220, 230]], closed: true },
+        { points: [[300, 230], [300, 380]], closed: false },
+        { points: arcPoints(300, 390, 60, 15, 0, 360, 16), closed: true }
+      ];
+    },
+    bridge: function () {
+      return [
+        { points: arcPoints(300, 300, 150, 120, 180, 360, 28), closed: false },
+        { points: [[170, 300], [170, 380]], closed: false },
+        { points: [[430, 300], [430, 380]], closed: false },
+        { points: [[170, 300], [430, 300]], closed: false }
+      ];
+    },
+    leaf: function () {
+      return [
+        { points: arcPoints(300, 225, 70, 140, 0, 360, 28), closed: true },
+        { points: [[300, 365], [300, 400]], closed: false },
+        { points: [[300, 110], [300, 340]], closed: false }
+      ];
+    },
+    mountain: function () {
+      return [
+        { points: [[130, 380], [270, 160], [400, 380]], closed: true },
+        { points: [[320, 380], [450, 200], [560, 380]], closed: true }
+      ];
+    },
+    donut: function () {
+      return [
+        { points: arcPoints(300, 225, 110, 110, 0, 360, 32), closed: true },
+        { points: arcPoints(300, 225, 45, 45, 0, 360, 24), closed: true }
+      ];
+    },
+    icecream: function () {
+      return [
+        { points: [[260, 250], [340, 250], [300, 400]], closed: true },
+        { points: arcPoints(300, 220, 75, 70, 180, 360, 24), closed: false }
+      ];
     }
   };
 
