@@ -237,6 +237,13 @@
       <div class="secret-word" id="word-secret"></div>
       <small class="hint">Remember it, then hand the device to the artist's drawing spot. No writing letters or numbers in your doodle!</small>
     </div>
+    <div class="card center" id="trace-question" style="display:none;">
+      <label style="margin-bottom:10px;">Want dot-to-dot help drawing it?</label>
+      <div class="row">
+        <button class="secondary" id="btn-trace-yes" type="button">Yes, show dots</button>
+        <button class="secondary" id="btn-trace-no" type="button">No, freehand</button>
+      </div>
+    </div>
     <button class="primary" id="btn-start-drawing" type="button">Start Drawing</button>
   </div>
 
@@ -320,12 +327,138 @@
   "use strict";
 
   var WORDS = {
-    "Easy": ["Sun","Cat","Dog","Fish","Tree","Ball","House","Star","Moon","Flower","Car","Boat","Apple","Banana","Cloud","Hat","Cake","Shoe","Duck","Egg","Book","Cup","Chair","Bed","Umbrella","Fire","Snowman","Balloon","Kite","Rainbow","Bird","Bee","Frog","Snail","Turtle","Rabbit","Mouse","Bear","Lion","Cow","Pig","Sheep","Horse","Chicken","Owl","Spider","Ant","Crab","Whale","Ice cream","Cookie","Donut","Pretzel","Sandwich","Carrot","Pumpkin","Corn","Mushroom","Cactus","Leaf","Mountain","River","Bridge","Door","Window","Lamp","Clock","Pencil","Crayon","Broom","Bucket"],
+    "Easy": ["Sun","Cat","Dog","Fish","Tree","Ball","House","Star","Moon","Flower","Car","Boat","Apple","Banana","Cloud","Hat","Cake","Shoe","Duck","Egg","Book","Cup","Chair","Bed","Umbrella","Fire","Snowman","Balloon","Kite","Rainbow","Heart","Bird","Bee","Frog","Snail","Turtle","Rabbit","Mouse","Bear","Lion","Cow","Pig","Sheep","Horse","Chicken","Owl","Spider","Ant","Crab","Whale","Ice cream","Cookie","Donut","Pretzel","Sandwich","Carrot","Pumpkin","Corn","Mushroom","Cactus","Leaf","Mountain","River","Bridge","Door","Window","Lamp","Clock","Pencil","Crayon","Broom","Bucket"],
     "Medium": ["Elephant","Dinosaur","Robot","Castle","Rocket","Guitar","Bicycle","Pizza","Butterfly","Volcano","Pirate","Dragon","Snowboard","Octopus","Skateboard","Waterfall","Campfire","Lighthouse","Spaceship","Jungle gym","Sandcastle","Ice cream truck","Treehouse","Scarecrow","Windmill","Penguin","Kangaroo","Giraffe","Peacock","Flamingo","Hedgehog","Squirrel","Beaver","Raccoon","Skunk","Camel","Zebra","Gorilla","Cheetah","Koala","Mermaid","Wizard","Knight","Ninja","Astronaut","Firefighter","Ballerina","Clown","Magician","Superhero","Teddy bear","Piano","Violin","Trumpet","Drum set","Basketball hoop","Soccer goal","Swimming pool","Playground","Roller skates","Trampoline","Seesaw","Merry-go-round","Popcorn","Hot dog","Hamburger","Taco","Cupcake","Birthday cake","Snow cone"],
     "Hard": ["Roller coaster","Solar system","Time machine","Waterfall hike","Escalator","Chandelier","Symphony orchestra","Constellation","Submarine","Avalanche","Kaleidoscope","Greenhouse","Marathon runner","Snow globe","Puppet show","Blacksmith","Hot air balloon","Ferris wheel","Tightrope walker","Compass","Labyrinth","Observatory","Planetarium","Igloo","Lumberjack","Beekeeper","Scuba diver","Snorkeling","Parachute","Trapeze artist","Juggler","Sculpture","Fossil","Skeleton","Volcano eruption","Earthquake","Tornado","Thunderstorm","Northern lights","Shooting star","Treasure map","Pirate ship","Sunken ship","Desert oasis","Coral reef","Rainforest canopy","Beehive","Spider web","Anthill","Bird's nest","Cocoon","Recycling truck","Water wheel","Catapult","Drawbridge","Moat","Watchtower","Crossbow"]
   };
 
   var COLORS = ["#111111", "#e53935", "#1e88e5", "#43a047", "#fdd835", "#8e24aa", "#fb8c00"];
+
+  var TRACE_SHAPES = {
+    "Sun": "sun", "Star": "star", "House": "house", "Tree": "tree", "Cloud": "cloud",
+    "Umbrella": "umbrella", "Fish": "fish", "Moon": "moon", "Kite": "kite",
+    "Ball": "circle", "Egg": "oval", "Heart": "heart"
+  };
+
+  function arcPoints(cx, cy, rx, ry, startDeg, endDeg, steps) {
+    var pts = [];
+    for (var i = 0; i <= steps; i++) {
+      var deg = startDeg + (endDeg - startDeg) * (i / steps);
+      var rad = deg * Math.PI / 180;
+      pts.push([cx + rx * Math.cos(rad), cy + ry * Math.sin(rad)]);
+    }
+    return pts;
+  }
+
+  var SHAPES = {
+    circle: function () { return [{ points: arcPoints(300, 225, 120, 120, 0, 360, 32), closed: true }]; },
+    oval: function () { return [{ points: arcPoints(300, 225, 85, 130, 0, 360, 32), closed: true }]; },
+    star: function () {
+      var pts = [];
+      for (var i = 0; i < 10; i++) {
+        var r = i % 2 === 0 ? 130 : 55;
+        var rad = (-90 + i * 36) * Math.PI / 180;
+        pts.push([300 + r * Math.cos(rad), 225 + r * Math.sin(rad)]);
+      }
+      return [{ points: pts, closed: true }];
+    },
+    heart: function () {
+      var pts = [];
+      for (var i = 0; i <= 64; i++) {
+        var t = (i / 64) * 2 * Math.PI;
+        var x = 16 * Math.pow(Math.sin(t), 3);
+        var y = -(13 * Math.cos(t) - 5 * Math.cos(2 * t) - 2 * Math.cos(3 * t) - Math.cos(4 * t));
+        pts.push([300 + x * 7, 225 + y * 7]);
+      }
+      return [{ points: pts, closed: true }];
+    },
+    house: function () {
+      return [
+        { points: [[220, 260], [380, 260], [380, 380], [220, 380]], closed: true },
+        { points: [[205, 260], [300, 170], [395, 260]], closed: true }
+      ];
+    },
+    sun: function () {
+      var segs = [{ points: arcPoints(300, 225, 80, 80, 0, 360, 32), closed: true }];
+      for (var i = 0; i < 8; i++) {
+        var rad = i * 45 * Math.PI / 180;
+        segs.push({
+          points: [
+            [300 + 95 * Math.cos(rad), 225 + 95 * Math.sin(rad)],
+            [300 + 140 * Math.cos(rad), 225 + 140 * Math.sin(rad)]
+          ],
+          closed: false
+        });
+      }
+      return segs;
+    },
+    cloud: function () {
+      return [
+        { points: arcPoints(235, 250, 60, 45, 0, 360, 24), closed: true },
+        { points: arcPoints(320, 225, 78, 58, 0, 360, 24), closed: true },
+        { points: arcPoints(400, 255, 55, 42, 0, 360, 24), closed: true }
+      ];
+    },
+    tree: function () {
+      return [
+        { points: [[280, 300], [320, 300], [320, 400], [280, 400]], closed: true },
+        { points: arcPoints(300, 225, 110, 110, 0, 360, 32), closed: true }
+      ];
+    },
+    umbrella: function () {
+      var handle = [];
+      for (var i = 0; i <= 16; i++) { handle.push([300, 220 + (i / 16) * 130]); }
+      return [
+        { points: arcPoints(300, 220, 130, 90, 180, 360, 24), closed: false },
+        { points: handle, closed: false },
+        { points: arcPoints(325, 350, 25, 20, 180, 20, 10), closed: false }
+      ];
+    },
+    fish: function () {
+      return [
+        { points: arcPoints(275, 225, 110, 70, 0, 360, 32), closed: true },
+        { points: [[385, 225], [460, 175], [460, 275]], closed: true }
+      ];
+    },
+    kite: function () {
+      var tail = [];
+      for (var i = 0; i <= 6; i++) { tail.push([300 + (i % 2 === 0 ? 14 : -14), 380 + (i / 6) * 70]); }
+      return [
+        { points: [[300, 100], [405, 225], [300, 385], [195, 225]], closed: true },
+        { points: tail, closed: false }
+      ];
+    },
+    moon: function () {
+      var outer = arcPoints(300, 225, 110, 110, -70, 250, 40);
+      var inner = arcPoints(345, 225, 92, 92, 250, -70, 40);
+      return [{ points: outer.concat(inner), closed: true }];
+    }
+  };
+
+  function drawShapeDots(shapeKey) {
+    var gen = SHAPES[shapeKey];
+    if (!gen) return;
+    ctx.fillStyle = "#c7cfe0";
+    gen().forEach(function (seg) {
+      var pts = seg.points.slice();
+      if (seg.closed) pts.push(pts[0]);
+      var spacing = 14;
+      var carry = 0;
+      for (var i = 0; i < pts.length - 1; i++) {
+        var x1 = pts[i][0], y1 = pts[i][1], x2 = pts[i + 1][0], y2 = pts[i + 1][1];
+        var segLen = Math.hypot(x2 - x1, y2 - y1);
+        var dist = carry;
+        while (dist < segLen) {
+          var t = dist / segLen;
+          ctx.beginPath();
+          ctx.arc(x1 + (x2 - x1) * t, y1 + (y2 - y1) * t, 3, 0, Math.PI * 2);
+          ctx.fill();
+          dist += spacing;
+        }
+        carry = dist - segLen;
+      }
+    });
+  }
 
   var state = {
     players: ["", ""],
@@ -406,13 +539,23 @@
     state.players = names;
     state.scores = {};
     names.forEach(function (n) { state.scores[n] = 0; });
-    state.revealIndex = 0;
-    state.usedWords = {};
+    state.revealIndex = Math.floor(Math.random() * names.length);
     startRound();
   });
 
   // ---------- Round setup ----------
   function pickRandom(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
+
+  var USED_WORDS_KEY = "doodleGuessUsedWords";
+  try {
+    state.usedWords = JSON.parse(localStorage.getItem(USED_WORDS_KEY)) || {};
+  } catch (e) {
+    state.usedWords = {};
+  }
+
+  function saveUsedWords() {
+    try { localStorage.setItem(USED_WORDS_KEY, JSON.stringify(state.usedWords)); } catch (e) { /* ignore */ }
+  }
 
   function pickWord() {
     var pool = [];
@@ -426,6 +569,7 @@
     }
     var chosen = pickRandom(available);
     state.usedWords[chosen.word] = true;
+    saveUsedWords();
     return chosen;
   }
 
@@ -449,14 +593,30 @@
   $("btn-show-word").addEventListener("click", function () {
     $("word-difficulty-label").textContent = state.round.difficulty + " word";
     $("word-secret").textContent = state.round.word;
+    var hasTrace = TRACE_SHAPES.hasOwnProperty(state.round.word);
+    $("trace-question").style.display = hasTrace ? "" : "none";
+    $("btn-start-drawing").style.display = hasTrace ? "none" : "";
     showScreen("screen-word");
   });
 
-  $("btn-start-drawing").addEventListener("click", function () {
+  function goToDrawingScreen() {
     $("draw-artist-name").textContent = state.players[state.round.artistIdx];
     showScreen("screen-draw");
     setupCanvasIfNeeded();
     clearCanvas();
+  }
+
+  $("btn-start-drawing").addEventListener("click", function () {
+    state.round.useTrace = false;
+    goToDrawingScreen();
+  });
+  $("btn-trace-yes").addEventListener("click", function () {
+    state.round.useTrace = true;
+    goToDrawingScreen();
+  });
+  $("btn-trace-no").addEventListener("click", function () {
+    state.round.useTrace = false;
+    goToDrawingScreen();
   });
 
   // ---------- Canvas ----------
@@ -547,6 +707,9 @@
   function clearCanvas() {
     ctx.fillStyle = "#ffffff";
     ctx.fillRect(0, 0, canvas.width, canvas.height);
+    if (state.round && state.round.useTrace && TRACE_SHAPES.hasOwnProperty(state.round.word)) {
+      drawShapeDots(TRACE_SHAPES[state.round.word]);
+    }
   }
 
   // ---------- Pass-around guessing ----------
