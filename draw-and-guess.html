@@ -320,9 +320,9 @@
   "use strict";
 
   var WORDS = {
-    "Easy": ["Sun","Cat","Dog","Fish","Tree","Ball","House","Star","Moon","Flower","Car","Boat","Apple","Banana","Cloud","Hat","Cake","Shoe","Duck","Egg","Book","Cup","Chair","Bed","Umbrella","Fire","Snowman","Balloon","Kite","Rainbow"],
-    "Medium": ["Elephant","Dinosaur","Robot","Castle","Rocket","Guitar","Bicycle","Pizza","Butterfly","Volcano","Pirate","Dragon","Snowboard","Octopus","Skateboard","Waterfall","Campfire","Lighthouse","Spaceship","Jungle gym","Sandcastle","Ice cream truck","Treehouse","Scarecrow","Windmill"],
-    "Hard": ["Roller coaster","Solar system","Time machine","Waterfall hike","Escalator","Chandelier","Symphony orchestra","Constellation","Submarine","Avalanche","Kaleidoscope","Greenhouse","Marathon runner","Snow globe","Puppet show","Blacksmith","Hot air balloon","Ferris wheel","Tightrope walker","Compass"]
+    "Easy": ["Sun","Cat","Dog","Fish","Tree","Ball","House","Star","Moon","Flower","Car","Boat","Apple","Banana","Cloud","Hat","Cake","Shoe","Duck","Egg","Book","Cup","Chair","Bed","Umbrella","Fire","Snowman","Balloon","Kite","Rainbow","Bird","Bee","Frog","Snail","Turtle","Rabbit","Mouse","Bear","Lion","Cow","Pig","Sheep","Horse","Chicken","Owl","Spider","Ant","Crab","Whale","Ice cream","Cookie","Donut","Pretzel","Sandwich","Carrot","Pumpkin","Corn","Mushroom","Cactus","Leaf","Mountain","River","Bridge","Door","Window","Lamp","Clock","Pencil","Crayon","Broom","Bucket"],
+    "Medium": ["Elephant","Dinosaur","Robot","Castle","Rocket","Guitar","Bicycle","Pizza","Butterfly","Volcano","Pirate","Dragon","Snowboard","Octopus","Skateboard","Waterfall","Campfire","Lighthouse","Spaceship","Jungle gym","Sandcastle","Ice cream truck","Treehouse","Scarecrow","Windmill","Penguin","Kangaroo","Giraffe","Peacock","Flamingo","Hedgehog","Squirrel","Beaver","Raccoon","Skunk","Camel","Zebra","Gorilla","Cheetah","Koala","Mermaid","Wizard","Knight","Ninja","Astronaut","Firefighter","Ballerina","Clown","Magician","Superhero","Teddy bear","Piano","Violin","Trumpet","Drum set","Basketball hoop","Soccer goal","Swimming pool","Playground","Roller skates","Trampoline","Seesaw","Merry-go-round","Popcorn","Hot dog","Hamburger","Taco","Cupcake","Birthday cake","Snow cone"],
+    "Hard": ["Roller coaster","Solar system","Time machine","Waterfall hike","Escalator","Chandelier","Symphony orchestra","Constellation","Submarine","Avalanche","Kaleidoscope","Greenhouse","Marathon runner","Snow globe","Puppet show","Blacksmith","Hot air balloon","Ferris wheel","Tightrope walker","Compass","Labyrinth","Observatory","Planetarium","Igloo","Lumberjack","Beekeeper","Scuba diver","Snorkeling","Parachute","Trapeze artist","Juggler","Sculpture","Fossil","Skeleton","Volcano eruption","Earthquake","Tornado","Thunderstorm","Northern lights","Shooting star","Treasure map","Pirate ship","Sunken ship","Desert oasis","Coral reef","Rainforest canopy","Beehive","Spider web","Anthill","Bird's nest","Cocoon","Recycling truck","Water wheel","Catapult","Drawbridge","Moat","Watchtower","Crossbow"]
   };
 
   var COLORS = ["#111111", "#e53935", "#1e88e5", "#43a047", "#fdd835", "#8e24aa", "#fb8c00"];
@@ -332,7 +332,8 @@
     selectedDifficulties: Object.keys(WORDS),
     scores: {},
     round: null,
-    revealIndex: 0
+    revealIndex: 0,
+    usedWords: {}
   };
 
   var canvas, ctx, drawing = false, currentColor = COLORS[0], currentSize = 9, erasing = false, lastX = 0, lastY = 0;
@@ -406,18 +407,33 @@
     state.scores = {};
     names.forEach(function (n) { state.scores[n] = 0; });
     state.revealIndex = 0;
+    state.usedWords = {};
     startRound();
   });
 
   // ---------- Round setup ----------
   function pickRandom(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
 
+  function pickWord() {
+    var pool = [];
+    state.selectedDifficulties.forEach(function (d) {
+      WORDS[d].forEach(function (w) { pool.push({ word: w, difficulty: d }); });
+    });
+    var available = pool.filter(function (item) { return !state.usedWords[item.word]; });
+    if (available.length === 0) {
+      state.usedWords = {};
+      available = pool;
+    }
+    var chosen = pickRandom(available);
+    state.usedWords[chosen.word] = true;
+    return chosen;
+  }
+
   function startRound() {
-    var difficulty = pickRandom(state.selectedDifficulties);
-    var word = pickRandom(WORDS[difficulty]);
+    var chosen = pickWord();
     state.round = {
-      difficulty: difficulty,
-      word: word,
+      difficulty: chosen.difficulty,
+      word: chosen.word,
       artistIdx: state.revealIndex % state.players.length
     };
     goToReveal();
