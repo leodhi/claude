@@ -341,6 +341,11 @@
       <small class="hint">Pick specific categories, or leave "All" selected for the full mix.</small>
     </div>
     <div class="card">
+      <label>Guessing Mode</label>
+      <div class="chip-group" id="guess-mode-chips"></div>
+      <small class="hint">Type the Guess: everyone types what they think it is. Multiple Choice: guessers pick from a list of words, which is easier for younger or non-reading-fluent players.</small>
+    </div>
+    <div class="card">
       <label>Points to Win</label>
       <div class="target-score-row">
         <button class="stepper-btn" id="btn-target-down" type="button" aria-label="Decrease">&minus;</button>
@@ -422,9 +427,13 @@
     <div class="canvas-wrap">
       <img id="guess-drawing-img" style="width:100%; display:block;" alt="The drawing to guess">
     </div>
-    <div class="card">
+    <div class="card" id="guess-type-card">
       <label>Your guess</label>
       <input type="text" id="guess-input-field" placeholder="What is it?" maxlength="40">
+    </div>
+    <div class="card" id="guess-choice-card" style="display:none;">
+      <label>Pick the word</label>
+      <div class="chip-group" id="guess-choice-options"></div>
     </div>
     <button class="primary" id="btn-submit-guess" type="button">Lock In Guess</button>
   </div>
@@ -1376,6 +1385,7 @@
     playerDots: [false, false],
     playerDifficulty: [["Easy"], ["Easy"]],
     selectedCategories: ["All"],
+    guessMode: "type",
     targetScore: 6,
     lastWinningScore: 6,
     scores: {},
@@ -1401,6 +1411,7 @@
           playerDots: state.playerDots,
           playerDifficulty: state.playerDifficulty,
           selectedCategories: state.selectedCategories,
+          guessMode: state.guessMode,
           targetScore: state.targetScore,
           lastWinningScore: state.lastWinningScore,
           scores: state.scores,
@@ -1575,6 +1586,21 @@
     });
   }
 
+  function renderGuessModeChips() {
+    var wrap = $("guess-mode-chips");
+    wrap.innerHTML = "";
+    [["type", "Type the Guess"], ["choice", "Multiple Choice"]].forEach(function (pair) {
+      var chip = document.createElement("div");
+      chip.className = "chip" + (state.guessMode === pair[0] ? " selected" : "");
+      chip.textContent = pair[1];
+      chip.addEventListener("click", function () {
+        state.guessMode = pair[0];
+        renderGuessModeChips();
+      });
+      wrap.appendChild(chip);
+    });
+  }
+
   function stepScoreInput(inputId, delta, fallback) {
     var input = $(inputId);
     var val = parseInt(input.value, 10);
@@ -1607,6 +1633,29 @@
 
   // ---------- Round setup ----------
   function pickRandom(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
+
+  var ALL_WORDS_FLAT = null;
+  function allWordsFlat() {
+    if (ALL_WORDS_FLAT) return ALL_WORDS_FLAT;
+    var out = [];
+    for (var cat in WORD_CATEGORIES) {
+      for (var diff in WORD_CATEGORIES[cat]) {
+        out = out.concat(WORD_CATEGORIES[cat][diff]);
+      }
+    }
+    ALL_WORDS_FLAT = out;
+    return out;
+  }
+
+  // 20 options total: the real word plus 19 random distractors pulled from the
+  // whole bank (not just the round's category/difficulty) — with 1300 words to
+  // draw from, an accidental near-duplicate distractor is rare and harmless
+  function buildChoiceOptions(correctWord) {
+    var pool = shuffle(allWordsFlat().filter(function (w) {
+      return w.toLowerCase() !== correctWord.toLowerCase();
+    })).slice(0, 19);
+    return shuffle(pool.concat([correctWord]));
+  }
 
   function findWordMeta(word) {
     for (var cat in WORD_CATEGORIES) {
@@ -1877,6 +1926,9 @@
       .map(function (_, idx) { return idx; })
       .filter(function (idx) { return idx !== state.round.artistIdx; }));
     state.round.guessPos = 0;
+    if (state.guessMode === "choice") {
+      state.round.choiceOptions = buildChoiceOptions(state.round.word);
+    }
     goToPassGuess();
   }
 
@@ -1923,26 +1975,49 @@
     if (guessTimerHandle) { clearInterval(guessTimerHandle); guessTimerHandle = null; }
   }
 
+  function renderGuessChoices() {
+    var wrap = $("guess-choice-options");
+    wrap.innerHTML = "";
+    state.round.choiceOptions.forEach(function (word) {
+      var chip = document.createElement("div");
+      chip.className = "chip";
+      chip.textContent = word;
+      chip.addEventListener("click", function () { submitGuess(word); });
+      wrap.appendChild(chip);
+    });
+  }
+
   $("btn-ready-to-guess").addEventListener("click", function () {
     var guesserIdx = state.round.guessOrder[state.round.guessPos];
     $("guess-input-name").textContent = state.players[guesserIdx];
     $("guess-drawing-img").src = state.round.image;
     $("guess-input-field").value = "";
+    if (state.guessMode === "choice" && state.round.choiceOptions) {
+      $("guess-type-card").style.display = "none";
+      $("guess-choice-card").style.display = "";
+      $("btn-submit-guess").style.display = "none";
+      renderGuessChoices();
+    } else {
+      $("guess-type-card").style.display = "";
+      $("guess-choice-card").style.display = "none";
+      $("btn-submit-guess").style.display = "";
+    }
     showScreen("screen-guess-input");
     // don't auto-focus: on phones this pops the keyboard immediately and
     // covers the drawing — let them tap the field when they're ready to type
     startGuessTimer();
   });
 
-  function submitGuess() {
+  function submitGuess(explicitGuess) {
     stopGuessTimer();
     var guesserIdx = state.round.guessOrder[state.round.guessPos];
-    state.round.guesses[guesserIdx] = $("guess-input-field").value.trim();
+    var guessText = (typeof explicitGuess === "string") ? explicitGuess : $("guess-input-field").value.trim();
+    state.round.guesses[guesserIdx] = guessText;
     state.round.guessPos++;
     goToPassGuess();
   }
 
-  $("btn-submit-guess").addEventListener("click", submitGuess);
+  $("btn-submit-guess").addEventListener("click", function () { submitGuess(); });
 
   function normalizeGuess(s) {
     return s.toLowerCase().trim().replace(/[^a-z0-9 ]/g, "").replace(/\s+/g, " ");
@@ -2131,6 +2206,8 @@
     state.playerDots = saved.playerDots;
     state.playerDifficulty = saved.playerDifficulty;
     state.selectedCategories = saved.selectedCategories;
+    state.guessMode = saved.guessMode || "type";
+    renderGuessModeChips();
     state.targetScore = saved.targetScore;
     state.lastWinningScore = saved.lastWinningScore;
     state.scores = saved.scores;
@@ -2157,6 +2234,7 @@
   // ---------- Init ----------
   renderPlayerList();
   renderCategoryChips();
+  renderGuessModeChips();
 })();
 </script>
 </body>
