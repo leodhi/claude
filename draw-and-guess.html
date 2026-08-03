@@ -70,8 +70,18 @@
     font-size: 1rem;
   }
   input[type="text"]:focus, select:focus { outline: 2px solid var(--accent); }
-  .player-row { display: flex; gap: 8px; margin-bottom: 8px; align-items: center; }
-  .player-row input { flex: 1; }
+  .player-row { display: flex; gap: 8px; margin-bottom: 8px; align-items: center; flex-wrap: wrap; }
+  .player-row input[type="text"] { flex: 1; min-width: 90px; }
+  .difficulty-select {
+    flex: none;
+    width: auto;
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 8px 6px;
+    border-radius: 10px;
+    font-size: 0.8rem;
+  }
   .dots-toggle {
     display: flex;
     flex-direction: column;
@@ -225,12 +235,7 @@
       <label>Players (2–10)</label>
       <div id="player-list"></div>
       <button class="secondary" id="btn-add-player" type="button">+ Add player</button>
-      <small class="hint">Check "trace" for young artists who'd like a dot-to-dot outline to trace when it's their turn to draw.</small>
-    </div>
-    <div class="card">
-      <label>Word difficulty</label>
-      <div class="chip-group" id="difficulty-chips"></div>
-      <small class="hint">Tap to toggle. At least one must stay selected. Easy = little kids, Hard = older kids.</small>
+      <small class="hint">Each player picks their own word difficulty (Easy = little kids, Hard = older kids). Check "trace" for young artists who'd like a dot-to-dot outline when it's their turn to draw.</small>
     </div>
     <button class="primary" id="btn-start-game" type="button">Start Game</button>
   </div>
@@ -699,7 +704,7 @@
   var state = {
     players: ["", ""],
     playerDots: [false, false],
-    selectedDifficulties: Object.keys(WORDS),
+    playerDifficulty: ["Easy", "Easy"],
     scores: {},
     round: null,
     revealIndex: 0
@@ -728,6 +733,18 @@
       input.addEventListener("input", function () { state.players[i] = input.value; });
       row.appendChild(input);
 
+      var diffSelect = document.createElement("select");
+      diffSelect.className = "difficulty-select";
+      Object.keys(WORDS).forEach(function (d) {
+        var opt = document.createElement("option");
+        opt.value = d;
+        opt.textContent = d;
+        if (d === (state.playerDifficulty[i] || "Easy")) opt.selected = true;
+        diffSelect.appendChild(opt);
+      });
+      diffSelect.addEventListener("change", function () { state.playerDifficulty[i] = diffSelect.value; });
+      row.appendChild(diffSelect);
+
       var dotsLabel = document.createElement("label");
       dotsLabel.className = "dots-toggle";
       var dotsCheckbox = document.createElement("input");
@@ -746,6 +763,7 @@
         rm.addEventListener("click", function () {
           state.players.splice(i, 1);
           state.playerDots.splice(i, 1);
+          state.playerDifficulty.splice(i, 1);
           renderPlayerList();
         });
         row.appendChild(rm);
@@ -758,29 +776,9 @@
     if (state.players.length >= 10) return;
     state.players.push("");
     state.playerDots.push(false);
+    state.playerDifficulty.push("Easy");
     renderPlayerList();
   });
-
-  function renderDifficultyChips() {
-    var wrap = $("difficulty-chips");
-    wrap.innerHTML = "";
-    Object.keys(WORDS).forEach(function (d) {
-      var chip = document.createElement("div");
-      chip.className = "chip" + (state.selectedDifficulties.indexOf(d) !== -1 ? " selected" : "");
-      chip.textContent = d;
-      chip.addEventListener("click", function () {
-        var idx = state.selectedDifficulties.indexOf(d);
-        if (idx !== -1) {
-          if (state.selectedDifficulties.length === 1) return;
-          state.selectedDifficulties.splice(idx, 1);
-        } else {
-          state.selectedDifficulties.push(d);
-        }
-        renderDifficultyChips();
-      });
-      wrap.appendChild(chip);
-    });
-  }
 
   $("btn-start-game").addEventListener("click", function () {
     var names = state.players.map(function (n, i) { return n.trim() || ("Player " + (i + 1)); });
@@ -795,17 +793,16 @@
   // ---------- Round setup ----------
   function pickRandom(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
 
-  function pickWord(traceOnly) {
+  function pickWord(difficulty, traceOnly) {
     var pool = [];
-    state.selectedDifficulties.forEach(function (d) {
-      WORDS[d].forEach(function (w) {
-        if (traceOnly && !TRACE_SHAPES.hasOwnProperty(w)) return;
-        pool.push({ word: w, difficulty: d });
-      });
+    WORDS[difficulty].forEach(function (w) {
+      if (traceOnly && !TRACE_SHAPES.hasOwnProperty(w)) return;
+      pool.push({ word: w, difficulty: difficulty });
     });
     if (traceOnly && pool.length === 0) {
+      // this difficulty has no traceable words of its own — fall back to any traceable word
       Object.keys(TRACE_SHAPES).forEach(function (w) {
-        var d = state.selectedDifficulties.filter(function (diff) { return WORDS[diff].indexOf(w) !== -1; })[0] || state.selectedDifficulties[0];
+        var d = Object.keys(WORDS).filter(function (diff) { return WORDS[diff].indexOf(w) !== -1; })[0] || difficulty;
         pool.push({ word: w, difficulty: d });
       });
     }
@@ -815,7 +812,8 @@
   function startRound() {
     var artistIdx = state.revealIndex % state.players.length;
     var wantsTrace = !!state.playerDots[artistIdx];
-    var chosen = pickWord(wantsTrace);
+    var difficulty = state.playerDifficulty[artistIdx] || "Easy";
+    var chosen = pickWord(difficulty, wantsTrace);
     state.round = {
       difficulty: chosen.difficulty,
       word: chosen.word,
@@ -1071,7 +1069,6 @@
 
   // ---------- Init ----------
   renderPlayerList();
-  renderDifficultyChips();
 })();
 </script>
 </body>
