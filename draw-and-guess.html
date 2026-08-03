@@ -755,13 +755,15 @@
       ];
     },
     cactus: function () {
-      // wide central column with two symmetric round side bumps sunk deep
-      // enough into it to read as attached arms, not three floating ovals
-      return [
-        { points: arcPoints(300, 260, 40, 110, 0, 360, 28), closed: true },
-        { points: arcPoints(240, 240, 32, 32, 0, 360, 16), closed: true },
-        { points: arcPoints(360, 240, 32, 32, 0, 360, 16), closed: true }
-      ];
+      // a single cross/plus-shaped outline — the classic simplified saguaro
+      // icon — instead of overlapping ovals that never read as attached arms
+      return [{
+        points: [
+          [265, 140], [335, 140], [335, 210], [410, 210], [410, 270], [335, 270],
+          [335, 380], [265, 380], [265, 270], [190, 270], [190, 210], [265, 210]
+        ],
+        closed: true
+      }];
     },
     mushroom: function () {
       return [
@@ -1122,9 +1124,19 @@
       return [{ points: pts, closed: true }];
     },
     pear: function () {
+      // one continuous teardrop outline with a rounded (not pointed) bottom
+      // — narrow neck, wide bulb — instead of two stacked circles
       return [
-        { points: arcPoints(300, 170, 55, 50, 0, 360, 20), closed: true },
-        { points: arcPoints(300, 290, 80, 75, 0, 360, 24), closed: true }
+        {
+          points: [
+            [300, 145], [320, 150], [335, 165], [344, 190], [349, 220], [350, 250],
+            [347, 285], [338, 315], [322, 340], [312, 350], [300, 353], [288, 350],
+            [278, 340], [262, 315], [253, 285], [250, 250], [251, 220], [256, 190],
+            [265, 165], [280, 150]
+          ],
+          closed: true
+        },
+        { points: [[300, 145], [306, 115]], closed: false }
       ];
     },
     strawberry: function () {
@@ -1140,15 +1152,20 @@
       return segs;
     },
     pretzel: function () {
-      // a figure-eight (lemniscate) traces one continuous twisted loop with
-      // two holes, which reads as a pretzel far better than two plain circles
+      // a figure-eight twist for the two side loops, plus a rounded arch
+      // bridging their tops — without the bridge it just reads as an
+      // infinity symbol instead of a pretzel
       var pts = [];
       for (var i = 0; i <= 64; i++) {
         var t = (i / 64) * 2 * Math.PI;
         var x = Math.cos(t), y = Math.sin(t) * Math.cos(t);
         pts.push([300 + x * 120, 225 + y * 100]);
       }
-      return [{ points: pts, closed: true }];
+      var arch = arcPoints(300, 175, 95, 55, 180, 360, 20);
+      return [
+        { points: pts, closed: true },
+        { points: arch, closed: false }
+      ];
     },
     football: function () {
       return [
@@ -1169,9 +1186,16 @@
       ];
     },
     paperclip: function () {
+      // straight-sided stadium loops (not ellipses) with a free wire end at
+      // the top, so it reads as bent wire instead of two nested lenses
+      var outerTop = arcPoints(300, 160, 28, 28, 180, 360, 12);
+      var outerBottom = arcPoints(300, 340, 28, 28, 0, 180, 12);
+      var innerTop = arcPoints(300, 195, 16, 16, 180, 360, 10);
+      var innerBottom = arcPoints(300, 310, 16, 16, 0, 180, 10);
       return [
-        { points: arcPoints(300, 225, 40, 150, -90, 270, 32), closed: false },
-        { points: arcPoints(300, 255, 25, 100, -90, 270, 24), closed: false }
+        { points: outerTop.concat(outerBottom), closed: true },
+        { points: innerTop.concat(innerBottom), closed: true },
+        { points: [[300, 160], [318, 126]], closed: false }
       ];
     }
   };
