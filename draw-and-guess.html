@@ -338,6 +338,7 @@
       <button class="secondary" id="btn-add-player" type="button">+ Add player</button>
       <small class="hint">Each player taps E / M / H to pick any mix of Easy, Medium, and Hard words for their own turn (Easy = little kids, Hard = older kids). Check "trace" for young artists who'd like a dot-to-dot outline when it's their turn to draw.</small>
       <small class="hint" id="players-warning" style="display:none; color: var(--accent-2);">Need at least 2 players.</small>
+      <small class="hint" id="two-player-notice" style="display:none;">With exactly 2 players, both of you always score the same each round — there's no way for one of you to pull ahead. The game will end in a tie once you hit the target score, with the option to keep playing. Add a 3rd player for real head-to-head scoring.</small>
     </div>
     <div class="card">
       <label>Categories</label>
@@ -1566,6 +1567,7 @@
       }
       wrap.appendChild(row);
     });
+    $("two-player-notice").style.display = (state.players.length === 2) ? "" : "none";
   }
 
   $("btn-add-player").addEventListener("click", function () {
