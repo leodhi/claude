@@ -2162,18 +2162,30 @@
     var maxScore = entries[0].score;
     if (maxScore < state.targetScore) return null;
     var topPlayers = entries.filter(function (e) { return e.score === maxScore; });
-    if (topPlayers.length === 1) return topPlayers[0].name;
-    return null; // tied at or above target — keep playing until someone pulls ahead
+    if (topPlayers.length === 1) return { tie: false, names: [topPlayers[0].name] };
+    // With exactly 2 players, a tie at/above target can never break on its own —
+    // both players always gain the same amount each round, since a round only
+    // has one guesser and the artist's bonus just mirrors that guesser's result.
+    // Rather than keep play going forever waiting for a lead that can't happen,
+    // call it a tie (players can still choose to Extend the Game from there).
+    if (state.players.length === 2) {
+      return { tie: true, names: topPlayers.map(function (e) { return e.name; }) };
+    }
+    return null; // 3+ players tied at/above target — keep playing until someone pulls ahead
+  }
+
+  function winnerDisplayText(result) {
+    return result.tie ? ("🤝 It's a Tie! " + result.names.join(" & ")) : ("🎉 " + result.names[0]);
   }
 
   $("btn-next-round").addEventListener("click", function () {
-    var winner = computeWinner();
-    if (winner) {
+    var result = computeWinner();
+    if (result) {
       // the actual winning score can be higher than the original target score
       // (the tie-break rule keeps play going past it), so remember it —
       // extending the game must require going higher than THIS, not the setup value
-      state.lastWinningScore = state.scores[winner];
-      $("winner-name").textContent = "🎉 " + winner;
+      state.lastWinningScore = state.scores[result.names[0]];
+      $("winner-name").textContent = winnerDisplayText(result);
       renderScoreboardInto("winner-scoreboard");
       $("extend-game-form").style.display = "none";
       showScreen("screen-game-won");
@@ -2270,8 +2282,8 @@
       renderScoreboardInto("scoreboard");
       showScreen("screen-scores");
     } else if (pendingResume.screen === "screen-game-won") {
-      var winner = computeWinner();
-      $("winner-name").textContent = winner ? ("🎉 " + winner) : "";
+      var result = computeWinner();
+      $("winner-name").textContent = result ? winnerDisplayText(result) : "";
       renderScoreboardInto("winner-scoreboard");
       $("extend-game-form").style.display = "none";
       showScreen("screen-game-won");
