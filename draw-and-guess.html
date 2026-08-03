@@ -642,25 +642,36 @@
   function drawShapeDots(shapeKey) {
     var gen = SHAPES[shapeKey];
     if (!gen) return;
-    ctx.fillStyle = "#c7cfe0";
     gen().forEach(function (seg) {
       var pts = seg.points.slice();
       if (seg.closed) pts.push(pts[0]);
-      var spacing = 14;
+      var spacing = 28;
       var carry = 0;
+      var dotPositions = [];
       for (var i = 0; i < pts.length - 1; i++) {
         var x1 = pts[i][0], y1 = pts[i][1], x2 = pts[i + 1][0], y2 = pts[i + 1][1];
         var segLen = Math.hypot(x2 - x1, y2 - y1);
         var dist = carry;
         while (dist < segLen) {
           var t = dist / segLen;
-          ctx.beginPath();
-          ctx.arc(x1 + (x2 - x1) * t, y1 + (y2 - y1) * t, 3, 0, Math.PI * 2);
-          ctx.fill();
+          dotPositions.push([x1 + (x2 - x1) * t, y1 + (y2 - y1) * t]);
           dist += spacing;
         }
         carry = dist - segLen;
       }
+      // a lone dot isn't worth numbering — leave very short segments unmarked
+      if (dotPositions.length < 2) return;
+      dotPositions.forEach(function (p, i) {
+        ctx.fillStyle = "#b9c3da";
+        ctx.beginPath();
+        ctx.arc(p[0], p[1], 7, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = "#4a5675";
+        ctx.font = "bold 9px -apple-system, BlinkMacSystemFont, sans-serif";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText(String(i + 1), p[0], p[1] + 0.5);
+      });
     });
   }
 
