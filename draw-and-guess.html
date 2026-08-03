@@ -353,7 +353,7 @@
     <div class="card">
       <label>Category Hint While Guessing</label>
       <div class="chip-group" id="category-hint-chips"></div>
-      <small class="hint">Show Category: guessers see which category the word is from (like "Animals") while they guess — a helpful narrowing hint for younger players. Off by default.</small>
+      <small class="hint">Off: no hint available. Optional: each guesser can tap a button to reveal the word's category (like "Animals") if they're stuck — but doing so cuts that round's points in half for both the guesser and the artist. Off by default.</small>
     </div>
     <div class="card">
       <label>Points to Win</label>
@@ -432,6 +432,7 @@
     <div class="card center" style="padding:10px 16px;">
       <span class="category-label">Guessing as</span>
       <div class="big-name" id="guess-input-name" style="font-size:1.3rem; margin:2px 0;"></div>
+      <button class="secondary" id="btn-reveal-category-hint" type="button" style="display:none; margin-bottom:6px; width:auto; padding:6px 12px; font-size:0.85rem;">🔍 Reveal Category (half points)</button>
       <div class="category-label" id="guess-category-hint" style="display:none; margin-bottom:4px;"></div>
       <div class="timer-display" id="guess-timer">0:45</div>
     </div>
@@ -1636,7 +1637,7 @@
   function renderCategoryHintChips() {
     var wrap = $("category-hint-chips");
     wrap.innerHTML = "";
-    [[false, "Hidden"], [true, "Show Category"]].forEach(function (pair) {
+    [[false, "Off"], [true, "Optional (half points)"]].forEach(function (pair) {
       var chip = document.createElement("div");
       chip.className = "chip" + (state.showCategoryHint === pair[0] ? " selected" : "");
       chip.textContent = pair[1];
@@ -1970,6 +1971,7 @@
     // guessers only ever see the ink layer — never the trace-guide dots/numbers
     state.round.image = inkCanvas.toDataURL("image/png");
     state.round.guesses = {};
+    state.round.hintUsed = {};
     state.round.guessOrder = shuffle(state.players
       .map(function (_, idx) { return idx; })
       .filter(function (idx) { return idx !== state.round.artistIdx; }));
@@ -2040,10 +2042,16 @@
     $("guess-input-name").textContent = state.players[guesserIdx];
     $("guess-drawing-img").src = state.round.image;
     $("guess-input-field").value = "";
-    if (state.showCategoryHint) {
+    var alreadyRevealed = !!state.round.hintUsed[guesserIdx];
+    if (state.showCategoryHint && !alreadyRevealed) {
+      $("btn-reveal-category-hint").style.display = "";
+      $("guess-category-hint").style.display = "none";
+    } else if (alreadyRevealed) {
+      $("btn-reveal-category-hint").style.display = "none";
       $("guess-category-hint").textContent = "Category: " + state.round.category;
       $("guess-category-hint").style.display = "";
     } else {
+      $("btn-reveal-category-hint").style.display = "none";
       $("guess-category-hint").style.display = "none";
     }
     if (state.guessMode === "choice" && state.round.choiceOptions) {
@@ -2060,6 +2068,14 @@
     // don't auto-focus: on phones this pops the keyboard immediately and
     // covers the drawing — let them tap the field when they're ready to type
     startGuessTimer();
+  });
+
+  $("btn-reveal-category-hint").addEventListener("click", function () {
+    var guesserIdx = state.round.guessOrder[state.round.guessPos];
+    state.round.hintUsed[guesserIdx] = true;
+    $("btn-reveal-category-hint").style.display = "none";
+    $("guess-category-hint").textContent = "Category: " + state.round.category;
+    $("guess-category-hint").style.display = "";
   });
 
   function submitGuess(explicitGuess) {
@@ -2118,21 +2134,25 @@
 
     var tally = $("guess-tally");
     tally.innerHTML = "";
-    var correctCount = 0;
+    var correctPoints = 0;
     round.guessOrder.forEach(function (idx) {
       var name = state.players[idx];
       var guess = round.guesses[idx] || "(no guess)";
       var isCorrect = isCloseGuess(guess, round.word);
+      var usedHint = !!(round.hintUsed && round.hintUsed[idx]);
+      var earned = 0;
       if (isCorrect) {
-        correctCount++;
-        state.scores[name] += 1;
+        earned = usedHint ? 0.5 : 1;
+        correctPoints += earned;
+        state.scores[name] += earned;
       }
       var row = document.createElement("div");
       row.className = "tally-row";
-      row.innerHTML = "<span>" + (isCorrect ? "✅ " : "❌ ") + name + "</span><span>" + guess + "</span>";
+      var pointsNote = isCorrect ? (" (+" + earned + (usedHint ? ", used hint" : "") + ")") : "";
+      row.innerHTML = "<span>" + (isCorrect ? "✅ " : "❌ ") + name + pointsNote + "</span><span>" + guess + "</span>";
       tally.appendChild(row);
     });
-    state.scores[artistName] += correctCount;
+    state.scores[artistName] += correctPoints;
     state.gallery.push({ word: round.word, artist: artistName, image: round.image });
 
     showScreen("screen-reveal-guesses");
