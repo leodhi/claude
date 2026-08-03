@@ -319,6 +319,7 @@
         <div class="size-btn" data-size="16" id="size-lg"><div class="size-dot" style="width:16px;height:16px;"></div></div>
         <button class="secondary" id="btn-eraser" type="button" style="flex:2;">Eraser</button>
         <button class="secondary" id="btn-undo" type="button" style="flex:2;" disabled>Undo</button>
+        <button class="secondary" id="btn-redo" type="button" style="flex:2;" disabled>Redo</button>
         <button class="secondary" id="btn-clear" type="button" style="flex:2;">Clear</button>
       </div>
     </div>
@@ -879,6 +880,7 @@
 
   var canvas, ctx, drawing = false, currentColor = COLORS[0], currentSize = 9, erasing = false, lastX = 0, lastY = 0;
   var undoStack = [];
+  var redoStack = [];
   var UNDO_LIMIT = 25;
 
   function saveUndoSnapshot() {
@@ -886,6 +888,9 @@
     undoStack.push(ctx.getImageData(0, 0, canvas.width, canvas.height));
     if (undoStack.length > UNDO_LIMIT) undoStack.shift();
     $("btn-undo").disabled = false;
+    // a fresh change invalidates whatever could have been redone
+    redoStack = [];
+    $("btn-redo").disabled = true;
   }
 
   function $(id) { return document.getElementById(id); }
@@ -1111,7 +1116,9 @@
     setupCanvasIfNeeded();
     clearCanvas();
     undoStack = [];
+    redoStack = [];
     $("btn-undo").disabled = true;
+    $("btn-redo").disabled = true;
     startDrawTimer();
   });
 
@@ -1184,9 +1191,19 @@
     });
     $("btn-undo").addEventListener("click", function () {
       if (!undoStack.length) return;
+      redoStack.push(ctx.getImageData(0, 0, canvas.width, canvas.height));
+      $("btn-redo").disabled = false;
       var img = undoStack.pop();
       ctx.putImageData(img, 0, 0);
       if (!undoStack.length) $("btn-undo").disabled = true;
+    });
+    $("btn-redo").addEventListener("click", function () {
+      if (!redoStack.length) return;
+      undoStack.push(ctx.getImageData(0, 0, canvas.width, canvas.height));
+      $("btn-undo").disabled = false;
+      var img = redoStack.pop();
+      ctx.putImageData(img, 0, 0);
+      if (!redoStack.length) $("btn-redo").disabled = true;
     });
 
     function pos(e) {
