@@ -653,6 +653,7 @@
     var MIN_DOT_GAP = 16; // only suppress near-exact duplicate vertices (shared seams/tangent points),
                            // not dots that are simply close by design (rays near a circle, petals near a center)
     var placedGlobal = [];
+    var nextNumber = 1;
     function tooClose(p) {
       for (var j = 0; j < placedGlobal.length; j++) {
         if (Math.hypot(p[0] - placedGlobal[j][0], p[1] - placedGlobal[j][1]) < MIN_DOT_GAP) return true;
@@ -687,7 +688,7 @@
       });
       // a lone dot isn't worth numbering — leave very short/mostly-skipped segments unmarked
       if (dotPositions.length < 2) return;
-      dotPositions.forEach(function (p, i) {
+      dotPositions.forEach(function (p) {
         ctx.fillStyle = "#b9c3da";
         ctx.beginPath();
         ctx.arc(p[0], p[1], 12, 0, Math.PI * 2);
@@ -696,7 +697,8 @@
         ctx.font = "bold 14px -apple-system, BlinkMacSystemFont, sans-serif";
         ctx.textAlign = "center";
         ctx.textBaseline = "middle";
-        ctx.fillText(String(i + 1), p[0], p[1] + 0.5);
+        ctx.fillText(String(nextNumber), p[0], p[1] + 0.5);
+        nextNumber++;
       });
     });
   }
