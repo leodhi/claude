@@ -642,24 +642,38 @@
   function drawShapeDots(shapeKey) {
     var gen = SHAPES[shapeKey];
     if (!gen) return;
+    var MIN_DOT_GAP = 20; // keep dots from different segments from overlapping at shared seams/tangents
+    var placedGlobal = [];
+    function tooClose(p) {
+      for (var j = 0; j < placedGlobal.length; j++) {
+        if (Math.hypot(p[0] - placedGlobal[j][0], p[1] - placedGlobal[j][1]) < MIN_DOT_GAP) return true;
+      }
+      return false;
+    }
     gen().forEach(function (seg) {
       var pts = seg.points.slice();
       if (seg.closed) pts.push(pts[0]);
       var spacing = 28;
       var carry = 0;
-      var dotPositions = [];
+      var candidates = [];
       for (var i = 0; i < pts.length - 1; i++) {
         var x1 = pts[i][0], y1 = pts[i][1], x2 = pts[i + 1][0], y2 = pts[i + 1][1];
         var segLen = Math.hypot(x2 - x1, y2 - y1);
         var dist = carry;
         while (dist < segLen) {
           var t = dist / segLen;
-          dotPositions.push([x1 + (x2 - x1) * t, y1 + (y2 - y1) * t]);
+          candidates.push([x1 + (x2 - x1) * t, y1 + (y2 - y1) * t]);
           dist += spacing;
         }
         carry = dist - segLen;
       }
-      // a lone dot isn't worth numbering — leave very short segments unmarked
+      var dotPositions = [];
+      candidates.forEach(function (p) {
+        if (tooClose(p)) return;
+        dotPositions.push(p);
+        placedGlobal.push(p);
+      });
+      // a lone dot isn't worth numbering — leave very short/mostly-skipped segments unmarked
       if (dotPositions.length < 2) return;
       dotPositions.forEach(function (p, i) {
         ctx.fillStyle = "#b9c3da";
