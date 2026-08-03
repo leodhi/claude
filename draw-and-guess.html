@@ -225,7 +225,7 @@
       <label>Players (2–10)</label>
       <div id="player-list"></div>
       <button class="secondary" id="btn-add-player" type="button">+ Add player</button>
-      <small class="hint">Check "dots" for young artists who'd like a dot-to-dot outline to trace when it's their turn to draw.</small>
+      <small class="hint">Check "trace" for young artists who'd like a dot-to-dot outline to trace when it's their turn to draw.</small>
     </div>
     <div class="card">
       <label>Word difficulty</label>
@@ -736,7 +736,7 @@
       dotsCheckbox.checked = !!state.playerDots[i];
       dotsCheckbox.addEventListener("change", function () { state.playerDots[i] = dotsCheckbox.checked; });
       dotsLabel.appendChild(dotsCheckbox);
-      dotsLabel.appendChild(document.createTextNode("dots"));
+      dotsLabel.appendChild(document.createTextNode("trace"));
       row.appendChild(dotsLabel);
 
       if (state.players.length > 2) {
