@@ -76,13 +76,35 @@
     font-size: 1rem;
   }
   input[type="text"]:focus, input[type="number"]:focus, select:focus { outline: 2px solid var(--accent); }
+  .target-score-row { display: flex; align-items: stretch; gap: 8px; }
   input.target-score-field {
+    flex: 1;
     font-size: 2rem;
     font-weight: 800;
     text-align: center;
     padding: 16px;
     color: var(--accent);
+    /* hide native browser spinner arrows since we supply our own bigger buttons */
+    -moz-appearance: textfield;
   }
+  input.target-score-field::-webkit-outer-spin-button,
+  input.target-score-field::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+  .stepper-btn {
+    flex: none;
+    width: 56px;
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    color: var(--accent);
+    font-size: 1.8rem;
+    font-weight: 700;
+    border-radius: 10px;
+    cursor: pointer;
+    line-height: 1;
+  }
+  .stepper-btn:active { transform: scale(0.96); }
   .player-row { display: flex; gap: 8px; margin-bottom: 8px; align-items: center; flex-wrap: wrap; }
   .player-row input[type="text"] { flex: 1; min-width: 90px; }
   .diff-chip-group { display: flex; gap: 4px; flex: none; }
@@ -289,7 +311,11 @@
     </div>
     <div class="card">
       <label>Points to Win</label>
-      <input type="number" id="target-score-input" class="target-score-field" min="1" max="99" value="6">
+      <div class="target-score-row">
+        <button class="stepper-btn" id="btn-target-down" type="button" aria-label="Decrease">&minus;</button>
+        <input type="number" id="target-score-input" class="target-score-field" min="1" max="99" value="6">
+        <button class="stepper-btn" id="btn-target-up" type="button" aria-label="Increase">+</button>
+      </div>
       <small class="hint">First to reach this score wins — but if two or more players are tied at or above it, play continues until one player pulls ahead.</small>
     </div>
     <button class="primary" id="btn-start-game" type="button">Start Game</button>
@@ -1030,6 +1056,19 @@
       wrap.appendChild(chip);
     });
   }
+
+  function stepTargetScore(delta) {
+    var input = $("target-score-input");
+    var val = parseInt(input.value, 10);
+    if (isNaN(val)) val = 6;
+    val += delta;
+    var min = parseInt(input.min, 10), max = parseInt(input.max, 10);
+    if (val < min) val = min;
+    if (val > max) val = max;
+    input.value = val;
+  }
+  $("btn-target-down").addEventListener("click", function () { stepTargetScore(-1); });
+  $("btn-target-up").addEventListener("click", function () { stepTargetScore(1); });
 
   $("btn-start-game").addEventListener("click", function () {
     var names = state.players.map(function (n, i) { return n.trim() || ("Player " + (i + 1)); });
