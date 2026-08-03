@@ -642,7 +642,8 @@
   function drawShapeDots(shapeKey) {
     var gen = SHAPES[shapeKey];
     if (!gen) return;
-    var MIN_DOT_GAP = 20; // keep dots from different segments from overlapping at shared seams/tangents
+    var MIN_DOT_GAP = 11; // only suppress near-exact duplicate vertices (shared seams/tangent points),
+                           // not dots that are simply close by design (rays near a circle, petals near a center)
     var placedGlobal = [];
     function tooClose(p) {
       for (var j = 0; j < placedGlobal.length; j++) {
@@ -667,9 +668,12 @@
         }
         carry = dist - segLen;
       }
+      // always keep a segment's first and last point so short segments (rays, tails,
+      // handles) can never be fully wiped out by the proximity filter
       var dotPositions = [];
-      candidates.forEach(function (p) {
-        if (tooClose(p)) return;
+      candidates.forEach(function (p, idx) {
+        var forced = idx === 0 || idx === candidates.length - 1;
+        if (!forced && tooClose(p)) return;
         dotPositions.push(p);
         placedGlobal.push(p);
       });
