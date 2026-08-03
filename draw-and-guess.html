@@ -389,7 +389,8 @@
     house: function () {
       return [
         { points: [[220, 260], [380, 260], [380, 380], [220, 380]], closed: true },
-        { points: [[205, 260], [300, 170], [395, 260]], closed: true }
+        // open, not closed — closing it would retrace the base's top edge and overlap it
+        { points: [[205, 260], [300, 170], [395, 260]], closed: false }
       ];
     },
     sun: function () {
@@ -462,14 +463,14 @@
       ];
     },
     flower: function () {
-      var segs = [{ points: arcPoints(300, 245, 26, 26, 0, 360, 20), closed: true }];
+      var segs = [{ points: arcPoints(300, 210, 20, 20, 0, 360, 16), closed: true }];
       for (var i = 0; i < 6; i++) {
         var rad = i * 60 * Math.PI / 180;
-        var cx = 300 + 58 * Math.cos(rad), cy = 245 + 58 * Math.sin(rad);
-        segs.push({ points: arcPoints(cx, cy, 30, 30, 0, 360, 16), closed: true });
+        var cx = 300 + 82 * Math.cos(rad), cy = 210 + 82 * Math.sin(rad);
+        segs.push({ points: arcPoints(cx, cy, 25, 25, 0, 360, 12), closed: true });
       }
-      segs.push({ points: [[300, 275], [300, 400]], closed: false });
-      segs.push({ points: arcPoints(280, 350, 24, 12, 0, 360, 14), closed: true });
+      segs.push({ points: [[300, 255], [300, 410]], closed: false });
+      segs.push({ points: arcPoints(275, 370, 26, 13, 0, 360, 12), closed: true });
       return segs;
     },
     rainbow: function () {
@@ -586,7 +587,8 @@
     car: function () {
       return [
         { points: [[190, 220], [410, 220], [410, 300], [190, 300]], closed: true },
-        { points: [[240, 220], [280, 160], [320, 160], [360, 220]], closed: true },
+        // open, not closed — closing it would retrace the body's top edge and overlap it
+        { points: [[240, 220], [280, 160], [320, 160], [360, 220]], closed: false },
         { points: arcPoints(240, 310, 30, 30, 0, 360, 16), closed: true },
         { points: arcPoints(360, 310, 30, 30, 0, 360, 16), closed: true }
       ];
@@ -594,7 +596,8 @@
     book: function () {
       return [
         { points: [[180, 160], [300, 150], [300, 380], [180, 370]], closed: true },
-        { points: [[300, 150], [420, 160], [420, 370], [300, 380]], closed: true }
+        // open, not closed — closing it would retrace the left page's spine edge
+        { points: [[300, 150], [420, 160], [420, 370], [300, 380]], closed: false }
       ];
     },
     lamp: function () {
