@@ -186,6 +186,10 @@
     user-select: none;
   }
   .chip.selected { background: var(--accent); color: #08130d; border-color: var(--accent); font-weight: 600; }
+  .gallery-entry { background: var(--panel); border: 1px solid var(--border); border-radius: 14px; overflow: hidden; margin-bottom: 12px; }
+  .gallery-entry img { width: 100%; display: block; }
+  .gallery-caption { padding: 10px 14px; font-size: 0.9rem; }
+  .gallery-caption strong { color: var(--accent); }
   .center { text-align: center; }
   .big-name {
     font-size: 1.8rem;
@@ -485,8 +489,18 @@
       <small class="hint">Only continue if everyone agrees to keep playing!</small>
       <button class="secondary" id="btn-confirm-extend" type="button" style="margin-top:10px;">Everyone Agrees — Keep Playing</button>
     </div>
+    <button class="secondary" id="btn-view-gallery" type="button">🖼️ View Drawings From This Game</button>
     <button class="secondary" id="btn-extend-game" type="button">Extend the Game</button>
     <button class="primary" id="btn-new-game" type="button">New Game</button>
+  </div>
+
+  <!-- GALLERY -->
+  <div class="screen" id="screen-gallery">
+    <div class="card">
+      <label>This Game's Drawings</label>
+    </div>
+    <div id="gallery-list"></div>
+    <button class="primary" id="btn-gallery-back" type="button">Back to Results</button>
   </div>
 
   <!-- SCOREBOARD -->
@@ -1390,7 +1404,11 @@
     scores: {},
     round: null,
     revealIndex: 0,
-    canResume: false
+    canResume: false,
+    // this game's drawings for the end-of-game gallery — kept in memory only,
+    // never persisted to the refresh-resume checkpoint (dataURLs would blow
+    // past localStorage's quota after a handful of rounds)
+    gallery: []
   };
 
   // ---------- Refresh-resume persistence ----------
@@ -1626,6 +1644,7 @@
     var targetInput = parseInt($("target-score-input").value, 10);
     state.targetScore = (targetInput > 0) ? targetInput : 6;
     state.canResume = false;
+    state.gallery = [];
     $("resume-banner").style.display = "none";
     startRound();
   });
@@ -2078,6 +2097,7 @@
       tally.appendChild(row);
     });
     state.scores[artistName] += correctCount;
+    state.gallery.push({ word: round.word, artist: artistName, image: round.image });
 
     showScreen("screen-reveal-guesses");
   }
@@ -2102,6 +2122,39 @@
     });
     if (elId === "scoreboard") $("scoreboard-target").textContent = state.targetScore;
   }
+
+  function renderGallery() {
+    var list = $("gallery-list");
+    list.innerHTML = "";
+    if (!state.gallery.length) {
+      var empty = document.createElement("div");
+      empty.className = "card center";
+      empty.textContent = "No drawings yet — this fills up as you play.";
+      list.appendChild(empty);
+      return;
+    }
+    state.gallery.forEach(function (entry) {
+      var wrap = document.createElement("div");
+      wrap.className = "gallery-entry";
+      var img = document.createElement("img");
+      img.src = entry.image;
+      img.alt = entry.word;
+      var caption = document.createElement("div");
+      caption.className = "gallery-caption";
+      caption.innerHTML = "<strong>" + entry.word + "</strong> — drawn by " + entry.artist;
+      wrap.appendChild(img);
+      wrap.appendChild(caption);
+      list.appendChild(wrap);
+    });
+  }
+
+  $("btn-view-gallery").addEventListener("click", function () {
+    renderGallery();
+    showScreen("screen-gallery");
+  });
+  $("btn-gallery-back").addEventListener("click", function () {
+    showScreen("screen-game-won");
+  });
 
   function computeWinner() {
     var entries = scoreEntries();
