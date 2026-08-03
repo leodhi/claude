@@ -236,6 +236,15 @@
   .result-win { background: rgba(78,230,167,0.15); border: 1px solid var(--accent); color: var(--accent); }
   .result-lose { background: rgba(255,93,143,0.15); border: 1px solid var(--accent-2); color: var(--accent-2); }
   .scoreboard { display: flex; flex-direction: column; gap: 6px; }
+  .target-score-line {
+    text-align: center;
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px solid var(--border);
+    color: var(--text-dim);
+    font-size: 0.95rem;
+  }
+  .target-score-line strong { color: var(--accent); font-size: 1.1rem; }
   .score-row { display: flex; justify-content: space-between; padding: 6px 4px; }
   .footer-nav { display: flex; gap: 8px; margin-top: auto; padding-top: 10px; }
   .footer-nav button { flex: 1; }
@@ -406,6 +415,7 @@
     <div class="card">
       <label>Scoreboard</label>
       <div class="scoreboard" id="scoreboard"></div>
+      <div class="target-score-line">Playing to <strong id="scoreboard-target"></strong> points</div>
     </div>
     <div class="card center" id="end-game-confirm" style="display:none;">
       <div>End the game and return to the start screen?</div>
@@ -1429,6 +1439,7 @@
       row.innerHTML = "<span>" + e.name + "</span><strong>" + e.score + "</strong>";
       board.appendChild(row);
     });
+    if (elId === "scoreboard") $("scoreboard-target").textContent = state.targetScore;
   }
 
   function computeWinner() {
