@@ -650,7 +650,7 @@
   function drawShapeDots(shapeKey) {
     var gen = SHAPES[shapeKey];
     if (!gen) return;
-    var MIN_DOT_GAP = 11; // only suppress near-exact duplicate vertices (shared seams/tangent points),
+    var MIN_DOT_GAP = 16; // only suppress near-exact duplicate vertices (shared seams/tangent points),
                            // not dots that are simply close by design (rays near a circle, petals near a center)
     var placedGlobal = [];
     function tooClose(p) {
@@ -662,7 +662,7 @@
     gen().forEach(function (seg) {
       var pts = seg.points.slice();
       if (seg.closed) pts.push(pts[0]);
-      var spacing = 28;
+      var spacing = 42;
       var carry = 0;
       var candidates = [];
       for (var i = 0; i < pts.length - 1; i++) {
@@ -690,10 +690,10 @@
       dotPositions.forEach(function (p, i) {
         ctx.fillStyle = "#b9c3da";
         ctx.beginPath();
-        ctx.arc(p[0], p[1], 7, 0, Math.PI * 2);
+        ctx.arc(p[0], p[1], 12, 0, Math.PI * 2);
         ctx.fill();
         ctx.fillStyle = "#4a5675";
-        ctx.font = "bold 9px -apple-system, BlinkMacSystemFont, sans-serif";
+        ctx.font = "bold 14px -apple-system, BlinkMacSystemFont, sans-serif";
         ctx.textAlign = "center";
         ctx.textBaseline = "middle";
         ctx.fillText(String(i + 1), p[0], p[1] + 0.5);
