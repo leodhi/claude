@@ -702,8 +702,7 @@
     selectedDifficulties: Object.keys(WORDS),
     scores: {},
     round: null,
-    revealIndex: 0,
-    usedWords: {}
+    revealIndex: 0
   };
 
   var canvas, ctx, drawing = false, currentColor = COLORS[0], currentSize = 9, erasing = false, lastX = 0, lastY = 0;
@@ -796,17 +795,6 @@
   // ---------- Round setup ----------
   function pickRandom(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
 
-  var USED_WORDS_KEY = "doodleGuessUsedWords";
-  try {
-    state.usedWords = JSON.parse(localStorage.getItem(USED_WORDS_KEY)) || {};
-  } catch (e) {
-    state.usedWords = {};
-  }
-
-  function saveUsedWords() {
-    try { localStorage.setItem(USED_WORDS_KEY, JSON.stringify(state.usedWords)); } catch (e) { /* ignore */ }
-  }
-
   function pickWord(traceOnly) {
     var pool = [];
     state.selectedDifficulties.forEach(function (d) {
@@ -821,15 +809,7 @@
         pool.push({ word: w, difficulty: d });
       });
     }
-    var available = pool.filter(function (item) { return !state.usedWords[item.word]; });
-    if (available.length === 0) {
-      pool.forEach(function (item) { delete state.usedWords[item.word]; });
-      available = pool;
-    }
-    var chosen = pickRandom(available);
-    state.usedWords[chosen.word] = true;
-    saveUsedWords();
-    return chosen;
+    return pickRandom(pool);
   }
 
   function startRound() {
