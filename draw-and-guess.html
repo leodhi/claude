@@ -313,6 +313,15 @@
 
   <!-- SETUP -->
   <div class="screen active" id="screen-setup">
+    <div class="card" id="refresh-resume-banner" style="display:none;">
+      <div class="row" style="align-items:center; gap:10px;">
+        <div style="flex:1;">Looks like the page was refreshed mid-game. Want to keep playing?</div>
+      </div>
+      <div class="row" style="margin-top:10px;">
+        <button class="secondary" id="btn-refresh-startnew" type="button">Start New Game</button>
+        <button class="primary" id="btn-refresh-continue" type="button">Continue Game</button>
+      </div>
+    </div>
     <div class="card" id="resume-banner" style="display:none;">
       <div class="row" style="align-items:center; gap:10px;">
         <div style="flex:1;">Your last game was ended. Was that an accident?</div>
@@ -1302,6 +1311,53 @@
     canResume: false
   };
 
+  // ---------- Refresh-resume persistence ----------
+  // Saved only at points where nothing has happened yet that would be unsafe
+  // to redo (start of a round, or right after that round's scores are
+  // already committed) — never mid-drawing or mid-guessing, since those
+  // screens involve one-time mutations (shuffling guess order, awarding
+  // points) that would double-apply if replayed from a restored screen.
+  var SAVE_KEY = "doodleGuessSave";
+
+  function saveCheckpoint(screenId) {
+    try {
+      var snapshot = {
+        screen: screenId,
+        state: {
+          players: state.players,
+          playerDots: state.playerDots,
+          playerDifficulty: state.playerDifficulty,
+          selectedCategories: state.selectedCategories,
+          targetScore: state.targetScore,
+          lastWinningScore: state.lastWinningScore,
+          scores: state.scores,
+          round: state.round ? {
+            difficulty: state.round.difficulty,
+            word: state.round.word,
+            category: state.round.category,
+            artistIdx: state.round.artistIdx,
+            useTrace: state.round.useTrace,
+            difficulties: state.round.difficulties,
+            skipUsed: state.round.skipUsed
+          } : null,
+          revealIndex: state.revealIndex
+        }
+      };
+      localStorage.setItem(SAVE_KEY, JSON.stringify(snapshot));
+    } catch (e) { /* private browsing or storage disabled — resume just won't be offered */ }
+  }
+
+  function clearSavedGame() {
+    try { localStorage.removeItem(SAVE_KEY); } catch (e) {}
+  }
+
+  function loadSavedGame() {
+    try {
+      var raw = localStorage.getItem(SAVE_KEY);
+      return raw ? JSON.parse(raw) : null;
+    } catch (e) { return null; }
+  }
+
   var canvas, ctx, drawing = false, currentColor = COLORS[0], currentSize = 9, erasing = false, lastX = 0, lastY = 0;
   // a second, hidden canvas mirrors only the artist's actual ink (never the trace-guide
   // dots), so the image shown to guessers never reveals the numbered guide underneath
@@ -1536,6 +1592,7 @@
     $("reveal-name").textContent = name;
     $("reveal-name-2").textContent = name;
     showScreen("screen-reveal");
+    saveCheckpoint("screen-reveal");
   }
 
   $("btn-show-word").addEventListener("click", function () {
@@ -1920,10 +1977,12 @@
       renderScoreboardInto("winner-scoreboard");
       $("extend-game-form").style.display = "none";
       showScreen("screen-game-won");
+      saveCheckpoint("screen-game-won");
     } else {
       renderScoreboardInto("scoreboard");
       $("end-game-confirm").style.display = "none";
       showScreen("screen-scores");
+      saveCheckpoint("screen-scores");
     }
   });
 
@@ -1952,6 +2011,7 @@
   $("btn-new-game").addEventListener("click", function () {
     state.canResume = false;
     $("resume-banner").style.display = "none";
+    clearSavedGame();
     showScreen("screen-setup");
   });
 
@@ -1975,6 +2035,50 @@
     if (!state.canResume) return;
     renderScoreboardInto("scoreboard");
     showScreen("screen-scores");
+  });
+
+  // ---------- Refresh-resume prompt ----------
+  var pendingResume = loadSavedGame();
+  if (pendingResume && pendingResume.state && pendingResume.state.players && pendingResume.state.players.length >= 2) {
+    $("refresh-resume-banner").style.display = "";
+  } else {
+    pendingResume = null;
+  }
+
+  $("btn-refresh-startnew").addEventListener("click", function () {
+    clearSavedGame();
+    pendingResume = null;
+    $("refresh-resume-banner").style.display = "none";
+  });
+
+  $("btn-refresh-continue").addEventListener("click", function () {
+    if (!pendingResume) return;
+    var saved = pendingResume.state;
+    state.players = saved.players;
+    state.playerDots = saved.playerDots;
+    state.playerDifficulty = saved.playerDifficulty;
+    state.selectedCategories = saved.selectedCategories;
+    state.targetScore = saved.targetScore;
+    state.lastWinningScore = saved.lastWinningScore;
+    state.scores = saved.scores;
+    state.revealIndex = saved.revealIndex;
+    state.round = saved.round;
+    $("refresh-resume-banner").style.display = "none";
+    if (pendingResume.screen === "screen-scores") {
+      renderScoreboardInto("scoreboard");
+      showScreen("screen-scores");
+    } else if (pendingResume.screen === "screen-game-won") {
+      var winner = computeWinner();
+      $("winner-name").textContent = winner ? ("🎉 " + winner) : "";
+      renderScoreboardInto("winner-scoreboard");
+      $("extend-game-form").style.display = "none";
+      showScreen("screen-game-won");
+    } else {
+      // start of the in-progress round — the safest resumable point, since
+      // nothing about that round (guess order, scoring) has happened yet
+      goToReveal();
+    }
+    pendingResume = null;
   });
 
   // ---------- Init ----------
