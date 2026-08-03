@@ -943,6 +943,7 @@
     playerDifficulty: [["Easy"], ["Easy"]],
     selectedCategories: ["All"],
     targetScore: 6,
+    lastWinningScore: 6,
     scores: {},
     round: null,
     revealIndex: 0,
@@ -1099,8 +1100,8 @@
   }
   $("btn-target-down").addEventListener("click", function () { stepScoreInput("target-score-input", -1, 6); });
   $("btn-target-up").addEventListener("click", function () { stepScoreInput("target-score-input", 1, 6); });
-  $("btn-extend-down").addEventListener("click", function () { stepScoreInput("extend-target-input", -1, state.targetScore + 5); });
-  $("btn-extend-up").addEventListener("click", function () { stepScoreInput("extend-target-input", 1, state.targetScore + 5); });
+  $("btn-extend-down").addEventListener("click", function () { stepScoreInput("extend-target-input", -1, state.lastWinningScore + 5); });
+  $("btn-extend-up").addEventListener("click", function () { stepScoreInput("extend-target-input", 1, state.lastWinningScore + 5); });
 
   $("btn-start-game").addEventListener("click", function () {
     var names = state.players.map(function (n, i) { return n.trim() || ("Player " + (i + 1)); });
@@ -1534,6 +1535,10 @@
   $("btn-next-round").addEventListener("click", function () {
     var winner = computeWinner();
     if (winner) {
+      // the actual winning score can be higher than the original target score
+      // (the tie-break rule keeps play going past it), so remember it —
+      // extending the game must require going higher than THIS, not the setup value
+      state.lastWinningScore = state.scores[winner];
       $("winner-name").textContent = "🎉 " + winner;
       renderScoreboardInto("winner-scoreboard");
       $("extend-game-form").style.display = "none";
@@ -1552,13 +1557,16 @@
 
   // ---------- Extend game ----------
   $("btn-extend-game").addEventListener("click", function () {
-    $("extend-target-input").value = state.targetScore + 5;
+    var floor = state.lastWinningScore + 1;
+    $("extend-target-input").min = floor;
+    $("extend-target-input").value = state.lastWinningScore + 5;
     $("extend-game-form").style.display = "";
   });
 
   $("btn-confirm-extend").addEventListener("click", function () {
+    var floor = state.lastWinningScore + 1;
     var newTarget = parseInt($("extend-target-input").value, 10);
-    if (!(newTarget > state.targetScore)) newTarget = state.targetScore + 5;
+    if (!(newTarget >= floor)) newTarget = state.lastWinningScore + 5;
     state.targetScore = newTarget;
     state.revealIndex++;
     startRound();
