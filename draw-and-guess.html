@@ -33,6 +33,12 @@
     flex-direction: column;
     padding: 20px 16px 40px;
   }
+  @media (min-width: 700px) {
+    #app { max-width: 760px; }
+  }
+  @media (min-width: 1000px) {
+    #app { max-width: 900px; }
+  }
   h1 {
     font-size: 1.6rem;
     margin: 4px 0 2px;
@@ -89,6 +95,7 @@
     user-select: none;
   }
   .diff-chip.selected { background: var(--accent); color: #08130d; border-color: var(--accent); }
+  .diff-chip.disabled { opacity: 0.3; cursor: not-allowed; }
   .dots-toggle {
     display: flex;
     flex-direction: column;
@@ -494,6 +501,20 @@
     "Mountain": "mountain", "Donut": "donut", "Ice cream": "icecream"
   };
 
+  function getTraceableDifficulties() {
+    var found = {};
+    Object.keys(TRACE_SHAPES).forEach(function (w) {
+      for (var cat in WORD_CATEGORIES) {
+        for (var diff in WORD_CATEGORIES[cat]) {
+          if (WORD_CATEGORIES[cat][diff].indexOf(w) !== -1) found[diff] = true;
+        }
+      }
+    });
+    return Object.keys(found);
+  }
+
+  var TRACEABLE_DIFFICULTIES = getTraceableDifficulties();
+
   function arcPoints(cx, cy, rx, ry, startDeg, endDeg, steps) {
     var pts = [];
     for (var i = 0; i <= steps; i++) {
@@ -785,13 +806,16 @@
   function drawShapeDots(shapeKey) {
     var gen = SHAPES[shapeKey];
     if (!gen) return;
-    var MIN_DOT_GAP = 16; // only suppress near-exact duplicate vertices (shared seams/tangent points),
-                           // not dots that are simply close by design (rays near a circle, petals near a center)
+    // dots are drawn at radius 12 (24px across) with numbers inside — SOFT_MIN keeps
+    // ordinary dots from crowding, HARD_MIN is a floor even forced endpoints must respect
+    // so a number is never drawn right on top of another one
+    var SOFT_MIN = 32;
+    var HARD_MIN = 22;
     var placedGlobal = [];
     var nextNumber = 1;
-    function tooClose(p) {
+    function tooClose(p, threshold) {
       for (var j = 0; j < placedGlobal.length; j++) {
-        if (Math.hypot(p[0] - placedGlobal[j][0], p[1] - placedGlobal[j][1]) < MIN_DOT_GAP) return true;
+        if (Math.hypot(p[0] - placedGlobal[j][0], p[1] - placedGlobal[j][1]) < threshold) return true;
       }
       return false;
     }
@@ -813,11 +837,12 @@
         carry = dist - segLen;
       }
       // always keep a segment's first and last point so short segments (rays, tails,
-      // handles) can never be fully wiped out by the proximity filter
+      // handles) can never be fully wiped out by the proximity filter — but even they
+      // must respect HARD_MIN so no number ever lands on top of another
       var dotPositions = [];
       candidates.forEach(function (p, idx) {
         var forced = idx === 0 || idx === candidates.length - 1;
-        if (!forced && tooClose(p)) return;
+        if (tooClose(p, forced ? HARD_MIN : SOFT_MIN)) return;
         dotPositions.push(p);
         placedGlobal.push(p);
       });
@@ -884,25 +909,37 @@
       input.addEventListener("input", function () { state.players[i] = input.value; });
       row.appendChild(input);
 
+      if (!state.playerDifficulty[i] || !state.playerDifficulty[i].length) state.playerDifficulty[i] = ["Easy"];
+      var traceOn = !!state.playerDots[i];
+      // when tracing is on, only difficulties that actually have traceable words make sense —
+      // otherwise showing all three is misleading, since the game silently ignores the others
+      var onlyTraceable = traceOn && TRACEABLE_DIFFICULTIES.length < DIFFICULTIES.length;
+      if (onlyTraceable) {
+        var kept = state.playerDifficulty[i].filter(function (d) { return TRACEABLE_DIFFICULTIES.indexOf(d) !== -1; });
+        state.playerDifficulty[i] = kept.length ? kept : TRACEABLE_DIFFICULTIES.slice();
+      }
+
       var diffGroup = document.createElement("div");
       diffGroup.className = "diff-chip-group";
-      if (!state.playerDifficulty[i] || !state.playerDifficulty[i].length) state.playerDifficulty[i] = ["Easy"];
       DIFFICULTIES.forEach(function (d) {
+        var enabled = !onlyTraceable || TRACEABLE_DIFFICULTIES.indexOf(d) !== -1;
         var chip = document.createElement("div");
-        chip.className = "diff-chip" + (state.playerDifficulty[i].indexOf(d) !== -1 ? " selected" : "");
+        chip.className = "diff-chip" + (state.playerDifficulty[i].indexOf(d) !== -1 ? " selected" : "") + (enabled ? "" : " disabled");
         chip.textContent = d[0];
-        chip.title = d;
-        chip.addEventListener("click", function () {
-          var list = state.playerDifficulty[i];
-          var idx = list.indexOf(d);
-          if (idx !== -1) {
-            if (list.length === 1) return; // keep at least one difficulty selected
-            list.splice(idx, 1);
-          } else {
-            list.push(d);
-          }
-          chip.classList.toggle("selected", list.indexOf(d) !== -1);
-        });
+        chip.title = enabled ? d : d + " (no traceable words — turn off trace to use this)";
+        if (enabled) {
+          chip.addEventListener("click", function () {
+            var list = state.playerDifficulty[i];
+            var idx = list.indexOf(d);
+            if (idx !== -1) {
+              if (list.length === 1) return; // keep at least one difficulty selected
+              list.splice(idx, 1);
+            } else {
+              list.push(d);
+            }
+            chip.classList.toggle("selected", list.indexOf(d) !== -1);
+          });
+        }
         diffGroup.appendChild(chip);
       });
       row.appendChild(diffGroup);
@@ -911,8 +948,11 @@
       dotsLabel.className = "dots-toggle";
       var dotsCheckbox = document.createElement("input");
       dotsCheckbox.type = "checkbox";
-      dotsCheckbox.checked = !!state.playerDots[i];
-      dotsCheckbox.addEventListener("change", function () { state.playerDots[i] = dotsCheckbox.checked; });
+      dotsCheckbox.checked = traceOn;
+      dotsCheckbox.addEventListener("change", function () {
+        state.playerDots[i] = dotsCheckbox.checked;
+        renderPlayerList();
+      });
       dotsLabel.appendChild(dotsCheckbox);
       dotsLabel.appendChild(document.createTextNode("trace"));
       row.appendChild(dotsLabel);
