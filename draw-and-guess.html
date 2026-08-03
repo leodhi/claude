@@ -755,15 +755,20 @@
       ];
     },
     cactus: function () {
-      // a single cross/plus-shaped outline — the classic simplified saguaro
-      // icon — instead of overlapping ovals that never read as attached arms
-      return [{
-        points: [
-          [265, 140], [335, 140], [335, 210], [410, 210], [410, 270], [335, 270],
-          [335, 380], [265, 380], [265, 270], [190, 270], [190, 210], [265, 210]
-        ],
-        closed: true
-      }];
+      // the trunk runs the full height (140-390) while both arms are much
+      // shorter and sit at mid-height, sunk into the trunk's flat sides —
+      // so the trunk clearly reads as the tall central stem, arms as shorter
+      // side branches, instead of three same-height capsules bunched together
+      var trunkTop = arcPoints(300, 165, 32, 32, 180, 360, 14);
+      var leftArmTop = arcPoints(255, 230, 26, 26, 180, 360, 10);
+      var leftArmBottom = arcPoints(255, 310, 26, 26, 0, 180, 10);
+      var rightArmTop = arcPoints(347, 200, 24, 24, 180, 360, 10);
+      var rightArmBottom = arcPoints(347, 290, 24, 24, 0, 180, 10);
+      return [
+        { points: trunkTop.concat([[332, 390], [268, 390]]), closed: true },
+        { points: leftArmTop.concat(leftArmBottom), closed: true },
+        { points: rightArmTop.concat(rightArmBottom), closed: true }
+      ];
     },
     mushroom: function () {
       return [
