@@ -580,36 +580,40 @@
     "Bucket": "bucket", "Duck": "duck", "Turtle": "turtle", "Snail": "snail", "Boat": "boat",
     "Car": "car", "Book": "book", "Lamp": "lamp", "Bridge": "bridge", "Leaf": "leaf",
     "Mountain": "mountain", "Donut": "donut", "Ice cream": "icecream",
+    // Every entry below must actually LOOK like the word when traced. A word is
+    // only listed here if a real matching outline exists — words whose only
+    // available shape was a generic circle/square/oval that told a child nothing
+    // (e.g. "Coin slot", "Piggy bank", "Wallet") are deliberately left out, since
+    // a misleading guide is worse for a young artist than no guide at all.
     "Anchor icon": "anchor", "Apricot": "circle", "Arrow sign": "arrowShape",
-    "Baseball": "circle", "Basketball": "circle", "Beach ball": "circle", "Beet": "circle",
-    "Belt buckle": "square", "Birthday hat": "partyhat", "Blackberry": "circle",
-    "Blueberry": "circle", "Bookend": "rectangle", "Bowling ball": "circle", "Bowtie": "bowtie",
-    "Bracelet": "oval", "Bubble tea": "mug", "Candle flame": "heart", "Cantaloupe": "circle",
+    "Baseball": "circle", "Basketball": "circle", "Beach ball": "circle",
+    "Birthday hat": "partyhat", "Blackberry": "circle",
+    "Blueberry": "circle", "Bowling ball": "circle", "Bowtie": "bowtie",
+    "Bracelet": "donut", "Candle flame": "flame", "Cantaloupe": "circle",
     "Cereal bowl": "bowl", "Checkerboard square": "square", "Cherry": "circle",
-    "Coconut": "circle", "Coffee mug": "mug", "Coin slot": "square", "Cookie": "circle",
-    "Cookie jar": "bowl", "Crescent moon": "moon", "Cross shape": "crossShape", "Crown": "crown",
+    "Coconut": "circle", "Coffee mug": "mug", "Cookie": "circle",
+    "Cookie jar": "jar", "Crescent moon": "moon", "Cross shape": "crossShape", "Crown": "crown",
     "Cupcake swirl": "cupcake", "Diamond shape": "diamond", "Dice": "dice",
-    "Domino": "rectangle", "Domino tile": "rectangle", "Doorknob": "circle",
-    "Envelope": "envelope", "Eyeglasses": "glasses", "Fig": "oval", "Firework burst": "star",
+    "Envelope": "envelope", "Eyeglasses": "glasses", "Firework burst": "star",
     "Flag on a pole": "flagpole", "Football": "football", "Full moon": "circle",
-    "Game die": "dice", "Garlic bulb": "oval", "Gift bow": "giftbow", "Golf ball": "circle",
-    "Grapefruit": "circle", "Grapes": "grapes", "Honey jar": "mug", "Honeydew": "oval",
-    "Hourglass shape": "hourglass", "House key": "key", "Jam jar": "mug", "Keyhole": "circle",
+    "Game die": "dice", "Gift bow": "giftbow", "Golf ball": "circle",
+    "Grapefruit": "circle", "Grapes": "grapes", "Honey jar": "jar", "Honeydew": "circle",
+    "Hourglass shape": "hourglass", "House key": "key", "Jam jar": "jar", "Keyhole": "keyhole",
     "Kiwi": "circle", "Lemon": "oval", "Light bulb": "lightbulb", "Lollipop": "lollipop",
     "Mango": "oval", "Marble": "circle", "Medal ribbon": "medal", "Musical note": "musicnote",
-    "Nectarine": "circle", "Olive": "circle", "Onion": "circle", "Orange slice": "circle",
+    "Nectarine": "circle", "Olive": "oval", "Onion": "circle",
     "Ornament ball": "circle", "Padlock": "padlock", "Paperclip": "paperclip",
-    "Party hat": "partyhat", "Pea pod": "oval", "Peach": "circle", "Pear": "pear",
-    "Pickle": "oval", "Piggy bank": "oval", "Pineapple": "oval", "Ping pong ball": "circle",
+    "Party hat": "partyhat", "Peach": "circle", "Pear": "pear",
+    "Pickle": "oval", "Pineapple": "pineapple", "Ping pong ball": "circle",
     "Plum": "circle", "Plus sign": "crossShape", "Popsicle": "popsicle", "Pretzel": "pretzel",
-    "Puzzle cube": "square", "Puzzle piece": "puzzlepiece", "Radish": "circle",
-    "Raspberry": "circle", "Rectangle": "rectangle", "Ribbon bow": "giftbow", "Ring": "circle",
-    "Ringed planet": "circle", "Rug pattern": "square", "Soccer ball": "circle",
+    "Puzzle piece": "puzzlepiece",
+    "Raspberry": "circle", "Rectangle": "rectangle", "Ribbon bow": "giftbow", "Ring": "donut",
+    "Ringed planet": "saturn", "Soccer ball": "circle",
     "Speech bubble": "speechbubble", "Square": "square", "Steering wheel": "steeringwheel",
-    "Stop sign": "stopsign", "Strawberry": "strawberry", "Sun hat": "partyhat",
-    "Target rings": "targetrings", "Tennis ball": "circle", "Tomato slice": "circle",
+    "Stop sign": "stopsign", "Strawberry": "strawberry", "Sun hat": "sunhat",
+    "Target rings": "targetrings", "Tennis ball": "circle",
     "Traffic light": "trafficlight", "Triangle": "triangle", "Trophy cup": "trophy",
-    "Volleyball": "circle", "Wall clock": "clock", "Wallet": "square", "Water bottle": "mug",
+    "Volleyball": "circle", "Wall clock": "clock", "Water bottle": "bottle",
     "Wristwatch": "watch", "Yo-yo": "circle"
   };
 
@@ -1210,6 +1214,75 @@
         { points: outerTop.concat(outerBottom), closed: true },
         { points: innerTop.concat(innerBottom), closed: true },
         { points: [[300, 160], [318, 126]], closed: false }
+      ];
+    },
+    flame: function () {
+      // teardrop pointed at the top and bulging at the bottom, plus a wick —
+      // an actual candle flame instead of the heart this used to point at
+      return [
+        {
+          points: [
+            [300, 110], [318, 158], [334, 202], [342, 242], [336, 274],
+            [318, 294], [300, 300], [282, 294], [264, 274], [258, 242],
+            [266, 202], [282, 158]
+          ],
+          closed: true
+        },
+        { points: [[300, 300], [300, 336]], closed: false }
+      ];
+    },
+    jar: function () {
+      // wide squat body under a broad screw-top lid — a narrow body reads as a
+      // thermos, so the jar is kept only slightly taller than it is wide
+      return [
+        { points: [[240, 165], [360, 165], [360, 200], [240, 200]], closed: true },
+        { points: [[246, 200], [354, 200], [358, 355], [242, 355]], closed: true }
+      ];
+    },
+    bottle: function () {
+      // cap, narrow neck, sloped shoulders, tall body
+      return [
+        { points: [[282, 104], [318, 104], [318, 140], [282, 140]], closed: true },
+        {
+          points: [
+            [286, 140], [314, 140], [314, 178], [340, 216],
+            [340, 372], [260, 372], [260, 216], [286, 178]
+          ],
+          closed: true
+        }
+      ];
+    },
+    pineapple: function () {
+      // oval body plus a spiky leaf crown, which is what actually makes a
+      // pineapple readable — the bare oval it used to use never could
+      return [
+        { points: arcPoints(300, 275, 82, 105, 0, 360, 28), closed: true },
+        { points: [[300, 172], [268, 96]], closed: false },
+        { points: [[300, 172], [300, 80]], closed: false },
+        { points: [[300, 172], [332, 96]], closed: false }
+      ];
+    },
+    saturn: function () {
+      // planet with its ring — the ring is the whole point of the word, so a
+      // bare circle was never going to read as a ringed planet
+      return [
+        { points: arcPoints(300, 225, 78, 78, 0, 360, 26), closed: true },
+        { points: arcPoints(300, 225, 145, 46, 0, 360, 30), closed: true }
+      ];
+    },
+    keyhole: function () {
+      // round socket over a flared slot
+      return [
+        { points: arcPoints(300, 188, 46, 46, 0, 360, 20), closed: true },
+        { points: [[280, 228], [320, 228], [338, 326], [262, 326]], closed: true }
+      ];
+    },
+    sunhat: function () {
+      // wide oval brim under a domed crown — a sun hat is nothing like the
+      // cone party hat it used to share a shape with
+      return [
+        { points: arcPoints(300, 300, 152, 42, 0, 360, 30), closed: true },
+        { points: arcPoints(300, 292, 74, 82, 180, 360, 22), closed: true }
       ];
     }
   };
