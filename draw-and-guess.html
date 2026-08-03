@@ -351,6 +351,11 @@
       <small class="hint">Type the Guess: everyone types what they think it is. Multiple Choice: guessers pick from a list of words, which is easier for younger or non-reading-fluent players.</small>
     </div>
     <div class="card">
+      <label>Category Hint While Guessing</label>
+      <div class="chip-group" id="category-hint-chips"></div>
+      <small class="hint">Show Category: guessers see which category the word is from (like "Animals") while they guess — a helpful narrowing hint for younger players. Off by default.</small>
+    </div>
+    <div class="card">
       <label>Points to Win</label>
       <div class="target-score-row">
         <button class="stepper-btn" id="btn-target-down" type="button" aria-label="Decrease">&minus;</button>
@@ -427,6 +432,7 @@
     <div class="card center" style="padding:10px 16px;">
       <span class="category-label">Guessing as</span>
       <div class="big-name" id="guess-input-name" style="font-size:1.3rem; margin:2px 0;"></div>
+      <div class="category-label" id="guess-category-hint" style="display:none; margin-bottom:4px;"></div>
       <div class="timer-display" id="guess-timer">0:45</div>
     </div>
     <div class="canvas-wrap">
@@ -1405,6 +1411,7 @@
     playerDifficulty: [["Easy"], ["Easy"]],
     selectedCategories: ["All"],
     guessMode: "type",
+    showCategoryHint: false,
     targetScore: 6,
     lastWinningScore: 6,
     scores: {},
@@ -1435,6 +1442,7 @@
           playerDifficulty: state.playerDifficulty,
           selectedCategories: state.selectedCategories,
           guessMode: state.guessMode,
+          showCategoryHint: state.showCategoryHint,
           targetScore: state.targetScore,
           lastWinningScore: state.lastWinningScore,
           scores: state.scores,
@@ -1620,6 +1628,21 @@
       chip.addEventListener("click", function () {
         state.guessMode = pair[0];
         renderGuessModeChips();
+      });
+      wrap.appendChild(chip);
+    });
+  }
+
+  function renderCategoryHintChips() {
+    var wrap = $("category-hint-chips");
+    wrap.innerHTML = "";
+    [[false, "Hidden"], [true, "Show Category"]].forEach(function (pair) {
+      var chip = document.createElement("div");
+      chip.className = "chip" + (state.showCategoryHint === pair[0] ? " selected" : "");
+      chip.textContent = pair[1];
+      chip.addEventListener("click", function () {
+        state.showCategoryHint = pair[0];
+        renderCategoryHintChips();
       });
       wrap.appendChild(chip);
     });
@@ -2017,6 +2040,12 @@
     $("guess-input-name").textContent = state.players[guesserIdx];
     $("guess-drawing-img").src = state.round.image;
     $("guess-input-field").value = "";
+    if (state.showCategoryHint) {
+      $("guess-category-hint").textContent = "Category: " + state.round.category;
+      $("guess-category-hint").style.display = "";
+    } else {
+      $("guess-category-hint").style.display = "none";
+    }
     if (state.guessMode === "choice" && state.round.choiceOptions) {
       $("guess-type-card").style.display = "none";
       $("guess-choice-card").style.display = "";
@@ -2279,6 +2308,8 @@
     state.selectedCategories = saved.selectedCategories;
     state.guessMode = saved.guessMode || "type";
     renderGuessModeChips();
+    state.showCategoryHint = !!saved.showCategoryHint;
+    renderCategoryHintChips();
     state.targetScore = saved.targetScore;
     state.lastWinningScore = saved.lastWinningScore;
     state.scores = saved.scores;
@@ -2306,6 +2337,7 @@
   renderPlayerList();
   renderCategoryChips();
   renderGuessModeChips();
+  renderCategoryHintChips();
 })();
 </script>
 </body>
