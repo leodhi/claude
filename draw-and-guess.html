@@ -164,6 +164,14 @@
     text-align: center;
   }
   .category-label { color: var(--text-dim); font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.06em; }
+  .timer-display {
+    font-size: 1.6rem;
+    font-weight: 800;
+    font-variant-numeric: tabular-nums;
+    color: var(--accent);
+    margin-top: 4px;
+  }
+  .timer-display.low { color: var(--accent-2); }
   .secret-word {
     font-size: 2.1rem;
     font-weight: 800;
@@ -238,11 +246,28 @@
 
   <!-- SETUP -->
   <div class="screen active" id="screen-setup">
+    <div class="card" id="resume-banner" style="display:none;">
+      <div class="row" style="align-items:center; gap:10px;">
+        <div style="flex:1;">Your last game was ended. Was that an accident?</div>
+        <button class="secondary" id="btn-resume-game" type="button" style="width:auto; flex:none; padding:10px 14px;">Resume Game</button>
+      </div>
+    </div>
     <div class="card">
       <label>Players (2–10)</label>
       <div id="player-list"></div>
       <button class="secondary" id="btn-add-player" type="button">+ Add player</button>
       <small class="hint">Each player taps E / M / H to pick any mix of Easy, Medium, and Hard words for their own turn (Easy = little kids, Hard = older kids). Check "trace" for young artists who'd like a dot-to-dot outline when it's their turn to draw.</small>
+      <small class="hint" id="players-warning" style="display:none; color: var(--accent-2);">Need at least 2 players.</small>
+    </div>
+    <div class="card">
+      <label>Categories</label>
+      <div class="chip-group" id="category-chips"></div>
+      <small class="hint">Pick specific categories, or leave "All" selected for the full mix.</small>
+    </div>
+    <div class="card">
+      <label>Points to Win</label>
+      <input type="number" id="target-score-input" min="1" max="99" value="10">
+      <small class="hint">First to reach this score wins — but if two or more players are tied at or above it, play continues until one player pulls ahead.</small>
     </div>
     <button class="primary" id="btn-start-game" type="button">Start Game</button>
   </div>
@@ -262,8 +287,9 @@
     <div class="reveal-box">
       <div class="category-label" id="word-difficulty-label"></div>
       <div class="secret-word" id="word-secret"></div>
-      <small class="hint">Remember it, then hand the device to the artist's drawing spot. No writing letters or numbers in your doodle!</small>
+      <small class="hint">Remember it, then hand the device to the artist's drawing spot. No writing letters or numbers in your doodle — unless it's truly part of the picture, like the S on Superman's chest, or a STOP sign!</small>
     </div>
+    <button class="secondary" id="btn-skip-word" type="button">Don't like it? Skip once ↻</button>
     <button class="primary" id="btn-start-drawing" type="button">Start Drawing</button>
   </div>
 
@@ -272,7 +298,9 @@
     <div class="card center" style="padding:10px 16px;">
       <span class="category-label">Artist</span>
       <div class="big-name" id="draw-artist-name" style="font-size:1.3rem; margin:2px 0;"></div>
+      <div class="timer-display" id="draw-timer">2:00</div>
     </div>
+    <small class="hint center">✏️ No letters or numbers — pictures only! (Unless it's part of the picture, like an S on a cape.)</small>
     <div class="canvas-wrap">
       <canvas id="draw-canvas" width="600" height="450"></canvas>
     </div>
@@ -306,6 +334,7 @@
     <div class="card center" style="padding:10px 16px;">
       <span class="category-label">Guessing as</span>
       <div class="big-name" id="guess-input-name" style="font-size:1.3rem; margin:2px 0;"></div>
+      <div class="timer-display" id="guess-timer">0:45</div>
     </div>
     <div class="canvas-wrap">
       <img id="guess-drawing-img" style="width:100%; display:block;" alt="The drawing to guess">
@@ -317,11 +346,24 @@
     <button class="primary" id="btn-submit-guess" type="button">Lock In Guess</button>
   </div>
 
+  <!-- READY TO REVEAL -->
+  <div class="screen" id="screen-ready-reveal">
+    <div class="card center">
+      <div class="pass-icon">🙌</div>
+      <div>Everyone's guessed!</div>
+      <div class="big-name" style="font-size:1.3rem;">Put the device in the middle so everyone can see.</div>
+    </div>
+    <button class="primary" id="btn-show-answer" type="button">Show the Answer</button>
+  </div>
+
   <!-- REVEAL GUESSES -->
   <div class="screen" id="screen-reveal-guesses">
     <div class="card center">
       <div class="category-label">The word was</div>
       <div class="secret-word" id="reveal-word"></div>
+    </div>
+    <div class="canvas-wrap">
+      <img id="reveal-drawing-img" style="width:100%; display:block;" alt="The finished drawing">
     </div>
     <div class="card">
       <label>Guesses</label>
@@ -330,11 +372,39 @@
     <button class="primary" id="btn-next-round" type="button">Next Round</button>
   </div>
 
+  <!-- GAME WON -->
+  <div class="screen" id="screen-game-won">
+    <div class="card center">
+      <div class="pass-icon">🏆</div>
+      <div class="big-name" id="winner-name"></div>
+      <div>wins the game!</div>
+    </div>
+    <div class="card">
+      <label>Final Scores</label>
+      <div class="scoreboard" id="winner-scoreboard"></div>
+    </div>
+    <div class="card center" id="extend-game-form" style="display:none;">
+      <label>New points to win</label>
+      <input type="number" id="extend-target-input" min="1" max="99">
+      <small class="hint">Only continue if everyone agrees to keep playing!</small>
+      <button class="secondary" id="btn-confirm-extend" type="button" style="margin-top:10px;">Everyone Agrees — Keep Playing</button>
+    </div>
+    <button class="secondary" id="btn-extend-game" type="button">Extend the Game</button>
+    <button class="primary" id="btn-new-game" type="button">New Game</button>
+  </div>
+
   <!-- SCOREBOARD -->
   <div class="screen" id="screen-scores">
     <div class="card">
       <label>Scoreboard</label>
       <div class="scoreboard" id="scoreboard"></div>
+    </div>
+    <div class="card center" id="end-game-confirm" style="display:none;">
+      <div>End the game and return to the start screen?</div>
+      <div class="row" style="margin-top:10px;">
+        <button class="secondary" id="btn-cancel-end-game" type="button">Cancel</button>
+        <button class="danger" id="btn-confirm-end-game" type="button">Yes, End Game</button>
+      </div>
     </div>
     <div class="footer-nav">
       <button class="secondary" id="btn-back-to-round" type="button">Continue Playing</button>
@@ -347,10 +417,67 @@
 (function () {
   "use strict";
 
-  var WORDS = {
-    "Easy": ["Sun","Cat","Dog","Fish","Tree","Ball","House","Star","Moon","Flower","Car","Boat","Apple","Banana","Cloud","Hat","Cake","Shoe","Duck","Egg","Book","Cup","Chair","Bed","Umbrella","Fire","Snowman","Balloon","Kite","Rainbow","Heart","Bird","Bee","Frog","Snail","Turtle","Rabbit","Mouse","Bear","Lion","Cow","Pig","Sheep","Horse","Chicken","Owl","Spider","Ant","Crab","Whale","Ice cream","Cookie","Donut","Pretzel","Sandwich","Carrot","Pumpkin","Corn","Mushroom","Cactus","Leaf","Mountain","River","Bridge","Door","Window","Lamp","Clock","Pencil","Crayon","Broom","Bucket","Ship","Train","Bus","Airplane","Helicopter","Sock","Mitten","Scarf","Coat","Backpack","Glue","Ruler","Drum","Bell","Whistle","Key","Lock","Ladder","Shovel","Wagon","Sled","Web","Ladybug","Worm","Snake","Fox","Deer","Otter","Seal","Dolphin","Shark","Starfish","Jellyfish","Lemon"],
-    "Medium": ["Elephant","Dinosaur","Robot","Castle","Rocket","Guitar","Bicycle","Pizza","Butterfly","Volcano","Pirate","Dragon","Snowboard","Octopus","Skateboard","Waterfall","Campfire","Lighthouse","Spaceship","Jungle gym","Sandcastle","Ice cream truck","Treehouse","Scarecrow","Windmill","Penguin","Kangaroo","Giraffe","Peacock","Flamingo","Hedgehog","Squirrel","Beaver","Raccoon","Skunk","Camel","Zebra","Gorilla","Cheetah","Koala","Mermaid","Wizard","Knight","Ninja","Astronaut","Firefighter","Ballerina","Clown","Magician","Superhero","Teddy bear","Piano","Violin","Trumpet","Drum set","Basketball hoop","Soccer goal","Swimming pool","Playground","Roller skates","Trampoline","Seesaw","Merry-go-round","Popcorn","Hot dog","Hamburger","Taco","Cupcake","Birthday cake","Snow cone","Unicorn","Werewolf","Vampire","Ghost","Yeti","Sphinx","Centaur","Griffin","Phoenix","Narwhal","Walrus","Sloth","Chameleon","Toucan","Ostrich","Rhino","Hippo","Buffalo","Bison","Moose","Reindeer","Circus tent","Carousel","Bumper cars","Arcade","Bowling alley","Movie theater","Amusement park","Water slide","Go-kart","Race car","Fire truck","Bulldozer"],
-    "Hard": ["Roller coaster","Solar system","Time machine","Waterfall hike","Escalator","Chandelier","Symphony orchestra","Constellation","Submarine","Avalanche","Kaleidoscope","Greenhouse","Marathon runner","Snow globe","Puppet show","Blacksmith","Hot air balloon","Ferris wheel","Tightrope walker","Compass","Labyrinth","Observatory","Planetarium","Igloo","Lumberjack","Beekeeper","Scuba diver","Snorkeling","Parachute","Trapeze artist","Juggler","Sculpture","Fossil","Skeleton","Volcano eruption","Earthquake","Tornado","Thunderstorm","Northern lights","Shooting star","Treasure map","Pirate ship","Sunken ship","Desert oasis","Coral reef","Rainforest canopy","Beehive","Spider web","Anthill","Bird's nest","Cocoon","Recycling truck","Water wheel","Catapult","Drawbridge","Moat","Watchtower","Crossbow","Glacier","Canyon","Geyser","Quicksand","Stalactite","Meteor shower","Eclipse","Space station","Time capsule","Wind turbine","Suspension bridge","Aqueduct","Amphitheater","Colosseum","Pyramid","Totem pole","Windsock","Weather vane","Sundial","Telescope","Microscope","Periscope","Origami crane","Marionette","Ventriloquist dummy","Fireworks display","Carnival ride","Haunted house","Scuba tank","Ice sculpture","Sand dune","Cliff diver","Mountain climber"]
+  var WORD_CATEGORIES = {
+    "Animals": {
+      "Easy": ["Cat","Dog","Duck","Bird","Bee","Frog","Snail","Turtle","Rabbit","Mouse","Bear","Lion","Cow","Pig","Sheep","Horse","Chicken","Owl","Spider","Ant","Crab","Whale","Ladybug","Worm","Snake","Fox","Deer","Otter","Seal","Dolphin","Shark","Starfish","Jellyfish","Goat","Donkey","Rooster","Goldfish","Kitten","Puppy","Fish"],
+      "Medium": ["Elephant","Dinosaur","Butterfly","Octopus","Penguin","Kangaroo","Giraffe","Peacock","Flamingo","Hedgehog","Squirrel","Beaver","Raccoon","Skunk","Camel","Zebra","Gorilla","Cheetah","Koala","Rhino","Hippo","Buffalo","Bison","Moose","Reindeer","Toucan","Ostrich","Sloth","Chameleon","Narwhal","Walrus","Seahorse","Stingray","Pufferfish","Clownfish","Angelfish","Manta ray","Barracuda","Piranha","Electric eel","Hermit crab","Baby chick","Baby bird in a nest","Fawn","Owlet"],
+      "Hard": ["Platypus","Komodo dragon","Chinchilla","Meerkat","Wolverine","Anteater","Armadillo","Porcupine","Manatee","Pangolin","Axolotl","Tapir","Lemur","Orangutan","Hyena","Vulture","Falcon","Stork","Heron","Pelican","Puffin","Iguana","Gecko","Tarantula","Scorpion","Praying mantis","Firefly","Dragonfly","Hummingbird","Woodpecker","Beetle","Caterpillar","Newt","Salamander","Mongoose","Wombat","Capybara","Okapi","Quokka","Warthog","Emperor penguin","Bald eagle","Peregrine falcon","Timber wolf","Snow leopard","Arctic fox"],
+    },
+    "Food & Drink": {
+      "Easy": ["Apple","Banana","Cake","Egg","Ice cream","Cookie","Donut","Pretzel","Sandwich","Carrot","Pumpkin","Corn","Mushroom","Lemon","Milk","Juice","Toast","Bread","Cheese","Grapes","Orange","Strawberry","Watermelon","Peach","Pear","Cherry","Pineapple","Coconut","Waffle","Pancake","Bacon","Sausage","Muffin","Pie","Candy","Lollipop","Marshmallow","Popsicle","Yogurt","Egg carton","Slice of cake","Cup of tea","Bowl of cereal"],
+      "Medium": ["Pizza","Popcorn","Hot dog","Hamburger","Taco","Cupcake","Birthday cake","Snow cone","Spaghetti","Meatball","Lasagna","Burrito","Nachos","Quesadilla","Sushi roll","Ramen","Dumpling","French fries","Onion rings","Milkshake","Smoothie","Salad","Soup","Omelet","Ice cream cone","Ice cream sundae","Root beer float","Fruit salad","Grilled cheese","Peanut butter sandwich","Deviled eggs","Corn on the cob","Baked potato","Mashed potatoes","Chicken nuggets","Fish and chips","Pumpkin pie","Apple pie","Trail mix","Fruit smoothie","Veggie platter"],
+      "Hard": ["Charcuterie board","Eggs benedict","Beef wellington","Sushi platter","Paella","Croissant","Baguette","Macaron","Tiramisu","Creme brulee","Fondue","Escargot","Caviar","Lobster roll","Clam chowder","Gumbo","Curry","Pad thai","Pho","Dim sum","Falafel wrap","Kebab skewer","Enchiladas","Tamales","Churros","Beignet","Cannoli","Baklava","Gyro","Poutine","Bruschetta","Gazpacho","Shepherd's pie","Beef stew","Chicken pot pie","Seven layer dip"],
+    },
+    "Nature & Weather": {
+      "Easy": ["Tree","Cloud","Fire","Rainbow","Heart","Leaf","Mountain","River","Sun","Moon","Star","Flower","Rain","Snow","Wind","Puddle","Rock","Sand","Grass","Bush","Pond","Hill","Beach","Wave","Snowflake","Raindrop","Pebble","Twig","Acorn","Pinecone","Icicle","Mud puddle","Dandelion","Seashell","Driftwood","Tide line","Sandbar","Ripple","Streambed","Cactus"],
+      "Medium": ["Volcano","Waterfall","Campfire","Sandcastle","Windmill","Rainstorm","Snowstorm","Lightning bolt","Tide pool","Sunflower","Cactus flower","Autumn leaves","Forest","Desert","Swamp","Meadow","Cliff","Cave","Iceberg","Sand dune","Coral","Vine","Moss","Fern","Dew drop","Frost","Rainbow after rain","Field of flowers","Row of trees","Mountain lake"],
+      "Hard": ["Avalanche","Constellation","Northern lights","Shooting star","Rainforest canopy","Coral reef","Glacier","Canyon","Geyser","Quicksand","Stalactite","Meteor shower","Eclipse","Sand dune ridge","Thunderhead cloud","Tornado","Hurricane","Whirlpool","Volcanic eruption","Solar flare","Tidal wave","Sinkhole","Fjord","Oasis","Monsoon","Lightning storm over the ocean","Double rainbow","Foggy forest","Erupting geyser field","Melting glacier"],
+    },
+    "Everyday Objects": {
+      "Easy": ["Hat","Shoe","Book","Cup","Chair","Bed","Umbrella","Balloon","Kite","Ball","Bucket","Broom","Pencil","Crayon","Lamp","Clock","Door","Window","Bridge","Sock","Mitten","Scarf","Coat","Backpack","Glue","Ruler","Drum","Bell","Whistle","Key","Lock","Ladder","Shovel","Wagon","Sled","Box","Mirror","Candle","Blanket","Scissors","Wrench","Fan","Pillow","Vacuum","Comb","Brush","Toothbrush","Soap","Towel","Basket"],
+      "Medium": ["Guitar","Bicycle","Piano","Violin","Trumpet","Drum set","Basketball hoop","Roller skates","Trampoline","Seesaw","Merry-go-round","Teddy bear","Backpack full of books","Camera","Telephone","Television","Toaster","Blender","Suitcase","Flashlight","Toolbox","Sewing machine","Typewriter","Globe","Bookshelf","Fireplace","Chandelier hanging","Rocking chair","Grandfather clock","Wheelbarrow","Umbrella stand","Coat rack","Picture frame","Alarm clock","Watering can"],
+      "Hard": ["Chandelier","Compass","Kaleidoscope","Snow globe","Sundial","Telescope","Microscope","Periscope","Origami crane","Marionette","Weather vane","Water wheel","Catapult","Drawbridge","Windsock","Antique typewriter","Record player","Sewing kit","Grandfather clock chiming","Astrolabe","Hourglass","Music box","Wind chime","Barometer","Vintage camera","Pocket watch","Quill and inkwell","Stained glass window","Weaving loom","Blacksmith's anvil"],
+    },
+    "Vehicles": {
+      "Easy": ["Car","Boat","Ship","Train","Bus","Airplane","Helicopter","Truck","Scooter","Skateboard","Wagon wheel","Bicycle wheel","Toy car","Wheelbarrow ride","Tricycle"],
+      "Medium": ["Rocket","Snowboard","Spaceship","Race car","Fire truck","Bulldozer","Go-kart","Motorcycle","Submarine boat","Canoe","Kayak","Sailboat","Tractor","Ambulance","Police car","Garbage truck","Tow truck","Cement mixer","Cable car","Ferry","Dump truck","School bus","Delivery van","Moving truck","Golf cart","Hot rod","Camper van","Food truck","Ice cream truck","Pickup truck","Convertible car","Mini van"],
+      "Hard": ["Hot air balloon","Ferris wheel","Roller coaster","Submarine","Pirate ship","Sunken ship","Recycling truck","Suspension bridge crossing","Bobsled","Zeppelin","Monster truck","Steam locomotive","Biplane","Jet ski","Snowplow","Dune buggy","Amphibious vehicle","Hovercraft","Cargo ship","Fighter jet","Cruise ship","Vintage steam train","Horse-drawn carriage","Rickshaw","Formula one race car","Vintage biplane stunt","Icebreaker ship","Container ship at port","Space shuttle launch","Freight train","Cable car over mountains","Solar-powered car","Flying taxi"],
+    },
+    "Fantasy & Mythical": {
+      "Easy": ["Dragon","Ghost","Witch's hat","Magic wand","Fairy wings","Gnome","Pixie","Broomstick"],
+      "Medium": ["Unicorn","Werewolf","Vampire","Yeti","Sphinx","Centaur","Griffin","Phoenix","Mermaid","Wizard","Knight","Ninja","Pirate","Superhero","Fairy","Elf","Troll","Goblin","Witch on a broom","Genie","Fairy godmother","Wizard's hat","Knight's shield","Superhero cape","Dragon egg","Wishing well","Enchanted mirror","Talking tree","Magic potion","Crystal ball"],
+      "Hard": ["Kraken","Cyclops","Minotaur","Basilisk","Chimera","Hydra","Banshee","Gargoyle","Sea serpent","Leviathan","Djinn","Valkyrie","Wizard's tower","Dragon's lair","Enchanted forest","Magic carpet ride","Sorcerer's spellbook","Cursed castle","Fire-breathing dragon","Pegasus","Werewolf under a full moon","Phoenix rising from ashes","Wizard duel","Knight slaying a dragon","Mermaid lagoon","Dragon hoarding treasure","Wizard casting a spell","Fairy tale castle at sunset","Giant beanstalk","Enchanted rose under glass","Cursed pirate treasure","Time-traveling wizard"],
+    },
+    "People & Jobs": {
+      "Easy": ["Baby","Kid","Girl","Boy","Grandma","Grandpa","Family photo","Twins","Clown face","Superhero kid","Ballet dancer kid","Chef hat"],
+      "Medium": ["Astronaut","Firefighter","Ballerina","Clown","Magician","Doctor","Chef","Farmer","Teacher","Artist","Dentist","Nurse","Barber","Police officer","Mail carrier","Waiter","Baker","Painter","Photographer","Cowboy","Construction worker","Zookeeper","Librarian","Scientist","Referee","Veterinarian","Electrician","Plumber","Journalist","Pilot"],
+      "Hard": ["Marathon runner","Blacksmith","Lumberjack","Beekeeper","Scuba diver","Trapeze artist","Juggler","Tightrope walker","Cliff diver","Mountain climber","Scuba tank diver","Ventriloquist","Sword swallower","Fortune teller","Puppeteer","Snake charmer","Contortionist","Deep sea diver","Storm chaser","Skydiver","Astronaut on a spacewalk","Chef flipping a pancake","Firefighter climbing a ladder","Lifeguard on duty","Park ranger","Astronaut training","Circus ringmaster","Wildlife photographer","Deep sea explorer","Volcanologist studying lava","Archaeologist digging up bones","Detective solving a mystery"],
+    },
+    "Sports & Games": {
+      "Easy": ["Bat","Glove","Trophy","Medal","Goal net","Jump rope","Yo-yo","Kickball","Tag game","Hula hoop"],
+      "Medium": ["Soccer goal","Swimming pool","Playground","Basketball game","Baseball bat","Tennis racket","Bowling pin","Golf club","Hockey stick","Volleyball net","Ping pong table","Chess board","Hopscotch","Frisbee","Kite flying","Board game","Puzzle piece","Card game","Dartboard","Pool table","Skateboard trick","Ice skating rink","Sled race","Trampoline flip","Rock climbing"],
+      "Hard": ["Bumper cars","Arcade","Bowling alley","Amusement park","Water slide","Carnival ride","Gymnastics routine","Figure skating","Pole vault","Surfing a wave","Rock climbing wall","Archery target","Fencing match","Ice hockey rink","Skateboard ramp","Snowboarding jump","Rowing team","Tug of war","Relay race","Obstacle course","Diving board splash","Championship trophy ceremony","Downhill ski race","Olympic torch relay","Synchronized swimming","Extreme skateboarding trick","Championship soccer match","Winning the final goal","Photo finish race"],
+    },
+    "Places & Buildings": {
+      "Easy": ["House","Barn","Tent","Cabin","Fence","Mailbox","Doghouse","Treehouse fort","Sandbox","Playhouse"],
+      "Medium": ["Castle","Lighthouse","Jungle gym","Treehouse","Scarecrow in a field","Circus tent","Carousel","Movie theater","Windmill farm","Greenhouse","Igloo","Log cabin","Skyscraper","Church","School bus stop","Playground swing set","Garden","Farmhouse","Zoo","Fire station","Police station","Grocery store","Bakery shop","Toy store","Train station","Airport terminal","Farmers market","Ice cream shop","Amusement arcade"],
+      "Hard": ["Labyrinth","Observatory","Planetarium","Amphitheater","Colosseum","Pyramid","Watchtower","Haunted house","Desert oasis","Ancient temple","Underwater city","Floating island","Medieval village","Space colony","Mountain monastery","Sandcastle kingdom","Treasure map island","Volcano lair","Crystal cave","Ice palace","Sunken pirate cove","Cliffside castle","Bamboo village","Desert marketplace","Ancient Roman aqueduct","Floating market","Mountain ski resort","Underground subway station","Rooftop garden city","Desert caravan stop","Arctic research station"],
+    },
+    "Space & Science": {
+      "Easy": ["UFO","Alien","Planet","Comet","Star chart","Rocket ship toy","Beaker"],
+      "Medium": ["Robot","Spaceship launch","Solar system model","Time machine invention","Rocket launch","Astronaut floating","Alien spaceship","Satellite dish","Space helmet","Moon landing","Robot arm","Test tube","Magnifying glass","Microscope slide","Volcano science project","Chemistry set","Robot pet","Weather balloon","Planet model","Volcano experiment"],
+      "Hard": ["Solar system","Time machine","Space station orbit","Meteor crater","Black hole","Asteroid belt","Rover on Mars","Wormhole","Space elevator","Robot laboratory","Genetic laboratory","DNA double helix","Particle accelerator","Rocket launchpad","Zero gravity chamber","Cryogenic chamber","Nuclear reactor","Weather satellite","International space station","Mars colony","Astronaut spacewalk repair","Robot uprising","Alien first contact","Deep space telescope","Astronaut planting a flag on the moon","Robot exploring a cave","Scientist mixing a glowing potion","Satellite repair mission","Deep space probe","Antarctic research base","Underwater science lab","Genetic engineering lab","Fusion reactor core"],
+    },
+    "Holidays & Celebrations": {
+      "Easy": ["Snowman","Gift box","Party hat","Flag","Candy cane","Balloon arch","Cupcake with candle","Party streamer"],
+      "Medium": ["Birthday party","Christmas tree","Halloween pumpkin","Easter basket","Fireworks display","New Year's countdown","Valentine's heart","Thanksgiving turkey","Trick or treat","Santa's sleigh","Piñata","Wedding cake","Graduation cap","Parade float","Costume party","Gift wrapped present","Party balloons","Confetti popper","Birthday candles","Ornament on a tree","Easter egg hunt","Christmas stocking","Menorah candles","Snowman building contest","Gingerbread house","Advent calendar","May Day flowers","Groundhog Day"],
+      "Hard": ["Fourth of July fireworks","Chinese New Year dragon dance","Mardi Gras mask","Day of the Dead skull","Diwali lanterns","Carnival parade float","New Year's Eve ball drop","Halloween haunted house","Christmas morning scene","Thanksgiving feast table","Fireworks over a city","Lantern festival","Costume parade","Winter holiday market","Summer fireworks picnic","New Year's fireworks over water","Halloween costume contest","Christmas tree lighting ceremony","Fourth of July parade","Lunar new year lantern parade","Autumn harvest festival","Snow festival ice sculptures","Winter carnival bonfire","Spring flower festival","Midsummer bonfire celebration","Kite festival in the sky","Lantern release at night","Rainbow parade celebration","Fireworks finale over a stadium","Costume ball at midnight"],
+    },
+    "Actions & Scenes": {
+      "Easy": ["Hug","Wink","Jump","Run","Cry","Smile","Sleep","Dance","Sit","Stand","Yawn","Sneeze"],
+      "Medium": ["Someone sleeping","Someone laughing","Someone running","A race","A picnic","A camping trip","A snowball fight","A treasure hunt","A sandcastle contest","Someone reading a book","Someone singing","Someone painting","A tea party","A pillow fort","A bike ride","A garage sale","A lemonade stand","A game of catch"],
+      "Hard": ["Someone juggling flaming torches","A game of tug of war","A pillow fight","A relay race finish line","A surprise party","A bake sale","A science fair project","A talent show performance","A game of hide and seek","A snow day snowball fight","A campfire sing-along","A backyard water balloon fight","A neighborhood parade","A family road trip","A rainy day indoors","A neighborhood block party","A backyard campout under the stars","A treasure hunt in the attic","A snowman building competition","A three-legged race"],
+    },
   };
 
   var COLORS = ["#111111", "#e53935", "#1e88e5", "#43a047", "#fdd835", "#8e24aa", "#fb8c00"];
@@ -711,13 +838,18 @@
     });
   }
 
+  var DIFFICULTIES = ["Easy", "Medium", "Hard"];
+
   var state = {
     players: ["", ""],
     playerDots: [false, false],
     playerDifficulty: [["Easy"], ["Easy"]],
+    selectedCategories: ["All"],
+    targetScore: 10,
     scores: {},
     round: null,
-    revealIndex: 0
+    revealIndex: 0,
+    canResume: false
   };
 
   var canvas, ctx, drawing = false, currentColor = COLORS[0], currentSize = 9, erasing = false, lastX = 0, lastY = 0;
@@ -755,7 +887,7 @@
       var diffGroup = document.createElement("div");
       diffGroup.className = "diff-chip-group";
       if (!state.playerDifficulty[i] || !state.playerDifficulty[i].length) state.playerDifficulty[i] = ["Easy"];
-      Object.keys(WORDS).forEach(function (d) {
+      DIFFICULTIES.forEach(function (d) {
         var chip = document.createElement("div");
         chip.className = "diff-chip" + (state.playerDifficulty[i].indexOf(d) !== -1 ? " selected" : "");
         chip.textContent = d[0];
@@ -810,33 +942,82 @@
     renderPlayerList();
   });
 
+  function renderCategoryChips() {
+    var wrap = $("category-chips");
+    wrap.innerHTML = "";
+    ["All"].concat(Object.keys(WORD_CATEGORIES)).forEach(function (cat) {
+      var chip = document.createElement("div");
+      chip.className = "chip" + (state.selectedCategories.indexOf(cat) !== -1 ? " selected" : "");
+      chip.textContent = cat;
+      chip.addEventListener("click", function () {
+        if (cat === "All") {
+          state.selectedCategories = ["All"];
+        } else if (state.selectedCategories.indexOf("All") !== -1) {
+          state.selectedCategories = [cat];
+        } else {
+          var idx = state.selectedCategories.indexOf(cat);
+          if (idx !== -1) {
+            state.selectedCategories.splice(idx, 1);
+            if (state.selectedCategories.length === 0) state.selectedCategories = ["All"];
+          } else {
+            state.selectedCategories.push(cat);
+          }
+        }
+        renderCategoryChips();
+      });
+      wrap.appendChild(chip);
+    });
+  }
+
   $("btn-start-game").addEventListener("click", function () {
     var names = state.players.map(function (n, i) { return n.trim() || ("Player " + (i + 1)); });
-    if (names.length < 2) { alert("Need at least 2 players."); return; }
+    if (names.length < 2) { $("players-warning").style.display = ""; return; }
+    $("players-warning").style.display = "none";
     state.players = names;
     state.scores = {};
     names.forEach(function (n) { state.scores[n] = 0; });
     state.revealIndex = Math.floor(Math.random() * names.length);
+    var targetInput = parseInt($("target-score-input").value, 10);
+    state.targetScore = (targetInput > 0) ? targetInput : 10;
+    state.canResume = false;
+    $("resume-banner").style.display = "none";
     startRound();
   });
 
   // ---------- Round setup ----------
   function pickRandom(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
 
-  function pickWord(difficulties, traceOnly) {
+  function findWordMeta(word) {
+    for (var cat in WORD_CATEGORIES) {
+      for (var diff in WORD_CATEGORIES[cat]) {
+        if (WORD_CATEGORIES[cat][diff].indexOf(word) !== -1) return { word: word, difficulty: diff, category: cat };
+      }
+    }
+    return null;
+  }
+
+  function pickWord(difficulties, traceOnly, excludeWord) {
+    var categories = state.selectedCategories.indexOf("All") !== -1 ? Object.keys(WORD_CATEGORIES) : state.selectedCategories;
     var pool = [];
-    difficulties.forEach(function (difficulty) {
-      WORDS[difficulty].forEach(function (w) {
-        if (traceOnly && !TRACE_SHAPES.hasOwnProperty(w)) return;
-        pool.push({ word: w, difficulty: difficulty });
+    categories.forEach(function (cat) {
+      difficulties.forEach(function (difficulty) {
+        WORD_CATEGORIES[cat][difficulty].forEach(function (w) {
+          if (excludeWord && w === excludeWord) return;
+          if (traceOnly && !TRACE_SHAPES.hasOwnProperty(w)) return;
+          pool.push({ word: w, difficulty: difficulty, category: cat });
+        });
       });
     });
     if (traceOnly && pool.length === 0) {
-      // none of the selected difficulties have traceable words of their own — fall back to any traceable word
+      // none of the selected categories/difficulties have traceable words of their own — fall back to any traceable word
       Object.keys(TRACE_SHAPES).forEach(function (w) {
-        var d = Object.keys(WORDS).filter(function (diff) { return WORDS[diff].indexOf(w) !== -1; })[0] || difficulties[0];
-        pool.push({ word: w, difficulty: d });
+        if (excludeWord && w === excludeWord) return;
+        pool.push(findWordMeta(w) || { word: w, difficulty: difficulties[0], category: categories[0] });
       });
+    }
+    if (pool.length === 0 && excludeWord) {
+      // the exclude filter wiped out the whole pool (tiny category/difficulty combo) — allow it back
+      return pickWord(difficulties, traceOnly, null);
     }
     return pickRandom(pool);
   }
@@ -849,8 +1030,11 @@
     state.round = {
       difficulty: chosen.difficulty,
       word: chosen.word,
+      category: chosen.category,
       artistIdx: artistIdx,
-      useTrace: wantsTrace
+      useTrace: wantsTrace,
+      difficulties: difficulties,
+      skipUsed: false
     };
     goToReveal();
   }
@@ -865,7 +1049,20 @@
   $("btn-show-word").addEventListener("click", function () {
     $("word-difficulty-label").textContent = state.round.difficulty + " word";
     $("word-secret").textContent = state.round.word;
+    $("btn-skip-word").style.display = state.round.skipUsed ? "none" : "";
     showScreen("screen-word");
+  });
+
+  $("btn-skip-word").addEventListener("click", function () {
+    if (state.round.skipUsed) return;
+    var chosen = pickWord(state.round.difficulties, state.round.useTrace, state.round.word);
+    state.round.word = chosen.word;
+    state.round.difficulty = chosen.difficulty;
+    state.round.category = chosen.category;
+    state.round.skipUsed = true;
+    $("word-difficulty-label").textContent = state.round.difficulty + " word";
+    $("word-secret").textContent = state.round.word;
+    $("btn-skip-word").style.display = "none";
   });
 
   $("btn-start-drawing").addEventListener("click", function () {
@@ -875,7 +1072,37 @@
     clearCanvas();
     undoStack = [];
     $("btn-undo").disabled = true;
+    startDrawTimer();
   });
+
+  // ---------- Drawing timer ----------
+  var DRAW_SECONDS = 120;
+  var drawTimerHandle = null, drawTimeLeft = 0;
+
+  function renderDrawTimer() {
+    var m = Math.floor(drawTimeLeft / 60), s = drawTimeLeft % 60;
+    var el = $("draw-timer");
+    el.textContent = m + ":" + (s < 10 ? "0" : "") + s;
+    el.classList.toggle("low", drawTimeLeft <= 15);
+  }
+
+  function startDrawTimer() {
+    stopDrawTimer();
+    drawTimeLeft = DRAW_SECONDS;
+    renderDrawTimer();
+    drawTimerHandle = setInterval(function () {
+      drawTimeLeft--;
+      renderDrawTimer();
+      if (drawTimeLeft <= 0) {
+        stopDrawTimer();
+        finishDrawing();
+      }
+    }, 1000);
+  }
+
+  function stopDrawTimer() {
+    if (drawTimerHandle) { clearInterval(drawTimerHandle); drawTimerHandle = null; }
+  }
 
   // ---------- Canvas ----------
   function setupCanvasIfNeeded() {
@@ -981,24 +1208,66 @@
   }
 
   // ---------- Pass-around guessing ----------
-  $("btn-done-drawing").addEventListener("click", function () {
+  function shuffle(arr) {
+    for (var i = arr.length - 1; i > 0; i--) {
+      var j = Math.floor(Math.random() * (i + 1));
+      var tmp = arr[i]; arr[i] = arr[j]; arr[j] = tmp;
+    }
+    return arr;
+  }
+
+  function finishDrawing() {
+    stopDrawTimer();
     state.round.image = canvas.toDataURL("image/png");
     state.round.guesses = {};
-    state.round.guessOrder = state.players
+    state.round.guessOrder = shuffle(state.players
       .map(function (_, idx) { return idx; })
-      .filter(function (idx) { return idx !== state.round.artistIdx; });
+      .filter(function (idx) { return idx !== state.round.artistIdx; }));
     state.round.guessPos = 0;
     goToPassGuess();
-  });
+  }
+
+  $("btn-done-drawing").addEventListener("click", finishDrawing);
 
   function goToPassGuess() {
     if (state.round.guessPos >= state.round.guessOrder.length) {
-      goToRevealGuesses();
+      showScreen("screen-ready-reveal");
       return;
     }
     var guesserIdx = state.round.guessOrder[state.round.guessPos];
     $("pass-guess-name").textContent = state.players[guesserIdx];
     showScreen("screen-pass-guess");
+  }
+
+  $("btn-show-answer").addEventListener("click", goToRevealGuesses);
+
+  // ---------- Guess timer ----------
+  var GUESS_SECONDS = 45;
+  var guessTimerHandle = null, guessTimeLeft = 0;
+
+  function renderGuessTimer() {
+    var m = Math.floor(guessTimeLeft / 60), s = guessTimeLeft % 60;
+    var el = $("guess-timer");
+    el.textContent = m + ":" + (s < 10 ? "0" : "") + s;
+    el.classList.toggle("low", guessTimeLeft <= 10);
+  }
+
+  function startGuessTimer() {
+    stopGuessTimer();
+    guessTimeLeft = GUESS_SECONDS;
+    renderGuessTimer();
+    guessTimerHandle = setInterval(function () {
+      guessTimeLeft--;
+      renderGuessTimer();
+      if (guessTimeLeft <= 0) {
+        stopGuessTimer();
+        submitGuess();
+      }
+    }, 1000);
+  }
+
+  function stopGuessTimer() {
+    if (guessTimerHandle) { clearInterval(guessTimerHandle); guessTimerHandle = null; }
   }
 
   $("btn-ready-to-guess").addEventListener("click", function () {
@@ -1008,14 +1277,18 @@
     $("guess-input-field").value = "";
     showScreen("screen-guess-input");
     $("guess-input-field").focus();
+    startGuessTimer();
   });
 
-  $("btn-submit-guess").addEventListener("click", function () {
+  function submitGuess() {
+    stopGuessTimer();
     var guesserIdx = state.round.guessOrder[state.round.guessPos];
     state.round.guesses[guesserIdx] = $("guess-input-field").value.trim();
     state.round.guessPos++;
     goToPassGuess();
-  });
+  }
+
+  $("btn-submit-guess").addEventListener("click", submitGuess);
 
   function normalizeGuess(s) {
     return s.toLowerCase().trim().replace(/[^a-z0-9 ]/g, "").replace(/\s+/g, " ");
@@ -1058,6 +1331,7 @@
     var round = state.round;
     var artistName = state.players[round.artistIdx];
     $("reveal-word").textContent = round.word;
+    $("reveal-drawing-img").src = round.image;
 
     var tally = $("guess-tally");
     tally.innerHTML = "";
@@ -1080,20 +1354,19 @@
     showScreen("screen-reveal-guesses");
   }
 
-  $("btn-next-round").addEventListener("click", function () {
-    renderScoreboard();
-    showScreen("screen-scores");
-  });
-
-  // ---------- Scoreboard ----------
-  function renderScoreboard() {
-    var board = $("scoreboard");
-    board.innerHTML = "";
+  // ---------- Scoreboard & win condition ----------
+  function scoreEntries() {
     var entries = Object.keys(state.scores).map(function (name) {
       return { name: name, score: state.scores[name] };
     });
     entries.sort(function (a, b) { return b.score - a.score; });
-    entries.forEach(function (e) {
+    return entries;
+  }
+
+  function renderScoreboardInto(elId) {
+    var board = $(elId);
+    board.innerHTML = "";
+    scoreEntries().forEach(function (e) {
       var row = document.createElement("div");
       row.className = "score-row";
       row.innerHTML = "<span>" + e.name + "</span><strong>" + e.score + "</strong>";
@@ -1101,18 +1374,80 @@
     });
   }
 
+  function computeWinner() {
+    var entries = scoreEntries();
+    if (!entries.length) return null;
+    var maxScore = entries[0].score;
+    if (maxScore < state.targetScore) return null;
+    var topPlayers = entries.filter(function (e) { return e.score === maxScore; });
+    if (topPlayers.length === 1) return topPlayers[0].name;
+    return null; // tied at or above target — keep playing until someone pulls ahead
+  }
+
+  $("btn-next-round").addEventListener("click", function () {
+    var winner = computeWinner();
+    if (winner) {
+      $("winner-name").textContent = "🎉 " + winner;
+      renderScoreboardInto("winner-scoreboard");
+      $("extend-game-form").style.display = "none";
+      showScreen("screen-game-won");
+    } else {
+      renderScoreboardInto("scoreboard");
+      $("end-game-confirm").style.display = "none";
+      showScreen("screen-scores");
+    }
+  });
+
   $("btn-back-to-round").addEventListener("click", function () {
     state.revealIndex++;
     startRound();
   });
 
-  $("btn-end-game").addEventListener("click", function () {
-    if (!confirm("End the game and return to setup?")) return;
+  // ---------- Extend game ----------
+  $("btn-extend-game").addEventListener("click", function () {
+    $("extend-target-input").value = state.targetScore + 5;
+    $("extend-game-form").style.display = "";
+  });
+
+  $("btn-confirm-extend").addEventListener("click", function () {
+    var newTarget = parseInt($("extend-target-input").value, 10);
+    if (!(newTarget > state.targetScore)) newTarget = state.targetScore + 5;
+    state.targetScore = newTarget;
+    state.revealIndex++;
+    startRound();
+  });
+
+  $("btn-new-game").addEventListener("click", function () {
+    state.canResume = false;
+    $("resume-banner").style.display = "none";
     showScreen("screen-setup");
+  });
+
+  // ---------- End game (with undo) ----------
+  $("btn-end-game").addEventListener("click", function () {
+    $("end-game-confirm").style.display = "";
+  });
+
+  $("btn-cancel-end-game").addEventListener("click", function () {
+    $("end-game-confirm").style.display = "none";
+  });
+
+  $("btn-confirm-end-game").addEventListener("click", function () {
+    $("end-game-confirm").style.display = "none";
+    state.canResume = true;
+    $("resume-banner").style.display = "";
+    showScreen("screen-setup");
+  });
+
+  $("btn-resume-game").addEventListener("click", function () {
+    if (!state.canResume) return;
+    renderScoreboardInto("scoreboard");
+    showScreen("screen-scores");
   });
 
   // ---------- Init ----------
   renderPlayerList();
+  renderCategoryChips();
 })();
 </script>
 </body>
