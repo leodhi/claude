@@ -348,7 +348,7 @@
     <div class="card">
       <label>Guessing Mode</label>
       <div class="chip-group" id="guess-mode-chips"></div>
-      <small class="hint">Type the Guess: everyone types what they think it is. Multiple Choice: guessers pick from a list of words, which is easier for younger or non-reading-fluent players.</small>
+      <small class="hint">Type the Guess: everyone types what they think it is. Multiple Choice: guessers pick from a list of words, which is easier for younger or non-reading-fluent players. Random Mix: every guesser's turn randomly gets one or the other, so nobody knows which they'll get until it's their turn.</small>
     </div>
     <div class="card">
       <label>Points to Win</label>
@@ -1615,7 +1615,7 @@
   function renderGuessModeChips() {
     var wrap = $("guess-mode-chips");
     wrap.innerHTML = "";
-    [["type", "Type the Guess"], ["choice", "Multiple Choice"]].forEach(function (pair) {
+    [["type", "Type the Guess"], ["choice", "Multiple Choice"], ["random", "Random Mix"]].forEach(function (pair) {
       var chip = document.createElement("div");
       chip.className = "chip" + (state.guessMode === pair[0] ? " selected" : "");
       chip.textContent = pair[1];
@@ -1950,11 +1950,15 @@
     state.round.image = inkCanvas.toDataURL("image/png");
     state.round.guesses = {};
     state.round.hintUsed = {};
+    // in Random Mix mode, each guesser's own turn independently rolls type-vs-choice
+    // (set lazily the first time they hit "ready to guess"), so it stays unpredictable
+    // even between two guessers in the same round
+    state.round.guesserMode = {};
     state.round.guessOrder = shuffle(state.players
       .map(function (_, idx) { return idx; })
       .filter(function (idx) { return idx !== state.round.artistIdx; }));
     state.round.guessPos = 0;
-    if (state.guessMode === "choice") {
+    if (state.guessMode === "choice" || state.guessMode === "random") {
       state.round.choiceOptions = buildChoiceOptions(state.round.word);
     }
     goToPassGuess();
@@ -2031,7 +2035,14 @@
       $("btn-reveal-category-hint").style.display = "";
       $("guess-category-hint").style.display = "none";
     }
-    if (state.guessMode === "choice" && state.round.choiceOptions) {
+    var effectiveMode = state.guessMode;
+    if (state.guessMode === "random") {
+      if (!state.round.guesserMode.hasOwnProperty(guesserIdx)) {
+        state.round.guesserMode[guesserIdx] = (Math.random() < 0.5) ? "type" : "choice";
+      }
+      effectiveMode = state.round.guesserMode[guesserIdx];
+    }
+    if (effectiveMode === "choice" && state.round.choiceOptions) {
       $("guess-type-card").style.display = "none";
       $("guess-choice-card").style.display = "";
       $("btn-submit-guess").style.display = "none";
