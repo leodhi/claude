@@ -1950,15 +1950,16 @@
     state.round.image = inkCanvas.toDataURL("image/png");
     state.round.guesses = {};
     state.round.hintUsed = {};
-    // in Random Mix mode, each guesser's own turn independently rolls type-vs-choice
-    // (set lazily the first time they hit "ready to guess"), so it stays unpredictable
-    // even between two guessers in the same round
-    state.round.guesserMode = {};
+    // in Random Mix mode, the round rolls type-vs-choice ONCE here -- every
+    // guesser this round gets the same mode, but it's unpredictable round to round
+    state.round.resolvedGuessMode = (state.guessMode === "random")
+      ? ((Math.random() < 0.5) ? "type" : "choice")
+      : state.guessMode;
     state.round.guessOrder = shuffle(state.players
       .map(function (_, idx) { return idx; })
       .filter(function (idx) { return idx !== state.round.artistIdx; }));
     state.round.guessPos = 0;
-    if (state.guessMode === "choice" || state.guessMode === "random") {
+    if (state.round.resolvedGuessMode === "choice") {
       state.round.choiceOptions = buildChoiceOptions(state.round.word);
     }
     goToPassGuess();
@@ -2035,14 +2036,7 @@
       $("btn-reveal-category-hint").style.display = "";
       $("guess-category-hint").style.display = "none";
     }
-    var effectiveMode = state.guessMode;
-    if (state.guessMode === "random") {
-      if (!state.round.guesserMode.hasOwnProperty(guesserIdx)) {
-        state.round.guesserMode[guesserIdx] = (Math.random() < 0.5) ? "type" : "choice";
-      }
-      effectiveMode = state.round.guesserMode[guesserIdx];
-    }
-    if (effectiveMode === "choice" && state.round.choiceOptions) {
+    if (state.round.resolvedGuessMode === "choice" && state.round.choiceOptions) {
       $("guess-type-card").style.display = "none";
       $("guess-choice-card").style.display = "";
       $("btn-submit-guess").style.display = "none";
