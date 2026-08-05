@@ -149,6 +149,7 @@
       <label>Players (1–10)</label>
       <div id="player-list"></div>
       <button class="secondary" id="btn-add-player" type="button">+ Add player</button>
+      <small class="hint">Playing solo or with just one friend? Remove a row with ✕ — you don't need 3.</small>
     </div>
     <div class="card">
       <label>Categories</label>
@@ -619,7 +620,7 @@
   var DIFFICULTIES = ["Easy", "Medium", "Hard"];
 
   var state = {
-    players: ["", "", ""],
+    players: ["", ""],
     selectedCategories: Object.keys(CATEGORIES),
     selectedDifficulties: DIFFICULTIES.slice(),
     guessMode: "type",
