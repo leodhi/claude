@@ -163,7 +163,7 @@
         <input type="number" id="target-score-input" class="target-score-field" min="1" max="99" value="10">
         <button class="stepper-btn" id="btn-target-up" type="button" aria-label="Increase">+</button>
       </div>
-      <small class="hint">First to reach this score wins.</small>
+      <small class="hint">First to reach this score wins. Miss 2 in a row and you lose a point (never below 0).</small>
     </div>
     <button class="primary" id="btn-start-game" type="button">Start Game</button>
   </div>
@@ -616,6 +616,7 @@
     guessMode: "type",
     targetScore: 10,
     scores: {},
+    wrongStreaks: {},
     usedQuestions: {},
     currentQuestion: null,
     turnOrder: [],
@@ -759,7 +760,8 @@
     clampTarget();
     state.players = names;
     state.scores = {};
-    names.forEach(function (n) { state.scores[n] = 0; });
+    state.wrongStreaks = {};
+    names.forEach(function (n) { state.scores[n] = 0; state.wrongStreaks[n] = 0; });
     state.usedQuestions = {};
     state.canResume = false;
     $("resume-banner").style.display = "none";
@@ -1085,9 +1087,20 @@
     return null; // tied at/above target -- keep playing until someone pulls ahead
   }
 
+  var WRONG_STREAK_PENALTY = 2;
+
   $("btn-next-round").addEventListener("click", function () {
     state.players.forEach(function (name) {
-      if (state.judgedCorrect[name]) state.scores[name] = (state.scores[name] || 0) + 1;
+      if (state.judgedCorrect[name]) {
+        state.scores[name] = (state.scores[name] || 0) + 1;
+        state.wrongStreaks[name] = 0;
+      } else {
+        state.wrongStreaks[name] = (state.wrongStreaks[name] || 0) + 1;
+        if (state.wrongStreaks[name] >= WRONG_STREAK_PENALTY) {
+          state.scores[name] = Math.max(0, (state.scores[name] || 0) - 1);
+          state.wrongStreaks[name] = 0;
+        }
+      }
     });
     var winner = computeWinner();
     if (winner) {
