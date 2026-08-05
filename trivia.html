@@ -1296,7 +1296,10 @@
   renderDifficultyChips();
   renderGuessModeChips();
   var firstPlayerInput = $("player-list").querySelector("input[type=text]");
-  if (firstPlayerInput) firstPlayerInput.focus();
+  if (firstPlayerInput) {
+    firstPlayerInput.setAttribute("autofocus", "autofocus");
+    firstPlayerInput.focus();
+  }
 })();
 </script>
 </body>
