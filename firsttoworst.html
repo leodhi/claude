@@ -208,7 +208,7 @@
       <div style="font-size:0.9rem; line-height:1.7;">
         A guess earns <strong>1 point for every item that lands in its exact correct spot</strong>, out of 5 possible each round &mdash; so if you get 4 of the 5 spots right, that's 4 points; 2 right is 2 points, and so on.
         <div style="margin-top:8px;">
-          The Ranker only scores if at least one guess gets <strong>all 5</strong> exactly right &mdash; then the Ranker earns the full 5 points too. If nobody nails it, the Ranker gets 0.
+          The Ranker only scores if at least one guess gets <strong>all 5</strong> exactly right &mdash; then the Ranker earns 5 points too. That's a flat bonus for the round, not per guesser: even if everyone nails it, the Ranker still only gets 5, never more. If nobody nails it, the Ranker gets 0.
         </div>
       </div>
     </div>
@@ -838,7 +838,7 @@
     var standings = $("standings-list");
     standings.innerHTML = "";
     var callout = $("round-callout");
-    var anyPerfect;
+    var anyPerfect, perfectCount;
 
     if (state.guessMode === "together") {
       var sharedPts = correctSpots(state.sharedGuess, trueOrder);
@@ -846,6 +846,7 @@
         state.scores[idx] = (state.scores[idx] || 0) + sharedPts;
       });
       anyPerfect = sharedPts === items.length;
+      perfectCount = anyPerfect ? 1 : 0; // one shared guess, so it's either the whole group or nobody
       state.scores[rankerIdx] = (state.scores[rankerIdx] || 0) + (anyPerfect ? items.length : 0);
 
       renderGuessBreakdown(breakdown, "Everyone Else (together)", state.sharedGuess, trueOrder);
@@ -868,7 +869,8 @@
         renderGuessBreakdown(breakdown, state.players[idx], state.guesses[idx], trueOrder);
       });
 
-      anyPerfect = guesserIndices.some(function (idx) { return roundPoints[idx] === items.length; });
+      perfectCount = guesserIndices.filter(function (idx) { return roundPoints[idx] === items.length; }).length;
+      anyPerfect = perfectCount > 0;
       state.scores[rankerIdx] = (state.scores[rankerIdx] || 0) + (anyPerfect ? items.length : 0);
 
       var sortedIdx = guesserIndices.slice().sort(function (a, b) { return roundPoints[b] - roundPoints[a]; });
@@ -893,10 +895,15 @@
       }
     }
 
+    // The ranker's bonus is a flat, capped +5 for the round -- it does not
+    // add up per guesser, even when several (or everyone) nail it exactly.
+    var rankerDist = anyPerfect
+      ? perfectCount + " of " + guesserIndices.length + " nailed it (capped at +" + items.length + ")"
+      : "nobody nailed it";
     var rankerRow = document.createElement("div");
     rankerRow.className = "standings-row";
     rankerRow.innerHTML = "<span class=\"pname\">" + rankerName + " (Ranker)</span>" +
-      "<span class=\"pdist\">" + (anyPerfect ? "someone nailed it" : "nobody nailed it") + "</span>" +
+      "<span class=\"pdist\">" + rankerDist + "</span>" +
       "<span class=\"ppts\">+" + (anyPerfect ? items.length : 0) + "</span>";
     standings.appendChild(rankerRow);
 
