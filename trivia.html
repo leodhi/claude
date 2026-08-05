@@ -173,23 +173,12 @@
     <button class="primary" id="btn-start-answering" type="button">Start Answering</button>
   </div>
 
-  <!-- PASS TO PLAYER -->
-  <div class="screen" id="screen-pass-turn">
-    <div class="card center">
-      <div class="pass-icon">📱➡️✍️</div>
-      <div>Pass the device to</div>
-      <div class="big-name" id="pass-name"></div>
-      <small class="hint">Only <span id="pass-name-2"></span> should look at the screen — everyone else, look away!</small>
-      <div class="timer-display" id="pass-timer" style="margin-top:10px;">0:30</div>
-    </div>
-    <button class="primary" id="btn-ready-to-answer" type="button">I'm ready to answer</button>
-  </div>
-
   <!-- ANSWER INPUT -->
   <div class="screen" id="screen-answer-input">
     <div class="card center" style="padding:10px 16px;">
-      <span class="category-label">Answering as</span>
+      <span class="category-label">Pass the device to</span>
       <div class="big-name" id="input-name" style="font-size:1.3rem; margin:2px 0;"></div>
+      <small class="hint">Everyone else, look away!</small>
       <div class="timer-display" id="input-timer">0:30</div>
     </div>
     <div class="card">
@@ -259,7 +248,16 @@
         ["How many legs does a spider have?", "8"],
         ["What do bees make?", "Honey"],
         ["What is the tallest animal in the world?", "The giraffe"],
-        ["What animal says \"moo\"?", "A cow"]
+        ["What animal says \"moo\"?", "A cow"],
+        ["What do you call a baby cat?", "A kitten"],
+        ["Which bird can't fly but is a great swimmer?", "The penguin"],
+        ["How many legs does an insect have?", "6"],
+        ["What do you call a group of wolves?", "A pack"],
+        ["What do you call a baby cow?", "A calf"],
+        ["What do you call a baby sheep?", "A lamb"],
+        ["What color are most polar bears?", "White"],
+        ["What do you call a baby horse?", "A foal"],
+        ["Which farm animal gives us wool?", "Sheep"]
       ],
       "Medium": [
         ["What is a group of lions called?", "A pride"],
@@ -267,7 +265,16 @@
         ["What do you call an animal that eats both plants and meat?", "An omnivore"],
         ["Which sea creature has eight arms?", "An octopus"],
         ["What is the largest mammal in the world?", "The blue whale"],
-        ["Which bird is known for mimicking human speech?", "The parrot"]
+        ["Which bird is known for mimicking human speech?", "The parrot"],
+        ["What do you call an animal that only eats meat?", "A carnivore"],
+        ["What do you call an animal that only eats plants?", "An herbivore"],
+        ["What is the tallest species of penguin?", "The emperor penguin"],
+        ["Which animal is known for changing colors to blend in?", "The chameleon"],
+        ["What do you call animals that are active at night?", "Nocturnal animals"],
+        ["Which bird cannot fly but can run very fast?", "The ostrich"],
+        ["What is the largest species of shark?", "The whale shark"],
+        ["What do you call a baby deer?", "A fawn"],
+        ["What is the slowest mammal in the world?", "The sloth"]
       ],
       "Hard": [
         ["What is the only mammal capable of true flight?", "The bat"],
@@ -275,7 +282,16 @@
         ["Which big cat is known for having a mane only on males?", "The lion"],
         ["What is the process called when a caterpillar becomes a butterfly?", "Metamorphosis"],
         ["Which animal is known to sleep for up to 22 hours a day?", "The koala"],
-        ["What is the largest species of penguin?", "The emperor penguin"]
+        ["What is the fastest bird in the world during a dive?", "The peregrine falcon"],
+        ["Which mammal lays eggs instead of giving birth?", "The platypus"],
+        ["What is the collective term for a group of crows?", "A murder"],
+        ["Which animal has the longest gestation period of any land mammal?", "The elephant"],
+        ["Which big cat is the largest in the world?", "The tiger"],
+        ["What is unique about a chameleon's eyes?", "They can move independently of each other"],
+        ["What is the name of the largest known extinct shark?", "The megalodon"],
+        ["What is the term for animals most active at dawn and dusk?", "Crepuscular"],
+        ["Which bird has the largest wingspan of any living bird?", "The wandering albatross"],
+        ["Which sea creature can regenerate a lost arm?", "The starfish"]
       ]
     },
     "Movies & Shows": {
@@ -285,7 +301,16 @@
         ["What kind of animal is Simba in \"The Lion King\"?", "A lion"],
         ["In \"Toy Story,\" what kind of toy is Woody?", "A cowboy"],
         ["What color is Elmo?", "Red"],
-        ["In \"Finding Nemo,\" what kind of fish is Nemo?", "A clownfish"]
+        ["In \"Finding Nemo,\" what kind of fish is Nemo?", "A clownfish"],
+        ["What is the name of the snowman in \"Frozen\"?", "Olaf"],
+        ["In \"Toy Story,\" what kind of toy is Buzz Lightyear?", "A space ranger"],
+        ["In \"Peppa Pig,\" what animal is Peppa?", "A pig"],
+        ["What color is Kermit the Frog?", "Green"],
+        ["In \"Winnie the Pooh,\" what is Pooh's favorite food?", "Honey"],
+        ["What kind of animal is Mickey Mouse?", "A mouse"],
+        ["In \"Paw Patrol,\" what kind of animals are the main characters?", "Dogs"],
+        ["What color is Big Bird?", "Yellow"],
+        ["In \"Finding Nemo,\" what kind of fish is Dory?", "A blue tang"]
       ],
       "Medium": [
         ["In \"Harry Potter,\" what house is Harry sorted into?", "Gryffindor"],
@@ -293,7 +318,16 @@
         ["In \"Star Wars,\" who is Luke Skywalker's father?", "Darth Vader"],
         ["In \"The Incredibles,\" what is the family's last name?", "Parr"],
         ["What animated movie features a snowman named Olaf?", "Frozen"],
-        ["In \"Moana,\" what does Moana sail across?", "The ocean"]
+        ["In \"Moana,\" what does Moana sail across?", "The ocean"],
+        ["In \"Harry Potter,\" what is the name of Harry's owl?", "Hedwig"],
+        ["What is the name of Harry Potter's best friend with red hair?", "Ron Weasley"],
+        ["In \"Shrek,\" what type of creature is Shrek?", "An ogre"],
+        ["In \"Finding Nemo,\" what is the name of the forgetful fish?", "Dory"],
+        ["In \"The Karate Kid,\" what is the signature move called?", "The crane kick"],
+        ["What is the name of the boy in \"How to Train Your Dragon\"?", "Hiccup"],
+        ["In \"Despicable Me,\" what are the small yellow creatures called?", "Minions"],
+        ["What is the name of the superhero team in \"The Avengers\"?", "The Avengers"],
+        ["In \"Coco,\" what land does Miguel travel to?", "The Land of the Dead"]
       ],
       "Hard": [
         ["Who directed the movie \"Jaws\"?", "Steven Spielberg"],
@@ -301,7 +335,16 @@
         ["In \"The Matrix,\" what color pill does Neo take to learn the truth?", "The red pill"],
         ["Which actor played the Joker in \"The Dark Knight\"?", "Heath Ledger"],
         ["What movie won Best Picture at the 2023 Oscars?", "Everything Everywhere All at Once"],
-        ["In \"Inception,\" what object does Cobb use to test if he's dreaming?", "A spinning top"]
+        ["In \"Inception,\" what object does Cobb use to test if he's dreaming?", "A spinning top"],
+        ["Who directed \"Jurassic Park\"?", "Steven Spielberg"],
+        ["What year did the movie \"Titanic\" release?", "1997"],
+        ["Which actor played Iron Man in the Marvel movies?", "Robert Downey Jr."],
+        ["What is the highest-grossing film of all time, as of 2024?", "Avatar"],
+        ["Who composed the score for \"Star Wars\"?", "John Williams"],
+        ["In \"The Lord of the Rings,\" who created the One Ring?", "Sauron"],
+        ["Which studio produced \"Toy Story,\" the first fully computer-animated film?", "Pixar"],
+        ["What year did the first \"Harry Potter\" movie release?", "2001"],
+        ["Who played the lead role in \"Forrest Gump\"?", "Tom Hanks"]
       ]
     },
     "Science": {
@@ -311,7 +354,16 @@
         ["What planet do we live on?", "Earth"],
         ["What gas do we breathe in to stay alive?", "Oxygen"],
         ["What do caterpillars turn into?", "Butterflies"],
-        ["What is the closest star to Earth?", "The Sun"]
+        ["What is the closest star to Earth?", "The Sun"],
+        ["What do you call water that falls from the sky?", "Rain"],
+        ["What part of your body do you use to see?", "Your eyes"],
+        ["What is the biggest planet in our solar system?", "Jupiter"],
+        ["What do you call the natural satellite that orbits Earth?", "The Moon"],
+        ["How many senses do humans have?", "5"],
+        ["What part of your body pumps blood?", "The heart"],
+        ["What season comes after winter?", "Spring"],
+        ["What do plants need besides sunlight to grow?", "Water"],
+        ["What do you call something that has never been alive?", "Nonliving"]
       ],
       "Medium": [
         ["What is the center of an atom called?", "The nucleus"],
@@ -319,7 +371,16 @@
         ["What gas do plants absorb from the air?", "Carbon dioxide"],
         ["What is the boiling point of water in Celsius?", "100 degrees"],
         ["What planet is known as the Red Planet?", "Mars"],
-        ["What organ pumps blood through your body?", "The heart"]
+        ["What organ pumps blood through your body?", "The heart"],
+        ["What is the study of living things called?", "Biology"],
+        ["What is the smallest unit of life called?", "A cell"],
+        ["What is the name of the process where water turns into vapor?", "Evaporation"],
+        ["Which planet has the famous rings?", "Saturn"],
+        ["What is the largest organ in the human body?", "The skin"],
+        ["What do you call an animal's inherited traits passed from parents?", "Genetics"],
+        ["What is the freezing point of water in Celsius?", "0 degrees"],
+        ["What gas makes up most of the air we breathe?", "Nitrogen"],
+        ["What do you call the path a planet takes around the sun?", "An orbit"]
       ],
       "Hard": [
         ["What is the powerhouse of the cell called?", "The mitochondria"],
@@ -327,7 +388,16 @@
         ["What theory explains how species change over time?", "The theory of evolution"],
         ["What is the process by which plants make food using sunlight?", "Photosynthesis"],
         ["What particle has a negative charge and orbits the nucleus of an atom?", "The electron"],
-        ["What is the most abundant gas in Earth's atmosphere?", "Nitrogen"]
+        ["What is the most abundant gas in Earth's atmosphere?", "Nitrogen"],
+        ["What is the chemical symbol for sodium?", "Na"],
+        ["What is the speed of light approximately, in kilometers per second?", "About 300,000 km/s"],
+        ["What is the term for an organism's complete set of DNA?", "The genome"],
+        ["What is the pH of a neutral substance?", "7"],
+        ["Which scientist developed the theory of general relativity?", "Albert Einstein"],
+        ["What is the smallest particle of an element that retains its properties called?", "An atom"],
+        ["What is the name of the galaxy that contains our solar system?", "The Milky Way"],
+        ["What is the chemical formula for water?", "H2O"],
+        ["What is the term for the force that holds atoms together in a molecule?", "A chemical bond"]
       ]
     },
     "Sports": {
@@ -337,7 +407,16 @@
         ["In soccer, what do you call it when the ball goes in the net?", "A goal"],
         ["How many players from one soccer team are on the field?", "11"],
         ["What do swimmers wear on their eyes?", "Goggles"],
-        ["What sport is played on ice with a puck?", "Hockey"]
+        ["What sport is played on ice with a puck?", "Hockey"],
+        ["What do you use to hit a ball in tennis?", "A racket"],
+        ["What shape is an American football?", "An oval"],
+        ["What do you wear on your feet to go ice skating?", "Ice skates"],
+        ["What sport uses a bat and a ball, played on a diamond?", "Baseball"],
+        ["How many points is a standard basket worth in basketball?", "2"],
+        ["What do you call the person who leads a sports team?", "The captain"],
+        ["What sport is played with a shuttlecock?", "Badminton"],
+        ["What do you wear to protect your teeth in contact sports?", "A mouthguard"],
+        ["What sport do you play at a bowling alley?", "Bowling"]
       ],
       "Medium": [
         ["How many points is a touchdown worth in football?", "6"],
@@ -345,7 +424,16 @@
         ["How many players are on a volleyball team on the court?", "6"],
         ["What sport is known as \"America's pastime\"?", "Baseball"],
         ["How many rings are on the Olympic flag?", "5"],
-        ["What shape is a soccer ball's classic pattern made of?", "Pentagons and hexagons"]
+        ["What shape is a soccer ball's classic pattern made of?", "Pentagons and hexagons"],
+        ["In golf, what is it called when you finish a hole one stroke under par?", "A birdie"],
+        ["How many players are on a hockey team on the ice at once, including the goalie?", "6"],
+        ["What is the term for scoring three goals in one soccer game?", "A hat-trick"],
+        ["How many quarters are in a basketball game?", "4"],
+        ["What is the maximum number of clubs a golfer can carry?", "14"],
+        ["In which sport would you perform a slam dunk?", "Basketball"],
+        ["What country is credited with inventing the modern sport of soccer?", "England"],
+        ["How many players are on a cricket team?", "11"],
+        ["What is the term for a score of three-under-par on a single hole in golf?", "An albatross"]
       ],
       "Hard": [
         ["How many periods are in a standard game of ice hockey?", "3"],
@@ -353,7 +441,16 @@
         ["What country has won the most FIFA World Cups?", "Brazil"],
         ["What is the maximum score possible in ten-pin bowling?", "300"],
         ["How far is a marathon, in miles?", "26.2 miles"],
-        ["In golf, what is it called when you finish a hole one stroke under par?", "A birdie"]
+        ["What is a perfect score called in gymnastics?", "A 10"],
+        ["What country hosted the first modern Olympic Games in 1896?", "Greece"],
+        ["How many Grand Slam tournaments are there in tennis each year?", "4"],
+        ["What is the diameter of a basketball hoop in inches?", "18 inches"],
+        ["Which country has won the most Olympic gold medals overall?", "The United States"],
+        ["What is the length of an Olympic swimming pool in meters?", "50 meters"],
+        ["In American football, how many points is a safety worth?", "2"],
+        ["What is the term for a golf score of two-under-par on a single hole?", "An eagle"],
+        ["How many players are on the field for one team in rugby union?", "15"],
+        ["What year were the first Winter Olympics held?", "1924"]
       ]
     },
     "Geography": {
@@ -363,7 +460,16 @@
         ["What do you call a very large, sandy area with little water?", "A desert"],
         ["What country is shaped like a boot?", "Italy"],
         ["What river runs through Egypt?", "The Nile"],
-        ["What is the capital city of France?", "Paris"]
+        ["What is the capital city of France?", "Paris"],
+        ["What is the name of the frozen continent at the bottom of the world?", "Antarctica"],
+        ["What do you call a small piece of land surrounded by water?", "An island"],
+        ["What country has the Great Wall?", "China"],
+        ["What is the capital of the United States?", "Washington, D.C."],
+        ["What do you call the imaginary line around the middle of the Earth?", "The equator"],
+        ["What country is home to the kangaroo?", "Australia"],
+        ["What is the name of the famous tower in Paris?", "The Eiffel Tower"],
+        ["What continent is the United States located on?", "North America"],
+        ["What do you call the frozen areas at the very top and bottom of the Earth?", "The poles"]
       ],
       "Medium": [
         ["What is the largest country in the world by area?", "Russia"],
@@ -371,7 +477,16 @@
         ["What is the smallest country in the world?", "Vatican City"],
         ["Which US state is known as the Sunshine State?", "Florida"],
         ["What mountain range separates Europe and Asia in Russia?", "The Ural Mountains"],
-        ["What country has the Great Wall?", "China"]
+        ["What is the longest river in the world?", "The Nile"],
+        ["What is the capital of Japan?", "Tokyo"],
+        ["Which continent has the most countries?", "Africa"],
+        ["What is the largest cold desert in the world?", "Antarctica"],
+        ["What is the capital of Canada?", "Ottawa"],
+        ["Which sea is the saltiest body of water in the world?", "The Dead Sea"],
+        ["What is the highest waterfall in the world?", "Angel Falls"],
+        ["Which country spans both Europe and Asia?", "Turkey"],
+        ["What is the capital of Italy?", "Rome"],
+        ["What is the largest lake in the world by surface area?", "The Caspian Sea"]
       ],
       "Hard": [
         ["What is the capital of Australia?", "Canberra"],
@@ -379,7 +494,16 @@
         ["What strait separates Asia and North America?", "The Bering Strait"],
         ["What is the driest desert in the world?", "The Atacama Desert"],
         ["Which African country was formerly known as Abyssinia?", "Ethiopia"],
-        ["What is the only country that borders both France and Spain?", "Andorra"]
+        ["What is the only country that borders both France and Spain?", "Andorra"],
+        ["What is the smallest country in mainland Africa by area?", "The Gambia"],
+        ["What is the deepest point in the ocean called?", "The Mariana Trench"],
+        ["Which country has the most natural lakes?", "Canada"],
+        ["What is the capital of Kazakhstan?", "Astana"],
+        ["Which two countries share the longest international border?", "The United States and Canada"],
+        ["What is the currency of Japan?", "The yen"],
+        ["Which country sits at the southern tip of Africa, bordering both the Atlantic and Indian Oceans?", "South Africa"],
+        ["What is the capital of Switzerland?", "Bern"],
+        ["Which desert covers most of northern Africa?", "The Sahara"]
       ]
     },
     "Silly & General": {
@@ -389,7 +513,16 @@
         ["What shape has three sides?", "A triangle"],
         ["How many months are in a year?", "12"],
         ["What color do you get when you mix blue and yellow?", "Green"],
-        ["What holiday do you carve a pumpkin for?", "Halloween"]
+        ["What holiday do you carve a pumpkin for?", "Halloween"],
+        ["How many hours are in a day?", "24"],
+        ["What do you call a person who flies a plane?", "A pilot"],
+        ["What do you use to brush your teeth?", "A toothbrush"],
+        ["What shape has four equal sides?", "A square"],
+        ["What color do you get when you mix red and white?", "Pink"],
+        ["What is the first meal of the day called?", "Breakfast"],
+        ["How many minutes are in an hour?", "60"],
+        ["What do you call a made-up story told for fun?", "Fiction"],
+        ["What season is the coldest?", "Winter"]
       ],
       "Medium": [
         ["How many sides does a hexagon have?", "6"],
@@ -397,7 +530,16 @@
         ["How many continents are there?", "7"],
         ["What is the largest organ in the human body?", "The skin"],
         ["How many colors are in a rainbow?", "7"],
-        ["What do you call a word that's spelled the same forwards and backwards?", "A palindrome"]
+        ["What do you call a word that's spelled the same forwards and backwards?", "A palindrome"],
+        ["How many sides does an octagon have?", "8"],
+        ["What do you call a shape with five sides?", "A pentagon"],
+        ["What is the boiling point of water in Fahrenheit?", "212 degrees"],
+        ["How many strings does a standard guitar have?", "6"],
+        ["What is the name for a 100-year anniversary?", "A centennial"],
+        ["How many zeros are in one million?", "6"],
+        ["What do you call a shape with eight sides?", "An octagon"],
+        ["What is a shark's skeleton made of, instead of bone?", "Cartilage"],
+        ["What do you call a shape with six sides?", "A hexagon"]
       ],
       "Hard": [
         ["How many amendments are in the U.S. Bill of Rights?", "10"],
@@ -405,7 +547,16 @@
         ["What year did the Titanic sink?", "1912"],
         ["How many bones are in the adult human body?", "206"],
         ["What is the smallest prime number?", "2"],
-        ["What is the term for a group of crows?", "A murder"]
+        ["What is the term for a group of crows?", "A murder"],
+        ["How many amendments does the U.S. Constitution have in total?", "27"],
+        ["What is the value of the Roman numeral \"M\"?", "1000"],
+        ["What is the term for a fear of spiders?", "Arachnophobia"],
+        ["How many time zones does mainland China officially use, despite spanning five geographically?", "1"],
+        ["What is the longest-running animated TV show in the U.S.?", "The Simpsons"],
+        ["What is the term for a 50-year anniversary?", "A golden anniversary"],
+        ["What is the world's most spoken native language?", "Mandarin Chinese"],
+        ["What is the term for a fear of heights?", "Acrophobia"],
+        ["What year did World War II end?", "1945"]
       ]
     }
   };
@@ -660,44 +811,15 @@
 
   // ---------- Pass-and-play turn loop ----------
   $("btn-start-answering").addEventListener("click", function () {
-    goToPassTurn();
+    goToNextTurn();
   });
 
-  function goToPassTurn() {
+  function goToNextTurn() {
     if (state.turnIndex >= state.turnOrder.length) {
       clearInterval(state.timerHandle);
       showScreen("screen-ready-reveal");
       return;
     }
-    var name = state.players[state.turnOrder[state.turnIndex]];
-    $("pass-name").textContent = name;
-    $("pass-name-2").textContent = name;
-    state.timerDisplayIds = ["pass-timer"];
-    updateTimerDisplay();
-    showScreen("screen-pass-turn");
-  }
-
-  function renderChoiceOptions() {
-    var wrap = $("input-choice-options");
-    wrap.innerHTML = "";
-    state.currentChoiceOptions.forEach(function (opt) {
-      var chip = document.createElement("div");
-      chip.className = "chip" + (opt === state.currentChoiceSelected ? " selected" : "");
-      chip.textContent = opt;
-      chip.addEventListener("click", function () {
-        state.currentChoiceSelected = opt;
-        renderChoiceOptions();
-      });
-      wrap.appendChild(chip);
-    });
-  }
-
-  function currentTurnAnswer() {
-    if (state.currentTurnMode === "choice") return state.currentChoiceSelected || "";
-    return $("input-answer-field").value.trim();
-  }
-
-  $("btn-ready-to-answer").addEventListener("click", function () {
     var name = state.players[state.turnOrder[state.turnIndex]];
     $("input-name").textContent = name;
     $("input-category").textContent = state.currentQuestion.cat + " · " + state.currentQuestion.diff;
@@ -722,13 +844,33 @@
     state.timerDisplayIds = ["input-timer"];
     updateTimerDisplay();
     showScreen("screen-answer-input");
-  });
+  }
+
+  function renderChoiceOptions() {
+    var wrap = $("input-choice-options");
+    wrap.innerHTML = "";
+    state.currentChoiceOptions.forEach(function (opt) {
+      var chip = document.createElement("div");
+      chip.className = "chip" + (opt === state.currentChoiceSelected ? " selected" : "");
+      chip.textContent = opt;
+      chip.addEventListener("click", function () {
+        state.currentChoiceSelected = opt;
+        renderChoiceOptions();
+      });
+      wrap.appendChild(chip);
+    });
+  }
+
+  function currentTurnAnswer() {
+    if (state.currentTurnMode === "choice") return state.currentChoiceSelected || "";
+    return $("input-answer-field").value.trim();
+  }
 
   $("btn-submit-answer").addEventListener("click", function () {
     var name = state.players[state.turnOrder[state.turnIndex]];
     state.givenAnswers[name] = currentTurnAnswer();
     state.turnIndex++;
-    goToPassTurn();
+    goToNextTurn();
   });
 
 
