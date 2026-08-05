@@ -679,7 +679,7 @@ function renderLobby() {
   if (state.isHost) {
     startBtn.style.display = "";
     waiting.style.display = "none";
-    startBtn.disabled = playerUids().length < 3;
+    startBtn.disabled = playerUids().length < 1;
   } else {
     startBtn.style.display = "none";
     waiting.style.display = "";
