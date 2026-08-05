@@ -130,6 +130,12 @@
 
   <!-- SETUP -->
   <div class="screen active" id="screen-setup">
+    <div class="card" id="resume-banner" style="display:none;">
+      <div class="row" style="align-items:center; gap:10px;">
+        <div style="flex:1;">Your last game was ended. Was that an accident?</div>
+        <button class="secondary" id="btn-resume-game" type="button" style="width:auto; flex:none; padding:10px 14px;">Resume Game</button>
+      </div>
+    </div>
     <div class="card">
       <label>Players (1–10)</label>
       <div id="player-list"></div>
@@ -228,6 +234,26 @@
     <button class="primary" id="btn-next-round" type="button">Next Round</button>
   </div>
 
+  <!-- SCOREBOARD (between rounds) -->
+  <div class="screen" id="screen-scores">
+    <div class="card">
+      <label>Scoreboard</label>
+      <div class="scoreboard" id="scoreboard"></div>
+      <div class="target-score-line">Playing to <strong id="scoreboard-target"></strong> points</div>
+    </div>
+    <div class="card center" id="end-game-confirm" style="display:none;">
+      <div>End the game and return to the start screen?</div>
+      <div class="row" style="margin-top:10px;">
+        <button class="secondary" id="btn-cancel-end-game" type="button">Cancel</button>
+        <button class="danger" id="btn-confirm-end-game" type="button">Yes, End Game</button>
+      </div>
+    </div>
+    <div class="row">
+      <button class="secondary" id="btn-back-to-round" type="button">Continue Playing</button>
+      <button class="danger" id="btn-end-game" type="button">End Game</button>
+    </div>
+  </div>
+
   <!-- GAME WON -->
   <div class="screen" id="screen-game-won">
     <div class="card center">
@@ -239,6 +265,17 @@
       <label>Final Scores</label>
       <div class="scoreboard" id="winner-scoreboard"></div>
     </div>
+    <div class="card center" id="extend-game-form" style="display:none;">
+      <label>New points to win</label>
+      <div class="target-score-row">
+        <button class="stepper-btn" id="btn-extend-down" type="button" aria-label="Decrease">&minus;</button>
+        <input type="number" id="extend-target-input" class="target-score-field" min="1" max="99">
+        <button class="stepper-btn" id="btn-extend-up" type="button" aria-label="Increase">+</button>
+      </div>
+      <small class="hint">Only continue if everyone agrees to keep playing!</small>
+      <button class="secondary" id="btn-confirm-extend" type="button" style="margin-top:10px;">Everyone Agrees — Keep Playing</button>
+    </div>
+    <button class="secondary" id="btn-extend-game" type="button">Extend the Game</button>
     <button class="primary" id="btn-new-game" type="button">New Game</button>
   </div>
 </div>
@@ -590,7 +627,9 @@
     roundChoiceOptions: null,
     currentChoiceSelected: null,
     timerHandle: null,
-    timerRemaining: 0
+    timerRemaining: 0,
+    canResume: false,
+    lastWinningScore: 0
   };
 
   function $(id) { return document.getElementById(id); }
@@ -716,6 +755,8 @@
     state.scores = {};
     names.forEach(function (n) { state.scores[n] = 0; });
     state.usedQuestions = {};
+    state.canResume = false;
+    $("resume-banner").style.display = "none";
     nextRound();
   });
 
@@ -991,33 +1032,99 @@
     showScreen("screen-reveal");
   }
 
+  // ---------- Scoreboard & win condition ----------
+  function sortedPlayers() {
+    return state.players.slice().sort(function (a, b) { return (state.scores[b] || 0) - (state.scores[a] || 0); });
+  }
+
+  function renderScoreboardInto(elId) {
+    var board = $(elId);
+    board.innerHTML = "";
+    sortedPlayers().forEach(function (name) {
+      var row = document.createElement("div");
+      row.className = "score-row";
+      row.innerHTML = "<span>" + name + "</span><span>" + (state.scores[name] || 0) + "</span>";
+      board.appendChild(row);
+    });
+  }
+
+  function computeWinner() {
+    var sorted = sortedPlayers();
+    var topScore = state.scores[sorted[0]] || 0;
+    if (topScore < state.targetScore) return null;
+    var topPlayers = sorted.filter(function (name) { return (state.scores[name] || 0) === topScore; });
+    if (topPlayers.length === 1) return topPlayers[0];
+    return null; // tied at/above target -- keep playing until someone pulls ahead
+  }
+
   $("btn-next-round").addEventListener("click", function () {
     state.players.forEach(function (name) {
       if (state.judgedCorrect[name]) state.scores[name] = (state.scores[name] || 0) + 1;
     });
-    var winner = state.players.find(function (name) { return state.scores[name] >= state.targetScore; });
+    var winner = computeWinner();
     if (winner) {
-      showWinner();
+      state.lastWinningScore = state.scores[winner];
+      $("winner-name").textContent = winner;
+      renderScoreboardInto("winner-scoreboard");
+      $("extend-game-form").style.display = "none";
+      showScreen("screen-game-won");
     } else {
-      nextRound();
+      renderScoreboardInto("scoreboard");
+      $("scoreboard-target").textContent = state.targetScore;
+      $("end-game-confirm").style.display = "none";
+      showScreen("screen-scores");
     }
   });
 
-  function showWinner() {
-    var sorted = state.players.slice().sort(function (a, b) { return state.scores[b] - state.scores[a]; });
-    $("winner-name").textContent = sorted[0];
-    var board = $("winner-scoreboard");
-    board.innerHTML = "";
-    sorted.forEach(function (name) {
-      var row = document.createElement("div");
-      row.className = "score-row";
-      row.innerHTML = "<span>" + name + "</span><span>" + state.scores[name] + "</span>";
-      board.appendChild(row);
-    });
-    showScreen("screen-game-won");
-  }
+  $("btn-back-to-round").addEventListener("click", function () {
+    nextRound();
+  });
+
+  // ---------- Extend game ----------
+  $("btn-extend-game").addEventListener("click", function () {
+    var floor = state.lastWinningScore + 1;
+    $("extend-target-input").min = floor;
+    $("extend-target-input").value = state.lastWinningScore + 5;
+    $("extend-game-form").style.display = "";
+  });
+  $("btn-extend-down").addEventListener("click", function () {
+    var floor = state.lastWinningScore + 1;
+    $("extend-target-input").value = Math.max(floor, (parseInt($("extend-target-input").value, 10) || floor) - 1);
+  });
+  $("btn-extend-up").addEventListener("click", function () {
+    $("extend-target-input").value = Math.min(99, (parseInt($("extend-target-input").value, 10) || 1) + 1);
+  });
+  $("btn-confirm-extend").addEventListener("click", function () {
+    var floor = state.lastWinningScore + 1;
+    var newTarget = parseInt($("extend-target-input").value, 10);
+    if (!(newTarget >= floor)) newTarget = state.lastWinningScore + 5;
+    state.targetScore = newTarget;
+    nextRound();
+  });
+
+  // ---------- End game (with undo) ----------
+  $("btn-end-game").addEventListener("click", function () {
+    $("end-game-confirm").style.display = "";
+  });
+  $("btn-cancel-end-game").addEventListener("click", function () {
+    $("end-game-confirm").style.display = "none";
+  });
+  $("btn-confirm-end-game").addEventListener("click", function () {
+    $("end-game-confirm").style.display = "none";
+    state.canResume = true;
+    $("resume-banner").style.display = "";
+    showScreen("screen-setup");
+  });
+  $("btn-resume-game").addEventListener("click", function () {
+    if (!state.canResume) return;
+    renderScoreboardInto("scoreboard");
+    $("scoreboard-target").textContent = state.targetScore;
+    showScreen("screen-scores");
+  });
 
   $("btn-new-game").addEventListener("click", function () {
+    state.canResume = false;
+    $("resume-banner").style.display = "none";
     showScreen("screen-setup");
   });
 
