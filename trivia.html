@@ -131,7 +131,7 @@
   <!-- SETUP -->
   <div class="screen active" id="screen-setup">
     <div class="card">
-      <label>Players (2–10)</label>
+      <label>Players (1–10)</label>
       <div id="player-list"></div>
       <button class="secondary" id="btn-add-player" type="button">+ Add player</button>
     </div>
@@ -148,7 +148,7 @@
     <div class="card">
       <label>Guessing Mode</label>
       <div class="chip-group" id="guess-mode-chips"></div>
-      <small class="hint">Type the Answer: everyone types what they think it is. Multiple Choice: players pick from a list of options — easier for younger or non-reading-fluent players. Random Mix: each player's turn randomly gets one or the other.</small>
+      <small class="hint">Type the Answer: everyone types what they think it is. Multiple Choice: players pick from a list of options — easier for younger or non-reading-fluent players. Random Mix: each round randomly gets one or the other, so it's the same for every player that round — nobody gets an easier or harder turn than anyone else.</small>
     </div>
     <div class="card">
       <label>Points to Win</label>
@@ -172,12 +172,22 @@
     <button class="primary" id="btn-start-answering" type="button">Start Answering</button>
   </div>
 
+  <!-- PASS TO PLAYER -->
+  <div class="screen" id="screen-pass-turn">
+    <div class="card center">
+      <div class="pass-icon">📱➡️✍️</div>
+      <div>Pass the device to</div>
+      <div class="big-name" id="pass-name"></div>
+      <small class="hint">Only <span id="pass-name-2"></span> should look at the screen — everyone else, look away! Your 30 seconds starts once you tap ready.</small>
+    </div>
+    <button class="primary" id="btn-ready-to-answer" type="button">I'm ready to answer</button>
+  </div>
+
   <!-- ANSWER INPUT -->
   <div class="screen" id="screen-answer-input">
     <div class="card center" style="padding:10px 16px;">
-      <span class="category-label">Pass the device to</span>
+      <span class="category-label">Answering as</span>
       <div class="big-name" id="input-name" style="font-size:1.3rem; margin:2px 0;"></div>
-      <small class="hint">Everyone else, look away!</small>
       <div class="timer-display" id="input-timer">0:30</div>
     </div>
     <div class="card">
@@ -576,7 +586,8 @@
     givenAnswers: {},
     judgedCorrect: {},
     currentTurnMode: "type",
-    currentChoiceOptions: [],
+    roundGuessMode: "type",
+    roundChoiceOptions: null,
     currentChoiceSelected: null,
     timerHandle: null,
     timerRemaining: 0
@@ -602,7 +613,7 @@
       input.maxLength = 20;
       input.addEventListener("input", function () { state.players[i] = input.value; });
       row.appendChild(input);
-      if (state.players.length > 2) {
+      if (state.players.length > 1) {
         var rm = document.createElement("button");
         rm.className = "icon-btn";
         rm.type = "button";
@@ -698,8 +709,8 @@
   });
 
   $("btn-start-game").addEventListener("click", function () {
-    var names = state.players.map(function (n, i) { return n.trim() || ("Player " + (i + 1)); });
-    if (names.length < 2) { alert("Need at least 2 players."); return; }
+    var names = state.players.map(function (n) { return n.trim(); }).filter(function (n) { return n.length > 0; });
+    if (names.length < 1) { alert("Enter at least one player name."); return; }
     clampTarget();
     state.players = names;
     state.scores = {};
@@ -766,6 +777,16 @@
     state.givenAnswers = {};
     state.judgedCorrect = {};
 
+    // Random Mix rolls type-vs-choice ONCE per round here -- every player
+    // this round gets the same mode, so nobody has an easier/harder turn
+    // than anyone else. It's just unpredictable round to round.
+    state.roundGuessMode = (state.guessMode === "mix")
+      ? ((Math.random() < 0.5) ? "type" : "choice")
+      : state.guessMode;
+    state.roundChoiceOptions = (state.roundGuessMode === "choice")
+      ? buildChoiceOptions(pick.a, pick.diff)
+      : null;
+
     var order = state.players.map(function (_, i) { return i; });
     for (var i = order.length - 1; i > 0; i--) {
       var j = Math.floor(Math.random() * (i + 1));
@@ -809,27 +830,31 @@
 
   // ---------- Pass-and-play turn loop ----------
   $("btn-start-answering").addEventListener("click", function () {
-    goToNextTurn();
+    goToPassTurn();
   });
 
-  function goToNextTurn() {
+  function goToPassTurn() {
     if (state.turnIndex >= state.turnOrder.length) {
       clearInterval(state.timerHandle);
       showScreen("screen-ready-reveal");
       return;
     }
     var name = state.players[state.turnOrder[state.turnIndex]];
+    $("pass-name").textContent = name;
+    $("pass-name-2").textContent = name;
+    showScreen("screen-pass-turn");
+  }
+
+  $("btn-ready-to-answer").addEventListener("click", function () {
+    var name = state.players[state.turnOrder[state.turnIndex]];
     $("input-name").textContent = name;
     $("input-category").textContent = state.currentQuestion.cat + " · " + state.currentQuestion.diff;
     $("input-question").textContent = state.currentQuestion.q;
     $("input-answer-field").value = "";
 
-    state.currentTurnMode = state.guessMode === "mix"
-      ? (Math.random() < 0.5 ? "type" : "choice")
-      : state.guessMode;
+    state.currentTurnMode = state.roundGuessMode;
 
     if (state.currentTurnMode === "choice") {
-      state.currentChoiceOptions = buildChoiceOptions(state.currentQuestion.a, state.currentQuestion.diff);
       state.currentChoiceSelected = null;
       renderChoiceOptions();
       $("input-type-card").style.display = "none";
@@ -839,29 +864,18 @@
       $("input-choice-card").style.display = "none";
     }
 
-    clearInterval(state.timerHandle);
-    state.timerRemaining = ROUND_TIME;
-    state.timerDisplayIds = ["input-timer"];
-    state.turnTimerArmed = false;
-    updateTimerDisplay();
     showScreen("screen-answer-input");
-  }
-
-  function armTurnTimer() {
-    if (state.turnTimerArmed) return;
-    state.turnTimerArmed = true;
     startTimer(["input-timer"], submitCurrentTurn);
-  }
+  });
 
   function renderChoiceOptions() {
     var wrap = $("input-choice-options");
     wrap.innerHTML = "";
-    state.currentChoiceOptions.forEach(function (opt) {
+    state.roundChoiceOptions.forEach(function (opt) {
       var chip = document.createElement("div");
       chip.className = "chip" + (opt === state.currentChoiceSelected ? " selected" : "");
       chip.textContent = opt;
       chip.addEventListener("click", function () {
-        armTurnTimer();
         state.currentChoiceSelected = opt;
         renderChoiceOptions();
       });
@@ -875,16 +889,15 @@
   }
 
   function submitCurrentTurn() {
+    clearInterval(state.timerHandle);
     var name = state.players[state.turnOrder[state.turnIndex]];
     state.givenAnswers[name] = currentTurnAnswer();
     state.turnIndex++;
-    goToNextTurn();
+    goToPassTurn();
   }
 
   $("btn-submit-answer").addEventListener("click", submitCurrentTurn);
 
-  $("input-answer-field").addEventListener("focus", armTurnTimer);
-  $("input-answer-field").addEventListener("input", armTurnTimer);
   $("input-answer-field").addEventListener("keydown", function (e) {
     if (e.key === "Enter") {
       e.preventDefault();
@@ -899,7 +912,39 @@
 
   // ---------- Reveal + judging ----------
   function normalize(s) {
-    return (s || "").toLowerCase().replace(/^(a|an|the)\s+/, "").trim();
+    return (s || "").toLowerCase().trim().replace(/^(a|an|the)\s+/, "").replace(/[^a-z0-9 ]/g, "").replace(/\s+/g, " ");
+  }
+
+  function levenshtein(a, b) {
+    var m = a.length, n = b.length;
+    var prev = [];
+    for (var j = 0; j <= n; j++) prev[j] = j;
+    for (var i = 1; i <= m; i++) {
+      var cur = [i];
+      for (var k = 1; k <= n; k++) {
+        var cost = a[i - 1] === b[k - 1] ? 0 : 1;
+        cur[k] = Math.min(prev[k] + 1, cur[k - 1] + 1, prev[k - 1] + cost);
+      }
+      prev = cur;
+    }
+    return prev[n];
+  }
+
+  // typo-tolerant match: exact, simple plural, substring containment, or a
+  // small Levenshtein distance that scales with word length so short words
+  // (where a 1-letter edit can turn one real word into another) stay strict
+  function isCloseAnswer(given, correct) {
+    var g = normalize(given);
+    var a = normalize(correct);
+    if (!g) return false;
+    if (g === a) return true;
+    var gSing = g.replace(/s$/, "");
+    var aSing = a.replace(/s$/, "");
+    if (gSing === aSing) return true;
+    if (a.length >= 3 && (g.indexOf(a) !== -1 || a.indexOf(g) !== -1)) return true;
+    var maxLen = Math.max(g.length, a.length);
+    var threshold = maxLen <= 4 ? 0 : (maxLen <= 6 ? 1 : 2);
+    return levenshtein(g, a) <= threshold;
   }
 
   function goToReveal() {
@@ -911,12 +956,11 @@
   function renderReveal() {
     var correctAnswer = state.currentQuestion.a;
     $("reveal-answer-text").textContent = correctAnswer;
-    var normCorrect = normalize(correctAnswer);
 
     state.players.forEach(function (name) {
       if (state.judgedCorrect.hasOwnProperty(name)) return;
       var given = state.givenAnswers[name];
-      state.judgedCorrect[name] = !!given && normalize(given) === normCorrect;
+      state.judgedCorrect[name] = isCloseAnswer(given, correctAnswer);
     });
 
     var wrap = $("judge-list");
