@@ -149,7 +149,7 @@
     <div class="card">
       <label>Difficulty</label>
       <div class="chip-group" id="difficulty-chips"></div>
-      <small class="hint">Sets the difficulty for the whole game. Easy is tuned for around age 7, Medium for around age 11, and Hard for around age 16.</small>
+      <small class="hint">Pick any mix — each round randomly draws from whichever levels are selected, the same for everyone at the table that round. Easy is tuned for around age 7, Medium for around age 11, and Hard for around age 16.</small>
     </div>
     <div class="card">
       <label>Guessing Mode</label>
@@ -612,7 +612,7 @@
   var state = {
     players: ["", "", ""],
     selectedCategories: Object.keys(CATEGORIES),
-    difficulty: "Medium",
+    selectedDifficulties: DIFFICULTIES.slice(),
     guessMode: "type",
     targetScore: 10,
     scores: {},
@@ -699,10 +699,16 @@
     wrap.innerHTML = "";
     DIFFICULTIES.forEach(function (diff) {
       var chip = document.createElement("div");
-      chip.className = "chip" + (state.difficulty === diff ? " selected" : "");
+      chip.className = "chip" + (state.selectedDifficulties.indexOf(diff) !== -1 ? " selected" : "");
       chip.textContent = diff;
       chip.addEventListener("click", function () {
-        state.difficulty = diff;
+        var idx = state.selectedDifficulties.indexOf(diff);
+        if (idx !== -1) {
+          if (state.selectedDifficulties.length === 1) return;
+          state.selectedDifficulties.splice(idx, 1);
+        } else {
+          state.selectedDifficulties.push(diff);
+        }
         renderDifficultyChips();
       });
       wrap.appendChild(chip);
@@ -791,12 +797,13 @@
 
   function buildPool() {
     var pool = [];
-    var diff = state.difficulty;
     state.selectedCategories.forEach(function (cat) {
-      var key = questionKey(cat, diff);
-      var used = state.usedQuestions[key] || [];
-      CATEGORIES[cat][diff].forEach(function (q, i) {
-        if (used.indexOf(i) === -1) pool.push({ cat: cat, diff: diff, idx: i, q: q[0], a: q[1] });
+      state.selectedDifficulties.forEach(function (diff) {
+        var key = questionKey(cat, diff);
+        var used = state.usedQuestions[key] || [];
+        CATEGORIES[cat][diff].forEach(function (q, i) {
+          if (used.indexOf(i) === -1) pool.push({ cat: cat, diff: diff, idx: i, q: q[0], a: q[1] });
+        });
       });
     });
     return pool;
@@ -806,7 +813,9 @@
     var pool = buildPool();
     if (pool.length === 0) {
       state.selectedCategories.forEach(function (cat) {
-        state.usedQuestions[questionKey(cat, state.difficulty)] = [];
+        state.selectedDifficulties.forEach(function (diff) {
+          state.usedQuestions[questionKey(cat, diff)] = [];
+        });
       });
       pool = buildPool();
     }
