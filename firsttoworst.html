@@ -77,6 +77,12 @@
   }
   button.danger { background: var(--accent-2); color: #fff; }
   button:disabled { opacity: 0.4; cursor: not-allowed; }
+  .chip-group { display: flex; flex-wrap: wrap; gap: 8px; }
+  .chip {
+    padding: 8px 14px; border-radius: 999px; border: 1px solid var(--border);
+    background: var(--panel-2); color: var(--text-dim); font-size: 0.85rem; cursor: pointer; user-select: none;
+  }
+  .chip.selected { background: var(--accent); color: #fff; border-color: var(--accent); font-weight: 600; }
   .center { text-align: center; }
   .category-label { color: var(--text-dim); font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.06em; }
   .big-name { font-size: 1.8rem; font-weight: 800; margin: 6px 0; }
@@ -92,7 +98,14 @@
     display: flex; align-items: center; gap: 10px;
     background: var(--panel-2); border: 1px solid var(--border); border-radius: 12px;
     padding: 10px 10px 10px 6px;
+    transition: box-shadow 0.15s ease, border-color 0.15s ease;
   }
+  .rank-row.dragging { border-color: var(--accent); box-shadow: 0 4px 10px rgba(43,32,21,0.12); }
+  .drag-handle {
+    flex: none; width: 22px; height: 34px; display: flex; align-items: center; justify-content: center;
+    color: var(--text-dim); font-size: 1.1rem; cursor: grab; touch-action: none; letter-spacing: -1px;
+  }
+  .drag-handle:active { cursor: grabbing; }
   .rank-num {
     flex: none; width: 30px; height: 30px; border-radius: 50%;
     background: var(--panel); border: 1px solid var(--border);
@@ -139,7 +152,7 @@
 <body>
 <div id="app">
   <h1>First to <span>Worst</span></h1>
-  <div class="subtitle">One player ranks it their way — everyone else tries to read their mind</div>
+  <div class="subtitle">Pass-and-play: one player secretly ranks 5 things, everyone else guesses the order</div>
 
   <!-- SETUP -->
   <div class="screen active" id="screen-setup">
@@ -165,13 +178,31 @@
       <small class="hint">One player ranks each round, so at least 2 people are needed — there's no solo mode here.</small>
     </div>
     <div class="card">
+      <label>How Do Guessers Play?</label>
+      <div class="chip-group" id="guess-mode-chips"></div>
+      <small class="hint" id="guess-mode-hint"></small>
+    </div>
+    <div class="card">
       <label>Points to Win</label>
       <div class="target-score-row">
         <button class="stepper-btn" id="btn-target-down" type="button" aria-label="Decrease">&minus;</button>
         <input type="number" id="target-score-input" class="target-score-field" min="1" max="99" value="15">
         <button class="stepper-btn" id="btn-target-up" type="button" aria-label="Increase">+</button>
       </div>
-      <small class="hint">Each round, one player secretly ranks 5 random things — everyone else guesses the order. Nail it exactly for the most points; the ranker scores for every guess that misses.</small>
+    </div>
+    <div class="card">
+      <label>How Scoring Works</label>
+      <div style="font-size:0.9rem; line-height:1.7;">
+        A guess is scored by how close it lands to the Ranker's real order:
+        <div style="margin:6px 0 8px 2px;">
+          <div>🎯 Exact match &mdash; <strong>5 points</strong></div>
+          <div>Off by 1&ndash;2 spots &mdash; <strong>3 points</strong></div>
+          <div>Off by 3&ndash;4 spots &mdash; <strong>2 points</strong></div>
+          <div>Off by 5&ndash;6 spots &mdash; <strong>1 point</strong></div>
+          <div>Off by more &mdash; <strong>0 points</strong></div>
+        </div>
+        The Ranker scores too: <strong>+1 point</strong> for every guess that isn't a perfect match. A ranking that's too easy to predict earns the Ranker nothing.
+      </div>
     </div>
     <button class="primary" id="btn-start-game" type="button">Start Game</button>
   </div>
@@ -190,8 +221,8 @@
   <!-- PASS TO PLAYER -->
   <div class="screen" id="screen-pass-turn">
     <div class="card center">
-      <div class="pass-icon">📱</div>
-      <div>Pass the device to</div>
+      <div class="pass-icon" id="pass-icon">📱</div>
+      <div id="pass-lead">Pass the device to</div>
       <div class="big-name" id="pass-name"></div>
       <small class="hint" id="pass-hint">Only <span id="pass-name-2"></span> should look &mdash; no peeking or shouting your list out.</small>
     </div>
@@ -204,6 +235,7 @@
       <span class="category-label" id="rank-instructions">Your ranking</span>
       <div class="rank-endpoints"><span>Best</span><span>Worst</span></div>
       <div class="rank-list" id="rank-list"></div>
+      <small class="hint">Drag an item by its handle to reorder, or use the arrows.</small>
     </div>
     <button class="primary" id="btn-submit-rank" type="button">Lock In My Order</button>
   </div>
@@ -407,6 +439,7 @@
   var state = {
     players: ["", ""],
     targetScore: 15,
+    guessMode: "separate",
     lastWinningScore: 0,
     scores: {},
     usedItems: [],
@@ -414,11 +447,17 @@
     round: null,
     rankerOrder: null,
     guesses: {},
+    sharedGuess: null,
     turnQueue: [],
     turnPos: 0,
     currentRankOrder: [],
     canResume: false
   };
+
+  var GUESS_MODES = [
+    { id: "separate", label: "Separately", hint: "Guessers take the device one at a time, in private — nobody sees anyone else's guess." },
+    { id: "together", label: "Together", hint: "Everyone but the Ranker gathers around one device, talks it out loud, and agrees on a single shared guess." }
+  ];
 
   function $(id) { return document.getElementById(id); }
   function showScreen(id) {
@@ -469,6 +508,23 @@
     renderPlayerList();
   });
 
+  function renderGuessModeChips() {
+    var wrap = $("guess-mode-chips");
+    wrap.innerHTML = "";
+    GUESS_MODES.forEach(function (mode) {
+      var chip = document.createElement("div");
+      chip.className = "chip" + (state.guessMode === mode.id ? " selected" : "");
+      chip.textContent = mode.label;
+      chip.addEventListener("click", function () {
+        state.guessMode = mode.id;
+        renderGuessModeChips();
+      });
+      wrap.appendChild(chip);
+    });
+    var active = GUESS_MODES.filter(function (m) { return m.id === state.guessMode; })[0];
+    $("guess-mode-hint").textContent = active ? active.hint : "";
+  }
+
   function clampTarget() {
     var v = parseInt($("target-score-input").value, 10);
     if (isNaN(v) || v < 1) v = 1;
@@ -505,9 +561,13 @@
 
   // ---------- Round setup ----------
   function buildTurnQueue() {
+    var queue = [{ role: "ranker", idx: state.rankerIndex }];
+    if (state.guessMode === "together") {
+      queue.push({ role: "guess-together" });
+      return queue;
+    }
     var others = [];
     state.players.forEach(function (_, i) { if (i !== state.rankerIndex) others.push(i); });
-    var queue = [{ role: "ranker", idx: state.rankerIndex }];
     shuffled(others).forEach(function (idx) { queue.push({ role: "guess", idx: idx }); });
     return queue;
   }
@@ -536,6 +596,7 @@
     state.rankerIndex = (state.rankerIndex + 1) % state.players.length;
     state.rankerOrder = null;
     state.guesses = {};
+    state.sharedGuess = null;
     state.turnQueue = buildTurnQueue();
     state.turnPos = 0;
 
@@ -556,9 +617,21 @@
       return;
     }
     var turn = currentTurn();
+    var rankerName = state.players[state.rankerIndex];
+
+    if (turn.role === "guess-together") {
+      $("pass-icon").textContent = "👥";
+      $("pass-lead").textContent = "Everyone except " + rankerName + " —";
+      $("pass-name").textContent = "gather around together";
+      $("pass-hint").textContent = "Talk it out loud and agree on one guess. Just don't let " + rankerName + " weigh in or peek.";
+      showScreen("screen-pass-turn");
+      return;
+    }
+
     var name = state.players[turn.idx];
+    $("pass-icon").textContent = "📱";
+    $("pass-lead").textContent = "Pass the device to";
     $("pass-name").textContent = name;
-    $("pass-name-2").textContent = name;
     $("pass-hint").innerHTML = turn.role === "ranker"
       ? "Only <span id=\"pass-name-2\">" + name + "</span> should look &mdash; you're making the real ranking everyone else has to guess."
       : "Only <span id=\"pass-name-2\">" + name + "</span> should look &mdash; no peeking or comparing notes.";
@@ -568,13 +641,60 @@
   $("btn-ready-to-rank").addEventListener("click", function () {
     var turn = currentTurn();
     state.currentRankOrder = shuffled(state.round.items);
-    $("rank-instructions").textContent = turn.role === "ranker"
-      ? "Arrange these YOUR way, best to worst — this is what everyone else will try to guess."
-      : "Guess how " + state.players[state.rankerIndex] + " secretly ranked these, best to worst.";
-    $("btn-submit-rank").textContent = turn.role === "ranker" ? "Lock In My Real Ranking" : "Lock In My Guess";
+    if (turn.role === "ranker") {
+      $("rank-instructions").textContent = "Arrange these YOUR way, best to worst — this is what everyone else will try to guess.";
+      $("btn-submit-rank").textContent = "Lock In My Real Ranking";
+    } else if (turn.role === "guess-together") {
+      $("rank-instructions").textContent = "As a group, guess how " + state.players[state.rankerIndex] + " secretly ranked these, best to worst.";
+      $("btn-submit-rank").textContent = "Lock In Our Guess";
+    } else {
+      $("rank-instructions").textContent = "Guess how " + state.players[state.rankerIndex] + " secretly ranked these, best to worst.";
+      $("btn-submit-rank").textContent = "Lock In My Guess";
+    }
     renderRankList();
     showScreen("screen-rank");
   });
+
+  // Drag-to-reorder state. Re-rendering mid-drag replaces the DOM node the
+  // pointer was captured on, but a captured pointer keeps delivering events
+  // to that (now detached) node's listeners regardless -- so this closure
+  // state, not the DOM, is what tracks the drag across re-renders.
+  var dragState = { active: false, item: null, startY: 0, startIndex: 0, rowHeight: 44 };
+
+  function startDrag(e, item, index, rowEl) {
+    if (e.button !== undefined && e.button !== 0) return;
+    e.preventDefault();
+    dragState.active = true;
+    dragState.item = item;
+    dragState.startY = e.clientY;
+    dragState.startIndex = index;
+    dragState.rowHeight = rowEl.offsetHeight + 6; // + .rank-list gap
+    try { rowEl.setPointerCapture(e.pointerId); } catch (err) {}
+    rowEl.addEventListener("pointermove", onDragMove);
+    rowEl.addEventListener("pointerup", onDragEnd);
+    rowEl.addEventListener("pointercancel", onDragEnd);
+    renderRankList();
+  }
+
+  function onDragMove(e) {
+    if (!dragState.active) return;
+    var deltaY = e.clientY - dragState.startY;
+    var deltaIndex = Math.round(deltaY / dragState.rowHeight);
+    var n = state.currentRankOrder.length;
+    var newIndex = Math.max(0, Math.min(n - 1, dragState.startIndex + deltaIndex));
+    var curIndex = state.currentRankOrder.indexOf(dragState.item);
+    if (newIndex !== curIndex) {
+      state.currentRankOrder.splice(curIndex, 1);
+      state.currentRankOrder.splice(newIndex, 0, dragState.item);
+      renderRankList();
+    }
+  }
+
+  function onDragEnd() {
+    dragState.active = false;
+    dragState.item = null;
+    renderRankList();
+  }
 
   function renderRankList() {
     var wrap = $("rank-list");
@@ -582,7 +702,13 @@
     var n = state.currentRankOrder.length;
     state.currentRankOrder.forEach(function (item, i) {
       var row = document.createElement("div");
-      row.className = "rank-row";
+      row.className = "rank-row" + (dragState.active && dragState.item === item ? " dragging" : "");
+
+      var handle = document.createElement("div");
+      handle.className = "drag-handle";
+      handle.textContent = "⠿";
+      handle.addEventListener("pointerdown", function (e) { startDrag(e, item, i, row); });
+      row.appendChild(handle);
 
       var num = document.createElement("div");
       num.className = "rank-num";
@@ -630,6 +756,8 @@
     var turn = currentTurn();
     if (turn.role === "ranker") {
       state.rankerOrder = state.currentRankOrder.slice();
+    } else if (turn.role === "guess-together") {
+      state.sharedGuess = state.currentRankOrder.slice();
     } else {
       state.guesses[state.players[turn.idx]] = state.currentRankOrder.slice();
     }
@@ -677,60 +805,83 @@
     });
 
     var guesserNames = [];
-    state.turnQueue.forEach(function (turn) {
-      if (turn.role === "guess") guesserNames.push(state.players[turn.idx]);
-    });
+    state.players.forEach(function (name, i) { if (i !== state.rankerIndex) guesserNames.push(name); });
 
-    var distances = {};
-    guesserNames.forEach(function (name) {
-      var guessIndex = {};
-      state.guesses[name].forEach(function (item, i) { guessIndex[item] = i; });
-      var d = 0;
-      items.forEach(function (item) { d += Math.abs(guessIndex[item] - trueIndex[item]); });
-      distances[name] = d;
-    });
-
-    var roundPoints = {};
-    guesserNames.forEach(function (name) {
-      var pts = pointsForDistance(distances[name]);
-      roundPoints[name] = pts;
-      state.scores[name] = (state.scores[name] || 0) + pts;
-    });
-
-    // The ranker scores for every guess that didn't land exactly --
-    // a personal ranking that's easy to predict earns them nothing.
-    var stumped = guesserNames.filter(function (name) { return distances[name] > 0; }).length;
-    state.scores[rankerName] = (state.scores[rankerName] || 0) + stumped;
-
-    var sortedGuessers = guesserNames.slice().sort(function (a, b) { return distances[a] - distances[b]; });
     var standings = $("standings-list");
     standings.innerHTML = "";
-    sortedGuessers.forEach(function (name) {
-      var row = document.createElement("div");
-      row.className = "standings-row";
-      row.innerHTML = "<span class=\"pname\">" + name + "</span>" +
-        "<span class=\"pdist\">off by " + distances[name] + "</span>" +
-        "<span class=\"ppts\">+" + roundPoints[name] + "</span>";
-      standings.appendChild(row);
-    });
+    var callout = $("round-callout");
+    var stumped;
+
+    if (state.guessMode === "together") {
+      var sharedIndex = {};
+      state.sharedGuess.forEach(function (item, i) { sharedIndex[item] = i; });
+      var sharedDist = 0;
+      items.forEach(function (item) { sharedDist += Math.abs(sharedIndex[item] - trueIndex[item]); });
+      var sharedPts = pointsForDistance(sharedDist);
+      guesserNames.forEach(function (name) {
+        state.scores[name] = (state.scores[name] || 0) + sharedPts;
+      });
+      stumped = sharedDist > 0 ? guesserNames.length : 0;
+      state.scores[rankerName] = (state.scores[rankerName] || 0) + stumped;
+
+      var groupRow = document.createElement("div");
+      groupRow.className = "standings-row";
+      groupRow.innerHTML = "<span class=\"pname\">Everyone Else (together)</span>" +
+        "<span class=\"pdist\">off by " + sharedDist + "</span>" +
+        "<span class=\"ppts\">+" + sharedPts + " each</span>";
+      standings.appendChild(groupRow);
+
+      callout.textContent = sharedDist === 0
+        ? "The group read " + rankerName + "'s mind exactly."
+        : "The group's shared guess was off by " + sharedDist + ".";
+    } else {
+      var distances = {};
+      guesserNames.forEach(function (name) {
+        var guessIndex = {};
+        state.guesses[name].forEach(function (item, i) { guessIndex[item] = i; });
+        var d = 0;
+        items.forEach(function (item) { d += Math.abs(guessIndex[item] - trueIndex[item]); });
+        distances[name] = d;
+      });
+
+      var roundPoints = {};
+      guesserNames.forEach(function (name) {
+        var pts = pointsForDistance(distances[name]);
+        roundPoints[name] = pts;
+        state.scores[name] = (state.scores[name] || 0) + pts;
+      });
+
+      // The ranker scores for every guess that didn't land exactly --
+      // a personal ranking that's easy to predict earns them nothing.
+      stumped = guesserNames.filter(function (name) { return distances[name] > 0; }).length;
+      state.scores[rankerName] = (state.scores[rankerName] || 0) + stumped;
+
+      var sortedGuessers = guesserNames.slice().sort(function (a, b) { return distances[a] - distances[b]; });
+      sortedGuessers.forEach(function (name) {
+        var row = document.createElement("div");
+        row.className = "standings-row";
+        row.innerHTML = "<span class=\"pname\">" + name + "</span>" +
+          "<span class=\"pdist\">off by " + distances[name] + "</span>" +
+          "<span class=\"ppts\">+" + roundPoints[name] + "</span>";
+        standings.appendChild(row);
+      });
+
+      if (sortedGuessers.length > 0) {
+        var best = sortedGuessers[0];
+        callout.textContent = distances[best] === 0
+          ? best + " read " + rankerName + "'s mind exactly."
+          : best + " got closest to " + rankerName + "'s real order.";
+      } else {
+        callout.textContent = "";
+      }
+    }
+
     var rankerRow = document.createElement("div");
     rankerRow.className = "standings-row";
     rankerRow.innerHTML = "<span class=\"pname\">" + rankerName + " (Ranker)</span>" +
       "<span class=\"pdist\">stumped " + stumped + " of " + guesserNames.length + "</span>" +
       "<span class=\"ppts\">+" + stumped + "</span>";
     standings.appendChild(rankerRow);
-
-    var callout = $("round-callout");
-    if (sortedGuessers.length > 0) {
-      var best = sortedGuessers[0];
-      if (distances[best] === 0) {
-        callout.textContent = best + " read " + rankerName + "'s mind exactly.";
-      } else {
-        callout.textContent = best + " got closest to " + rankerName + "'s real order.";
-      }
-    } else {
-      callout.textContent = "";
-    }
 
     showScreen("screen-reveal");
   }
@@ -846,6 +997,7 @@
         state: {
           players: state.players,
           targetScore: state.targetScore,
+          guessMode: state.guessMode,
           lastWinningScore: state.lastWinningScore,
           scores: state.scores,
           usedItems: state.usedItems,
@@ -888,6 +1040,8 @@
     renderPlayerList();
     state.targetScore = saved.targetScore;
     $("target-score-input").value = saved.targetScore;
+    state.guessMode = saved.guessMode || "separate";
+    renderGuessModeChips();
     state.lastWinningScore = saved.lastWinningScore || 0;
     state.scores = saved.scores;
     state.usedItems = saved.usedItems || [];
@@ -910,6 +1064,7 @@
       // nobody's turn for it has happened yet
       state.rankerOrder = null;
       state.guesses = {};
+      state.sharedGuess = null;
       state.turnQueue = buildTurnQueue();
       state.turnPos = 0;
       $("ri-ranker-name").textContent = state.players[state.rankerIndex];
@@ -963,6 +1118,7 @@
 
   // ---------- Init ----------
   renderPlayerList();
+  renderGuessModeChips();
   var firstPlayerInput = $("player-list").querySelector("input[type=text]");
   if (firstPlayerInput) {
     firstPlayerInput.setAttribute("autofocus", "autofocus");
