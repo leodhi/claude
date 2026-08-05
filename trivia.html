@@ -1023,13 +1023,6 @@
 
   $("btn-submit-answer").addEventListener("click", submitCurrentTurn);
 
-  $("input-answer-field").addEventListener("keydown", function (e) {
-    if (e.key === "Enter") {
-      e.preventDefault();
-      submitCurrentTurn();
-    }
-  });
-
 
   $("btn-show-answer").addEventListener("click", function () {
     renderReveal();
@@ -1288,6 +1281,47 @@
       saveCheckpoint("screen-round-intro");
     }
     pendingResume = null;
+  });
+
+  // ---------- Enter key advances the current screen ----------
+  // Maps each screen to its main forward action, so pressing Enter anywhere
+  // on that screen (a text field, a number field, or nothing focused at all)
+  // behaves like tapping that screen's primary button.
+  var SCREEN_ENTER_TARGETS = {
+    "screen-setup": "btn-start-game",
+    "screen-round-intro": "btn-start-answering",
+    "screen-pass-turn": "btn-ready-to-answer",
+    "screen-answer-input": "btn-submit-answer",
+    "screen-ready-reveal": "btn-show-answer",
+    "screen-reveal": "btn-next-round",
+    "screen-scores": "btn-back-to-round",
+    "screen-game-won": "btn-new-game"
+  };
+
+  document.addEventListener("keydown", function (e) {
+    if (e.key !== "Enter") return;
+
+    var activeScreen = document.querySelector(".screen.active");
+    if (!activeScreen) return;
+    var screenId = activeScreen.id;
+
+    // never let Enter reach for a destructive confirmation on its own
+    if (screenId === "screen-scores" && $("end-game-confirm").style.display !== "none") return;
+
+    var targetId = (screenId === "screen-game-won" && $("extend-game-form").style.display !== "none")
+      ? "btn-confirm-extend"
+      : SCREEN_ENTER_TARGETS[screenId];
+    if (!targetId) return;
+
+    var btn = $(targetId);
+    if (!btn || btn.disabled || btn.offsetParent === null) return;
+
+    // that exact button is already focused -- its own native Enter-activation
+    // will fire, so don't also click it here and cause a double-submit
+    if (document.activeElement === btn) return;
+
+    e.preventDefault();
+    btn.click();
   });
 
   // ---------- Init ----------
