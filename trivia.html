@@ -151,7 +151,7 @@
     <div class="card center">
       <span class="category-label" id="ri-category"></span>
       <div class="question-text" id="ri-text"></div>
-      <div class="timer-display" id="ri-timer">1:00</div>
+      <div class="timer-display" id="ri-timer">0:30</div>
       <small class="hint">The device will be passed to each player one at a time to type their own answer in private — no calling it out!</small>
     </div>
     <button class="primary" id="btn-start-answering" type="button">Start Answering</button>
@@ -164,7 +164,7 @@
       <div>Pass the device to</div>
       <div class="big-name" id="pass-name"></div>
       <small class="hint">Only <span id="pass-name-2"></span> should look at the screen — everyone else, look away!</small>
-      <div class="timer-display" id="pass-timer" style="margin-top:10px;">1:00</div>
+      <div class="timer-display" id="pass-timer" style="margin-top:10px;">0:30</div>
     </div>
     <button class="primary" id="btn-ready-to-answer" type="button">I'm ready to answer</button>
     <button class="secondary" id="btn-reveal-now-pass" type="button">Everyone agrees — reveal answers now</button>
@@ -175,7 +175,7 @@
     <div class="card center" style="padding:10px 16px;">
       <span class="category-label">Answering as</span>
       <div class="big-name" id="input-name" style="font-size:1.3rem; margin:2px 0;"></div>
-      <div class="timer-display" id="input-timer">1:00</div>
+      <div class="timer-display" id="input-timer">0:30</div>
     </div>
     <div class="card">
       <span class="category-label" id="input-category"></span>
@@ -229,7 +229,7 @@
 (function () {
   "use strict";
 
-  var ROUND_TIME = 60;
+  var ROUND_TIME = 30;
 
   var CATEGORIES = {
     "Animals": [
