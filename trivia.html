@@ -769,17 +769,35 @@
   // ---------- Round setup ----------
   function pickRandom(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
 
-  function allAnswers(diff) {
+  function categoryAnswers(cat) {
     var all = [];
-    Object.keys(CATEGORIES).forEach(function (cat) {
+    DIFFICULTIES.forEach(function (diff) {
       CATEGORIES[cat][diff].forEach(function (q) { all.push(q[1]); });
     });
     return all;
   }
 
-  function buildChoiceOptions(correctAnswer, diff) {
-    var pool = allAnswers(diff).filter(function (a) { return a !== correctAnswer; });
-    var unique = pool.filter(function (v, i) { return pool.indexOf(v) === i; });
+  function allAnswers() {
+    var all = [];
+    Object.keys(CATEGORIES).forEach(function (cat) { all = all.concat(categoryAnswers(cat)); });
+    return all;
+  }
+
+  // Distractors are pulled from the SAME category first, so wrong options
+  // are actually plausible (other continents, other movies, etc.) instead
+  // of obviously-unrelated facts from a different topic that give the
+  // answer away by elimination. Falls back to the full question bank only
+  // if a category doesn't have enough unique answers on its own.
+  function buildChoiceOptions(correctAnswer, cat) {
+    var uniqueFrom = function (arr) {
+      var filtered = arr.filter(function (a) { return a !== correctAnswer; });
+      return filtered.filter(function (v, i) { return filtered.indexOf(v) === i; });
+    };
+    var unique = uniqueFrom(categoryAnswers(cat));
+    if (unique.length < 9) {
+      var fallback = uniqueFrom(allAnswers());
+      fallback.forEach(function (a) { if (unique.indexOf(a) === -1) unique.push(a); });
+    }
     var distractors = [];
     while (distractors.length < 9 && unique.length) {
       var idx = Math.floor(Math.random() * unique.length);
@@ -834,7 +852,7 @@
       ? ((Math.random() < 0.5) ? "type" : "choice")
       : state.guessMode;
     state.roundChoiceOptions = (state.roundGuessMode === "choice")
-      ? buildChoiceOptions(pick.a, pick.diff)
+      ? buildChoiceOptions(pick.a, pick.cat)
       : null;
 
     var order = state.players.map(function (_, i) { return i; });
@@ -916,6 +934,7 @@
 
     showScreen("screen-answer-input");
     startTimer(["input-timer"], submitCurrentTurn);
+    if (state.currentTurnMode !== "choice") $("input-answer-field").focus();
   });
 
   function renderChoiceOptions() {
