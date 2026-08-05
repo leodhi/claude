@@ -797,26 +797,79 @@
     return all;
   }
 
-  // Distractors are pulled from the SAME category first, so wrong options
-  // are actually plausible (other continents, other movies, etc.) instead
-  // of obviously-unrelated facts from a different topic that give the
-  // answer away by elimination. Falls back to the full question bank only
-  // if a category doesn't have enough unique answers on its own.
+  // A handful of well-known finite sets are too thin in the question bank
+  // itself to fill 9 real distractors (e.g. only 2-3 answers happen to be
+  // continents), so these are curated supplements -- not "correct answers"
+  // to any question, just plausible same-type options to draw from.
+  var CONTINENTS = ["Africa", "Asia", "Europe", "North America", "South America", "Antarctica", "Australia"];
+  var OCEANS = ["The Pacific Ocean", "The Atlantic Ocean", "The Indian Ocean", "The Arctic Ocean", "The Southern Ocean"];
+
+  // Classifies an answer so distractors are pulled from the same kind of
+  // thing -- a numeric question gets other numbers, a continent question
+  // gets other continents, a country/city question gets other places --
+  // instead of a plausible-looking category mash of numbers, places, and
+  // random terms where the real answer stands out by elimination.
+  function classifyAnswer(answer, cat) {
+    if (/^-?\d/.test((answer || "").trim())) return "number";
+    if (cat === "Geography") {
+      if (CONTINENTS.indexOf(answer) !== -1) return "continent";
+      if (/ocean$/i.test(answer) || /\bsea\b/i.test(answer)) return "water";
+      return "place";
+    }
+    return "text";
+  }
+
   function buildChoiceOptions(correctAnswer, cat) {
-    var uniqueFrom = function (arr) {
-      var filtered = arr.filter(function (a) { return a !== correctAnswer; });
-      return filtered.filter(function (v, i) { return filtered.indexOf(v) === i; });
-    };
-    var unique = uniqueFrom(categoryAnswers(cat));
-    if (unique.length < 9) {
-      var fallback = uniqueFrom(allAnswers());
-      fallback.forEach(function (a) { if (unique.indexOf(a) === -1) unique.push(a); });
+    var type = classifyAnswer(correctAnswer, cat);
+    var nonNumeric = function (arr) { return arr.filter(function (a) { return classifyAnswer(a, cat) !== "number"; }); };
+    var numeric = function (arr) { return arr.filter(function (a) { return classifyAnswer(a, cat) === "number"; }); };
+
+    var tiers = [];
+    if (type === "number") {
+      tiers.push(numeric(categoryAnswers(cat)));
+      tiers.push(numeric(allAnswers()));
+    } else if (type === "continent") {
+      tiers.push(CONTINENTS);
+      tiers.push(nonNumeric(categoryAnswers("Geography")));
+    } else if (type === "water") {
+      tiers.push(OCEANS);
+      tiers.push(nonNumeric(categoryAnswers("Geography")));
+    } else if (cat === "Geography") {
+      tiers.push(nonNumeric(categoryAnswers("Geography")));
+    } else {
+      tiers.push(nonNumeric(categoryAnswers(cat)));
     }
+    tiers.push(categoryAnswers(cat));
+    tiers.push(allAnswers());
+
+    // Each tier is fully shuffled and drained before the next tier is even
+    // considered, so a later (less plausible) fallback tier only contributes
+    // if an earlier, more-specific tier genuinely doesn't have 9 options --
+    // it never gets randomly mixed in alongside a tier that already does.
+    var seen = {};
     var distractors = [];
-    while (distractors.length < 9 && unique.length) {
-      var idx = Math.floor(Math.random() * unique.length);
-      distractors.push(unique.splice(idx, 1)[0]);
-    }
+    tiers.forEach(function (tier) {
+      if (distractors.length >= 9) return;
+      // dedupe THIS tier's own raw list first -- the same answer string can
+      // be correct for more than one question (e.g. two different questions
+      // both answered "Baseball"), so a tier can contain it twice
+      var localSeen = {};
+      var candidates = [];
+      tier.forEach(function (a) {
+        if (a === correctAnswer || seen[a] || localSeen[a]) return;
+        localSeen[a] = true;
+        candidates.push(a);
+      });
+      for (var i = candidates.length - 1; i > 0; i--) {
+        var j = Math.floor(Math.random() * (i + 1));
+        var tmp = candidates[i]; candidates[i] = candidates[j]; candidates[j] = tmp;
+      }
+      candidates.forEach(function (a) {
+        if (distractors.length >= 9) return;
+        seen[a] = true;
+        distractors.push(a);
+      });
+    });
     var options = distractors.concat([correctAnswer]);
     for (var i = options.length - 1; i > 0; i--) {
       var j = Math.floor(Math.random() * (i + 1));
