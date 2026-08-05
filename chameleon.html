@@ -1,0 +1,720 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>Chameleon</title>
+<link rel="apple-touch-icon" href="icon-chameleon.png">
+<style>
+  :root {
+    --bg: #10151f;
+    --panel: #1a2233;
+    --panel-2: #232e45;
+    --accent: #4ee6a7;
+    --accent-2: #ff5d8f;
+    --text: #eef2f9;
+    --text-dim: #93a0b8;
+    --border: #2c3a55;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; padding: 0; height: 100%;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    -webkit-tap-highlight-color: transparent;
+  }
+  #app {
+    max-width: 520px;
+    margin: 0 auto;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    padding: 20px 16px 40px;
+  }
+  h1 {
+    font-size: 1.6rem;
+    margin: 4px 0 2px;
+    letter-spacing: 0.5px;
+  }
+  h1 span { color: var(--accent); }
+  .subtitle {
+    color: var(--text-dim);
+    font-size: 0.85rem;
+    margin-bottom: 18px;
+  }
+  .screen { display: none; flex-direction: column; gap: 14px; flex: 1; }
+  .screen.active { display: flex; }
+  .card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 16px;
+  }
+  label {
+    display: block;
+    font-size: 0.8rem;
+    color: var(--text-dim);
+    margin-bottom: 6px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+  input[type="text"], select {
+    width: 100%;
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 12px;
+    border-radius: 10px;
+    font-size: 1rem;
+  }
+  input[type="text"]:focus, select:focus { outline: 2px solid var(--accent); }
+  .row { display: flex; gap: 8px; align-items: center; }
+  .player-row { display: flex; gap: 8px; margin-bottom: 8px; }
+  .player-row input { flex: 1; }
+  .icon-btn {
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    color: var(--text-dim);
+    border-radius: 10px;
+    width: 44px; height: 44px;
+    font-size: 1.1rem;
+    cursor: pointer;
+  }
+  .icon-btn:active { transform: scale(0.95); }
+  button.primary {
+    background: var(--accent);
+    color: #08130d;
+    border: none;
+    padding: 15px;
+    border-radius: 12px;
+    font-size: 1.05rem;
+    font-weight: 700;
+    cursor: pointer;
+    width: 100%;
+  }
+  button.primary:active { transform: scale(0.98); }
+  button.secondary {
+    background: transparent;
+    color: var(--text);
+    border: 1px solid var(--border);
+    padding: 13px;
+    border-radius: 12px;
+    font-size: 0.95rem;
+    cursor: pointer;
+    width: 100%;
+  }
+  button.danger { background: var(--accent-2); color: #2a0713; }
+  button:disabled { opacity: 0.4; cursor: not-allowed; }
+  .chip-group { display: flex; flex-wrap: wrap; gap: 8px; }
+  .chip {
+    padding: 8px 14px;
+    border-radius: 999px;
+    border: 1px solid var(--border);
+    background: var(--panel-2);
+    color: var(--text-dim);
+    font-size: 0.85rem;
+    cursor: pointer;
+    user-select: none;
+  }
+  .chip.selected { background: var(--accent); color: #08130d; border-color: var(--accent); font-weight: 600; }
+  .center { text-align: center; }
+  .big-name {
+    font-size: 1.8rem;
+    font-weight: 800;
+    margin: 6px 0;
+  }
+  .pass-icon { font-size: 3rem; margin: 10px 0; }
+  .reveal-box {
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 20px;
+    text-align: center;
+  }
+  .category-label { color: var(--text-dim); font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.06em; }
+  .secret-word {
+    font-size: 2rem;
+    font-weight: 800;
+    color: var(--accent);
+    margin: 10px 0;
+  }
+  .chameleon-word {
+    font-size: 2rem;
+    font-weight: 800;
+    color: var(--accent-2);
+    margin: 10px 0;
+  }
+  .word-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 6px;
+    margin-top: 14px;
+  }
+  .word-cell {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 8px 4px;
+    font-size: 0.72rem;
+    text-align: center;
+    color: var(--text-dim);
+  }
+  .word-cell.highlight { background: var(--accent); color: #08130d; font-weight: 700; border-color: var(--accent); }
+  .timer {
+    font-size: 3rem;
+    font-weight: 800;
+    text-align: center;
+    margin: 10px 0;
+    font-variant-numeric: tabular-nums;
+  }
+  .timer.low { color: var(--accent-2); }
+  .order-list { display: flex; flex-direction: column; gap: 8px; }
+  .order-item {
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 10px 14px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .order-item .num { color: var(--accent); font-weight: 700; margin-right: 8px; }
+  .vote-list { display: flex; flex-direction: column; gap: 8px; }
+  .vote-btn {
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 14px;
+    border-radius: 10px;
+    font-size: 1rem;
+    cursor: pointer;
+    text-align: left;
+  }
+  .vote-btn.selected { background: var(--accent); color: #08130d; border-color: var(--accent); font-weight: 700; }
+  .tally-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .tally-row:last-child { border-bottom: none; }
+  .result-banner {
+    text-align: center;
+    padding: 18px;
+    border-radius: 14px;
+    font-weight: 800;
+    font-size: 1.2rem;
+    margin-bottom: 4px;
+  }
+  .result-win { background: rgba(78,230,167,0.15); border: 1px solid var(--accent); color: var(--accent); }
+  .result-lose { background: rgba(255,93,143,0.15); border: 1px solid var(--accent-2); color: var(--accent-2); }
+  .scoreboard { display: flex; flex-direction: column; gap: 6px; }
+  .score-row { display: flex; justify-content: space-between; padding: 6px 4px; }
+  .footer-nav { display: flex; gap: 8px; margin-top: auto; padding-top: 10px; }
+  .footer-nav button { flex: 1; }
+  small.hint { color: var(--text-dim); display: block; margin-top: 4px; font-size: 0.78rem; }
+</style>
+</head>
+<body>
+<div id="app">
+  <h1>🦎 Chame<span>leon</span></h1>
+  <div class="subtitle">Pass-and-play party game — one device, everyone at the table</div>
+
+  <!-- SETUP -->
+  <div class="screen active" id="screen-setup">
+    <div class="card">
+      <label>Players (3–12)</label>
+      <div id="player-list"></div>
+      <button class="secondary" id="btn-add-player" type="button">+ Add player</button>
+    </div>
+    <div class="card">
+      <label>Categories</label>
+      <div class="chip-group" id="category-chips"></div>
+      <small class="hint">Tap to toggle. At least one must stay selected.</small>
+    </div>
+    <div class="card">
+      <label>Clue timer (seconds)</label>
+      <select id="timer-select">
+        <option value="0">No timer</option>
+        <option value="60">60</option>
+        <option value="90" selected>90</option>
+        <option value="120">120</option>
+        <option value="180">180</option>
+      </select>
+    </div>
+    <button class="primary" id="btn-start-game" type="button">Start Game</button>
+  </div>
+
+  <!-- REVEAL (pass device) -->
+  <div class="screen" id="screen-reveal">
+    <div class="card center">
+      <div class="pass-icon">📱➡️</div>
+      <div>Pass the device to</div>
+      <div class="big-name" id="reveal-name"></div>
+      <small class="hint">Only <span id="reveal-name-2"></span> should look at the screen now.</small>
+    </div>
+    <button class="primary" id="btn-show-role" type="button">I'm ready — show my role</button>
+  </div>
+
+  <div class="screen" id="screen-role">
+    <div class="reveal-box" id="role-box">
+      <div class="category-label" id="role-category"></div>
+      <div id="role-word-wrap"></div>
+      <div class="word-grid" id="role-grid"></div>
+    </div>
+    <button class="primary" id="btn-next-player" type="button">Got it, pass to next player</button>
+  </div>
+
+  <!-- DISCUSSION -->
+  <div class="screen" id="screen-discuss">
+    <div class="card center">
+      <div class="category-label">Category</div>
+      <div class="big-name" id="discuss-category"></div>
+      <small class="hint">Everyone can see this — the secret word is not shown here.</small>
+    </div>
+    <div class="card">
+      <label>Say-a-clue-word order</label>
+      <div class="order-list" id="order-list"></div>
+    </div>
+    <div class="card center" id="timer-card">
+      <div class="timer" id="timer-display">--:--</div>
+      <button class="secondary" id="btn-timer-toggle" type="button">Start Timer</button>
+    </div>
+    <button class="primary" id="btn-go-vote" type="button">Move to Voting</button>
+  </div>
+
+  <!-- VOTING -->
+  <div class="screen" id="screen-vote">
+    <div class="card center">
+      <div>Pass the device to</div>
+      <div class="big-name" id="voter-name"></div>
+      <small class="hint">Who do you think is the Chameleon?</small>
+    </div>
+    <div class="vote-list" id="vote-list"></div>
+    <button class="primary" id="btn-submit-vote" type="button" disabled>Submit Vote</button>
+  </div>
+
+  <!-- RESULTS -->
+  <div class="screen" id="screen-results">
+    <div class="card">
+      <label>Votes</label>
+      <div id="tally-box"></div>
+    </div>
+    <div class="card center" id="chameleon-reveal-box"></div>
+    <div class="card center" id="guess-box" style="display:none">
+      <label>Chameleon's guess for the secret word</label>
+      <input type="text" id="guess-input" placeholder="Type the word you think it is...">
+      <button class="secondary" id="btn-submit-guess" type="button" style="margin-top:10px">Reveal Answer</button>
+    </div>
+    <div class="result-banner" id="result-banner" style="display:none"></div>
+    <button class="primary" id="btn-next-round" type="button" style="display:none">Next Round</button>
+  </div>
+
+  <!-- SCOREBOARD -->
+  <div class="screen" id="screen-scores">
+    <div class="card">
+      <label>Scoreboard</label>
+      <div class="scoreboard" id="scoreboard"></div>
+    </div>
+    <div class="footer-nav">
+      <button class="secondary" id="btn-back-to-round" type="button">Back to Game</button>
+      <button class="danger" id="btn-end-game" type="button">End Game</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  var CATEGORIES = {
+    "Animals": ["Lion","Elephant","Dolphin","Penguin","Giraffe","Kangaroo","Octopus","Tiger","Panda","Owl","Shark","Cheetah","Koala","Fox","Gorilla","Peacock"],
+    "Movies": ["Titanic","Jaws","Inception","Frozen","Gladiator","Matrix","Avatar","Joker","Rocky","Shrek","Up","Grease","Alien","Coco","Jumanji","Cars"],
+    "Food": ["Pizza","Sushi","Tacos","Burger","Pasta","Ramen","Curry","Pancakes","Waffles","Salad","Steak","Dumplings","Falafel","Nachos","Risotto","Chili"],
+    "Sports": ["Soccer","Basketball","Tennis","Golf","Boxing","Swimming","Cricket","Rugby","Hockey","Baseball","Surfing","Cycling","Skiing","Volleyball","Archery","Bowling"],
+    "Countries": ["Japan","Brazil","Egypt","Canada","France","India","Mexico","Kenya","Norway","Thailand","Greece","Peru","Australia","Iceland","Morocco","Vietnam"],
+    "Occupations": ["Doctor","Chef","Pilot","Firefighter","Teacher","Plumber","Lawyer","Artist","Farmer","Dentist","Electrician","Journalist","Astronaut","Barber","Nurse","Architect"],
+    "Household Objects": ["Toaster","Pillow","Umbrella","Mirror","Candle","Blender","Ladder","Broom","Kettle","Lamp","Vacuum","Clock","Blanket","Scissors","Wrench","Fan"],
+    "Superheroes": ["Batman","Superman","Spider-Man","Iron Man","Thor","Hulk","Wonder Woman","Flash","Black Panther","Aquaman","Wolverine","Captain America","Storm","Deadpool","Green Lantern","Ant-Man"]
+  };
+
+  var state = {
+    players: ["", "", ""],
+    selectedCategories: Object.keys(CATEGORIES),
+    timerSeconds: 90,
+    scores: {},
+    round: null,
+    revealIndex: 0,
+    voteIndex: 0,
+    votes: {},
+    timerHandle: null,
+    timerRemaining: 0,
+    timerRunning: false
+  };
+
+  function $(id) { return document.getElementById(id); }
+  function showScreen(id) {
+    document.querySelectorAll(".screen").forEach(function (s) { s.classList.remove("active"); });
+    $(id).classList.add("active");
+  }
+
+  // ---------- Setup screen ----------
+  function renderPlayerList() {
+    var wrap = $("player-list");
+    wrap.innerHTML = "";
+    state.players.forEach(function (name, i) {
+      var row = document.createElement("div");
+      row.className = "player-row";
+      var input = document.createElement("input");
+      input.type = "text";
+      input.placeholder = "Player " + (i + 1);
+      input.value = name;
+      input.maxLength = 20;
+      input.addEventListener("input", function () { state.players[i] = input.value; });
+      row.appendChild(input);
+      if (state.players.length > 3) {
+        var rm = document.createElement("button");
+        rm.className = "icon-btn";
+        rm.type = "button";
+        rm.textContent = "✕";
+        rm.addEventListener("click", function () {
+          state.players.splice(i, 1);
+          renderPlayerList();
+        });
+        row.appendChild(rm);
+      }
+      wrap.appendChild(row);
+    });
+  }
+
+  $("btn-add-player").addEventListener("click", function () {
+    if (state.players.length >= 12) return;
+    state.players.push("");
+    renderPlayerList();
+  });
+
+  function renderCategoryChips() {
+    var wrap = $("category-chips");
+    wrap.innerHTML = "";
+    Object.keys(CATEGORIES).forEach(function (cat) {
+      var chip = document.createElement("div");
+      chip.className = "chip" + (state.selectedCategories.indexOf(cat) !== -1 ? " selected" : "");
+      chip.textContent = cat;
+      chip.addEventListener("click", function () {
+        var idx = state.selectedCategories.indexOf(cat);
+        if (idx !== -1) {
+          if (state.selectedCategories.length === 1) return;
+          state.selectedCategories.splice(idx, 1);
+        } else {
+          state.selectedCategories.push(cat);
+        }
+        renderCategoryChips();
+      });
+      wrap.appendChild(chip);
+    });
+  }
+
+  $("timer-select").addEventListener("change", function (e) {
+    state.timerSeconds = parseInt(e.target.value, 10);
+  });
+
+  $("btn-start-game").addEventListener("click", function () {
+    var names = state.players.map(function (n, i) { return n.trim() || ("Player " + (i + 1)); });
+    if (names.length < 3) { alert("Need at least 3 players."); return; }
+    state.players = names;
+    state.scores = {};
+    names.forEach(function (n) { state.scores[n] = 0; });
+    startRound();
+  });
+
+  // ---------- Round setup ----------
+  function pickRandom(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
+
+  function startRound() {
+    var cat = pickRandom(state.selectedCategories);
+    var words = CATEGORIES[cat];
+    var secretWord = pickRandom(words);
+    var chameleonIdx = Math.floor(Math.random() * state.players.length);
+    var order = state.players.map(function (_, i) { return i; });
+    // shuffle order
+    for (var i = order.length - 1; i > 0; i--) {
+      var j = Math.floor(Math.random() * (i + 1));
+      var tmp = order[i]; order[i] = order[j]; order[j] = tmp;
+    }
+    state.round = {
+      category: cat,
+      words: words,
+      secretWord: secretWord,
+      chameleonIdx: chameleonIdx,
+      order: order
+    };
+    state.revealIndex = 0;
+    state.votes = {};
+    state.voteIndex = 0;
+    goToReveal();
+  }
+
+  // ---------- Reveal flow ----------
+  function goToReveal() {
+    if (state.revealIndex >= state.players.length) {
+      goToDiscuss();
+      return;
+    }
+    var name = state.players[state.revealIndex];
+    $("reveal-name").textContent = name;
+    $("reveal-name-2").textContent = name;
+    showScreen("screen-reveal");
+  }
+
+  $("btn-show-role").addEventListener("click", function () {
+    renderRoleScreen();
+    showScreen("screen-role");
+  });
+
+  function renderRoleScreen() {
+    var round = state.round;
+    var isChameleon = state.revealIndex === round.chameleonIdx;
+    $("role-category").textContent = round.category;
+    var wordWrap = $("role-word-wrap");
+    wordWrap.innerHTML = "";
+    var el = document.createElement("div");
+    if (isChameleon) {
+      el.className = "chameleon-word";
+      el.textContent = "You are the Chameleon!";
+    } else {
+      el.className = "secret-word";
+      el.textContent = round.secretWord;
+    }
+    wordWrap.appendChild(el);
+
+    var grid = $("role-grid");
+    grid.innerHTML = "";
+    round.words.forEach(function (w) {
+      var cell = document.createElement("div");
+      cell.className = "word-cell" + (!isChameleon && w === round.secretWord ? " highlight" : "");
+      cell.textContent = w;
+      grid.appendChild(cell);
+    });
+  }
+
+  $("btn-next-player").addEventListener("click", function () {
+    state.revealIndex++;
+    goToReveal();
+  });
+
+  // ---------- Discussion ----------
+  function goToDiscuss() {
+    var round = state.round;
+    $("discuss-category").textContent = round.category;
+    var list = $("order-list");
+    list.innerHTML = "";
+    round.order.forEach(function (playerIdx, pos) {
+      var item = document.createElement("div");
+      item.className = "order-item";
+      var num = document.createElement("span");
+      num.innerHTML = '<span class="num">' + (pos + 1) + ".</span> " + state.players[playerIdx];
+      item.appendChild(num);
+      list.appendChild(item);
+    });
+
+    if (state.timerSeconds > 0) {
+      $("timer-card").style.display = "";
+      resetTimer();
+    } else {
+      $("timer-card").style.display = "none";
+    }
+    showScreen("screen-discuss");
+  }
+
+  function resetTimer() {
+    stopTimer();
+    state.timerRemaining = state.timerSeconds;
+    renderTimer();
+    $("btn-timer-toggle").textContent = "Start Timer";
+  }
+
+  function renderTimer() {
+    var m = Math.floor(state.timerRemaining / 60);
+    var s = state.timerRemaining % 60;
+    var display = $("timer-display");
+    display.textContent = m + ":" + (s < 10 ? "0" : "") + s;
+    display.classList.toggle("low", state.timerRemaining <= 10);
+  }
+
+  function stopTimer() {
+    if (state.timerHandle) { clearInterval(state.timerHandle); state.timerHandle = null; }
+    state.timerRunning = false;
+  }
+
+  $("btn-timer-toggle").addEventListener("click", function () {
+    if (state.timerRunning) {
+      stopTimer();
+      $("btn-timer-toggle").textContent = "Resume Timer";
+    } else {
+      if (state.timerRemaining <= 0) state.timerRemaining = state.timerSeconds;
+      state.timerRunning = true;
+      $("btn-timer-toggle").textContent = "Pause Timer";
+      state.timerHandle = setInterval(function () {
+        state.timerRemaining--;
+        renderTimer();
+        if (state.timerRemaining <= 0) {
+          stopTimer();
+          $("btn-timer-toggle").textContent = "Time's up!";
+          $("btn-timer-toggle").disabled = true;
+        }
+      }, 1000);
+    }
+  });
+
+  $("btn-go-vote").addEventListener("click", function () {
+    stopTimer();
+    state.voteIndex = 0;
+    state.votes = {};
+    goToVote();
+  });
+
+  // ---------- Voting ----------
+  function goToVote() {
+    if (state.voteIndex >= state.players.length) {
+      showResults();
+      return;
+    }
+    var voterName = state.players[state.voteIndex];
+    $("voter-name").textContent = voterName;
+
+    var list = $("vote-list");
+    list.innerHTML = "";
+    var selected = null;
+    state.players.forEach(function (name, idx) {
+      if (idx === state.voteIndex) return; // can't vote for self
+      var btn = document.createElement("button");
+      btn.className = "vote-btn";
+      btn.type = "button";
+      btn.textContent = name;
+      btn.addEventListener("click", function () {
+        Array.prototype.forEach.call(list.children, function (c) { c.classList.remove("selected"); });
+        btn.classList.add("selected");
+        selected = idx;
+        $("btn-submit-vote").disabled = false;
+      });
+      list.appendChild(btn);
+    });
+    $("btn-submit-vote").disabled = true;
+    $("btn-submit-vote").onclick = function () {
+      if (selected === null) return;
+      state.votes[state.voteIndex] = selected;
+      state.voteIndex++;
+      goToVote();
+    };
+    showScreen("screen-vote");
+  }
+
+  // ---------- Results ----------
+  function showResults() {
+    var round = state.round;
+    var tally = {};
+    state.players.forEach(function (_, idx) { tally[idx] = 0; });
+    Object.keys(state.votes).forEach(function (voter) {
+      var votedFor = state.votes[voter];
+      tally[votedFor]++;
+    });
+
+    var tallyBox = $("tally-box");
+    tallyBox.innerHTML = "";
+    var maxVotes = -1;
+    var topIdxs = [];
+    Object.keys(tally).forEach(function (idxStr) {
+      var idx = parseInt(idxStr, 10);
+      var row = document.createElement("div");
+      row.className = "tally-row";
+      row.innerHTML = "<span>" + state.players[idx] + "</span><span>" + tally[idx] + " vote(s)</span>";
+      tallyBox.appendChild(row);
+      if (tally[idx] > maxVotes) { maxVotes = tally[idx]; topIdxs = [idx]; }
+      else if (tally[idx] === maxVotes) { topIdxs.push(idx); }
+    });
+
+    var chameleonCaught = topIdxs.length === 1 && topIdxs[0] === round.chameleonIdx;
+    var revealBox = $("chameleon-reveal-box");
+    revealBox.innerHTML = "";
+    var title = document.createElement("div");
+    title.className = "big-name";
+    title.textContent = "🦎 " + state.players[round.chameleonIdx] + " was the Chameleon";
+    revealBox.appendChild(title);
+
+    var guessBox = $("guess-box");
+    var banner = $("result-banner");
+    var nextBtn = $("btn-next-round");
+    banner.style.display = "none";
+    nextBtn.style.display = "none";
+    $("guess-input").value = "";
+
+    if (chameleonCaught) {
+      guessBox.style.display = "";
+      $("btn-submit-guess").onclick = function () {
+        var guess = $("guess-input").value.trim().toLowerCase();
+        var correct = guess === round.secretWord.toLowerCase();
+        guessBox.style.display = "none";
+        banner.style.display = "";
+        if (correct) {
+          banner.className = "result-banner result-win";
+          banner.textContent = "Chameleon guessed \"" + round.secretWord + "\" correctly! Chameleon wins the round.";
+          state.scores[state.players[round.chameleonIdx]] += 2;
+        } else {
+          banner.className = "result-banner result-lose";
+          banner.textContent = "Wrong guess (word was \"" + round.secretWord + "\"). Everyone else wins the round!";
+          state.players.forEach(function (name, idx) {
+            if (idx !== round.chameleonIdx) state.scores[name] += 1;
+          });
+        }
+        nextBtn.style.display = "";
+      };
+    } else {
+      guessBox.style.display = "none";
+      banner.style.display = "";
+      banner.className = "result-banner result-win";
+      banner.textContent = "Chameleon escaped detection! Chameleon wins the round (secret word: \"" + round.secretWord + "\").";
+      state.scores[state.players[round.chameleonIdx]] += 2;
+      nextBtn.style.display = "";
+    }
+
+    showScreen("screen-results");
+  }
+
+  $("btn-next-round").addEventListener("click", function () {
+    renderScoreboard();
+    showScreen("screen-scores");
+  });
+
+  // ---------- Scoreboard ----------
+  function renderScoreboard() {
+    var board = $("scoreboard");
+    board.innerHTML = "";
+    var entries = Object.keys(state.scores).map(function (name) {
+      return { name: name, score: state.scores[name] };
+    });
+    entries.sort(function (a, b) { return b.score - a.score; });
+    entries.forEach(function (e) {
+      var row = document.createElement("div");
+      row.className = "score-row";
+      row.innerHTML = "<span>" + e.name + "</span><strong>" + e.score + "</strong>";
+      board.appendChild(row);
+    });
+  }
+
+  $("btn-back-to-round").addEventListener("click", function () {
+    startRound();
+  });
+
+  $("btn-end-game").addEventListener("click", function () {
+    if (!confirm("End the game and return to setup?")) return;
+    showScreen("screen-setup");
+  });
+
+  // ---------- Init ----------
+  renderPlayerList();
+  renderCategoryChips();
+})();
+</script>
+</body>
+</html>
