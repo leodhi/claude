@@ -305,6 +305,17 @@
   small.hint { color: var(--text-dim); display: block; margin-top: 4px; font-size: 0.78rem; }
   .top-link { color: var(--text-dim); font-size: 0.8rem; text-decoration: none; }
   .top-link:hover { color: var(--accent); }
+
+  .chip.static { cursor: default; }
+  button.link {
+    background: none; border: none; color: var(--text-dim); text-decoration: underline;
+    font-size: 0.8rem; cursor: pointer; padding: 6px;
+  }
+  .room-code { font-size: 2.6rem; font-weight: 800; letter-spacing: 0.2em; text-align: center; color: var(--accent); margin: 8px 0; }
+  .host-badge { color: var(--accent); font-size: 0.7rem; margin-left: 4px; }
+  .waiting-text { color: var(--text-dim); text-align: center; padding: 16px 0; }
+  .footer-nav { display: flex; gap: 8px; margin-top: auto; padding-top: 10px; }
+  .footer-nav button { flex: 1; }
 </style>
 </head>
 <body>
@@ -317,117 +328,114 @@
   </div>
 
   <!-- SETUP -->
-  <div class="screen active" id="screen-setup">
-    <div class="card" id="refresh-resume-banner" style="display:none;">
-      <div class="row" style="align-items:center; gap:10px;">
-        <div style="flex:1;">Looks like the page was refreshed mid-game. Want to keep playing?</div>
-      </div>
-      <div class="row" style="margin-top:10px;">
-        <button class="secondary" id="btn-refresh-startnew" type="button">Start New Game</button>
-        <button class="primary" id="btn-refresh-continue" type="button">Continue Game</button>
-      </div>
+  
+  <!-- HOME: play locally, or create/join a room -->
+  <div class="screen active" id="screen-home">
+    <div class="card">
+      <button class="primary" id="btn-local-mode" type="button">Play on One Device</button>
+      <small class="hint">Pass the phone around the table — classic pass-and-play.</small>
     </div>
-    <div class="card" id="resume-banner" style="display:none;">
-      <div class="row" style="align-items:center; gap:10px;">
-        <div style="flex:1;">Your last game was ended. Was that an accident?</div>
-        <button class="secondary" id="btn-resume-game" type="button" style="width:auto; flex:none; padding:10px 14px;">Resume Game</button>
-      </div>
+    <div class="center" style="color:var(--text-dim);font-size:0.8rem;">— or play across devices —</div>
+    <div class="card">
+      <label>Your name</label>
+      <input type="text" id="input-name" maxlength="20" placeholder="Enter your name">
     </div>
     <div class="card">
-      <label>Players (2–10)</label>
-      <div id="player-list"></div>
-      <button class="secondary" id="btn-add-player" type="button">+ Add player</button>
-      <small class="hint">Each player taps E / M / H to pick any mix of Easy, Medium, and Hard words for their own turn (Easy = little kids, Hard = older kids). Check "trace" for young artists who'd like a dot-to-dot outline when it's their turn to draw.</small>
-      <small class="hint" id="players-warning" style="display:none; color: var(--accent-2);">Need at least 2 players.</small>
-      <small class="hint" id="two-player-notice" style="display:none;">With exactly 2 players, both of you always score the same each round — there's no way for one of you to pull ahead. The game will end in a tie once you hit the target score, with the option to keep playing. Add a 3rd player for real head-to-head scoring.</small>
+      <button class="secondary" id="btn-create-room" type="button">Create Room</button>
     </div>
     <div class="card">
+      <label>Join a room</label>
+      <input type="text" id="input-join-code" maxlength="4" placeholder="Room code">
+      <button class="secondary" id="btn-join-room" type="button" style="margin-top:10px">Join Room</button>
+    </div>
+    <div class="center" id="home-status" style="color:var(--text-dim);font-size:0.85rem;"></div>
+  </div>
+
+  <!-- MULTIPLAYER LOBBY -->
+  <div class="screen" id="screen-lobby">
+    <div class="card center">
+      <label>Room code — share with players</label>
+      <div class="room-code" id="lobby-code"></div>
+      <small class="hint">Everyone opens this page on their own device and enters this code to join. Each player picks their own difficulty and trace preference below — those apply whenever it's that player's turn to draw.</small>
+    </div>
+    <div id="lobby-players"></div>
+    <div class="card" id="lobby-settings-card">
       <label>Categories</label>
       <div class="chip-group" id="category-chips"></div>
-      <small class="hint">Pick specific categories, or leave "All" selected for the full mix.</small>
-    </div>
-    <div class="card">
-      <label>Guessing Mode</label>
+      <label style="margin-top:12px">Guessing Mode</label>
       <div class="chip-group" id="guess-mode-chips"></div>
-      <small class="hint">Type the Guess: everyone types what they think it is. Multiple Choice: guessers pick from a list of words, which is easier for younger or non-reading-fluent players. Random Mix: every guesser's turn randomly gets one or the other, so nobody knows which they'll get until it's their turn.</small>
-    </div>
-    <div class="card">
-      <label>Points to Win</label>
+      <label style="margin-top:12px">Points to Win</label>
       <div class="target-score-row">
         <button class="stepper-btn" id="btn-target-down" type="button" aria-label="Decrease">&minus;</button>
         <input type="number" id="target-score-input" class="target-score-field" min="1" max="99" value="6">
         <button class="stepper-btn" id="btn-target-up" type="button" aria-label="Increase">+</button>
       </div>
-      <small class="hint">First to reach this score wins — but if two or more players are tied at or above it, play continues until one player pulls ahead.</small>
     </div>
     <button class="primary" id="btn-start-game" type="button">Start Game</button>
+    <div class="waiting-text" id="lobby-waiting" style="display:none">Waiting for the host to start the game…</div>
+    <button class="link" id="btn-leave-room" type="button">Leave room</button>
   </div>
 
-  <!-- REVEAL (pass device) -->
-  <div class="screen" id="screen-reveal">
+  <!-- MULTIPLAYER: non-artist waiting during word reveal -->
+  <div class="screen" id="screen-artist-waiting">
     <div class="card center">
-      <div class="pass-icon">📱➡️🎨</div>
-      <div>Pass the device to</div>
-      <div class="big-name" id="reveal-name"></div>
-      <small class="hint">Only <span id="reveal-name-2"></span> should look at the screen — everyone else, look away!</small>
+      <div class="pass-icon">✏️</div>
+      <div><span id="artist-waiting-name"></span> is picking a word and getting ready to draw…</div>
+      <small class="hint">Watch this space — the drawing will appear here once it's time to guess.</small>
     </div>
-    <button class="primary" id="btn-show-word" type="button">I'm ready — show my word</button>
   </div>
 
-  <div class="screen" id="screen-word">
+  <!-- MULTIPLAYER: artist sees their word -->
+  <div class="screen" id="screen-mp-word">
     <div class="reveal-box">
-      <div class="category-label" id="word-difficulty-label"></div>
-      <div class="secret-word" id="word-secret"></div>
-      <small class="hint">Remember it, then hand the device to the artist's drawing spot. No writing letters or numbers in your doodle — unless it's truly part of the picture, like the S on Superman's chest, or a STOP sign!</small>
+      <div class="category-label" id="mp-word-difficulty-label"></div>
+      <div class="secret-word" id="mp-word-secret"></div>
+      <small class="hint">No writing letters or numbers in your doodle — unless it's truly part of the picture, like the S on Superman's chest, or a STOP sign!</small>
     </div>
-    <button class="secondary" id="btn-skip-word" type="button">Don't like it? Skip once ↻</button>
-    <button class="primary" id="btn-start-drawing" type="button">Start Drawing</button>
+    <button class="secondary" id="mp-btn-skip-word" type="button">Don't like it? Skip once ↻</button>
+    <button class="primary" id="mp-btn-start-drawing" type="button">Start Drawing</button>
   </div>
 
-  <!-- DRAWING -->
-  <div class="screen" id="screen-draw">
+  <!-- MULTIPLAYER: artist draws -->
+  <div class="screen" id="screen-mp-draw">
     <div class="card center" style="padding:10px 16px;">
-      <span class="category-label">Artist</span>
-      <div class="big-name" id="draw-artist-name" style="font-size:1.3rem; margin:2px 0;"></div>
-      <div class="timer-display" id="draw-timer">2:00</div>
+      <span class="category-label">You're drawing</span>
+      <div class="timer-display" id="mp-draw-timer">2:00</div>
     </div>
     <small class="hint center">✏️ No letters or numbers — pictures only! (Unless it's part of the picture, like an S on a cape.)</small>
     <div class="canvas-wrap">
-      <canvas id="draw-canvas" width="600" height="450"></canvas>
+      <canvas id="mp-draw-canvas" width="600" height="450"></canvas>
     </div>
     <div class="card">
-      <div class="tool-row" id="color-row"></div>
+      <div class="tool-row" id="mp-color-row"></div>
       <div class="size-row">
-        <div class="size-btn" data-size="4" id="size-sm"><div class="size-dot" style="width:6px;height:6px;"></div></div>
-        <div class="size-btn selected" data-size="9" id="size-md"><div class="size-dot" style="width:10px;height:10px;"></div></div>
-        <div class="size-btn" data-size="16" id="size-lg"><div class="size-dot" style="width:16px;height:16px;"></div></div>
-        <button class="secondary" id="btn-eraser" type="button">Eraser</button>
+        <div class="size-btn" data-size="4" id="mp-size-sm"><div class="size-dot" style="width:6px;height:6px;"></div></div>
+        <div class="size-btn selected" data-size="9" id="mp-size-md"><div class="size-dot" style="width:10px;height:10px;"></div></div>
+        <div class="size-btn" data-size="16" id="mp-size-lg"><div class="size-dot" style="width:16px;height:16px;"></div></div>
+        <button class="secondary" id="mp-btn-eraser" type="button">Eraser</button>
       </div>
       <div class="action-row">
-        <button class="secondary" id="btn-undo" type="button" disabled>Undo</button>
-        <button class="secondary" id="btn-redo" type="button" disabled>Redo</button>
-        <button class="secondary" id="btn-clear" type="button">Clear</button>
+        <button class="secondary" id="mp-btn-undo" type="button" disabled>Undo</button>
+        <button class="secondary" id="mp-btn-redo" type="button" disabled>Redo</button>
+        <button class="secondary" id="mp-btn-clear" type="button">Clear</button>
       </div>
     </div>
-    <button class="primary" id="btn-done-drawing" type="button">Done Drawing — Time to Guess!</button>
+    <button class="primary" id="mp-btn-done-drawing" type="button">Done Drawing — Time to Guess!</button>
   </div>
 
-  <!-- PASS TO GUESS -->
-  <div class="screen" id="screen-pass-guess">
+  <!-- MULTIPLAYER: artist waits during guessing -->
+  <div class="screen" id="screen-artist-waiting-guesses">
     <div class="card center">
-      <div class="pass-icon">📱➡️🤔</div>
-      <div>Pass the device to</div>
-      <div class="big-name" id="pass-guess-name"></div>
-      <small class="hint">Look at the drawing and guess in private — don't say your guess out loud!</small>
+      <div class="pass-icon">🤔</div>
+      <div>Everyone's guessing your drawing now…</div>
+      <small class="hint">Hang tight — results appear here once everyone's locked in a guess.</small>
     </div>
-    <button class="primary" id="btn-ready-to-guess" type="button">I'm ready to guess</button>
   </div>
 
-  <!-- GUESS INPUT -->
+  <!-- MULTIPLAYER: guess input -->
   <div class="screen" id="screen-guess-input">
     <div class="card center" style="padding:10px 16px;">
-      <span class="category-label">Guessing as</span>
-      <div class="big-name" id="guess-input-name" style="font-size:1.3rem; margin:2px 0;"></div>
+      <span class="category-label">Guess the drawing</span>
       <button class="secondary" id="btn-reveal-category-hint" type="button" style="display:none; margin-bottom:6px; width:auto; padding:6px 12px; font-size:0.85rem;">🔍 Reveal the Category — worth only 0.5 points instead of 1</button>
       <div class="category-label" id="guess-category-hint" style="display:none; margin-bottom:4px; color: var(--accent-2);"></div>
       <div class="timer-display" id="guess-timer">0:45</div>
@@ -446,17 +454,16 @@
     <button class="primary" id="btn-submit-guess" type="button">Lock In Guess</button>
   </div>
 
-  <!-- READY TO REVEAL -->
-  <div class="screen" id="screen-ready-reveal">
+  <!-- MULTIPLAYER: waiting for other guessers -->
+  <div class="screen" id="screen-guess-waiting">
     <div class="card center">
       <div class="pass-icon">🙌</div>
-      <div>Everyone's guessed!</div>
-      <div class="big-name" style="font-size:1.3rem;">Put the device in the middle so everyone can see.</div>
+      <div>Guess locked in!</div>
+      <small class="hint">Waiting for everyone else to finish guessing…</small>
     </div>
-    <button class="primary" id="btn-show-answer" type="button">Show the Answer</button>
   </div>
 
-  <!-- REVEAL GUESSES -->
+  <!-- MULTIPLAYER: reveal guesses -->
   <div class="screen" id="screen-reveal-guesses">
     <div class="card center">
       <div class="category-label">The word was</div>
@@ -469,70 +476,267 @@
       <label>Guesses</label>
       <div id="guess-tally"></div>
     </div>
-    <button class="primary" id="btn-next-round" type="button">Next Round</button>
+    <div class="footer-nav" id="reveal-guesses-host-nav" style="display:none">
+      <button class="primary" id="btn-next-round" type="button">Next Round</button>
+    </div>
+    <div class="waiting-text" id="reveal-guesses-waiting" style="display:none">Waiting for host…</div>
   </div>
 
-  <!-- GAME WON -->
-  <div class="screen" id="screen-game-won">
-    <div class="card center">
-      <div class="pass-icon">🏆</div>
-      <div class="big-name" id="winner-name"></div>
-      <div>wins the game!</div>
-    </div>
-    <div class="card">
-      <label>Final Scores</label>
-      <div class="scoreboard" id="winner-scoreboard"></div>
-    </div>
-    <div class="card center" id="extend-game-form" style="display:none;">
-      <label>New points to win</label>
-      <div class="target-score-row">
-        <button class="stepper-btn" id="btn-extend-down" type="button" aria-label="Decrease">&minus;</button>
-        <input type="number" id="extend-target-input" class="target-score-field" min="1" max="99">
-        <button class="stepper-btn" id="btn-extend-up" type="button" aria-label="Increase">+</button>
-      </div>
-      <small class="hint">Only continue if everyone agrees to keep playing!</small>
-      <button class="secondary" id="btn-confirm-extend" type="button" style="margin-top:10px;">Everyone Agrees — Keep Playing</button>
-    </div>
-    <button class="secondary" id="btn-view-gallery" type="button">🖼️ View Drawings From This Game</button>
-    <button class="secondary" id="btn-extend-game" type="button">Extend the Game</button>
-    <button class="primary" id="btn-new-game" type="button">New Game</button>
-  </div>
-
-  <!-- GALLERY -->
-  <div class="screen" id="screen-gallery">
-    <div class="card">
-      <label>This Game's Drawings</label>
-    </div>
-    <div id="gallery-list"></div>
-    <button class="primary" id="btn-gallery-back" type="button">Back to Results</button>
-  </div>
-
-  <!-- SCOREBOARD -->
+  <!-- MULTIPLAYER: scoreboard -->
   <div class="screen" id="screen-scores">
     <div class="card">
       <label>Scoreboard</label>
       <div class="scoreboard" id="scoreboard"></div>
       <div class="target-score-line">Playing to <strong id="scoreboard-target"></strong> points</div>
     </div>
-    <div class="card center" id="end-game-confirm" style="display:none;">
-      <div>End the game and return to the start screen?</div>
-      <div class="row" style="margin-top:10px;">
-        <button class="secondary" id="btn-cancel-end-game" type="button">Cancel</button>
-        <button class="danger" id="btn-confirm-end-game" type="button">Yes, End Game</button>
-      </div>
-    </div>
-    <div class="footer-nav">
+    <div class="footer-nav" id="scores-host-nav" style="display:none">
       <button class="secondary" id="btn-back-to-round" type="button">Continue Playing</button>
       <button class="danger" id="btn-end-game" type="button">End Game</button>
     </div>
+    <div class="waiting-text" id="scores-waiting" style="display:none">Waiting for host…</div>
   </div>
+
+  <!-- MULTIPLAYER: game won -->
+  <div class="screen" id="screen-game-won">
+    <div class="card center">
+      <div class="pass-icon">🏆</div>
+      <div class="big-name" id="winner-name"></div>
+    </div>
+    <div class="card">
+      <label>Final Scores</label>
+      <div class="scoreboard" id="winner-scoreboard"></div>
+    </div>
+    <div class="footer-nav" id="won-host-nav" style="display:none">
+      <button class="primary" id="btn-new-game" type="button">New Game</button>
+    </div>
+    <div class="waiting-text" id="won-waiting" style="display:none">Waiting for host…</div>
+  </div>
+<div class="screen" id="local-screen-setup">
+    <div class="card" id="local-refresh-resume-banner" style="display:none;">
+      <div class="row" style="align-items:center; gap:10px;">
+        <div style="flex:1;">Looks like the page was refreshed mid-game. Want to keep playing?</div>
+      </div>
+      <div class="row" style="margin-top:10px;">
+        <button class="secondary" id="local-btn-refresh-startnew" type="button">Start New Game</button>
+        <button class="primary" id="local-btn-refresh-continue" type="button">Continue Game</button>
+      </div>
+    </div>
+    <div class="card" id="local-resume-banner" style="display:none;">
+      <div class="row" style="align-items:center; gap:10px;">
+        <div style="flex:1;">Your last game was ended. Was that an accident?</div>
+        <button class="secondary" id="local-btn-resume-game" type="button" style="width:auto; flex:none; padding:10px 14px;">Resume Game</button>
+      </div>
+    </div>
+    <div class="card">
+      <label>Players (2–10)</label>
+      <div id="local-player-list"></div>
+      <button class="secondary" id="local-btn-add-player" type="button">+ Add player</button>
+      <small class="hint">Each player taps E / M / H to pick any mix of Easy, Medium, and Hard words for their own turn (Easy = little kids, Hard = older kids). Check "trace" for young artists who'd like a dot-to-dot outline when it's their turn to draw.</small>
+      <small class="hint" id="local-players-warning" style="display:none; color: var(--accent-2);">Need at least 2 players.</small>
+      <small class="hint" id="local-two-player-notice" style="display:none;">With exactly 2 players, both of you always score the same each round — there's no way for one of you to pull ahead. The game will end in a tie once you hit the target score, with the option to keep playing. Add a 3rd player for real head-to-head scoring.</small>
+    </div>
+    <div class="card">
+      <label>Categories</label>
+      <div class="chip-group" id="local-category-chips"></div>
+      <small class="hint">Pick specific categories, or leave "All" selected for the full mix.</small>
+    </div>
+    <div class="card">
+      <label>Guessing Mode</label>
+      <div class="chip-group" id="local-guess-mode-chips"></div>
+      <small class="hint">Type the Guess: everyone types what they think it is. Multiple Choice: guessers pick from a list of words, which is easier for younger or non-reading-fluent players. Random Mix: every guesser's turn randomly gets one or the other, so nobody knows which they'll get until it's their turn.</small>
+    </div>
+    <div class="card">
+      <label>Points to Win</label>
+      <div class="target-score-row">
+        <button class="stepper-btn" id="local-btn-target-down" type="button" aria-label="Decrease">&minus;</button>
+        <input type="number" id="local-target-score-input" class="target-score-field" min="1" max="99" value="6">
+        <button class="stepper-btn" id="local-btn-target-up" type="button" aria-label="Increase">+</button>
+      </div>
+      <small class="hint">First to reach this score wins — but if two or more players are tied at or above it, play continues until one player pulls ahead.</small>
+    </div>
+    <button class="primary" id="local-btn-start-game" type="button">Start Game</button>
+    <button class="link" id="local-btn-back-home" type="button">Back to home</button>
+  </div>
+
+  <!-- REVEAL (pass device) -->
+  <div class="screen" id="local-screen-reveal">
+    <div class="card center">
+      <div class="pass-icon">📱➡️🎨</div>
+      <div>Pass the device to</div>
+      <div class="big-name" id="local-reveal-name"></div>
+      <small class="hint">Only <span id="local-reveal-name-2"></span> should look at the screen — everyone else, look away!</small>
+    </div>
+    <button class="primary" id="local-btn-show-word" type="button">I'm ready — show my word</button>
+  </div>
+
+  <div class="screen" id="local-screen-word">
+    <div class="reveal-box">
+      <div class="category-label" id="local-word-difficulty-label"></div>
+      <div class="secret-word" id="local-word-secret"></div>
+      <small class="hint">Remember it, then hand the device to the artist's drawing spot. No writing letters or numbers in your doodle — unless it's truly part of the picture, like the S on Superman's chest, or a STOP sign!</small>
+    </div>
+    <button class="secondary" id="local-btn-skip-word" type="button">Don't like it? Skip once ↻</button>
+    <button class="primary" id="local-btn-start-drawing" type="button">Start Drawing</button>
+  </div>
+
+  <!-- DRAWING -->
+  <div class="screen" id="local-screen-draw">
+    <div class="card center" style="padding:10px 16px;">
+      <span class="category-label">Artist</span>
+      <div class="big-name" id="local-draw-artist-name" style="font-size:1.3rem; margin:2px 0;"></div>
+      <div class="timer-display" id="local-draw-timer">2:00</div>
+    </div>
+    <small class="hint center">✏️ No letters or numbers — pictures only! (Unless it's part of the picture, like an S on a cape.)</small>
+    <div class="canvas-wrap">
+      <canvas id="local-draw-canvas" width="600" height="450"></canvas>
+    </div>
+    <div class="card">
+      <div class="tool-row" id="local-color-row"></div>
+      <div class="size-row">
+        <div class="size-btn" data-size="4" id="local-size-sm"><div class="size-dot" style="width:6px;height:6px;"></div></div>
+        <div class="size-btn selected" data-size="9" id="local-size-md"><div class="size-dot" style="width:10px;height:10px;"></div></div>
+        <div class="size-btn" data-size="16" id="local-size-lg"><div class="size-dot" style="width:16px;height:16px;"></div></div>
+        <button class="secondary" id="local-btn-eraser" type="button">Eraser</button>
+      </div>
+      <div class="action-row">
+        <button class="secondary" id="local-btn-undo" type="button" disabled>Undo</button>
+        <button class="secondary" id="local-btn-redo" type="button" disabled>Redo</button>
+        <button class="secondary" id="local-btn-clear" type="button">Clear</button>
+      </div>
+    </div>
+    <button class="primary" id="local-btn-done-drawing" type="button">Done Drawing — Time to Guess!</button>
+  </div>
+
+  <!-- PASS TO GUESS -->
+  <div class="screen" id="local-screen-pass-guess">
+    <div class="card center">
+      <div class="pass-icon">📱➡️🤔</div>
+      <div>Pass the device to</div>
+      <div class="big-name" id="local-pass-guess-name"></div>
+      <small class="hint">Look at the drawing and guess in private — don't say your guess out loud!</small>
+    </div>
+    <button class="primary" id="local-btn-ready-to-guess" type="button">I'm ready to guess</button>
+  </div>
+
+  <!-- GUESS INPUT -->
+  <div class="screen" id="local-screen-guess-input">
+    <div class="card center" style="padding:10px 16px;">
+      <span class="category-label">Guessing as</span>
+      <div class="big-name" id="local-guess-input-name" style="font-size:1.3rem; margin:2px 0;"></div>
+      <button class="secondary" id="local-btn-reveal-category-hint" type="button" style="display:none; margin-bottom:6px; width:auto; padding:6px 12px; font-size:0.85rem;">🔍 Reveal the Category — worth only 0.5 points instead of 1</button>
+      <div class="category-label" id="local-guess-category-hint" style="display:none; margin-bottom:4px; color: var(--accent-2);"></div>
+      <div class="timer-display" id="local-guess-timer">0:45</div>
+    </div>
+    <div class="canvas-wrap">
+      <img id="local-guess-drawing-img" style="width:100%; display:block;" alt="The drawing to guess">
+    </div>
+    <div class="card" id="local-guess-type-card">
+      <label>Your guess</label>
+      <input type="text" id="local-guess-input-field" placeholder="What is it?" maxlength="40">
+    </div>
+    <div class="card" id="local-guess-choice-card" style="display:none;">
+      <label>Pick the word</label>
+      <div class="chip-group" id="local-guess-choice-options"></div>
+    </div>
+    <button class="primary" id="local-btn-submit-guess" type="button">Lock In Guess</button>
+  </div>
+
+  <!-- READY TO REVEAL -->
+  <div class="screen" id="local-screen-ready-reveal">
+    <div class="card center">
+      <div class="pass-icon">🙌</div>
+      <div>Everyone's guessed!</div>
+      <div class="big-name" style="font-size:1.3rem;">Put the device in the middle so everyone can see.</div>
+    </div>
+    <button class="primary" id="local-btn-show-answer" type="button">Show the Answer</button>
+  </div>
+
+  <!-- REVEAL GUESSES -->
+  <div class="screen" id="local-screen-reveal-guesses">
+    <div class="card center">
+      <div class="category-label">The word was</div>
+      <div class="secret-word" id="local-reveal-word"></div>
+    </div>
+    <div class="canvas-wrap">
+      <img id="local-reveal-drawing-img" style="width:100%; display:block;" alt="The finished drawing">
+    </div>
+    <div class="card">
+      <label>Guesses</label>
+      <div id="local-guess-tally"></div>
+    </div>
+    <button class="primary" id="local-btn-next-round" type="button">Next Round</button>
+  </div>
+
+  <!-- GAME WON -->
+  <div class="screen" id="local-screen-game-won">
+    <div class="card center">
+      <div class="pass-icon">🏆</div>
+      <div class="big-name" id="local-winner-name"></div>
+      <div>wins the game!</div>
+    </div>
+    <div class="card">
+      <label>Final Scores</label>
+      <div class="scoreboard" id="local-winner-scoreboard"></div>
+    </div>
+    <div class="card center" id="local-extend-game-form" style="display:none;">
+      <label>New points to win</label>
+      <div class="target-score-row">
+        <button class="stepper-btn" id="local-btn-extend-down" type="button" aria-label="Decrease">&minus;</button>
+        <input type="number" id="local-extend-target-input" class="target-score-field" min="1" max="99">
+        <button class="stepper-btn" id="local-btn-extend-up" type="button" aria-label="Increase">+</button>
+      </div>
+      <small class="hint">Only continue if everyone agrees to keep playing!</small>
+      <button class="secondary" id="local-btn-confirm-extend" type="button" style="margin-top:10px;">Everyone Agrees — Keep Playing</button>
+    </div>
+    <button class="secondary" id="local-btn-view-gallery" type="button">🖼️ View Drawings From This Game</button>
+    <button class="secondary" id="local-btn-extend-game" type="button">Extend the Game</button>
+    <button class="primary" id="local-btn-new-game" type="button">New Game</button>
+  </div>
+
+  <!-- GALLERY -->
+  <div class="screen" id="local-screen-gallery">
+    <div class="card">
+      <label>This Game's Drawings</label>
+    </div>
+    <div id="local-gallery-list"></div>
+    <button class="primary" id="local-btn-gallery-back" type="button">Back to Results</button>
+  </div>
+
+  <!-- SCOREBOARD -->
+  <div class="screen" id="local-screen-scores">
+    <div class="card">
+      <label>Scoreboard</label>
+      <div class="scoreboard" id="local-scoreboard"></div>
+      <div class="target-score-line">Playing to <strong id="local-scoreboard-target"></strong> points</div>
+    </div>
+    <div class="card center" id="local-end-game-confirm" style="display:none;">
+      <div>End the game and return to the start screen?</div>
+      <div class="row" style="margin-top:10px;">
+        <button class="secondary" id="local-btn-cancel-end-game" type="button">Cancel</button>
+        <button class="danger" id="local-btn-confirm-end-game" type="button">Yes, End Game</button>
+      </div>
+    </div>
+    <div class="footer-nav">
+      <button class="secondary" id="local-btn-back-to-round" type="button">Continue Playing</button>
+      <button class="danger" id="local-btn-end-game" type="button">End Game</button>
+    </div>
+  </div>
+
 </div>
 
-<script>
-(function () {
-  "use strict";
+<script type="module">
+import { firebaseConfig } from "./firebase-config.js";
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+import { getDatabase, ref, set, get, update, onValue } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
 
-  var WORD_CATEGORIES = {
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getDatabase(app);
+
+var COLORS = ["#111111", "#e53935", "#1e88e5", "#43a047", "#fdd835", "#8e24aa", "#fb8c00"];
+
+var WORD_CATEGORIES = {
     "Animals": {
       "Easy": ["Cat","Dog","Duck","Bird","Bee","Frog","Snail","Turtle","Rabbit","Mouse","Bear","Lion","Cow","Pig","Sheep","Horse","Chicken","Owl","Spider","Ant","Crab","Whale","Ladybug","Worm","Snake","Fox","Deer","Otter","Seal","Dolphin","Shark","Starfish","Jellyfish","Goat","Donkey","Rooster","Goldfish","Kitten","Puppy","Fish","Peacock feather","Snail shell","Firefly glow","Fish bowl","Nest with eggs","Paw print","Ladybug spot","Spiderweb corner","Beehive comb","Duckling","Piglet","Lamb","Foal","Calf","Chick","Bunny ears","Owl eyes","Crab claw","Octopus tentacle","Jellyfish tentacle","Rooster comb","Peacock crown"],
       "Medium": ["Elephant","Dinosaur","Butterfly","Octopus","Penguin","Kangaroo","Giraffe","Peacock","Flamingo","Hedgehog","Squirrel","Beaver","Raccoon","Skunk","Camel","Zebra","Gorilla","Cheetah","Koala","Rhino","Hippo","Buffalo","Bison","Moose","Reindeer","Toucan","Ostrich","Sloth","Chameleon","Narwhal","Walrus","Seahorse","Stingray","Pufferfish","Clownfish","Angelfish","Manta ray","Electric eel","Hermit crab","Baby chick","Baby bird in a nest","Fawn","Owlet"],
@@ -600,9 +804,7 @@
     },
   };
 
-  var COLORS = ["#111111", "#e53935", "#1e88e5", "#43a047", "#fdd835", "#8e24aa", "#fb8c00"];
-
-  var TRACE_SHAPES = {
+var TRACE_SHAPES = {
     "Sun": "sun", "Star": "star", "House": "house", "Tree": "tree", "Cloud": "cloud",
     "Umbrella": "umbrella", "Fish": "fish", "Moon": "moon", "Kite": "kite",
     "Ball": "circle", "Egg": "oval", "Heart": "heart",
@@ -648,7 +850,7 @@
     "Wristwatch": "watch", "Yo-yo": "circle"
   };
 
-  function getTraceableDifficulties() {
+function getTraceableDifficulties() {
     var found = {};
     Object.keys(TRACE_SHAPES).forEach(function (w) {
       for (var cat in WORD_CATEGORIES) {
@@ -660,9 +862,9 @@
     return Object.keys(found);
   }
 
-  var TRACEABLE_DIFFICULTIES = getTraceableDifficulties();
+var TRACEABLE_DIFFICULTIES = getTraceableDifficulties();
 
-  function arcPoints(cx, cy, rx, ry, startDeg, endDeg, steps) {
+function arcPoints(cx, cy, rx, ry, startDeg, endDeg, steps) {
     var pts = [];
     for (var i = 0; i <= steps; i++) {
       var deg = startDeg + (endDeg - startDeg) * (i / steps);
@@ -672,7 +874,7 @@
     return pts;
   }
 
-  var SHAPES = {
+var SHAPES = {
     circle: function () { return [{ points: arcPoints(300, 225, 120, 120, 0, 360, 32), closed: true }]; },
     oval: function () { return [{ points: arcPoints(300, 225, 85, 130, 0, 360, 32), closed: true }]; },
     star: function () {
@@ -1318,11 +1520,7 @@
     }
   };
 
-  // Greedy nearest-neighbor ordering: starting from the first dot, always hop to
-  // whichever remaining dot is physically closest. This keeps the numbered path
-  // flowing smoothly (no long jumps across the shape) so a kid can just follow
-  // 1, 2, 3... without hunting for where the next number is.
-  function orderByProximity(points) {
+function orderByProximity(points) {
     if (points.length === 0) return [];
     var remaining = points.slice();
     var ordered = [remaining.shift()];
@@ -1338,7 +1536,7 @@
     return ordered;
   }
 
-  function drawShapeDots(shapeKey) {
+function drawShapeDots(targetCtx, shapeKey) {
     var gen = SHAPES[shapeKey];
     if (!gen) return;
     // dots are drawn at radius 12 (24px across) with numbers inside — SOFT_MIN keeps
@@ -1381,28 +1579,1013 @@
         dotPositions.push(p);
         placedGlobal.push(p);
       });
-      // a lone dot isn't worth numbering — leave very short/mostly-skipped segments unmarked
+      // a lone localDot isn't worth numbering — leave very short/mostly-skipped segments unmarked
       if (dotPositions.length < 2) return;
       allDots = allDots.concat(dotPositions);
     });
 
     orderByProximity(allDots).forEach(function (p, i) {
       var nextNumber = i + 1;
-      ctx.fillStyle = "#b9c3da";
-      ctx.beginPath();
-      ctx.arc(p[0], p[1], 12, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.fillStyle = "#4a5675";
-      ctx.font = "bold 14px -apple-system, BlinkMacSystemFont, sans-serif";
-      ctx.textAlign = "center";
-      ctx.textBaseline = "middle";
-      ctx.fillText(String(nextNumber), p[0], p[1] + 0.5);
+      localCtx.fillStyle = "#b9c3da";
+      localCtx.beginPath();
+      localCtx.arc(p[0], p[1], 12, 0, Math.PI * 2);
+      localCtx.fill();
+      localCtx.fillStyle = "#4a5675";
+      localCtx.font = "bold 14px -apple-system, BlinkMacSystemFont, sans-serif";
+      localCtx.textAlign = "center";
+      localCtx.textBaseline = "middle";
+      localCtx.fillText(String(nextNumber), p[0], p[1] + 0.5);
     });
   }
 
-  var DIFFICULTIES = ["Easy", "Medium", "Hard"];
+var DIFFICULTIES = ["Easy", "Medium", "Hard"];
 
-  var state = {
+function pickRandom(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
+
+var ALL_WORDS_FLAT = null;
+
+function allWordsFlat() {
+    if (ALL_WORDS_FLAT) return ALL_WORDS_FLAT;
+    var out = [];
+    for (var cat in WORD_CATEGORIES) {
+      for (var diff in WORD_CATEGORIES[cat]) {
+        out = out.concat(WORD_CATEGORIES[cat][diff]);
+      }
+    }
+    ALL_WORDS_FLAT = out;
+    return out;
+  }
+
+function buildChoiceOptions(correctWord) {
+    var pool = shuffle(allWordsFlat().filter(function (w) {
+      return w.toLowerCase() !== correctWord.toLowerCase();
+    })).slice(0, 19);
+    return shuffle(pool.concat([correctWord]));
+  }
+
+function findWordMeta(word) {
+    for (var cat in WORD_CATEGORIES) {
+      for (var diff in WORD_CATEGORIES[cat]) {
+        if (WORD_CATEGORIES[cat][diff].indexOf(word) !== -1) return { word: word, difficulty: diff, category: cat };
+      }
+    }
+    return null;
+  }
+
+function pickWord(difficulties, traceOnly, excludeWord, categoriesSetting) {
+    var categories = categoriesSetting.indexOf("All") !== -1 ? Object.keys(WORD_CATEGORIES) : categoriesSetting;
+    var pool = [];
+    categories.forEach(function (cat) {
+      difficulties.forEach(function (difficulty) {
+        WORD_CATEGORIES[cat][difficulty].forEach(function (w) {
+          if (excludeWord && w === excludeWord) return;
+          if (traceOnly && !TRACE_SHAPES.hasOwnProperty(w)) return;
+          pool.push({ word: w, difficulty: difficulty, category: cat });
+        });
+      });
+    });
+    if (traceOnly && pool.length === 0) {
+      // none of the selected categories/difficulties have traceable words of their own — fall back to any traceable word
+      Object.keys(TRACE_SHAPES).forEach(function (w) {
+        if (excludeWord && w === excludeWord) return;
+        pool.push(findWordMeta(w) || { word: w, difficulty: difficulties[0], category: categories[0] });
+      });
+    }
+    if (pool.length === 0 && excludeWord) {
+      // the exclude filter wiped out the whole pool (tiny category/difficulty combo) — allow it back
+      return pickWord(difficulties, traceOnly, null, categoriesSetting);
+    }
+    return pickRandom(pool);
+  }
+
+function shuffle(arr) {
+    for (var i = arr.length - 1; i > 0; i--) {
+      var j = Math.floor(Math.random() * (i + 1));
+      var tmp = arr[i]; arr[i] = arr[j]; arr[j] = tmp;
+    }
+    return arr;
+  }
+
+var SYNONYM_GROUPS = [
+    ["kippah", "kippa", "yarmulke", "yarmulka", "yamaka", "yamakah"]
+  ];
+
+function normalizeGuess(s) {
+    return s.toLowerCase().trim().replace(/[^a-z0-9 ]/g, "").replace(/\s+/g, " ");
+  }
+
+function levenshtein(a, b) {
+    var m = a.length, n = b.length;
+    var prev = [];
+    for (var j = 0; j <= n; j++) prev[j] = j;
+    for (var i = 1; i <= m; i++) {
+      var cur = [i];
+      for (var k = 1; k <= n; k++) {
+        var cost = a[i - 1] === b[k - 1] ? 0 : 1;
+        cur[k] = Math.min(prev[k] + 1, cur[k - 1] + 1, prev[k - 1] + cost);
+      }
+      prev = cur;
+    }
+    return prev[n];
+  }
+
+function basicMatch(g, a) {
+    if (!g || !a) return false;
+    if (g === a) return true;
+    var gSing = g.replace(/s$/, "");
+    var aSing = a.replace(/s$/, "");
+    if (gSing === aSing) return true;
+    if (a.length >= 3 && (g.indexOf(a) !== -1 || a.indexOf(g) !== -1)) return true;
+    var maxLen = Math.max(g.length, a.length);
+    var threshold = maxLen <= 4 ? 0 : (maxLen <= 6 ? 1 : 2);
+    return levenshtein(g, a) <= threshold;
+  }
+
+function sameSynonymGroup(x, y) {
+    for (var i = 0; i < SYNONYM_GROUPS.length; i++) {
+      var group = SYNONYM_GROUPS[i];
+      var xIn = group.some(function (term) { return basicMatch(x, term); });
+      var yIn = group.some(function (term) { return basicMatch(y, term); });
+      if (xIn && yIn) return true;
+    }
+    return false;
+  }
+
+function closeEnough(g, a) {
+    return basicMatch(g, a) || sameSynonymGroup(g, a);
+  }
+
+function isCloseGuess(guess, answer) {
+    var g = normalizeGuess(guess);
+    var a = normalizeGuess(answer);
+    if (!g) return false;
+    if (closeEnough(g, a)) return true;
+    // a guess can match just the key word of a multi-word answer
+    // (e.g. "drums" for "drum set", "beehive" for "beehive comb")
+    var aWords = a.split(" ").filter(function (w) { return w.length >= 3; });
+    for (var i = 0; i < aWords.length; i++) {
+      if (closeEnough(g, aWords[i])) return true;
+    }
+    // and the reverse: a multi-word guess containing the key answer word
+    var gWords = g.split(" ").filter(function (w) { return w.length >= 3; });
+    for (var j = 0; j < gWords.length; j++) {
+      if (closeEnough(gWords[j], a)) return true;
+    }
+    return false;
+  }
+
+function $(id) { return document.getElementById(id); }
+
+
+function showScreen(id) {
+    document.querySelectorAll(".screen").forEach(function (s) { s.classList.remove("active"); });
+    $(id).classList.add("active");
+    // free up vertical space during gameplay — the title/subtitle only matter on setup
+    $("app-header").style.display = (id === "local-screen-setup") ? "" : "none";
+  }
+
+// =========================================================================
+// MULTIPLAYER MODE
+// =========================================================================
+
+var CODE_CHARS = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+var mpGuessModes = [["type", "Type the Guess"], ["choice", "Multiple Choice"], ["random", "Random Mix"]];
+
+var mp = {
+  uid: null,
+  name: "",
+  roomCode: null,
+  isHost: false,
+  room: null,
+  choiceSelected: null,
+  timerHandle: null,
+  timeLeft: 0,
+  timerRoundKey: null,
+  drawTimerHandle: null,
+  drawTimeLeft: 0
+};
+
+function roomRef(code) { return ref(db, "rooms/" + code); }
+function generateRoomCode() {
+  var out = "";
+  for (var i = 0; i < 4; i++) out += CODE_CHARS[Math.floor(Math.random() * CODE_CHARS.length)];
+  return out;
+}
+function roundKey(round) { return round.word + "::" + round.artistUid; }
+
+signInAnonymously(auth).catch(function (err) {
+  $("home-status").textContent = "Couldn't connect: " + err.message;
+});
+
+onAuthStateChanged(auth, function (user) {
+  if (!user) return;
+  mp.uid = user.uid;
+  tryAutoRejoin();
+});
+
+function tryAutoRejoin() {
+  var saved = null;
+  try { saved = JSON.parse(localStorage.getItem("doodle_room") || "null"); } catch (e) {}
+  if (!saved || !saved.code || !saved.name) return;
+  $("input-name").value = saved.name;
+  get(roomRef(saved.code)).then(function (snap) {
+    if (!snap.exists()) { localStorage.removeItem("doodle_room"); return; }
+    var roomVal = snap.val();
+    if (roomVal.players && roomVal.players[mp.uid]) {
+      mp.roomCode = saved.code;
+      mp.name = saved.name;
+      mp.isHost = roomVal.hostUid === mp.uid;
+      subscribeRoom(saved.code);
+    }
+  });
+}
+
+$("btn-create-room").addEventListener("click", function () {
+  var name = $("input-name").value.trim();
+  if (!name) { $("home-status").textContent = "Enter your name first."; return; }
+  if (!mp.uid) { $("home-status").textContent = "Still connecting, try again in a moment."; return; }
+  createRoomFlow(name);
+});
+
+$("btn-join-room").addEventListener("click", function () {
+  var name = $("input-name").value.trim();
+  var code = $("input-join-code").value.trim().toUpperCase();
+  if (!name) { $("home-status").textContent = "Enter your name first."; return; }
+  if (!code) { $("home-status").textContent = "Enter a room code."; return; }
+  if (!mp.uid) { $("home-status").textContent = "Still connecting, try again in a moment."; return; }
+  joinRoomFlow(code, name);
+});
+
+async function createRoomFlow(name) {
+  $("home-status").textContent = "Creating room…";
+  var code;
+  do { code = generateRoomCode(); } while ((await get(roomRef(code))).exists());
+  var uid = mp.uid;
+  await set(roomRef(code), {
+    createdAt: Date.now(),
+    hostUid: uid,
+    phase: "lobby",
+    artistIndex: 0,
+    settings: { categories: ["All"], guessMode: "type", targetScore: 6 },
+    players: { [uid]: { name: name, dots: false, difficulty: ["Easy"], joinedAt: Date.now() } },
+    scores: { [uid]: 0 }
+  });
+  mp.roomCode = code;
+  mp.name = name;
+  mp.isHost = true;
+  localStorage.setItem("doodle_room", JSON.stringify({ code: code, name: name }));
+  subscribeRoom(code);
+}
+
+async function joinRoomFlow(code, name) {
+  $("home-status").textContent = "Joining…";
+  var snap = await get(roomRef(code));
+  if (!snap.exists()) { $("home-status").textContent = "Room not found."; return; }
+  var uid = mp.uid;
+  var val = snap.val();
+  await update(ref(db, "rooms/" + code + "/players/" + uid), { name: name, dots: false, difficulty: ["Easy"], joinedAt: Date.now() });
+  if (!val.scores || val.scores[uid] === undefined) {
+    await update(ref(db, "rooms/" + code + "/scores"), (function () { var o = {}; o[uid] = 0; return o; })());
+  }
+  mp.roomCode = code;
+  mp.name = name;
+  mp.isHost = val.hostUid === uid;
+  localStorage.setItem("doodle_room", JSON.stringify({ code: code, name: name }));
+  subscribeRoom(code);
+}
+
+$("btn-leave-room").addEventListener("click", function () {
+  if (!confirm("Leave this room?")) return;
+  localStorage.removeItem("doodle_room");
+  location.reload();
+});
+
+function subscribeRoom(code) {
+  onValue(roomRef(code), function (snap) {
+    mp.room = snap.val();
+    if (!mp.room) {
+      localStorage.removeItem("doodle_room");
+      showScreen("screen-home");
+      $("home-status").textContent = "Room closed.";
+      return;
+    }
+    mp.isHost = mp.room.hostUid === mp.uid;
+    render();
+  });
+}
+
+function render() {
+  var room = mp.room;
+  if (!room) return;
+  if (room.phase === "lobby") renderLobby();
+  else if (room.phase === "draw") renderDrawPhase();
+  else if (room.phase === "guess") renderGuessPhase();
+  else if (room.phase === "reveal-guesses") renderRevealGuessesScreen();
+  else if (room.phase === "scores") renderScoresScreen();
+  else if (room.phase === "game-won") renderGameWonScreen();
+}
+
+function mpPlayerName(uid) { return mp.room.players && mp.room.players[uid] ? mp.room.players[uid].name : "?"; }
+function mpPlayerUids() { return mp.room.players ? Object.keys(mp.room.players) : []; }
+
+// ---------- Lobby ----------
+function renderLobby() {
+  var room = mp.room;
+  $("lobby-code").textContent = mp.roomCode;
+
+  var list = $("lobby-players");
+  list.innerHTML = "";
+  mpPlayerUids().forEach(function (uid) {
+    var p = room.players[uid];
+    var row = document.createElement("div");
+    row.className = "card";
+    row.style.padding = "10px 12px";
+
+    var nameRow = document.createElement("div");
+    nameRow.style.display = "flex";
+    nameRow.style.alignItems = "center";
+    nameRow.style.justifyContent = "space-between";
+    nameRow.style.marginBottom = "6px";
+    var nameEl = document.createElement("strong");
+    nameEl.textContent = p.name;
+    nameRow.appendChild(nameEl);
+    if (uid === room.hostUid) {
+      var badge = document.createElement("span");
+      badge.className = "host-badge";
+      badge.textContent = "HOST";
+      nameRow.appendChild(badge);
+    }
+    row.appendChild(nameRow);
+
+    var isMe = uid === mp.uid;
+    var diffGroup = document.createElement("div");
+    diffGroup.className = "diff-chip-group";
+    DIFFICULTIES.forEach(function (d) {
+      var chip = document.createElement("div");
+      chip.className = "diff-chip" + ((p.difficulty || []).indexOf(d) !== -1 ? " selected" : "") + (isMe ? "" : " disabled");
+      chip.textContent = d[0];
+      chip.title = d;
+      if (isMe) {
+        chip.addEventListener("click", function () {
+          var current = (room.players[mp.uid].difficulty || []).slice();
+          var idx = current.indexOf(d);
+          if (idx !== -1) {
+            if (current.length === 1) return;
+            current.splice(idx, 1);
+          } else {
+            current.push(d);
+          }
+          update(ref(db, "rooms/" + mp.roomCode + "/players/" + mp.uid), { difficulty: current });
+        });
+      }
+      diffGroup.appendChild(chip);
+    });
+    row.appendChild(diffGroup);
+
+    if (isMe) {
+      var traceLabel = document.createElement("label");
+      traceLabel.className = "dots-toggle";
+      traceLabel.style.display = "inline-flex";
+      traceLabel.style.flexDirection = "row";
+      traceLabel.style.gap = "6px";
+      traceLabel.style.marginTop = "6px";
+      var traceCheckbox = document.createElement("input");
+      traceCheckbox.type = "checkbox";
+      traceCheckbox.checked = !!p.dots;
+      traceCheckbox.addEventListener("change", function () {
+        update(ref(db, "rooms/" + mp.roomCode + "/players/" + mp.uid), { dots: traceCheckbox.checked });
+      });
+      traceLabel.appendChild(traceCheckbox);
+      traceLabel.appendChild(document.createTextNode("trace guide for my turn"));
+      row.appendChild(traceLabel);
+    }
+
+    list.appendChild(row);
+  });
+
+  var catWrap = $("category-chips");
+  catWrap.innerHTML = "";
+  var selectedCats = room.settings.categories || ["All"];
+  ["All"].concat(Object.keys(WORD_CATEGORIES)).forEach(function (cat) {
+    var chip = document.createElement("div");
+    chip.className = "chip" + (selectedCats.indexOf(cat) !== -1 ? " selected" : "") + (mp.isHost ? "" : " static");
+    chip.textContent = cat;
+    if (mp.isHost) {
+      chip.addEventListener("click", function () {
+        var next;
+        if (cat === "All") {
+          next = ["All"];
+        } else if (selectedCats.indexOf("All") !== -1) {
+          next = [cat];
+        } else {
+          next = selectedCats.slice();
+          var idx = next.indexOf(cat);
+          if (idx !== -1) {
+            next.splice(idx, 1);
+            if (next.length === 0) next = ["All"];
+          } else {
+            next.push(cat);
+          }
+        }
+        update(ref(db, "rooms/" + mp.roomCode + "/settings"), { categories: next });
+      });
+    }
+    catWrap.appendChild(chip);
+  });
+
+  var modeWrap = $("guess-mode-chips");
+  modeWrap.innerHTML = "";
+  mpGuessModes.forEach(function (pair) {
+    var chip = document.createElement("div");
+    chip.className = "chip" + (room.settings.guessMode === pair[0] ? " selected" : "") + (mp.isHost ? "" : " static");
+    chip.textContent = pair[1];
+    if (mp.isHost) {
+      chip.addEventListener("click", function () {
+        update(ref(db, "rooms/" + mp.roomCode + "/settings"), { guessMode: pair[0] });
+      });
+    }
+    modeWrap.appendChild(chip);
+  });
+
+  var targetInput = $("target-score-input");
+  targetInput.value = room.settings.targetScore;
+  targetInput.disabled = !mp.isHost;
+  var setTarget = function (v) {
+    v = Math.max(1, Math.min(99, v));
+    update(ref(db, "rooms/" + mp.roomCode + "/settings"), { targetScore: v });
+  };
+  targetInput.onchange = function () { setTarget(parseInt(targetInput.value, 10) || 1); };
+  $("btn-target-down").onclick = function () { setTarget((room.settings.targetScore || 1) - 1); };
+  $("btn-target-up").onclick = function () { setTarget((room.settings.targetScore || 1) + 1); };
+  $("btn-target-down").disabled = !mp.isHost;
+  $("btn-target-up").disabled = !mp.isHost;
+
+  var startBtn = $("btn-start-game");
+  var waiting = $("lobby-waiting");
+  if (mp.isHost) {
+    startBtn.style.display = "";
+    waiting.style.display = "none";
+    startBtn.disabled = mpPlayerUids().length < 2;
+  } else {
+    startBtn.style.display = "none";
+    waiting.style.display = "";
+  }
+
+  showScreen("screen-lobby");
+}
+
+$("btn-start-game").addEventListener("click", function () {
+  if (!mp.isHost) return;
+  update(roomRef(mp.roomCode), { artistIndex: 0 }).then(startMpRound);
+});
+
+async function startMpRound() {
+  var room = mp.room;
+  var uids = mpPlayerUids();
+  var artistUid = uids[room.artistIndex % uids.length];
+  var artist = room.players[artistUid];
+  var wantsTrace = !!artist.dots;
+  var difficulties = (artist.difficulty && artist.difficulty.length) ? artist.difficulty : ["Easy"];
+  var chosen = pickWord(difficulties, wantsTrace, null, room.settings.categories || ["All"]);
+
+  await update(roomRef(mp.roomCode), {
+    phase: "draw",
+    round: {
+      artistUid: artistUid,
+      difficulty: chosen.difficulty,
+      word: chosen.word,
+      category: chosen.category,
+      useTrace: wantsTrace,
+      difficulties: difficulties,
+      skipUsed: false,
+      settled: false
+    }
+  });
+}
+
+// ---------- Draw phase ----------
+var mpCanvas, mpCtx, mpDrawing = false, mpCurrentColor = COLORS[0], mpCurrentSize = 9, mpErasing = false, mpLastX = 0, mpLastY = 0;
+var mpInkCanvas, mpInkCtx;
+var mpUndoStack = [], mpRedoStack = [];
+var MP_UNDO_LIMIT = 25;
+var mpCanvasSetUp = false;
+var mpLastDrawRoundKey = null;
+
+function renderDrawPhase() {
+  var room = mp.room;
+  var round = room.round;
+  var iAmArtist = round.artistUid === mp.uid;
+
+  if (!iAmArtist) {
+    showScreen("screen-artist-waiting");
+    $("artist-waiting-name").textContent = mpPlayerName(round.artistUid);
+    return;
+  }
+
+  showScreen("screen-mp-word");
+  $("mp-word-difficulty-label").textContent = round.difficulty + " word";
+  $("mp-word-secret").textContent = round.word;
+  $("mp-btn-skip-word").style.display = round.skipUsed ? "none" : "";
+}
+
+$("mp-btn-skip-word").addEventListener("click", function () {
+  var room = mp.room;
+  var round = room.round;
+  if (round.skipUsed) return;
+  var chosen = pickWord(round.difficulties, round.useTrace, round.word, room.settings.categories || ["All"]);
+  update(ref(db, "rooms/" + mp.roomCode + "/round"), {
+    word: chosen.word, difficulty: chosen.difficulty, category: chosen.category, skipUsed: true
+  });
+});
+
+$("mp-btn-start-drawing").addEventListener("click", function () {
+  showScreen("screen-mp-draw");
+  setupMpCanvasIfNeeded();
+  mpClearCanvas();
+  mpUndoStack = [];
+  mpRedoStack = [];
+  $("mp-btn-undo").disabled = true;
+  $("mp-btn-redo").disabled = true;
+  startMpDrawTimer();
+});
+
+var MP_DRAW_SECONDS = 120;
+function renderMpDrawTimer() {
+  var m = Math.floor(mp.drawTimeLeft / 60), s = mp.drawTimeLeft % 60;
+  var el = $("mp-draw-timer");
+  el.textContent = m + ":" + (s < 10 ? "0" : "") + s;
+  el.classList.toggle("low", mp.drawTimeLeft <= 15);
+}
+function startMpDrawTimer() {
+  stopMpDrawTimer();
+  mp.drawTimeLeft = MP_DRAW_SECONDS;
+  renderMpDrawTimer();
+  mp.drawTimerHandle = setInterval(function () {
+    mp.drawTimeLeft--;
+    renderMpDrawTimer();
+    if (mp.drawTimeLeft <= 0) {
+      stopMpDrawTimer();
+      finishMpDrawing();
+    }
+  }, 1000);
+}
+function stopMpDrawTimer() {
+  if (mp.drawTimerHandle) { clearInterval(mp.drawTimerHandle); mp.drawTimerHandle = null; }
+}
+
+function setupMpCanvasIfNeeded() {
+  if (mpCanvasSetUp) return;
+  mpCanvasSetUp = true;
+  mpCanvas = $("mp-draw-canvas");
+  mpCtx = mpCanvas.getContext("2d");
+  mpInkCanvas = document.createElement("canvas");
+  mpInkCanvas.width = mpCanvas.width;
+  mpInkCanvas.height = mpCanvas.height;
+  mpInkCtx = mpInkCanvas.getContext("2d");
+
+  var colorRow = $("mp-color-row");
+  COLORS.forEach(function (c, i) {
+    var sw = document.createElement("div");
+    sw.className = "color-swatch" + (i === 0 ? " selected" : "");
+    sw.style.background = c;
+    sw.addEventListener("click", function () {
+      mpCurrentColor = c;
+      mpErasing = false;
+      Array.prototype.forEach.call(colorRow.children, function (el) { el.classList.remove("selected"); });
+      sw.classList.add("selected");
+      $("mp-btn-eraser").classList.remove("selected");
+    });
+    colorRow.appendChild(sw);
+  });
+
+  function selectSize(btn, size) {
+    [$("mp-size-sm"), $("mp-size-md"), $("mp-size-lg")].forEach(function (b) { b.classList.remove("selected"); });
+    btn.classList.add("selected");
+    mpCurrentSize = size;
+  }
+  $("mp-size-sm").addEventListener("click", function () { selectSize($("mp-size-sm"), 4); });
+  $("mp-size-md").addEventListener("click", function () { selectSize($("mp-size-md"), 9); });
+  $("mp-size-lg").addEventListener("click", function () { selectSize($("mp-size-lg"), 16); });
+
+  $("mp-btn-eraser").addEventListener("click", function () {
+    mpErasing = true;
+    $("mp-btn-eraser").classList.add("selected");
+  });
+  $("mp-btn-clear").addEventListener("click", function () {
+    mpSaveUndoSnapshot();
+    mpClearCanvas();
+  });
+  $("mp-btn-undo").addEventListener("click", function () {
+    if (!mpUndoStack.length) return;
+    mpRedoStack.push({
+      visible: mpCtx.getImageData(0, 0, mpCanvas.width, mpCanvas.height),
+      ink: mpInkCtx.getImageData(0, 0, mpCanvas.width, mpCanvas.height)
+    });
+    $("mp-btn-redo").disabled = false;
+    var entry = mpUndoStack.pop();
+    mpCtx.putImageData(entry.visible, 0, 0);
+    mpInkCtx.putImageData(entry.ink, 0, 0);
+    if (!mpUndoStack.length) $("mp-btn-undo").disabled = true;
+  });
+  $("mp-btn-redo").addEventListener("click", function () {
+    if (!mpRedoStack.length) return;
+    mpUndoStack.push({
+      visible: mpCtx.getImageData(0, 0, mpCanvas.width, mpCanvas.height),
+      ink: mpInkCtx.getImageData(0, 0, mpCanvas.width, mpCanvas.height)
+    });
+    $("mp-btn-undo").disabled = false;
+    var entry = mpRedoStack.pop();
+    mpCtx.putImageData(entry.visible, 0, 0);
+    mpInkCtx.putImageData(entry.ink, 0, 0);
+    if (!mpRedoStack.length) $("mp-btn-redo").disabled = true;
+  });
+
+  function pos(e) {
+    var rect = mpCanvas.getBoundingClientRect();
+    var scaleX = mpCanvas.width / rect.width;
+    var scaleY = mpCanvas.height / rect.height;
+    var clientX = e.touches ? e.touches[0].clientX : e.clientX;
+    var clientY = e.touches ? e.touches[0].clientY : e.clientY;
+    return { x: (clientX - rect.left) * scaleX, y: (clientY - rect.top) * scaleY };
+  }
+  function start(e) {
+    e.preventDefault();
+    mpDrawing = true;
+    mpSaveUndoSnapshot();
+    var p = pos(e);
+    mpLastX = p.x; mpLastY = p.y;
+    mpDot(p.x, p.y);
+  }
+  function move(e) {
+    if (!mpDrawing) return;
+    e.preventDefault();
+    var p = pos(e);
+    mpLine(mpLastX, mpLastY, p.x, p.y);
+    mpLastX = p.x; mpLastY = p.y;
+  }
+  function end() { mpDrawing = false; }
+
+  mpCanvas.addEventListener("mousedown", start);
+  mpCanvas.addEventListener("mousemove", move);
+  window.addEventListener("mouseup", end);
+  mpCanvas.addEventListener("touchstart", start, { passive: false });
+  mpCanvas.addEventListener("touchmove", move, { passive: false });
+  mpCanvas.addEventListener("touchend", end);
+}
+
+function mpSaveUndoSnapshot() {
+  if (!mpCtx) return;
+  mpUndoStack.push({
+    visible: mpCtx.getImageData(0, 0, mpCanvas.width, mpCanvas.height),
+    ink: mpInkCtx.getImageData(0, 0, mpCanvas.width, mpCanvas.height)
+  });
+  if (mpUndoStack.length > MP_UNDO_LIMIT) mpUndoStack.shift();
+  $("mp-btn-undo").disabled = false;
+  mpRedoStack = [];
+  $("mp-btn-redo").disabled = true;
+}
+function mpDot(x, y) {
+  [mpCtx, mpInkCtx].forEach(function (c) {
+    c.fillStyle = mpErasing ? "#ffffff" : mpCurrentColor;
+    c.beginPath();
+    c.arc(x, y, mpCurrentSize / 2, 0, Math.PI * 2);
+    c.fill();
+  });
+}
+function mpLine(x1, y1, x2, y2) {
+  [mpCtx, mpInkCtx].forEach(function (c) {
+    c.strokeStyle = mpErasing ? "#ffffff" : mpCurrentColor;
+    c.lineWidth = mpErasing ? mpCurrentSize * 2 : mpCurrentSize;
+    c.lineCap = "round";
+    c.lineJoin = "round";
+    c.beginPath();
+    c.moveTo(x1, y1);
+    c.lineTo(x2, y2);
+    c.stroke();
+  });
+}
+function mpClearCanvas() {
+  mpCtx.fillStyle = "#ffffff";
+  mpCtx.fillRect(0, 0, mpCanvas.width, mpCanvas.height);
+  mpInkCtx.fillStyle = "#ffffff";
+  mpInkCtx.fillRect(0, 0, mpInkCanvas.width, mpInkCanvas.height);
+  var round = mp.room.round;
+  if (round && round.useTrace && TRACE_SHAPES.hasOwnProperty(round.word)) {
+    drawShapeDots(mpCtx, TRACE_SHAPES[round.word]);
+  }
+}
+
+function finishMpDrawing() {
+  stopMpDrawTimer();
+  var room = mp.room;
+  var round = room.round;
+  var image = mpInkCanvas.toDataURL("image/png");
+  var resolvedGuessMode = room.settings.guessMode === "random"
+    ? ((Math.random() < 0.5) ? "type" : "choice")
+    : room.settings.guessMode;
+  var choiceOptions = resolvedGuessMode === "choice" ? buildChoiceOptions(round.word) : null;
+
+  update(roomRef(mp.roomCode), {
+    phase: "guess",
+    round: Object.assign({}, round, {
+      image: image, resolvedGuessMode: resolvedGuessMode, choiceOptions: choiceOptions,
+      guesses: {}, hintUsed: {}
+    })
+  });
+}
+$("mp-btn-done-drawing").addEventListener("click", finishMpDrawing);
+
+// ---------- Guess phase (everyone but the artist, simultaneously) ----------
+function renderGuessPhase() {
+  var room = mp.room;
+  var round = room.round;
+  var iAmArtist = round.artistUid === mp.uid;
+
+  if (iAmArtist) {
+    showScreen("screen-artist-waiting-guesses");
+    if (mp.isHost) checkAllGuessesIn();
+    return;
+  }
+
+  var key = roundKey(round);
+  var myGuess = round.guesses ? round.guesses[mp.uid] : undefined;
+
+  if (myGuess !== undefined) {
+    showScreen("screen-guess-waiting");
+    stopMpTimer();
+  } else {
+    $("guess-drawing-img").src = round.image;
+    var alreadyHinted = !!(round.hintUsed && round.hintUsed[mp.uid]);
+    if (alreadyHinted) {
+      $("btn-reveal-category-hint").style.display = "none";
+      $("guess-category-hint").textContent = "Category: " + round.category + " — this guess is worth 0.5 points";
+      $("guess-category-hint").style.display = "";
+    } else {
+      $("btn-reveal-category-hint").style.display = "";
+      $("guess-category-hint").style.display = "none";
+    }
+    if (round.resolvedGuessMode === "choice") {
+      $("guess-type-card").style.display = "none";
+      $("guess-choice-card").style.display = "";
+      $("btn-submit-guess").style.display = "none";
+      renderMpGuessChoices(round.choiceOptions);
+    } else {
+      $("guess-type-card").style.display = "";
+      $("guess-choice-card").style.display = "none";
+      $("btn-submit-guess").style.display = "";
+    }
+    showScreen("screen-guess-input");
+    if (mp.timerRoundKey !== key) {
+      mp.timerRoundKey = key;
+      $("guess-input-field").value = "";
+      startMpTimer();
+    }
+  }
+
+  if (mp.isHost) checkAllGuessesIn();
+}
+
+function checkAllGuessesIn() {
+  var room = mp.room;
+  var round = room.round;
+  var guesserUids = mpPlayerUids().filter(function (uid) { return uid !== round.artistUid; });
+  var count = round.guesses ? Object.keys(round.guesses).length : 0;
+  if (count >= guesserUids.length && guesserUids.length > 0) {
+    finishMpGuessing();
+  }
+}
+
+function renderMpGuessChoices(options) {
+  var wrap = $("guess-choice-options");
+  wrap.innerHTML = "";
+  options.forEach(function (word) {
+    var chip = document.createElement("div");
+    chip.className = "chip";
+    chip.textContent = word;
+    chip.addEventListener("click", function () { submitMpGuess(word); });
+    wrap.appendChild(chip);
+  });
+}
+
+$("btn-reveal-category-hint").addEventListener("click", function () {
+  update(ref(db, "rooms/" + mp.roomCode + "/round/hintUsed"), (function () { var o = {}; o[mp.uid] = true; return o; })());
+  $("btn-reveal-category-hint").style.display = "none";
+  $("guess-category-hint").textContent = "Category: " + mp.room.round.category + " — this guess is worth 0.5 points";
+  $("guess-category-hint").style.display = "";
+});
+
+function submitMpGuess(explicitGuess) {
+  stopMpTimer();
+  var text = (typeof explicitGuess === "string") ? explicitGuess : $("guess-input-field").value.trim();
+  update(ref(db, "rooms/" + mp.roomCode + "/round/guesses"), (function () { var o = {}; o[mp.uid] = text; return o; })());
+}
+$("btn-submit-guess").addEventListener("click", function () { submitMpGuess(); });
+
+function startMpTimer() {
+  stopMpTimer();
+  mp.timeLeft = 45;
+  updateMpTimerDisplay();
+  mp.timerHandle = setInterval(function () {
+    mp.timeLeft--;
+    updateMpTimerDisplay();
+    if (mp.timeLeft <= 0) {
+      stopMpTimer();
+      submitMpGuess();
+    }
+  }, 1000);
+}
+function stopMpTimer() {
+  if (mp.timerHandle) { clearInterval(mp.timerHandle); mp.timerHandle = null; }
+}
+function updateMpTimerDisplay() {
+  var m = Math.floor(mp.timeLeft / 60), s = mp.timeLeft % 60;
+  var el = $("guess-timer");
+  el.textContent = m + ":" + (s < 10 ? "0" : "") + s;
+  el.classList.toggle("low", mp.timeLeft <= 10);
+}
+
+async function finishMpGuessing() {
+  var room = mp.room;
+  var round = room.round;
+  var artistName = mpPlayerName(round.artistUid);
+  var guesserUids = mpPlayerUids().filter(function (uid) { return uid !== round.artistUid; });
+
+  var scoreUpdates = Object.assign({}, room.scores);
+  var correctPoints = 0;
+  guesserUids.forEach(function (uid) {
+    var guess = (round.guesses && round.guesses[uid]) || "";
+    var isCorrect = isCloseGuess(guess, round.word);
+    var usedHint = !!(round.hintUsed && round.hintUsed[uid]);
+    if (isCorrect) {
+      var earned = usedHint ? 0.5 : 1;
+      correctPoints += earned;
+      scoreUpdates[uid] = (scoreUpdates[uid] || 0) + earned;
+    }
+  });
+  scoreUpdates[round.artistUid] = (scoreUpdates[round.artistUid] || 0) + correctPoints;
+
+  await update(roomRef(mp.roomCode), {
+    phase: "reveal-guesses",
+    scores: scoreUpdates,
+    round: Object.assign({}, round, { settled: true })
+  });
+}
+
+// ---------- Reveal guesses ----------
+function renderRevealGuessesScreen() {
+  var room = mp.room;
+  var round = room.round;
+  $("reveal-word").textContent = round.word;
+  $("reveal-drawing-img").src = round.image;
+
+  var tally = $("guess-tally");
+  tally.innerHTML = "";
+  mpPlayerUids().filter(function (uid) { return uid !== round.artistUid; }).forEach(function (uid) {
+    var guess = (round.guesses && round.guesses[uid]) || "(no guess)";
+    var isCorrect = isCloseGuess(guess, round.word);
+    var usedHint = !!(round.hintUsed && round.hintUsed[uid]);
+    var earned = isCorrect ? (usedHint ? 0.5 : 1) : 0;
+    var pointsNote = isCorrect ? (" (+" + earned + (usedHint ? ", used hint" : "") + ")") : "";
+    var row = document.createElement("div");
+    row.className = "tally-row";
+    row.innerHTML = "<span>" + (isCorrect ? "✅ " : "❌ ") + mpPlayerName(uid) + pointsNote + "</span><span>" + guess + "</span>";
+    tally.appendChild(row);
+  });
+
+  var hostNav = $("reveal-guesses-host-nav");
+  var waiting = $("reveal-guesses-waiting");
+  if (mp.isHost) {
+    hostNav.style.display = "flex";
+    waiting.style.display = "none";
+  } else {
+    hostNav.style.display = "none";
+    waiting.style.display = "";
+  }
+  showScreen("screen-reveal-guesses");
+}
+
+$("btn-next-round").addEventListener("click", function () {
+  if (!mp.isHost) return;
+  var room = mp.room;
+  var entries = Object.keys(room.scores).map(function (uid) { return { uid: uid, score: room.scores[uid] }; });
+  entries.sort(function (a, b) { return b.score - a.score; });
+  var maxScore = entries.length ? entries[0].score : 0;
+  var winnerUid = null;
+  if (maxScore >= room.settings.targetScore) {
+    var top = entries.filter(function (e) { return e.score === maxScore; });
+    if (top.length === 1) winnerUid = top[0].uid;
+  }
+  var nextArtistIndex = (room.artistIndex || 0) + 1;
+  if (winnerUid) {
+    update(roomRef(mp.roomCode), { phase: "game-won", winnerUid: winnerUid, artistIndex: nextArtistIndex });
+  } else {
+    update(roomRef(mp.roomCode), { phase: "scores", artistIndex: nextArtistIndex });
+  }
+});
+
+// ---------- Scoreboard ----------
+function renderScoresScreen() {
+  var room = mp.room;
+  var scoresByName = {};
+  mpPlayerUids().forEach(function (uid) { scoresByName[mpPlayerName(uid)] = room.scores[uid] || 0; });
+  renderScoreboardInto($("scoreboard"), scoresByName);
+  $("scoreboard-target").textContent = room.settings.targetScore;
+
+  var hostNav = $("scores-host-nav");
+  var waiting = $("scores-waiting");
+  if (mp.isHost) {
+    hostNav.style.display = "flex";
+    waiting.style.display = "none";
+  } else {
+    hostNav.style.display = "none";
+    waiting.style.display = "";
+  }
+  showScreen("screen-scores");
+}
+$("btn-back-to-round").addEventListener("click", function () {
+  if (!mp.isHost) return;
+  startMpRound();
+});
+$("btn-end-game").addEventListener("click", function () {
+  if (!mp.isHost) return;
+  if (!confirm("End the game and return everyone to the lobby?")) return;
+  update(roomRef(mp.roomCode), { phase: "lobby", round: null });
+});
+
+// ---------- Game won ----------
+function renderGameWonScreen() {
+  var room = mp.room;
+  $("winner-name").textContent = "🎉 " + mpPlayerName(room.winnerUid);
+  var scoresByName = {};
+  mpPlayerUids().forEach(function (uid) { scoresByName[mpPlayerName(uid)] = room.scores[uid] || 0; });
+  renderScoreboardInto($("winner-scoreboard"), scoresByName);
+
+  var hostNav = $("won-host-nav");
+  var waiting = $("won-waiting");
+  if (mp.isHost) {
+    hostNav.style.display = "flex";
+    waiting.style.display = "none";
+  } else {
+    hostNav.style.display = "none";
+    waiting.style.display = "";
+  }
+  showScreen("screen-game-won");
+}
+$("btn-new-game").addEventListener("click", function () {
+  if (!mp.isHost) return;
+  update(roomRef(mp.roomCode), { phase: "lobby", round: null });
+});
+
+function renderScoreboardInto(el, scores) {
+  el.innerHTML = "";
+  var entries = Object.keys(scores).map(function (name) { return { name: name, score: scores[name] }; });
+  entries.sort(function (a, b) { return b.score - a.score; });
+  entries.forEach(function (e) {
+    var row = document.createElement("div");
+    row.className = "score-row";
+    row.innerHTML = "<span>" + e.name + "</span><strong>" + e.score + "</strong>";
+    el.appendChild(row);
+  });
+}
+
+$("btn-local-mode").addEventListener("click", function () {
+  localRenderPlayerList();
+  localRenderCategoryChips();
+  localRenderGuessModeChips();
+  showScreen("local-screen-setup");
+});
+$("local-btn-back-home").addEventListener("click", function () { showScreen("screen-home"); });
+
+
+
+(function () {
+  "use strict";
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  // Greedy nearest-neighbor ordering: starting from the first localDot, always hop to
+  // whichever remaining localDot is physically closest. This keeps the numbered path
+  // flowing smoothly (no long jumps across the shape) so a kid can just follow
+  // 1, 2, 3... without hunting for where the next number is.
+  
+
+  
+
+  
+
+  var localState = {
     players: ["", ""],
     playerDots: [false, false],
     playerDifficulty: [["Easy"], ["Easy"]],
@@ -1423,85 +2606,79 @@
   // ---------- Refresh-resume persistence ----------
   // Saved only at points where nothing has happened yet that would be unsafe
   // to redo (start of a round, or right after that round's scores are
-  // already committed) — never mid-drawing or mid-guessing, since those
+  // already committed) — never mid-localDrawing or mid-guessing, since those
   // screens involve one-time mutations (shuffling guess order, awarding
   // points) that would double-apply if replayed from a restored screen.
-  var SAVE_KEY = "doodleGuessSave";
+  var LOCAL_SAVE_KEY = "doodleGuessSave";
 
-  function saveCheckpoint(screenId) {
+  function localSaveCheckpoint(screenId) {
     try {
       var snapshot = {
         screen: screenId,
-        state: {
-          players: state.players,
-          playerDots: state.playerDots,
-          playerDifficulty: state.playerDifficulty,
-          selectedCategories: state.selectedCategories,
-          guessMode: state.guessMode,
-          targetScore: state.targetScore,
-          lastWinningScore: state.lastWinningScore,
-          scores: state.scores,
-          round: state.round ? {
-            difficulty: state.round.difficulty,
-            word: state.round.word,
-            category: state.round.category,
-            artistIdx: state.round.artistIdx,
-            useTrace: state.round.useTrace,
-            difficulties: state.round.difficulties,
-            skipUsed: state.round.skipUsed
+        localState: {
+          players: localState.players,
+          playerDots: localState.playerDots,
+          playerDifficulty: localState.playerDifficulty,
+          selectedCategories: localState.selectedCategories,
+          guessMode: localState.guessMode,
+          targetScore: localState.targetScore,
+          lastWinningScore: localState.lastWinningScore,
+          scores: localState.scores,
+          round: localState.round ? {
+            difficulty: localState.round.difficulty,
+            word: localState.round.word,
+            category: localState.round.category,
+            artistIdx: localState.round.artistIdx,
+            useTrace: localState.round.useTrace,
+            difficulties: localState.round.difficulties,
+            skipUsed: localState.round.skipUsed
           } : null,
-          revealIndex: state.revealIndex
+          revealIndex: localState.revealIndex
         }
       };
-      localStorage.setItem(SAVE_KEY, JSON.stringify(snapshot));
+      localStorage.setItem(LOCAL_SAVE_KEY, JSON.stringify(snapshot));
     } catch (e) { /* private browsing or storage disabled — resume just won't be offered */ }
   }
 
-  function clearSavedGame() {
-    try { localStorage.removeItem(SAVE_KEY); } catch (e) {}
+  function localClearSavedGame() {
+    try { localStorage.removeItem(LOCAL_SAVE_KEY); } catch (e) {}
   }
 
-  function loadSavedGame() {
+  function localLoadSavedGame() {
     try {
-      var raw = localStorage.getItem(SAVE_KEY);
+      var raw = localStorage.getItem(LOCAL_SAVE_KEY);
       return raw ? JSON.parse(raw) : null;
     } catch (e) { return null; }
   }
 
-  var canvas, ctx, drawing = false, currentColor = COLORS[0], currentSize = 9, erasing = false, lastX = 0, lastY = 0;
-  // a second, hidden canvas mirrors only the artist's actual ink (never the trace-guide
+  var localCanvas, localCtx, localDrawing = false, localCurrentColor = COLORS[0], localCurrentSize = 9, localErasing = false, localLastX = 0, localLastY = 0;
+  // a second, hidden localCanvas mirrors only the artist's actual ink (never the trace-guide
   // dots), so the image shown to guessers never reveals the numbered guide underneath
-  var inkCanvas, inkCtx;
-  var undoStack = [];
-  var redoStack = [];
-  var UNDO_LIMIT = 25;
+  var localInkCanvas, localInkCtx;
+  var localUndoStack = [];
+  var localRedoStack = [];
+  var LOCAL_UNDO_LIMIT = 25;
 
-  function saveUndoSnapshot() {
-    if (!ctx) return;
-    undoStack.push({
-      visible: ctx.getImageData(0, 0, canvas.width, canvas.height),
-      ink: inkCtx.getImageData(0, 0, canvas.width, canvas.height)
+  function localSaveUndoSnapshot() {
+    if (!localCtx) return;
+    localUndoStack.push({
+      visible: localCtx.getImageData(0, 0, localCanvas.width, localCanvas.height),
+      ink: localInkCtx.getImageData(0, 0, localCanvas.width, localCanvas.height)
     });
-    if (undoStack.length > UNDO_LIMIT) undoStack.shift();
-    $("btn-undo").disabled = false;
+    if (localUndoStack.length > LOCAL_UNDO_LIMIT) localUndoStack.shift();
+    $("local-btn-undo").disabled = false;
     // a fresh change invalidates whatever could have been redone
-    redoStack = [];
-    $("btn-redo").disabled = true;
+    localRedoStack = [];
+    $("local-btn-redo").disabled = true;
   }
 
-  function $(id) { return document.getElementById(id); }
-  function showScreen(id) {
-    document.querySelectorAll(".screen").forEach(function (s) { s.classList.remove("active"); });
-    $(id).classList.add("active");
-    // free up vertical space during gameplay — the title/subtitle only matter on setup
-    $("app-header").style.display = (id === "screen-setup") ? "" : "none";
-  }
+    
 
   // ---------- Setup screen ----------
-  function renderPlayerList() {
-    var wrap = $("player-list");
+  function localRenderPlayerList() {
+    var wrap = $("local-player-list");
     wrap.innerHTML = "";
-    state.players.forEach(function (name, i) {
+    localState.players.forEach(function (name, i) {
       var row = document.createElement("div");
       row.className = "player-row";
       var input = document.createElement("input");
@@ -1509,17 +2686,17 @@
       input.placeholder = "Player " + (i + 1);
       input.value = name;
       input.maxLength = 20;
-      input.addEventListener("input", function () { state.players[i] = input.value; });
+      input.addEventListener("input", function () { localState.players[i] = input.value; });
       row.appendChild(input);
 
-      if (!state.playerDifficulty[i] || !state.playerDifficulty[i].length) state.playerDifficulty[i] = ["Easy"];
-      var traceOn = !!state.playerDots[i];
+      if (!localState.playerDifficulty[i] || !localState.playerDifficulty[i].length) localState.playerDifficulty[i] = ["Easy"];
+      var traceOn = !!localState.playerDots[i];
       // when tracing is on, only difficulties that actually have traceable words make sense —
       // otherwise showing all three is misleading, since the game silently ignores the others
       var onlyTraceable = traceOn && TRACEABLE_DIFFICULTIES.length < DIFFICULTIES.length;
       if (onlyTraceable) {
-        var kept = state.playerDifficulty[i].filter(function (d) { return TRACEABLE_DIFFICULTIES.indexOf(d) !== -1; });
-        state.playerDifficulty[i] = kept.length ? kept : TRACEABLE_DIFFICULTIES.slice();
+        var kept = localState.playerDifficulty[i].filter(function (d) { return TRACEABLE_DIFFICULTIES.indexOf(d) !== -1; });
+        localState.playerDifficulty[i] = kept.length ? kept : TRACEABLE_DIFFICULTIES.slice();
       }
 
       var diffGroup = document.createElement("div");
@@ -1527,12 +2704,12 @@
       DIFFICULTIES.forEach(function (d) {
         var enabled = !onlyTraceable || TRACEABLE_DIFFICULTIES.indexOf(d) !== -1;
         var chip = document.createElement("div");
-        chip.className = "diff-chip" + (state.playerDifficulty[i].indexOf(d) !== -1 ? " selected" : "") + (enabled ? "" : " disabled");
+        chip.className = "diff-chip" + (localState.playerDifficulty[i].indexOf(d) !== -1 ? " selected" : "") + (enabled ? "" : " disabled");
         chip.textContent = d[0];
         chip.title = enabled ? d : d + " (no traceable words — turn off trace to use this)";
         if (enabled) {
           chip.addEventListener("click", function () {
-            var list = state.playerDifficulty[i];
+            var list = localState.playerDifficulty[i];
             var idx = list.indexOf(d);
             if (idx !== -1) {
               if (list.length === 1) return; // keep at least one difficulty selected
@@ -1553,82 +2730,82 @@
       dotsCheckbox.type = "checkbox";
       dotsCheckbox.checked = traceOn;
       dotsCheckbox.addEventListener("change", function () {
-        state.playerDots[i] = dotsCheckbox.checked;
-        renderPlayerList();
+        localState.playerDots[i] = dotsCheckbox.checked;
+        localRenderPlayerList();
       });
       dotsLabel.appendChild(dotsCheckbox);
       dotsLabel.appendChild(document.createTextNode("trace"));
       row.appendChild(dotsLabel);
 
-      if (state.players.length > 2) {
+      if (localState.players.length > 2) {
         var rm = document.createElement("button");
         rm.className = "icon-btn";
         rm.type = "button";
         rm.textContent = "✕";
         rm.addEventListener("click", function () {
-          state.players.splice(i, 1);
-          state.playerDots.splice(i, 1);
-          state.playerDifficulty.splice(i, 1);
-          renderPlayerList();
+          localState.players.splice(i, 1);
+          localState.playerDots.splice(i, 1);
+          localState.playerDifficulty.splice(i, 1);
+          localRenderPlayerList();
         });
         row.appendChild(rm);
       }
       wrap.appendChild(row);
     });
-    $("two-player-notice").style.display = (state.players.length === 2) ? "" : "none";
+    $("local-two-player-notice").style.display = (localState.players.length === 2) ? "" : "none";
   }
 
-  $("btn-add-player").addEventListener("click", function () {
-    if (state.players.length >= 10) return;
-    state.players.push("");
-    state.playerDots.push(false);
-    state.playerDifficulty.push(["Easy"]);
-    renderPlayerList();
+  $("local-btn-add-player").addEventListener("click", function () {
+    if (localState.players.length >= 10) return;
+    localState.players.push("");
+    localState.playerDots.push(false);
+    localState.playerDifficulty.push(["Easy"]);
+    localRenderPlayerList();
   });
 
-  function renderCategoryChips() {
-    var wrap = $("category-chips");
+  function localRenderCategoryChips() {
+    var wrap = $("local-category-chips");
     wrap.innerHTML = "";
     ["All"].concat(Object.keys(WORD_CATEGORIES)).forEach(function (cat) {
       var chip = document.createElement("div");
-      chip.className = "chip" + (state.selectedCategories.indexOf(cat) !== -1 ? " selected" : "");
+      chip.className = "chip" + (localState.selectedCategories.indexOf(cat) !== -1 ? " selected" : "");
       chip.textContent = cat;
       chip.addEventListener("click", function () {
         if (cat === "All") {
-          state.selectedCategories = ["All"];
-        } else if (state.selectedCategories.indexOf("All") !== -1) {
-          state.selectedCategories = [cat];
+          localState.selectedCategories = ["All"];
+        } else if (localState.selectedCategories.indexOf("All") !== -1) {
+          localState.selectedCategories = [cat];
         } else {
-          var idx = state.selectedCategories.indexOf(cat);
+          var idx = localState.selectedCategories.indexOf(cat);
           if (idx !== -1) {
-            state.selectedCategories.splice(idx, 1);
-            if (state.selectedCategories.length === 0) state.selectedCategories = ["All"];
+            localState.selectedCategories.splice(idx, 1);
+            if (localState.selectedCategories.length === 0) localState.selectedCategories = ["All"];
           } else {
-            state.selectedCategories.push(cat);
+            localState.selectedCategories.push(cat);
           }
         }
-        renderCategoryChips();
+        localRenderCategoryChips();
       });
       wrap.appendChild(chip);
     });
   }
 
-  function renderGuessModeChips() {
-    var wrap = $("guess-mode-chips");
+  function localRenderGuessModeChips() {
+    var wrap = $("local-guess-mode-chips");
     wrap.innerHTML = "";
     [["type", "Type the Guess"], ["choice", "Multiple Choice"], ["random", "Random Mix"]].forEach(function (pair) {
       var chip = document.createElement("div");
-      chip.className = "chip" + (state.guessMode === pair[0] ? " selected" : "");
+      chip.className = "chip" + (localState.guessMode === pair[0] ? " selected" : "");
       chip.textContent = pair[1];
       chip.addEventListener("click", function () {
-        state.guessMode = pair[0];
-        renderGuessModeChips();
+        localState.guessMode = pair[0];
+        localRenderGuessModeChips();
       });
       wrap.appendChild(chip);
     });
   }
 
-  function stepScoreInput(inputId, delta, fallback) {
+  function localStepScoreInput(inputId, delta, fallback) {
     var input = $(inputId);
     var val = parseInt(input.value, 10);
     if (isNaN(val)) val = fallback;
@@ -1638,94 +2815,48 @@
     if (val > max) val = max;
     input.value = val;
   }
-  $("btn-target-down").addEventListener("click", function () { stepScoreInput("target-score-input", -1, 6); });
-  $("btn-target-up").addEventListener("click", function () { stepScoreInput("target-score-input", 1, 6); });
-  $("btn-extend-down").addEventListener("click", function () { stepScoreInput("extend-target-input", -1, state.lastWinningScore + 5); });
-  $("btn-extend-up").addEventListener("click", function () { stepScoreInput("extend-target-input", 1, state.lastWinningScore + 5); });
+  $("local-btn-target-down").addEventListener("click", function () { localStepScoreInput("local-target-score-input", -1, 6); });
+  $("local-btn-target-up").addEventListener("click", function () { localStepScoreInput("local-target-score-input", 1, 6); });
+  $("local-btn-extend-down").addEventListener("click", function () { localStepScoreInput("local-extend-target-input", -1, localState.lastWinningScore + 5); });
+  $("local-btn-extend-up").addEventListener("click", function () { localStepScoreInput("local-extend-target-input", 1, localState.lastWinningScore + 5); });
 
-  $("btn-start-game").addEventListener("click", function () {
-    var names = state.players.map(function (n, i) { return n.trim() || ("Player " + (i + 1)); });
-    if (names.length < 2) { $("players-warning").style.display = ""; return; }
-    $("players-warning").style.display = "none";
-    state.players = names;
-    state.scores = {};
-    names.forEach(function (n) { state.scores[n] = 0; });
-    state.revealIndex = Math.floor(Math.random() * names.length);
-    var targetInput = parseInt($("target-score-input").value, 10);
-    state.targetScore = (targetInput > 0) ? targetInput : 6;
-    state.canResume = false;
-    state.gallery = [];
-    $("resume-banner").style.display = "none";
-    startRound();
+  $("local-btn-start-game").addEventListener("click", function () {
+    var names = localState.players.map(function (n, i) { return n.trim() || ("Player " + (i + 1)); });
+    if (names.length < 2) { $("local-players-warning").style.display = ""; return; }
+    $("local-players-warning").style.display = "none";
+    localState.players = names;
+    localState.scores = {};
+    names.forEach(function (n) { localState.scores[n] = 0; });
+    localState.revealIndex = Math.floor(Math.random() * names.length);
+    var targetInput = parseInt($("local-target-score-input").value, 10);
+    localState.targetScore = (targetInput > 0) ? targetInput : 6;
+    localState.canResume = false;
+    localState.gallery = [];
+    $("local-resume-banner").style.display = "none";
+    localStartRound();
   });
 
   // ---------- Round setup ----------
-  function pickRandom(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
+  
 
-  var ALL_WORDS_FLAT = null;
-  function allWordsFlat() {
-    if (ALL_WORDS_FLAT) return ALL_WORDS_FLAT;
-    var out = [];
-    for (var cat in WORD_CATEGORIES) {
-      for (var diff in WORD_CATEGORIES[cat]) {
-        out = out.concat(WORD_CATEGORIES[cat][diff]);
-      }
-    }
-    ALL_WORDS_FLAT = out;
-    return out;
-  }
+  
+  
 
   // 20 options total: the real word plus 19 random distractors pulled from the
   // whole bank (not just the round's category/difficulty) — with 1300 words to
   // draw from, an accidental near-duplicate distractor is rare and harmless
-  function buildChoiceOptions(correctWord) {
-    var pool = shuffle(allWordsFlat().filter(function (w) {
-      return w.toLowerCase() !== correctWord.toLowerCase();
-    })).slice(0, 19);
-    return shuffle(pool.concat([correctWord]));
-  }
+  
 
-  function findWordMeta(word) {
-    for (var cat in WORD_CATEGORIES) {
-      for (var diff in WORD_CATEGORIES[cat]) {
-        if (WORD_CATEGORIES[cat][diff].indexOf(word) !== -1) return { word: word, difficulty: diff, category: cat };
-      }
-    }
-    return null;
-  }
+  
 
-  function pickWord(difficulties, traceOnly, excludeWord) {
-    var categories = state.selectedCategories.indexOf("All") !== -1 ? Object.keys(WORD_CATEGORIES) : state.selectedCategories;
-    var pool = [];
-    categories.forEach(function (cat) {
-      difficulties.forEach(function (difficulty) {
-        WORD_CATEGORIES[cat][difficulty].forEach(function (w) {
-          if (excludeWord && w === excludeWord) return;
-          if (traceOnly && !TRACE_SHAPES.hasOwnProperty(w)) return;
-          pool.push({ word: w, difficulty: difficulty, category: cat });
-        });
-      });
-    });
-    if (traceOnly && pool.length === 0) {
-      // none of the selected categories/difficulties have traceable words of their own — fall back to any traceable word
-      Object.keys(TRACE_SHAPES).forEach(function (w) {
-        if (excludeWord && w === excludeWord) return;
-        pool.push(findWordMeta(w) || { word: w, difficulty: difficulties[0], category: categories[0] });
-      });
-    }
-    if (pool.length === 0 && excludeWord) {
-      // the exclude filter wiped out the whole pool (tiny category/difficulty combo) — allow it back
-      return pickWord(difficulties, traceOnly, null);
-    }
-    return pickRandom(pool);
-  }
+  
 
-  function startRound() {
-    var artistIdx = state.revealIndex % state.players.length;
-    var wantsTrace = !!state.playerDots[artistIdx];
-    var difficulties = (state.playerDifficulty[artistIdx] && state.playerDifficulty[artistIdx].length) ? state.playerDifficulty[artistIdx] : ["Easy"];
-    var chosen = pickWord(difficulties, wantsTrace);
-    state.round = {
+  function localStartRound() {
+    var artistIdx = localState.revealIndex % localState.players.length;
+    var wantsTrace = !!localState.playerDots[artistIdx];
+    var difficulties = (localState.playerDifficulty[artistIdx] && localState.playerDifficulty[artistIdx].length) ? localState.playerDifficulty[artistIdx] : ["Easy"];
+    var chosen = pickWord(difficulties, wantsTrace, null, localState.selectedCategories);
+    localState.round = {
       difficulty: chosen.difficulty,
       word: chosen.word,
       category: chosen.category,
@@ -1734,148 +2865,148 @@
       difficulties: difficulties,
       skipUsed: false
     };
-    goToReveal();
+    localGoToReveal();
   }
 
-  function goToReveal() {
-    var name = state.players[state.round.artistIdx];
-    $("reveal-name").textContent = name;
-    $("reveal-name-2").textContent = name;
-    showScreen("screen-reveal");
-    saveCheckpoint("screen-reveal");
+  function localGoToReveal() {
+    var name = localState.players[localState.round.artistIdx];
+    $("local-reveal-name").textContent = name;
+    $("local-reveal-name-2").textContent = name;
+    showScreen("local-screen-reveal");
+    localSaveCheckpoint("local-screen-reveal");
   }
 
-  $("btn-show-word").addEventListener("click", function () {
-    $("word-difficulty-label").textContent = state.round.difficulty + " word";
-    $("word-secret").textContent = state.round.word;
-    $("btn-skip-word").style.display = state.round.skipUsed ? "none" : "";
-    showScreen("screen-word");
+  $("local-btn-show-word").addEventListener("click", function () {
+    $("local-word-difficulty-label").textContent = localState.round.difficulty + " word";
+    $("local-word-secret").textContent = localState.round.word;
+    $("local-btn-skip-word").style.display = localState.round.skipUsed ? "none" : "";
+    showScreen("local-screen-word");
   });
 
-  $("btn-skip-word").addEventListener("click", function () {
-    if (state.round.skipUsed) return;
-    var chosen = pickWord(state.round.difficulties, state.round.useTrace, state.round.word);
-    state.round.word = chosen.word;
-    state.round.difficulty = chosen.difficulty;
-    state.round.category = chosen.category;
-    state.round.skipUsed = true;
-    $("word-difficulty-label").textContent = state.round.difficulty + " word";
-    $("word-secret").textContent = state.round.word;
-    $("btn-skip-word").style.display = "none";
+  $("local-btn-skip-word").addEventListener("click", function () {
+    if (localState.round.skipUsed) return;
+    var chosen = pickWord(localState.round.difficulties, localState.round.useTrace, localState.round.word, localState.selectedCategories);
+    localState.round.word = chosen.word;
+    localState.round.difficulty = chosen.difficulty;
+    localState.round.category = chosen.category;
+    localState.round.skipUsed = true;
+    $("local-word-difficulty-label").textContent = localState.round.difficulty + " word";
+    $("local-word-secret").textContent = localState.round.word;
+    $("local-btn-skip-word").style.display = "none";
   });
 
-  $("btn-start-drawing").addEventListener("click", function () {
-    $("draw-artist-name").textContent = state.players[state.round.artistIdx];
-    showScreen("screen-draw");
-    setupCanvasIfNeeded();
-    clearCanvas();
-    undoStack = [];
-    redoStack = [];
-    $("btn-undo").disabled = true;
-    $("btn-redo").disabled = true;
-    startDrawTimer();
+  $("local-btn-start-localDrawing").addEventListener("click", function () {
+    $("local-draw-artist-name").textContent = localState.players[localState.round.artistIdx];
+    showScreen("local-screen-draw");
+    localSetupCanvasIfNeeded();
+    localClearCanvas();
+    localUndoStack = [];
+    localRedoStack = [];
+    $("local-btn-undo").disabled = true;
+    $("local-btn-redo").disabled = true;
+    localStartDrawTimer();
   });
 
   // ---------- Drawing timer ----------
-  var DRAW_SECONDS = 120;
-  var drawTimerHandle = null, drawTimeLeft = 0;
+  var LOCAL_DRAW_SECONDS = 120;
+  var localDrawTimerHandle = null, localDrawTimeLeft = 0;
 
-  function renderDrawTimer() {
-    var m = Math.floor(drawTimeLeft / 60), s = drawTimeLeft % 60;
-    var el = $("draw-timer");
+  function localRenderDrawTimer() {
+    var m = Math.floor(localDrawTimeLeft / 60), s = localDrawTimeLeft % 60;
+    var el = $("local-draw-timer");
     el.textContent = m + ":" + (s < 10 ? "0" : "") + s;
-    el.classList.toggle("low", drawTimeLeft <= 15);
+    el.classList.toggle("low", localDrawTimeLeft <= 15);
   }
 
-  function startDrawTimer() {
-    stopDrawTimer();
-    drawTimeLeft = DRAW_SECONDS;
-    renderDrawTimer();
-    drawTimerHandle = setInterval(function () {
-      drawTimeLeft--;
-      renderDrawTimer();
-      if (drawTimeLeft <= 0) {
-        stopDrawTimer();
-        finishDrawing();
+  function localStartDrawTimer() {
+    localStopDrawTimer();
+    localDrawTimeLeft = LOCAL_DRAW_SECONDS;
+    localRenderDrawTimer();
+    localDrawTimerHandle = setInterval(function () {
+      localDrawTimeLeft--;
+      localRenderDrawTimer();
+      if (localDrawTimeLeft <= 0) {
+        localStopDrawTimer();
+        localFinishDrawing();
       }
     }, 1000);
   }
 
-  function stopDrawTimer() {
-    if (drawTimerHandle) { clearInterval(drawTimerHandle); drawTimerHandle = null; }
+  function localStopDrawTimer() {
+    if (localDrawTimerHandle) { clearInterval(localDrawTimerHandle); localDrawTimerHandle = null; }
   }
 
   // ---------- Canvas ----------
-  function setupCanvasIfNeeded() {
-    if (canvas) return;
-    canvas = $("draw-canvas");
-    ctx = canvas.getContext("2d");
-    inkCanvas = document.createElement("canvas");
-    inkCanvas.width = canvas.width;
-    inkCanvas.height = canvas.height;
-    inkCtx = inkCanvas.getContext("2d");
+  function localSetupCanvasIfNeeded() {
+    if (localCanvas) return;
+    localCanvas = $("local-draw-localCanvas");
+    localCtx = localCanvas.getContext("2d");
+    localInkCanvas = document.createElement("localCanvas");
+    localInkCanvas.width = localCanvas.width;
+    localInkCanvas.height = localCanvas.height;
+    localInkCtx = localInkCanvas.getContext("2d");
 
-    var colorRow = $("color-row");
+    var colorRow = $("local-color-row");
     COLORS.forEach(function (c, i) {
       var sw = document.createElement("div");
       sw.className = "color-swatch" + (i === 0 ? " selected" : "");
       sw.style.background = c;
       sw.addEventListener("click", function () {
-        currentColor = c;
-        erasing = false;
+        localCurrentColor = c;
+        localErasing = false;
         Array.prototype.forEach.call(colorRow.children, function (el) { el.classList.remove("selected"); });
         sw.classList.add("selected");
-        $("btn-eraser").classList.remove("selected");
+        $("local-btn-eraser").classList.remove("selected");
       });
       colorRow.appendChild(sw);
     });
 
     function selectSize(btn, size) {
-      [$("size-sm"), $("size-md"), $("size-lg")].forEach(function (b) { b.classList.remove("selected"); });
+      [$("local-size-sm"), $("local-size-md"), $("local-size-lg")].forEach(function (b) { b.classList.remove("selected"); });
       btn.classList.add("selected");
-      currentSize = size;
+      localCurrentSize = size;
     }
-    $("size-sm").addEventListener("click", function () { selectSize($("size-sm"), 4); });
-    $("size-md").addEventListener("click", function () { selectSize($("size-md"), 9); });
-    $("size-lg").addEventListener("click", function () { selectSize($("size-lg"), 16); });
+    $("local-size-sm").addEventListener("click", function () { selectSize($("local-size-sm"), 4); });
+    $("local-size-md").addEventListener("click", function () { selectSize($("local-size-md"), 9); });
+    $("local-size-lg").addEventListener("click", function () { selectSize($("local-size-lg"), 16); });
 
-    $("btn-eraser").addEventListener("click", function () {
-      erasing = true;
-      $("btn-eraser").classList.add("selected");
+    $("local-btn-eraser").addEventListener("click", function () {
+      localErasing = true;
+      $("local-btn-eraser").classList.add("selected");
     });
-    $("btn-clear").addEventListener("click", function () {
-      saveUndoSnapshot();
-      clearCanvas();
+    $("local-btn-clear").addEventListener("click", function () {
+      localSaveUndoSnapshot();
+      localClearCanvas();
     });
-    $("btn-undo").addEventListener("click", function () {
-      if (!undoStack.length) return;
-      redoStack.push({
-        visible: ctx.getImageData(0, 0, canvas.width, canvas.height),
-        ink: inkCtx.getImageData(0, 0, canvas.width, canvas.height)
+    $("local-btn-undo").addEventListener("click", function () {
+      if (!localUndoStack.length) return;
+      localRedoStack.push({
+        visible: localCtx.getImageData(0, 0, localCanvas.width, localCanvas.height),
+        ink: localInkCtx.getImageData(0, 0, localCanvas.width, localCanvas.height)
       });
-      $("btn-redo").disabled = false;
-      var entry = undoStack.pop();
-      ctx.putImageData(entry.visible, 0, 0);
-      inkCtx.putImageData(entry.ink, 0, 0);
-      if (!undoStack.length) $("btn-undo").disabled = true;
+      $("local-btn-redo").disabled = false;
+      var entry = localUndoStack.pop();
+      localCtx.putImageData(entry.visible, 0, 0);
+      localInkCtx.putImageData(entry.ink, 0, 0);
+      if (!localUndoStack.length) $("local-btn-undo").disabled = true;
     });
-    $("btn-redo").addEventListener("click", function () {
-      if (!redoStack.length) return;
-      undoStack.push({
-        visible: ctx.getImageData(0, 0, canvas.width, canvas.height),
-        ink: inkCtx.getImageData(0, 0, canvas.width, canvas.height)
+    $("local-btn-redo").addEventListener("click", function () {
+      if (!localRedoStack.length) return;
+      localUndoStack.push({
+        visible: localCtx.getImageData(0, 0, localCanvas.width, localCanvas.height),
+        ink: localInkCtx.getImageData(0, 0, localCanvas.width, localCanvas.height)
       });
-      $("btn-undo").disabled = false;
-      var entry = redoStack.pop();
-      ctx.putImageData(entry.visible, 0, 0);
-      inkCtx.putImageData(entry.ink, 0, 0);
-      if (!redoStack.length) $("btn-redo").disabled = true;
+      $("local-btn-undo").disabled = false;
+      var entry = localRedoStack.pop();
+      localCtx.putImageData(entry.visible, 0, 0);
+      localInkCtx.putImageData(entry.ink, 0, 0);
+      if (!localRedoStack.length) $("local-btn-redo").disabled = true;
     });
 
     function pos(e) {
-      var rect = canvas.getBoundingClientRect();
-      var scaleX = canvas.width / rect.width;
-      var scaleY = canvas.height / rect.height;
+      var rect = localCanvas.getBoundingClientRect();
+      var scaleX = localCanvas.width / rect.width;
+      var scaleY = localCanvas.height / rect.height;
       var clientX = e.touches ? e.touches[0].clientX : e.clientX;
       var clientY = e.touches ? e.touches[0].clientY : e.clientY;
       return { x: (clientX - rect.left) * scaleX, y: (clientY - rect.top) * scaleY };
@@ -1883,41 +3014,41 @@
 
     function start(e) {
       e.preventDefault();
-      drawing = true;
-      saveUndoSnapshot();
+      localDrawing = true;
+      localSaveUndoSnapshot();
       var p = pos(e);
-      lastX = p.x; lastY = p.y;
-      dot(p.x, p.y);
+      localLastX = p.x; localLastY = p.y;
+      localDot(p.x, p.y);
     }
     function move(e) {
-      if (!drawing) return;
+      if (!localDrawing) return;
       e.preventDefault();
       var p = pos(e);
-      line(lastX, lastY, p.x, p.y);
-      lastX = p.x; lastY = p.y;
+      localLine(localLastX, localLastY, p.x, p.y);
+      localLastX = p.x; localLastY = p.y;
     }
-    function end(e) { drawing = false; }
+    function end(e) { localDrawing = false; }
 
-    canvas.addEventListener("mousedown", start);
-    canvas.addEventListener("mousemove", move);
+    localCanvas.addEventListener("mousedown", start);
+    localCanvas.addEventListener("mousemove", move);
     window.addEventListener("mouseup", end);
-    canvas.addEventListener("touchstart", start, { passive: false });
-    canvas.addEventListener("touchmove", move, { passive: false });
-    canvas.addEventListener("touchend", end);
+    localCanvas.addEventListener("touchstart", start, { passive: false });
+    localCanvas.addEventListener("touchmove", move, { passive: false });
+    localCanvas.addEventListener("touchend", end);
   }
 
-  function dot(x, y) {
-    [ctx, inkCtx].forEach(function (c) {
-      c.fillStyle = erasing ? "#ffffff" : currentColor;
+  function localDot(x, y) {
+    [localCtx, localInkCtx].forEach(function (c) {
+      c.fillStyle = localErasing ? "#ffffff" : localCurrentColor;
       c.beginPath();
-      c.arc(x, y, currentSize / 2, 0, Math.PI * 2);
+      c.arc(x, y, localCurrentSize / 2, 0, Math.PI * 2);
       c.fill();
     });
   }
-  function line(x1, y1, x2, y2) {
-    [ctx, inkCtx].forEach(function (c) {
-      c.strokeStyle = erasing ? "#ffffff" : currentColor;
-      c.lineWidth = erasing ? currentSize * 2 : currentSize;
+  function localLine(x1, y1, x2, y2) {
+    [localCtx, localInkCtx].forEach(function (c) {
+      c.strokeStyle = localErasing ? "#ffffff" : localCurrentColor;
+      c.lineWidth = localErasing ? localCurrentSize * 2 : localCurrentSize;
       c.lineCap = "round";
       c.lineJoin = "round";
       c.beginPath();
@@ -1926,239 +3057,179 @@
       c.stroke();
     });
   }
-  function clearCanvas() {
-    ctx.fillStyle = "#ffffff";
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-    inkCtx.fillStyle = "#ffffff";
-    inkCtx.fillRect(0, 0, inkCanvas.width, inkCanvas.height);
-    if (state.round && state.round.useTrace && TRACE_SHAPES.hasOwnProperty(state.round.word)) {
-      drawShapeDots(TRACE_SHAPES[state.round.word]);
+  function localClearCanvas() {
+    localCtx.fillStyle = "#ffffff";
+    localCtx.fillRect(0, 0, localCanvas.width, localCanvas.height);
+    localInkCtx.fillStyle = "#ffffff";
+    localInkCtx.fillRect(0, 0, localInkCanvas.width, localInkCanvas.height);
+    if (localState.round && localState.round.useTrace && TRACE_SHAPES.hasOwnProperty(localState.round.word)) {
+      drawShapeDots(localCtx, TRACE_SHAPES[localState.round.word]);
     }
   }
 
   // ---------- Pass-around guessing ----------
-  function shuffle(arr) {
-    for (var i = arr.length - 1; i > 0; i--) {
-      var j = Math.floor(Math.random() * (i + 1));
-      var tmp = arr[i]; arr[i] = arr[j]; arr[j] = tmp;
-    }
-    return arr;
-  }
+  
 
-  function finishDrawing() {
-    stopDrawTimer();
+  function localFinishDrawing() {
+    localStopDrawTimer();
     // guessers only ever see the ink layer — never the trace-guide dots/numbers
-    state.round.image = inkCanvas.toDataURL("image/png");
-    state.round.guesses = {};
-    state.round.hintUsed = {};
+    localState.round.image = localInkCanvas.toDataURL("image/png");
+    localState.round.guesses = {};
+    localState.round.hintUsed = {};
     // in Random Mix mode, the round rolls type-vs-choice ONCE here -- every
     // guesser this round gets the same mode, but it's unpredictable round to round
-    state.round.resolvedGuessMode = (state.guessMode === "random")
+    localState.round.resolvedGuessMode = (localState.guessMode === "random")
       ? ((Math.random() < 0.5) ? "type" : "choice")
-      : state.guessMode;
-    state.round.guessOrder = shuffle(state.players
+      : localState.guessMode;
+    localState.round.guessOrder = shuffle(localState.players
       .map(function (_, idx) { return idx; })
-      .filter(function (idx) { return idx !== state.round.artistIdx; }));
-    state.round.guessPos = 0;
-    if (state.round.resolvedGuessMode === "choice") {
-      state.round.choiceOptions = buildChoiceOptions(state.round.word);
+      .filter(function (idx) { return idx !== localState.round.artistIdx; }));
+    localState.round.guessPos = 0;
+    if (localState.round.resolvedGuessMode === "choice") {
+      localState.round.choiceOptions = buildChoiceOptions(localState.round.word);
     }
-    goToPassGuess();
+    localGoToPassGuess();
   }
 
-  $("btn-done-drawing").addEventListener("click", finishDrawing);
+  $("local-btn-done-localDrawing").addEventListener("click", localFinishDrawing);
 
-  function goToPassGuess() {
-    if (state.round.guessPos >= state.round.guessOrder.length) {
-      showScreen("screen-ready-reveal");
+  function localGoToPassGuess() {
+    if (localState.round.guessPos >= localState.round.guessOrder.length) {
+      showScreen("local-screen-ready-reveal");
       return;
     }
-    var guesserIdx = state.round.guessOrder[state.round.guessPos];
-    $("pass-guess-name").textContent = state.players[guesserIdx];
-    showScreen("screen-pass-guess");
+    var guesserIdx = localState.round.guessOrder[localState.round.guessPos];
+    $("local-pass-guess-name").textContent = localState.players[guesserIdx];
+    showScreen("local-screen-pass-guess");
   }
 
-  $("btn-show-answer").addEventListener("click", goToRevealGuesses);
+  $("local-btn-show-answer").addEventListener("click", localGoToRevealGuesses);
 
   // ---------- Guess timer ----------
-  var GUESS_SECONDS = 45;
-  var guessTimerHandle = null, guessTimeLeft = 0;
+  var LOCAL_GUESS_SECONDS = 45;
+  var localGuessTimerHandle = null, localGuessTimeLeft = 0;
 
-  function renderGuessTimer() {
-    var m = Math.floor(guessTimeLeft / 60), s = guessTimeLeft % 60;
-    var el = $("guess-timer");
+  function localRenderGuessTimer() {
+    var m = Math.floor(localGuessTimeLeft / 60), s = localGuessTimeLeft % 60;
+    var el = $("local-guess-timer");
     el.textContent = m + ":" + (s < 10 ? "0" : "") + s;
-    el.classList.toggle("low", guessTimeLeft <= 10);
+    el.classList.toggle("low", localGuessTimeLeft <= 10);
   }
 
-  function startGuessTimer() {
-    stopGuessTimer();
-    guessTimeLeft = GUESS_SECONDS;
-    renderGuessTimer();
-    guessTimerHandle = setInterval(function () {
-      guessTimeLeft--;
-      renderGuessTimer();
-      if (guessTimeLeft <= 0) {
-        stopGuessTimer();
-        submitGuess();
+  function localStartGuessTimer() {
+    localStopGuessTimer();
+    localGuessTimeLeft = LOCAL_GUESS_SECONDS;
+    localRenderGuessTimer();
+    localGuessTimerHandle = setInterval(function () {
+      localGuessTimeLeft--;
+      localRenderGuessTimer();
+      if (localGuessTimeLeft <= 0) {
+        localStopGuessTimer();
+        localSubmitGuess();
       }
     }, 1000);
   }
 
-  function stopGuessTimer() {
-    if (guessTimerHandle) { clearInterval(guessTimerHandle); guessTimerHandle = null; }
+  function localStopGuessTimer() {
+    if (localGuessTimerHandle) { clearInterval(localGuessTimerHandle); localGuessTimerHandle = null; }
   }
 
-  function renderGuessChoices() {
-    var wrap = $("guess-choice-options");
+  function localRenderGuessChoices() {
+    var wrap = $("local-guess-choice-options");
     wrap.innerHTML = "";
-    state.round.choiceOptions.forEach(function (word) {
+    localState.round.choiceOptions.forEach(function (word) {
       var chip = document.createElement("div");
       chip.className = "chip";
       chip.textContent = word;
-      chip.addEventListener("click", function () { submitGuess(word); });
+      chip.addEventListener("click", function () { localSubmitGuess(word); });
       wrap.appendChild(chip);
     });
   }
 
-  $("btn-ready-to-guess").addEventListener("click", function () {
-    var guesserIdx = state.round.guessOrder[state.round.guessPos];
-    $("guess-input-name").textContent = state.players[guesserIdx];
-    $("guess-drawing-img").src = state.round.image;
-    $("guess-input-field").value = "";
+  $("local-btn-ready-to-guess").addEventListener("click", function () {
+    var guesserIdx = localState.round.guessOrder[localState.round.guessPos];
+    $("local-guess-input-name").textContent = localState.players[guesserIdx];
+    $("local-guess-localDrawing-img").src = localState.round.image;
+    $("local-guess-input-field").value = "";
     // the category-reveal option is always available, on every guess, for
     // everyone -- it's not a game-wide setup choice, just a per-guess tradeoff
-    var alreadyRevealed = !!state.round.hintUsed[guesserIdx];
+    var alreadyRevealed = !!localState.round.hintUsed[guesserIdx];
     if (alreadyRevealed) {
-      $("btn-reveal-category-hint").style.display = "none";
-      $("guess-category-hint").textContent = "Category: " + state.round.category + " — this guess is worth 0.5 points";
-      $("guess-category-hint").style.display = "";
+      $("local-btn-reveal-category-hint").style.display = "none";
+      $("local-guess-category-hint").textContent = "Category: " + localState.round.category + " — this guess is worth 0.5 points";
+      $("local-guess-category-hint").style.display = "";
     } else {
-      $("btn-reveal-category-hint").style.display = "";
-      $("guess-category-hint").style.display = "none";
+      $("local-btn-reveal-category-hint").style.display = "";
+      $("local-guess-category-hint").style.display = "none";
     }
-    if (state.round.resolvedGuessMode === "choice" && state.round.choiceOptions) {
-      $("guess-type-card").style.display = "none";
-      $("guess-choice-card").style.display = "";
-      $("btn-submit-guess").style.display = "none";
-      renderGuessChoices();
+    if (localState.round.resolvedGuessMode === "choice" && localState.round.choiceOptions) {
+      $("local-guess-type-card").style.display = "none";
+      $("local-guess-choice-card").style.display = "";
+      $("local-btn-submit-guess").style.display = "none";
+      localRenderGuessChoices();
     } else {
-      $("guess-type-card").style.display = "";
-      $("guess-choice-card").style.display = "none";
-      $("btn-submit-guess").style.display = "";
+      $("local-guess-type-card").style.display = "";
+      $("local-guess-choice-card").style.display = "none";
+      $("local-btn-submit-guess").style.display = "";
     }
-    showScreen("screen-guess-input");
-    if (!(state.round.resolvedGuessMode === "choice" && state.round.choiceOptions)) {
-      $("guess-input-field").focus();
+    showScreen("local-screen-guess-input");
+    if (!(localState.round.resolvedGuessMode === "choice" && localState.round.choiceOptions)) {
+      $("local-guess-input-field").focus();
     }
-    startGuessTimer();
+    localStartGuessTimer();
   });
 
-  $("btn-reveal-category-hint").addEventListener("click", function () {
-    var guesserIdx = state.round.guessOrder[state.round.guessPos];
-    state.round.hintUsed[guesserIdx] = true;
-    $("btn-reveal-category-hint").style.display = "none";
-    $("guess-category-hint").textContent = "Category: " + state.round.category + " — this guess is worth 0.5 points";
-    $("guess-category-hint").style.display = "";
+  $("local-btn-reveal-category-hint").addEventListener("click", function () {
+    var guesserIdx = localState.round.guessOrder[localState.round.guessPos];
+    localState.round.hintUsed[guesserIdx] = true;
+    $("local-btn-reveal-category-hint").style.display = "none";
+    $("local-guess-category-hint").textContent = "Category: " + localState.round.category + " — this guess is worth 0.5 points";
+    $("local-guess-category-hint").style.display = "";
   });
 
-  function submitGuess(explicitGuess) {
-    stopGuessTimer();
-    var guesserIdx = state.round.guessOrder[state.round.guessPos];
-    var guessText = (typeof explicitGuess === "string") ? explicitGuess : $("guess-input-field").value.trim();
-    state.round.guesses[guesserIdx] = guessText;
-    state.round.guessPos++;
-    goToPassGuess();
+  function localSubmitGuess(explicitGuess) {
+    localStopGuessTimer();
+    var guesserIdx = localState.round.guessOrder[localState.round.guessPos];
+    var guessText = (typeof explicitGuess === "string") ? explicitGuess : $("local-guess-input-field").value.trim();
+    localState.round.guesses[guesserIdx] = guessText;
+    localState.round.guessPos++;
+    localGoToPassGuess();
   }
 
-  $("btn-submit-guess").addEventListener("click", function () { submitGuess(); });
+  $("local-btn-submit-guess").addEventListener("click", function () { localSubmitGuess(); });
 
-  function normalizeGuess(s) {
-    return s.toLowerCase().trim().replace(/[^a-z0-9 ]/g, "").replace(/\s+/g, " ");
-  }
+  
 
-  function levenshtein(a, b) {
-    var m = a.length, n = b.length;
-    var prev = [];
-    for (var j = 0; j <= n; j++) prev[j] = j;
-    for (var i = 1; i <= m; i++) {
-      var cur = [i];
-      for (var k = 1; k <= n; k++) {
-        var cost = a[i - 1] === b[k - 1] ? 0 : 1;
-        cur[k] = Math.min(prev[k] + 1, cur[k - 1] + 1, prev[k - 1] + cost);
-      }
-      prev = cur;
-    }
-    return prev[n];
-  }
+  
 
   // Different words for the same real-world thing (not typos of each other,
   // so no amount of string-similarity math will ever equate them) -- each
   // inner array is one interchangeable group.
-  var SYNONYM_GROUPS = [
-    ["kippah", "kippa", "yarmulke", "yarmulka", "yamaka", "yamakah"]
-  ];
+  
 
   // The non-synonym-aware base comparison: exact match, simple plural,
   // substring containment, or a small Levenshtein distance that scales
   // with word length. Kept separate from closeEnough() below so the
   // synonym-group lookup (which uses this) can't recurse into itself.
-  function basicMatch(g, a) {
-    if (!g || !a) return false;
-    if (g === a) return true;
-    var gSing = g.replace(/s$/, "");
-    var aSing = a.replace(/s$/, "");
-    if (gSing === aSing) return true;
-    if (a.length >= 3 && (g.indexOf(a) !== -1 || a.indexOf(g) !== -1)) return true;
-    var maxLen = Math.max(g.length, a.length);
-    var threshold = maxLen <= 4 ? 0 : (maxLen <= 6 ? 1 : 2);
-    return levenshtein(g, a) <= threshold;
-  }
+  
 
-  function sameSynonymGroup(x, y) {
-    for (var i = 0; i < SYNONYM_GROUPS.length; i++) {
-      var group = SYNONYM_GROUPS[i];
-      var xIn = group.some(function (term) { return basicMatch(x, term); });
-      var yIn = group.some(function (term) { return basicMatch(y, term); });
-      if (xIn && yIn) return true;
-    }
-    return false;
-  }
+  
 
-  function closeEnough(g, a) {
-    return basicMatch(g, a) || sameSynonymGroup(g, a);
-  }
+  
 
-  function isCloseGuess(guess, answer) {
-    var g = normalizeGuess(guess);
-    var a = normalizeGuess(answer);
-    if (!g) return false;
-    if (closeEnough(g, a)) return true;
-    // a guess can match just the key word of a multi-word answer
-    // (e.g. "drums" for "drum set", "beehive" for "beehive comb")
-    var aWords = a.split(" ").filter(function (w) { return w.length >= 3; });
-    for (var i = 0; i < aWords.length; i++) {
-      if (closeEnough(g, aWords[i])) return true;
-    }
-    // and the reverse: a multi-word guess containing the key answer word
-    var gWords = g.split(" ").filter(function (w) { return w.length >= 3; });
-    for (var j = 0; j < gWords.length; j++) {
-      if (closeEnough(gWords[j], a)) return true;
-    }
-    return false;
-  }
+  
 
-  function goToRevealGuesses() {
-    var round = state.round;
-    var artistName = state.players[round.artistIdx];
-    $("reveal-word").textContent = round.word;
-    $("reveal-drawing-img").src = round.image;
+  function localGoToRevealGuesses() {
+    var round = localState.round;
+    var artistName = localState.players[round.artistIdx];
+    $("local-reveal-word").textContent = round.word;
+    $("local-reveal-localDrawing-img").src = round.image;
 
-    var tally = $("guess-tally");
+    var tally = $("local-guess-tally");
     tally.innerHTML = "";
     var correctPoints = 0;
     round.guessOrder.forEach(function (idx) {
-      var name = state.players[idx];
+      var name = localState.players[idx];
       var guess = round.guesses[idx] || "(no guess)";
       var isCorrect = isCloseGuess(guess, round.word);
       var usedHint = !!(round.hintUsed && round.hintUsed[idx]);
@@ -2166,7 +3237,7 @@
       if (isCorrect) {
         earned = usedHint ? 0.5 : 1;
         correctPoints += earned;
-        state.scores[name] += earned;
+        localState.scores[name] += earned;
       }
       var row = document.createElement("div");
       row.className = "tally-row";
@@ -2174,44 +3245,44 @@
       row.innerHTML = "<span>" + (isCorrect ? "✅ " : "❌ ") + name + pointsNote + "</span><span>" + guess + "</span>";
       tally.appendChild(row);
     });
-    state.scores[artistName] += correctPoints;
-    state.gallery.push({ word: round.word, artist: artistName, image: round.image });
+    localState.scores[artistName] += correctPoints;
+    localState.gallery.push({ word: round.word, artist: artistName, image: round.image });
 
-    showScreen("screen-reveal-guesses");
+    showScreen("local-screen-reveal-guesses");
   }
 
   // ---------- Scoreboard & win condition ----------
-  function scoreEntries() {
-    var entries = Object.keys(state.scores).map(function (name) {
-      return { name: name, score: state.scores[name] };
+  function localScoreEntries() {
+    var entries = Object.keys(localState.scores).map(function (name) {
+      return { name: name, score: localState.scores[name] };
     });
     entries.sort(function (a, b) { return b.score - a.score; });
     return entries;
   }
 
-  function renderScoreboardInto(elId) {
+  function localRenderScoreboardInto(elId) {
     var board = $(elId);
     board.innerHTML = "";
-    scoreEntries().forEach(function (e) {
+    localScoreEntries().forEach(function (e) {
       var row = document.createElement("div");
       row.className = "score-row";
       row.innerHTML = "<span>" + e.name + "</span><strong>" + e.score + "</strong>";
       board.appendChild(row);
     });
-    if (elId === "scoreboard") $("scoreboard-target").textContent = state.targetScore;
+    if (elId === "local-scoreboard") $("local-scoreboard-target").textContent = localState.targetScore;
   }
 
-  function renderGallery() {
-    var list = $("gallery-list");
+  function localRenderGallery() {
+    var list = $("local-gallery-list");
     list.innerHTML = "";
-    if (!state.gallery.length) {
+    if (!localState.gallery.length) {
       var empty = document.createElement("div");
       empty.className = "card center";
       empty.textContent = "No drawings yet — this fills up as you play.";
       list.appendChild(empty);
       return;
     }
-    state.gallery.forEach(function (entry) {
+    localState.gallery.forEach(function (entry) {
       var wrap = document.createElement("div");
       wrap.className = "gallery-entry";
       var img = document.createElement("img");
@@ -2226,19 +3297,19 @@
     });
   }
 
-  $("btn-view-gallery").addEventListener("click", function () {
-    renderGallery();
-    showScreen("screen-gallery");
+  $("local-btn-view-gallery").addEventListener("click", function () {
+    localRenderGallery();
+    showScreen("local-screen-gallery");
   });
-  $("btn-gallery-back").addEventListener("click", function () {
-    showScreen("screen-game-won");
+  $("local-btn-gallery-back").addEventListener("click", function () {
+    showScreen("local-screen-game-won");
   });
 
-  function computeWinner() {
-    var entries = scoreEntries();
+  function localComputeWinner() {
+    var entries = localScoreEntries();
     if (!entries.length) return null;
     var maxScore = entries[0].score;
-    if (maxScore < state.targetScore) return null;
+    if (maxScore < localState.targetScore) return null;
     var topPlayers = entries.filter(function (e) { return e.score === maxScore; });
     if (topPlayers.length === 1) return { tie: false, names: [topPlayers[0].name] };
     // With exactly 2 players, a tie at/above target can never break on its own —
@@ -2246,149 +3317,149 @@
     // has one guesser and the artist's bonus just mirrors that guesser's result.
     // Rather than keep play going forever waiting for a lead that can't happen,
     // call it a tie (players can still choose to Extend the Game from there).
-    if (state.players.length === 2) {
+    if (localState.players.length === 2) {
       return { tie: true, names: topPlayers.map(function (e) { return e.name; }) };
     }
     return null; // 3+ players tied at/above target — keep playing until someone pulls ahead
   }
 
-  function winnerDisplayText(result) {
+  function localWinnerDisplayText(result) {
     return result.tie ? ("🤝 It's a Tie! " + result.names.join(" & ")) : ("🎉 " + result.names[0]);
   }
 
-  $("btn-next-round").addEventListener("click", function () {
-    var result = computeWinner();
+  $("local-btn-next-round").addEventListener("click", function () {
+    var result = localComputeWinner();
     if (result) {
       // the actual winning score can be higher than the original target score
       // (the tie-break rule keeps play going past it), so remember it —
       // extending the game must require going higher than THIS, not the setup value
-      state.lastWinningScore = state.scores[result.names[0]];
-      $("winner-name").textContent = winnerDisplayText(result);
-      renderScoreboardInto("winner-scoreboard");
-      $("extend-game-form").style.display = "none";
-      showScreen("screen-game-won");
-      saveCheckpoint("screen-game-won");
+      localState.lastWinningScore = localState.scores[result.names[0]];
+      $("local-winner-name").textContent = localWinnerDisplayText(result);
+      localRenderScoreboardInto("local-winner-scoreboard");
+      $("local-extend-game-form").style.display = "none";
+      showScreen("local-screen-game-won");
+      localSaveCheckpoint("local-screen-game-won");
     } else {
-      renderScoreboardInto("scoreboard");
-      $("end-game-confirm").style.display = "none";
-      showScreen("screen-scores");
-      saveCheckpoint("screen-scores");
+      localRenderScoreboardInto("local-scoreboard");
+      $("local-end-game-confirm").style.display = "none";
+      showScreen("local-screen-scores");
+      localSaveCheckpoint("local-screen-scores");
     }
   });
 
-  $("btn-back-to-round").addEventListener("click", function () {
-    state.revealIndex++;
-    startRound();
+  $("local-btn-back-to-round").addEventListener("click", function () {
+    localState.revealIndex++;
+    localStartRound();
   });
 
   // ---------- Extend game ----------
-  $("btn-extend-game").addEventListener("click", function () {
-    var floor = state.lastWinningScore + 1;
-    $("extend-target-input").min = floor;
-    $("extend-target-input").value = state.lastWinningScore + 5;
-    $("extend-game-form").style.display = "";
+  $("local-btn-extend-game").addEventListener("click", function () {
+    var floor = localState.lastWinningScore + 1;
+    $("local-extend-target-input").min = floor;
+    $("local-extend-target-input").value = localState.lastWinningScore + 5;
+    $("local-extend-game-form").style.display = "";
   });
 
-  $("btn-confirm-extend").addEventListener("click", function () {
-    var floor = state.lastWinningScore + 1;
-    var newTarget = parseInt($("extend-target-input").value, 10);
-    if (!(newTarget >= floor)) newTarget = state.lastWinningScore + 5;
-    state.targetScore = newTarget;
-    state.revealIndex++;
-    startRound();
+  $("local-btn-confirm-extend").addEventListener("click", function () {
+    var floor = localState.lastWinningScore + 1;
+    var newTarget = parseInt($("local-extend-target-input").value, 10);
+    if (!(newTarget >= floor)) newTarget = localState.lastWinningScore + 5;
+    localState.targetScore = newTarget;
+    localState.revealIndex++;
+    localStartRound();
   });
 
-  $("btn-new-game").addEventListener("click", function () {
-    state.canResume = false;
-    $("resume-banner").style.display = "none";
-    clearSavedGame();
-    showScreen("screen-setup");
+  $("local-btn-new-game").addEventListener("click", function () {
+    localState.canResume = false;
+    $("local-resume-banner").style.display = "none";
+    localClearSavedGame();
+    showScreen("local-screen-setup");
   });
 
   // ---------- End game (with undo) ----------
-  $("btn-end-game").addEventListener("click", function () {
-    $("end-game-confirm").style.display = "";
+  $("local-btn-end-game").addEventListener("click", function () {
+    $("local-end-game-confirm").style.display = "";
   });
 
-  $("btn-cancel-end-game").addEventListener("click", function () {
-    $("end-game-confirm").style.display = "none";
+  $("local-btn-cancel-end-game").addEventListener("click", function () {
+    $("local-end-game-confirm").style.display = "none";
   });
 
-  $("btn-confirm-end-game").addEventListener("click", function () {
-    $("end-game-confirm").style.display = "none";
-    state.canResume = true;
-    $("resume-banner").style.display = "";
-    showScreen("screen-setup");
+  $("local-btn-confirm-end-game").addEventListener("click", function () {
+    $("local-end-game-confirm").style.display = "none";
+    localState.canResume = true;
+    $("local-resume-banner").style.display = "";
+    showScreen("local-screen-setup");
   });
 
-  $("btn-resume-game").addEventListener("click", function () {
-    if (!state.canResume) return;
-    renderScoreboardInto("scoreboard");
-    showScreen("screen-scores");
+  $("local-btn-resume-game").addEventListener("click", function () {
+    if (!localState.canResume) return;
+    localRenderScoreboardInto("local-scoreboard");
+    showScreen("local-screen-scores");
   });
 
   // ---------- Refresh-resume prompt ----------
-  var pendingResume = loadSavedGame();
-  if (pendingResume && pendingResume.state && pendingResume.state.players && pendingResume.state.players.length >= 2) {
-    $("refresh-resume-banner").style.display = "";
+  var localPendingResume = localLoadSavedGame();
+  if (localPendingResume && localPendingResume.localState && localPendingResume.localState.players && localPendingResume.localState.players.length >= 2) {
+    $("local-refresh-resume-banner").style.display = "";
   } else {
-    pendingResume = null;
+    localPendingResume = null;
   }
 
-  $("btn-refresh-startnew").addEventListener("click", function () {
-    clearSavedGame();
-    pendingResume = null;
-    $("refresh-resume-banner").style.display = "none";
+  $("local-btn-refresh-startnew").addEventListener("click", function () {
+    localClearSavedGame();
+    localPendingResume = null;
+    $("local-refresh-resume-banner").style.display = "none";
   });
 
-  $("btn-refresh-continue").addEventListener("click", function () {
-    if (!pendingResume) return;
-    var saved = pendingResume.state;
-    state.players = saved.players;
-    state.playerDots = saved.playerDots;
-    state.playerDifficulty = saved.playerDifficulty;
-    state.selectedCategories = saved.selectedCategories;
-    state.guessMode = saved.guessMode || "type";
-    renderGuessModeChips();
-    state.targetScore = saved.targetScore;
-    state.lastWinningScore = saved.lastWinningScore;
-    state.scores = saved.scores;
-    state.revealIndex = saved.revealIndex;
-    state.round = saved.round;
-    $("refresh-resume-banner").style.display = "none";
-    if (pendingResume.screen === "screen-scores") {
-      renderScoreboardInto("scoreboard");
-      showScreen("screen-scores");
-    } else if (pendingResume.screen === "screen-game-won") {
-      var result = computeWinner();
-      $("winner-name").textContent = result ? winnerDisplayText(result) : "";
-      renderScoreboardInto("winner-scoreboard");
-      $("extend-game-form").style.display = "none";
-      showScreen("screen-game-won");
+  $("local-btn-refresh-continue").addEventListener("click", function () {
+    if (!localPendingResume) return;
+    var saved = localPendingResume.localState;
+    localState.players = saved.players;
+    localState.playerDots = saved.playerDots;
+    localState.playerDifficulty = saved.playerDifficulty;
+    localState.selectedCategories = saved.selectedCategories;
+    localState.guessMode = saved.guessMode || "type";
+    localRenderGuessModeChips();
+    localState.targetScore = saved.targetScore;
+    localState.lastWinningScore = saved.lastWinningScore;
+    localState.scores = saved.scores;
+    localState.revealIndex = saved.revealIndex;
+    localState.round = saved.round;
+    $("local-refresh-resume-banner").style.display = "none";
+    if (localPendingResume.screen === "local-screen-scores") {
+      localRenderScoreboardInto("local-scoreboard");
+      showScreen("local-screen-scores");
+    } else if (localPendingResume.screen === "local-screen-game-won") {
+      var result = localComputeWinner();
+      $("local-winner-name").textContent = result ? localWinnerDisplayText(result) : "";
+      localRenderScoreboardInto("local-winner-scoreboard");
+      $("local-extend-game-form").style.display = "none";
+      showScreen("local-screen-game-won");
     } else {
       // start of the in-progress round — the safest resumable point, since
       // nothing about that round (guess order, scoring) has happened yet
-      goToReveal();
+      localGoToReveal();
     }
-    pendingResume = null;
+    localPendingResume = null;
   });
 
   // ---------- Enter key advances the current screen ----------
   // Maps each screen to its main forward action, so pressing Enter anywhere
   // on that screen (a text field, a number field, or nothing focused at all)
   // behaves like tapping that screen's primary button.
-  var SCREEN_ENTER_TARGETS = {
-    "screen-setup": "btn-start-game",
-    "screen-reveal": "btn-show-word",
-    "screen-word": "btn-start-drawing",
-    "screen-draw": "btn-done-drawing",
-    "screen-pass-guess": "btn-ready-to-guess",
-    "screen-guess-input": "btn-submit-guess",
-    "screen-ready-reveal": "btn-show-answer",
-    "screen-reveal-guesses": "btn-next-round",
-    "screen-game-won": "btn-new-game",
-    "screen-gallery": "btn-gallery-back",
-    "screen-scores": "btn-back-to-round"
+  var LOCAL_SCREEN_ENTER_TARGETS = {
+    "local-screen-setup": "local-btn-start-game",
+    "local-screen-reveal": "local-btn-show-word",
+    "local-screen-word": "local-btn-start-localDrawing",
+    "local-screen-draw": "local-btn-done-localDrawing",
+    "local-screen-pass-guess": "local-btn-ready-to-guess",
+    "local-screen-guess-input": "local-btn-submit-guess",
+    "local-screen-ready-reveal": "local-btn-show-answer",
+    "local-screen-reveal-guesses": "local-btn-next-round",
+    "local-screen-game-won": "local-btn-new-game",
+    "local-screen-gallery": "local-btn-gallery-back",
+    "local-screen-scores": "local-btn-back-to-round"
   };
 
   document.addEventListener("keydown", function (e) {
@@ -2399,11 +3470,11 @@
     var screenId = activeScreen.id;
 
     // never let Enter reach for a destructive confirmation on its own
-    if (screenId === "screen-scores" && $("end-game-confirm").style.display !== "none") return;
+    if (screenId === "local-screen-scores" && $("local-end-game-confirm").style.display !== "none") return;
 
-    var targetId = (screenId === "screen-game-won" && $("extend-game-form").style.display !== "none")
-      ? "btn-confirm-extend"
-      : SCREEN_ENTER_TARGETS[screenId];
+    var targetId = (screenId === "local-screen-game-won" && $("local-extend-game-form").style.display !== "none")
+      ? "local-btn-confirm-extend"
+      : LOCAL_SCREEN_ENTER_TARGETS[screenId];
     if (!targetId) return;
 
     var btn = $(targetId);
@@ -2418,10 +3489,11 @@
   });
 
   // ---------- Init ----------
-  renderPlayerList();
-  renderCategoryChips();
-  renderGuessModeChips();
+  localRenderPlayerList();
+  localRenderCategoryChips();
+  localRenderGuessModeChips();
 })();
+
 </script>
 </body>
 </html>
