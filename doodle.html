@@ -1579,7 +1579,7 @@ function drawShapeDots(targetCtx, shapeKey) {
         dotPositions.push(p);
         placedGlobal.push(p);
       });
-      // a lone localDot isn't worth numbering — leave very short/mostly-skipped segments unmarked
+      // a lone dot isn't worth numbering — leave very short/mostly-skipped segments unmarked
       if (dotPositions.length < 2) return;
       allDots = allDots.concat(dotPositions);
     });
@@ -2558,8 +2558,6 @@ $("local-btn-back-home").addEventListener("click", function () { showScreen("scr
 
 
 
-(function () {
-  "use strict";
 
   
 
@@ -2575,8 +2573,8 @@ $("local-btn-back-home").addEventListener("click", function () { showScreen("scr
 
   
 
-  // Greedy nearest-neighbor ordering: starting from the first localDot, always hop to
-  // whichever remaining localDot is physically closest. This keeps the numbered path
+  // Greedy nearest-neighbor ordering: starting from the first dot, always hop to
+  // whichever remaining dot is physically closest. This keeps the numbered path
   // flowing smoothly (no long jumps across the shape) so a kid can just follow
   // 1, 2, 3... without hunting for where the next number is.
   
@@ -2895,7 +2893,7 @@ $("local-btn-back-home").addEventListener("click", function () { showScreen("scr
     $("local-btn-skip-word").style.display = "none";
   });
 
-  $("local-btn-start-localDrawing").addEventListener("click", function () {
+  $("local-btn-start-drawing").addEventListener("click", function () {
     $("local-draw-artist-name").textContent = localState.players[localState.round.artistIdx];
     showScreen("local-screen-draw");
     localSetupCanvasIfNeeded();
@@ -2939,7 +2937,7 @@ $("local-btn-back-home").addEventListener("click", function () { showScreen("scr
   // ---------- Canvas ----------
   function localSetupCanvasIfNeeded() {
     if (localCanvas) return;
-    localCanvas = $("local-draw-localCanvas");
+    localCanvas = $("local-draw-canvas");
     localCtx = localCanvas.getContext("2d");
     localInkCanvas = document.createElement("localCanvas");
     localInkCanvas.width = localCanvas.width;
@@ -3091,7 +3089,7 @@ $("local-btn-back-home").addEventListener("click", function () { showScreen("scr
     localGoToPassGuess();
   }
 
-  $("local-btn-done-localDrawing").addEventListener("click", localFinishDrawing);
+  $("local-btn-done-drawing").addEventListener("click", localFinishDrawing);
 
   function localGoToPassGuess() {
     if (localState.round.guessPos >= localState.round.guessOrder.length) {
@@ -3149,7 +3147,7 @@ $("local-btn-back-home").addEventListener("click", function () { showScreen("scr
   $("local-btn-ready-to-guess").addEventListener("click", function () {
     var guesserIdx = localState.round.guessOrder[localState.round.guessPos];
     $("local-guess-input-name").textContent = localState.players[guesserIdx];
-    $("local-guess-localDrawing-img").src = localState.round.image;
+    $("local-guess-drawing-img").src = localState.round.image;
     $("local-guess-input-field").value = "";
     // the category-reveal option is always available, on every guess, for
     // everyone -- it's not a game-wide setup choice, just a per-guess tradeoff
@@ -3223,7 +3221,7 @@ $("local-btn-back-home").addEventListener("click", function () { showScreen("scr
     var round = localState.round;
     var artistName = localState.players[round.artistIdx];
     $("local-reveal-word").textContent = round.word;
-    $("local-reveal-localDrawing-img").src = round.image;
+    $("local-reveal-drawing-img").src = round.image;
 
     var tally = $("local-guess-tally");
     tally.innerHTML = "";
@@ -3451,8 +3449,8 @@ $("local-btn-back-home").addEventListener("click", function () { showScreen("scr
   var LOCAL_SCREEN_ENTER_TARGETS = {
     "local-screen-setup": "local-btn-start-game",
     "local-screen-reveal": "local-btn-show-word",
-    "local-screen-word": "local-btn-start-localDrawing",
-    "local-screen-draw": "local-btn-done-localDrawing",
+    "local-screen-word": "local-btn-start-drawing",
+    "local-screen-draw": "local-btn-done-drawing",
     "local-screen-pass-guess": "local-btn-ready-to-guess",
     "local-screen-guess-input": "local-btn-submit-guess",
     "local-screen-ready-reveal": "local-btn-show-answer",
@@ -3492,7 +3490,6 @@ $("local-btn-back-home").addEventListener("click", function () { showScreen("scr
   localRenderPlayerList();
   localRenderCategoryChips();
   localRenderGuessModeChips();
-})();
 
 </script>
 </body>
