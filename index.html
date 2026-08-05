@@ -70,18 +70,6 @@
   }
   input[type="text"]:focus, select:focus { outline: 2px solid var(--accent); }
   .row { display: flex; gap: 8px; align-items: center; }
-  .player-row { display: flex; gap: 8px; margin-bottom: 8px; }
-  .player-row input { flex: 1; }
-  .icon-btn {
-    background: var(--panel-2);
-    border: 1px solid var(--border);
-    color: var(--text-dim);
-    border-radius: 10px;
-    width: 44px; height: 44px;
-    font-size: 1.1rem;
-    cursor: pointer;
-  }
-  .icon-btn:active { transform: scale(0.95); }
   button.primary {
     background: var(--accent);
     color: #08130d;
@@ -105,6 +93,15 @@
     width: 100%;
   }
   button.danger { background: var(--accent-2); color: #2a0713; }
+  button.link {
+    background: none;
+    border: none;
+    color: var(--text-dim);
+    text-decoration: underline;
+    font-size: 0.8rem;
+    cursor: pointer;
+    padding: 6px;
+  }
   button:disabled { opacity: 0.4; cursor: not-allowed; }
   .chip-group { display: flex; flex-wrap: wrap; gap: 8px; }
   .chip {
@@ -118,13 +115,31 @@
     user-select: none;
   }
   .chip.selected { background: var(--accent); color: #08130d; border-color: var(--accent); font-weight: 600; }
+  .chip.static { cursor: default; }
   .center { text-align: center; }
   .big-name {
     font-size: 1.8rem;
     font-weight: 800;
     margin: 6px 0;
   }
-  .pass-icon { font-size: 3rem; margin: 10px 0; }
+  .room-code {
+    font-size: 2.6rem;
+    font-weight: 800;
+    letter-spacing: 0.2em;
+    text-align: center;
+    color: var(--accent);
+    margin: 8px 0;
+  }
+  .player-chip-list { display: flex; flex-wrap: wrap; gap: 8px; }
+  .player-chip {
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    padding: 7px 14px;
+    font-size: 0.85rem;
+  }
+  .host-badge { color: var(--accent); font-size: 0.7rem; margin-left: 4px; }
+  .waiting-text { color: var(--text-dim); text-align: center; padding: 16px 0; }
   .reveal-box {
     background: var(--panel-2);
     border: 1px solid var(--border);
@@ -192,6 +207,7 @@
     text-align: left;
   }
   .vote-btn.selected { background: var(--accent); color: #08130d; border-color: var(--accent); font-weight: 700; }
+  .vote-btn:disabled { opacity: 0.5; cursor: not-allowed; }
   .tally-row {
     display: flex;
     justify-content: space-between;
@@ -219,22 +235,40 @@
 <body>
 <div id="app">
   <h1>🦎 Chame<span>leon</span></h1>
-  <div class="subtitle">Pass-and-play party game — one device, everyone at the table</div>
+  <div class="subtitle">Play with friends on their own phones — everyone joins the same room</div>
 
-  <!-- SETUP -->
-  <div class="screen active" id="screen-setup">
+  <!-- HOME: create or join a room -->
+  <div class="screen active" id="screen-home">
     <div class="card">
-      <label>Players (3–12)</label>
-      <div id="player-list"></div>
-      <button class="secondary" id="btn-add-player" type="button">+ Add player</button>
+      <label>Your name</label>
+      <input type="text" id="input-name" maxlength="20" placeholder="Enter your name">
     </div>
     <div class="card">
+      <button class="primary" id="btn-create-room" type="button">Create Room</button>
+    </div>
+    <div class="card">
+      <label>Join a room</label>
+      <input type="text" id="input-join-code" maxlength="4" placeholder="Room code">
+      <button class="secondary" id="btn-join-room" type="button" style="margin-top:10px">Join Room</button>
+    </div>
+    <div class="center" id="home-status" style="color:var(--text-dim);font-size:0.85rem;"></div>
+  </div>
+
+  <!-- LOBBY -->
+  <div class="screen" id="screen-lobby">
+    <div class="card center">
+      <label>Room code — share with players</label>
+      <div class="room-code" id="lobby-code"></div>
+      <small class="hint">Everyone opens this page on their own device and enters this code to join.</small>
+    </div>
+    <div class="card">
+      <label>Players</label>
+      <div class="player-chip-list" id="lobby-players"></div>
+    </div>
+    <div class="card" id="lobby-settings-card">
       <label>Categories</label>
       <div class="chip-group" id="category-chips"></div>
-      <small class="hint">Tap to toggle. At least one must stay selected.</small>
-    </div>
-    <div class="card">
-      <label>Clue timer (seconds)</label>
+      <label style="margin-top:12px">Clue timer (seconds)</label>
       <select id="timer-select">
         <option value="0">No timer</option>
         <option value="60">60</option>
@@ -244,26 +278,19 @@
       </select>
     </div>
     <button class="primary" id="btn-start-game" type="button">Start Game</button>
+    <div class="waiting-text" id="lobby-waiting" style="display:none">Waiting for the host to start the game…</div>
+    <button class="link" id="btn-leave-room" type="button">Leave room</button>
   </div>
 
-  <!-- REVEAL (pass device) -->
-  <div class="screen" id="screen-reveal">
-    <div class="card center">
-      <div class="pass-icon">📱➡️</div>
-      <div>Pass the device to</div>
-      <div class="big-name" id="reveal-name"></div>
-      <small class="hint">Only <span id="reveal-name-2"></span> should look at the screen now.</small>
-    </div>
-    <button class="primary" id="btn-show-role" type="button">I'm ready — show my role</button>
-  </div>
-
+  <!-- ROLE REVEAL (private, on each player's own device) -->
   <div class="screen" id="screen-role">
     <div class="reveal-box" id="role-box">
       <div class="category-label" id="role-category"></div>
       <div id="role-word-wrap"></div>
       <div class="word-grid" id="role-grid"></div>
     </div>
-    <button class="primary" id="btn-next-player" type="button">Got it, pass to next player</button>
+    <button class="primary" id="btn-ready" type="button">Got it, I'm ready</button>
+    <div class="waiting-text" id="role-waiting" style="display:none">Waiting for other players…</div>
   </div>
 
   <!-- DISCUSSION -->
@@ -287,12 +314,10 @@
   <!-- VOTING -->
   <div class="screen" id="screen-vote">
     <div class="card center">
-      <div>Pass the device to</div>
-      <div class="big-name" id="voter-name"></div>
-      <small class="hint">Who do you think is the Chameleon?</small>
+      <div>Who do you think is the Chameleon?</div>
     </div>
     <div class="vote-list" id="vote-list"></div>
-    <button class="primary" id="btn-submit-vote" type="button" disabled>Submit Vote</button>
+    <div class="waiting-text" id="vote-waiting" style="display:none">Waiting for other players to vote…</div>
   </div>
 
   <!-- RESULTS -->
@@ -303,418 +328,586 @@
     </div>
     <div class="card center" id="chameleon-reveal-box"></div>
     <div class="card center" id="guess-box" style="display:none">
-      <label>Chameleon's guess for the secret word</label>
-      <input type="text" id="guess-input" placeholder="Type the word you think it is...">
+      <label>Type the word you think it is</label>
+      <input type="text" id="guess-input" placeholder="Your guess...">
       <button class="secondary" id="btn-submit-guess" type="button" style="margin-top:10px">Reveal Answer</button>
     </div>
     <div class="result-banner" id="result-banner" style="display:none"></div>
-    <button class="primary" id="btn-next-round" type="button" style="display:none">Next Round</button>
-  </div>
-
-  <!-- SCOREBOARD -->
-  <div class="screen" id="screen-scores">
-    <div class="card">
+    <div class="card" id="scoreboard-card" style="display:none">
       <label>Scoreboard</label>
       <div class="scoreboard" id="scoreboard"></div>
     </div>
-    <div class="footer-nav">
-      <button class="secondary" id="btn-back-to-round" type="button">Back to Game</button>
+    <div class="footer-nav" id="results-host-nav" style="display:none">
+      <button class="secondary" id="btn-next-round" type="button">Next Round</button>
       <button class="danger" id="btn-end-game" type="button">End Game</button>
     </div>
+    <div class="waiting-text" id="results-waiting" style="display:none">Waiting for host…</div>
   </div>
 </div>
 
-<script>
-(function () {
-  "use strict";
+<script type="module">
+import { firebaseConfig } from "./firebase-config.js";
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+import { getDatabase, ref, set, get, update, onValue } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
 
-  var CATEGORIES = {
-    "Animals": ["Lion","Elephant","Dolphin","Penguin","Giraffe","Kangaroo","Octopus","Tiger","Panda","Owl","Shark","Cheetah","Koala","Fox","Gorilla","Peacock"],
-    "Movies": ["Titanic","Jaws","Inception","Frozen","Gladiator","Matrix","Avatar","Joker","Rocky","Shrek","Up","Grease","Alien","Coco","Jumanji","Cars"],
-    "Food": ["Pizza","Sushi","Tacos","Burger","Pasta","Ramen","Curry","Pancakes","Waffles","Salad","Steak","Dumplings","Falafel","Nachos","Risotto","Chili"],
-    "Sports": ["Soccer","Basketball","Tennis","Golf","Boxing","Swimming","Cricket","Rugby","Hockey","Baseball","Surfing","Cycling","Skiing","Volleyball","Archery","Bowling"],
-    "Countries": ["Japan","Brazil","Egypt","Canada","France","India","Mexico","Kenya","Norway","Thailand","Greece","Peru","Australia","Iceland","Morocco","Vietnam"],
-    "Occupations": ["Doctor","Chef","Pilot","Firefighter","Teacher","Plumber","Lawyer","Artist","Farmer","Dentist","Electrician","Journalist","Astronaut","Barber","Nurse","Architect"],
-    "Household Objects": ["Toaster","Pillow","Umbrella","Mirror","Candle","Blender","Ladder","Broom","Kettle","Lamp","Vacuum","Clock","Blanket","Scissors","Wrench","Fan"],
-    "Superheroes": ["Batman","Superman","Spider-Man","Iron Man","Thor","Hulk","Wonder Woman","Flash","Black Panther","Aquaman","Wolverine","Captain America","Storm","Deadpool","Green Lantern","Ant-Man"]
-  };
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getDatabase(app);
 
-  var state = {
-    players: ["", "", ""],
-    selectedCategories: Object.keys(CATEGORIES),
-    timerSeconds: 90,
-    scores: {},
-    round: null,
-    revealIndex: 0,
-    voteIndex: 0,
-    votes: {},
-    timerHandle: null,
-    timerRemaining: 0,
-    timerRunning: false
-  };
+const CATEGORIES = {
+  "Animals": ["Lion","Elephant","Dolphin","Penguin","Giraffe","Kangaroo","Octopus","Tiger","Panda","Owl","Shark","Cheetah","Koala","Fox","Gorilla","Peacock"],
+  "Movies": ["Titanic","Jaws","Inception","Frozen","Gladiator","Matrix","Avatar","Joker","Rocky","Shrek","Up","Grease","Alien","Coco","Jumanji","Cars"],
+  "Food": ["Pizza","Sushi","Tacos","Burger","Pasta","Ramen","Curry","Pancakes","Waffles","Salad","Steak","Dumplings","Falafel","Nachos","Risotto","Chili"],
+  "Sports": ["Soccer","Basketball","Tennis","Golf","Boxing","Swimming","Cricket","Rugby","Hockey","Baseball","Surfing","Cycling","Skiing","Volleyball","Archery","Bowling"],
+  "Countries": ["Japan","Brazil","Egypt","Canada","France","India","Mexico","Kenya","Norway","Thailand","Greece","Peru","Australia","Iceland","Morocco","Vietnam"],
+  "Occupations": ["Doctor","Chef","Pilot","Firefighter","Teacher","Plumber","Lawyer","Artist","Farmer","Dentist","Electrician","Journalist","Astronaut","Barber","Nurse","Architect"],
+  "Household Objects": ["Toaster","Pillow","Umbrella","Mirror","Candle","Blender","Ladder","Broom","Kettle","Lamp","Vacuum","Clock","Blanket","Scissors","Wrench","Fan"],
+  "Superheroes": ["Batman","Superman","Spider-Man","Iron Man","Thor","Hulk","Wonder Woman","Flash","Black Panther","Aquaman","Wolverine","Captain America","Storm","Deadpool","Green Lantern","Ant-Man"]
+};
+const CODE_CHARS = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; // no O/0, I/1
 
-  function $(id) { return document.getElementById(id); }
-  function showScreen(id) {
-    document.querySelectorAll(".screen").forEach(function (s) { s.classList.remove("active"); });
-    $(id).classList.add("active");
+const state = {
+  uid: null,
+  name: "",
+  roomCode: null,
+  isHost: false,
+  room: null,
+  timerHandle: null
+};
+
+function $(id) { return document.getElementById(id); }
+function showScreen(id) {
+  document.querySelectorAll(".screen").forEach(function (s) { s.classList.remove("active"); });
+  $(id).classList.add("active");
+}
+function pickRandom(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
+function shuffle(arr) {
+  for (var i = arr.length - 1; i > 0; i--) {
+    var j = Math.floor(Math.random() * (i + 1));
+    var tmp = arr[i]; arr[i] = arr[j]; arr[j] = tmp;
   }
+  return arr;
+}
+function generateRoomCode() {
+  var out = "";
+  for (var i = 0; i < 4; i++) out += CODE_CHARS[Math.floor(Math.random() * CODE_CHARS.length)];
+  return out;
+}
+function roomRef(code) { return ref(db, "rooms/" + code); }
 
-  // ---------- Setup screen ----------
-  function renderPlayerList() {
-    var wrap = $("player-list");
-    wrap.innerHTML = "";
-    state.players.forEach(function (name, i) {
-      var row = document.createElement("div");
-      row.className = "player-row";
-      var input = document.createElement("input");
-      input.type = "text";
-      input.placeholder = "Player " + (i + 1);
-      input.value = name;
-      input.maxLength = 20;
-      input.addEventListener("input", function () { state.players[i] = input.value; });
-      row.appendChild(input);
-      if (state.players.length > 3) {
-        var rm = document.createElement("button");
-        rm.className = "icon-btn";
-        rm.type = "button";
-        rm.textContent = "✕";
-        rm.addEventListener("click", function () {
-          state.players.splice(i, 1);
-          renderPlayerList();
-        });
-        row.appendChild(rm);
-      }
-      wrap.appendChild(row);
-    });
+// ---------- Auth ----------
+signInAnonymously(auth).catch(function (err) {
+  $("home-status").textContent = "Couldn't connect: " + err.message;
+});
+
+onAuthStateChanged(auth, function (user) {
+  if (!user) return;
+  state.uid = user.uid;
+  tryAutoRejoin();
+});
+
+function tryAutoRejoin() {
+  var saved = null;
+  try { saved = JSON.parse(localStorage.getItem("chameleon_room") || "null"); } catch (e) {}
+  if (!saved || !saved.code || !saved.name) return;
+  $("input-name").value = saved.name;
+  get(roomRef(saved.code)).then(function (snap) {
+    if (!snap.exists()) { localStorage.removeItem("chameleon_room"); return; }
+    var roomVal = snap.val();
+    if (roomVal.players && roomVal.players[state.uid]) {
+      state.roomCode = saved.code;
+      state.name = saved.name;
+      state.isHost = roomVal.hostUid === state.uid;
+      subscribeRoom(saved.code);
+    }
+  });
+}
+
+// ---------- Home screen ----------
+$("btn-create-room").addEventListener("click", function () {
+  var name = $("input-name").value.trim();
+  if (!name) { $("home-status").textContent = "Enter your name first."; return; }
+  if (!state.uid) { $("home-status").textContent = "Still connecting, try again in a moment."; return; }
+  createRoomFlow(name);
+});
+
+$("btn-join-room").addEventListener("click", function () {
+  var name = $("input-name").value.trim();
+  var code = $("input-join-code").value.trim().toUpperCase();
+  if (!name) { $("home-status").textContent = "Enter your name first."; return; }
+  if (!code) { $("home-status").textContent = "Enter a room code."; return; }
+  if (!state.uid) { $("home-status").textContent = "Still connecting, try again in a moment."; return; }
+  joinRoomFlow(code, name);
+});
+
+async function createRoomFlow(name) {
+  $("home-status").textContent = "Creating room…";
+  var code;
+  do { code = generateRoomCode(); } while ((await get(roomRef(code))).exists());
+  var uid = state.uid;
+  await set(roomRef(code), {
+    createdAt: Date.now(),
+    hostUid: uid,
+    phase: "lobby",
+    settings: { categories: Object.keys(CATEGORIES), timerSeconds: 90 },
+    players: { [uid]: { name: name, joinedAt: Date.now() } },
+    scores: { [uid]: 0 }
+  });
+  state.roomCode = code;
+  state.name = name;
+  state.isHost = true;
+  localStorage.setItem("chameleon_room", JSON.stringify({ code: code, name: name }));
+  subscribeRoom(code);
+}
+
+async function joinRoomFlow(code, name) {
+  $("home-status").textContent = "Joining…";
+  var snap = await get(roomRef(code));
+  if (!snap.exists()) { $("home-status").textContent = "Room not found."; return; }
+  var uid = state.uid;
+  var val = snap.val();
+  await update(ref(db, "rooms/" + code + "/players/" + uid), { name: name, joinedAt: Date.now() });
+  if (!val.scores || val.scores[uid] === undefined) {
+    await update(ref(db, "rooms/" + code + "/scores"), (function () { var o = {}; o[uid] = 0; return o; })());
   }
+  state.roomCode = code;
+  state.name = name;
+  state.isHost = val.hostUid === uid;
+  localStorage.setItem("chameleon_room", JSON.stringify({ code: code, name: name }));
+  subscribeRoom(code);
+}
 
-  $("btn-add-player").addEventListener("click", function () {
-    if (state.players.length >= 12) return;
-    state.players.push("");
-    renderPlayerList();
+$("btn-leave-room").addEventListener("click", function () {
+  if (!confirm("Leave this room?")) return;
+  localStorage.removeItem("chameleon_room");
+  location.reload();
+});
+
+// ---------- Live room subscription ----------
+function subscribeRoom(code) {
+  onValue(roomRef(code), function (snap) {
+    state.room = snap.val();
+    if (!state.room) {
+      localStorage.removeItem("chameleon_room");
+      showScreen("screen-home");
+      $("home-status").textContent = "Room closed.";
+      return;
+    }
+    state.isHost = state.room.hostUid === state.uid;
+    render();
+  });
+}
+
+function render() {
+  var room = state.room;
+  if (!room) return;
+  if (room.phase === "lobby") renderLobby();
+  else if (room.phase === "reveal") renderReveal();
+  else if (room.phase === "discuss") renderDiscuss();
+  else if (room.phase === "vote") renderVote();
+  else if (room.phase === "results") renderResults();
+}
+
+function playerName(uid) {
+  return state.room.players && state.room.players[uid] ? state.room.players[uid].name : "?";
+}
+function playerUids() {
+  return state.room.players ? Object.keys(state.room.players) : [];
+}
+
+// ---------- Lobby ----------
+function renderLobby() {
+  var room = state.room;
+  $("lobby-code").textContent = state.roomCode;
+
+  var list = $("lobby-players");
+  list.innerHTML = "";
+  playerUids().forEach(function (uid) {
+    var chip = document.createElement("div");
+    chip.className = "player-chip";
+    chip.textContent = playerName(uid) + (uid === room.hostUid ? "" : "");
+    if (uid === room.hostUid) {
+      var badge = document.createElement("span");
+      badge.className = "host-badge";
+      badge.textContent = "HOST";
+      chip.appendChild(badge);
+    }
+    list.appendChild(chip);
   });
 
-  function renderCategoryChips() {
-    var wrap = $("category-chips");
-    wrap.innerHTML = "";
-    Object.keys(CATEGORIES).forEach(function (cat) {
-      var chip = document.createElement("div");
-      chip.className = "chip" + (state.selectedCategories.indexOf(cat) !== -1 ? " selected" : "");
-      chip.textContent = cat;
+  var catWrap = $("category-chips");
+  catWrap.innerHTML = "";
+  var selected = room.settings.categories || [];
+  Object.keys(CATEGORIES).forEach(function (cat) {
+    var chip = document.createElement("div");
+    chip.className = "chip" + (selected.indexOf(cat) !== -1 ? " selected" : "") + (state.isHost ? "" : " static");
+    chip.textContent = cat;
+    if (state.isHost) {
       chip.addEventListener("click", function () {
-        var idx = state.selectedCategories.indexOf(cat);
+        var idx = selected.indexOf(cat);
+        var next = selected.slice();
         if (idx !== -1) {
-          if (state.selectedCategories.length === 1) return;
-          state.selectedCategories.splice(idx, 1);
+          if (next.length === 1) return;
+          next.splice(idx, 1);
         } else {
-          state.selectedCategories.push(cat);
+          next.push(cat);
         }
-        renderCategoryChips();
+        update(ref(db, "rooms/" + state.roomCode + "/settings"), { categories: next });
       });
-      wrap.appendChild(chip);
-    });
+    }
+    catWrap.appendChild(chip);
+  });
+
+  var timerSelect = $("timer-select");
+  timerSelect.value = String(room.settings.timerSeconds);
+  timerSelect.disabled = !state.isHost;
+  timerSelect.onchange = function (e) {
+    update(ref(db, "rooms/" + state.roomCode + "/settings"), { timerSeconds: parseInt(e.target.value, 10) });
+  };
+
+  var startBtn = $("btn-start-game");
+  var waiting = $("lobby-waiting");
+  if (state.isHost) {
+    startBtn.style.display = "";
+    waiting.style.display = "none";
+    startBtn.disabled = playerUids().length < 3;
+  } else {
+    startBtn.style.display = "none";
+    waiting.style.display = "";
   }
 
-  $("timer-select").addEventListener("change", function (e) {
-    state.timerSeconds = parseInt(e.target.value, 10);
-  });
+  showScreen("screen-lobby");
+}
 
-  $("btn-start-game").addEventListener("click", function () {
-    var names = state.players.map(function (n, i) { return n.trim() || ("Player " + (i + 1)); });
-    if (names.length < 3) { alert("Need at least 3 players."); return; }
-    state.players = names;
-    state.scores = {};
-    names.forEach(function (n) { state.scores[n] = 0; });
-    startRound();
-  });
+$("btn-start-game").addEventListener("click", function () {
+  if (!state.isHost) return;
+  startRound();
+});
 
-  // ---------- Round setup ----------
-  function pickRandom(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
-
-  function startRound() {
-    var cat = pickRandom(state.selectedCategories);
-    var words = CATEGORIES[cat];
-    var secretWord = pickRandom(words);
-    var chameleonIdx = Math.floor(Math.random() * state.players.length);
-    var order = state.players.map(function (_, i) { return i; });
-    // shuffle order
-    for (var i = order.length - 1; i > 0; i--) {
-      var j = Math.floor(Math.random() * (i + 1));
-      var tmp = order[i]; order[i] = order[j]; order[j] = tmp;
-    }
-    state.round = {
+async function startRound() {
+  var room = state.room;
+  var uids = playerUids();
+  var cat = pickRandom(room.settings.categories);
+  var words = CATEGORIES[cat];
+  var secretWord = pickRandom(words);
+  var chameleonUid = uids[Math.floor(Math.random() * uids.length)];
+  var order = shuffle(uids.slice());
+  await update(roomRef(state.roomCode), {
+    phase: "reveal",
+    round: {
       category: cat,
-      words: words,
+      wordList: words,
       secretWord: secretWord,
-      chameleonIdx: chameleonIdx,
-      order: order
-    };
-    state.revealIndex = 0;
-    state.votes = {};
-    state.voteIndex = 0;
-    goToReveal();
+      chameleonUid: chameleonUid,
+      order: order,
+      readyUids: {},
+      guess: null
+    },
+    votes: {},
+    timer: { running: false, endTime: null, remaining: room.settings.timerSeconds }
+  });
+}
+
+// ---------- Reveal ----------
+function renderReveal() {
+  var room = state.room;
+  var round = room.round;
+  var isChameleon = round.chameleonUid === state.uid;
+  $("role-category").textContent = round.category;
+  var wordWrap = $("role-word-wrap");
+  wordWrap.innerHTML = "";
+  var el = document.createElement("div");
+  if (isChameleon) {
+    el.className = "chameleon-word";
+    el.textContent = "You are the Chameleon!";
+  } else {
+    el.className = "secret-word";
+    el.textContent = round.secretWord;
+  }
+  wordWrap.appendChild(el);
+
+  var grid = $("role-grid");
+  grid.innerHTML = "";
+  round.wordList.forEach(function (w) {
+    var cell = document.createElement("div");
+    cell.className = "word-cell" + (!isChameleon && w === round.secretWord ? " highlight" : "");
+    cell.textContent = w;
+    grid.appendChild(cell);
+  });
+
+  var alreadyReady = round.readyUids && round.readyUids[state.uid];
+  $("btn-ready").style.display = alreadyReady ? "none" : "";
+  $("role-waiting").style.display = alreadyReady ? "" : "none";
+
+  showScreen("screen-role");
+
+  // Host advances the phase once everyone has confirmed their role.
+  if (state.isHost) {
+    var uids = playerUids();
+    var readyCount = round.readyUids ? Object.keys(round.readyUids).length : 0;
+    if (readyCount >= uids.length) {
+      update(roomRef(state.roomCode), { phase: "discuss" });
+    }
+  }
+}
+
+$("btn-ready").addEventListener("click", function () {
+  update(ref(db, "rooms/" + state.roomCode + "/round/readyUids"), (function () { var o = {}; o[state.uid] = true; return o; })());
+});
+
+// ---------- Discussion ----------
+function renderDiscuss() {
+  var room = state.room;
+  var round = room.round;
+  $("discuss-category").textContent = round.category;
+
+  var list = $("order-list");
+  list.innerHTML = "";
+  round.order.forEach(function (uid, pos) {
+    var item = document.createElement("div");
+    item.className = "order-item";
+    var num = document.createElement("span");
+    num.innerHTML = '<span class="num">' + (pos + 1) + ".</span> " + playerName(uid);
+    item.appendChild(num);
+    list.appendChild(item);
+  });
+
+  var timerCard = $("timer-card");
+  var toggleBtn = $("btn-timer-toggle");
+  if (room.settings.timerSeconds > 0) {
+    timerCard.style.display = "";
+    renderTimerDisplay();
+    toggleBtn.style.display = state.isHost ? "" : "none";
+  } else {
+    timerCard.style.display = "none";
   }
 
-  // ---------- Reveal flow ----------
-  function goToReveal() {
-    if (state.revealIndex >= state.players.length) {
-      goToDiscuss();
+  $("btn-go-vote").style.display = state.isHost ? "" : "none";
+
+  showScreen("screen-discuss");
+  ensureTimerTicking();
+}
+
+function renderTimerDisplay() {
+  var t = state.room.timer || {};
+  var remaining = t.remaining;
+  if (t.running && t.endTime) {
+    remaining = Math.max(0, Math.round((t.endTime - Date.now()) / 1000));
+  }
+  var m = Math.floor(remaining / 60);
+  var s = remaining % 60;
+  var display = $("timer-display");
+  display.textContent = m + ":" + (s < 10 ? "0" : "") + s;
+  display.classList.toggle("low", remaining <= 10);
+  $("btn-timer-toggle").textContent = t.running ? "Pause Timer" : (remaining <= 0 ? "Time's up!" : "Start Timer");
+  $("btn-timer-toggle").disabled = remaining <= 0 && !t.running;
+}
+
+function ensureTimerTicking() {
+  if (state.timerHandle) return;
+  state.timerHandle = setInterval(function () {
+    if (!state.room || state.room.phase !== "discuss") {
+      clearInterval(state.timerHandle);
+      state.timerHandle = null;
       return;
     }
-    var name = state.players[state.revealIndex];
-    $("reveal-name").textContent = name;
-    $("reveal-name-2").textContent = name;
-    showScreen("screen-reveal");
-  }
+    var t = state.room.timer || {};
+    if (t.running) {
+      renderTimerDisplay();
+      if (t.endTime && Date.now() >= t.endTime && state.isHost) {
+        update(ref(db, "rooms/" + state.roomCode + "/timer"), { running: false, remaining: 0, endTime: null });
+      }
+    }
+  }, 1000);
+}
 
-  $("btn-show-role").addEventListener("click", function () {
-    renderRoleScreen();
-    showScreen("screen-role");
+$("btn-timer-toggle").addEventListener("click", function () {
+  var t = state.room.timer || {};
+  var timerRef = ref(db, "rooms/" + state.roomCode + "/timer");
+  if (t.running) {
+    var remaining = Math.max(0, Math.round((t.endTime - Date.now()) / 1000));
+    update(timerRef, { running: false, remaining: remaining, endTime: null });
+  } else {
+    var base = t.remaining > 0 ? t.remaining : state.room.settings.timerSeconds;
+    update(timerRef, { running: true, remaining: base, endTime: Date.now() + base * 1000 });
+  }
+});
+
+$("btn-go-vote").addEventListener("click", function () {
+  if (!state.isHost) return;
+  update(roomRef(state.roomCode), { phase: "vote", votes: {} });
+});
+
+// ---------- Voting ----------
+function renderVote() {
+  var room = state.room;
+  var myVote = room.votes ? room.votes[state.uid] : undefined;
+
+  var list = $("vote-list");
+  list.innerHTML = "";
+  playerUids().forEach(function (uid) {
+    if (uid === state.uid) return;
+    var btn = document.createElement("button");
+    btn.className = "vote-btn" + (myVote === uid ? " selected" : "");
+    btn.type = "button";
+    btn.textContent = playerName(uid);
+    btn.disabled = myVote !== undefined;
+    btn.addEventListener("click", function () {
+      update(ref(db, "rooms/" + state.roomCode + "/votes"), (function () { var o = {}; o[state.uid] = uid; return o; })());
+    });
+    list.appendChild(btn);
   });
 
-  function renderRoleScreen() {
-    var round = state.round;
-    var isChameleon = state.revealIndex === round.chameleonIdx;
-    $("role-category").textContent = round.category;
-    var wordWrap = $("role-word-wrap");
-    wordWrap.innerHTML = "";
-    var el = document.createElement("div");
-    if (isChameleon) {
-      el.className = "chameleon-word";
-      el.textContent = "You are the Chameleon!";
+  $("vote-waiting").style.display = myVote !== undefined ? "" : "none";
+
+  showScreen("screen-vote");
+
+  if (state.isHost) {
+    var uids = playerUids();
+    var voteCount = room.votes ? Object.keys(room.votes).length : 0;
+    if (voteCount >= uids.length) {
+      update(roomRef(state.roomCode), { phase: "results" });
+    }
+  }
+}
+
+// ---------- Results ----------
+function renderResults() {
+  var room = state.room;
+  var round = room.round;
+  var votes = room.votes || {};
+
+  var tally = {};
+  playerUids().forEach(function (uid) { tally[uid] = 0; });
+  Object.keys(votes).forEach(function (voter) { tally[votes[voter]]++; });
+
+  var tallyBox = $("tally-box");
+  tallyBox.innerHTML = "";
+  var maxVotes = -1, topUids = [];
+  Object.keys(tally).forEach(function (uid) {
+    var row = document.createElement("div");
+    row.className = "tally-row";
+    row.innerHTML = "<span>" + playerName(uid) + "</span><span>" + tally[uid] + " vote(s)</span>";
+    tallyBox.appendChild(row);
+    if (tally[uid] > maxVotes) { maxVotes = tally[uid]; topUids = [uid]; }
+    else if (tally[uid] === maxVotes) { topUids.push(uid); }
+  });
+
+  var chameleonCaught = topUids.length === 1 && topUids[0] === round.chameleonUid;
+
+  var revealBox = $("chameleon-reveal-box");
+  revealBox.innerHTML = "";
+  var title = document.createElement("div");
+  title.className = "big-name";
+  title.textContent = "🦎 " + playerName(round.chameleonUid) + " was the Chameleon";
+  revealBox.appendChild(title);
+
+  var guessBox = $("guess-box");
+  var banner = $("result-banner");
+  var scoreboardCard = $("scoreboard-card");
+  var hostNav = $("results-host-nav");
+  var waiting = $("results-waiting");
+
+  var settled = round.settled === true;
+  var iAmChameleon = round.chameleonUid === state.uid;
+
+  if (chameleonCaught && !settled) {
+    guessBox.style.display = iAmChameleon ? "" : "none";
+    if (!iAmChameleon) {
+      waiting.style.display = "";
+      waiting.textContent = "Waiting for the Chameleon to guess the word…";
     } else {
-      el.className = "secret-word";
-      el.textContent = round.secretWord;
+      waiting.style.display = "none";
     }
-    wordWrap.appendChild(el);
-
-    var grid = $("role-grid");
-    grid.innerHTML = "";
-    round.words.forEach(function (w) {
-      var cell = document.createElement("div");
-      cell.className = "word-cell" + (!isChameleon && w === round.secretWord ? " highlight" : "");
-      cell.textContent = w;
-      grid.appendChild(cell);
-    });
-  }
-
-  $("btn-next-player").addEventListener("click", function () {
-    state.revealIndex++;
-    goToReveal();
-  });
-
-  // ---------- Discussion ----------
-  function goToDiscuss() {
-    var round = state.round;
-    $("discuss-category").textContent = round.category;
-    var list = $("order-list");
-    list.innerHTML = "";
-    round.order.forEach(function (playerIdx, pos) {
-      var item = document.createElement("div");
-      item.className = "order-item";
-      var num = document.createElement("span");
-      num.innerHTML = '<span class="num">' + (pos + 1) + ".</span> " + state.players[playerIdx];
-      item.appendChild(num);
-      list.appendChild(item);
-    });
-
-    if (state.timerSeconds > 0) {
-      $("timer-card").style.display = "";
-      resetTimer();
-    } else {
-      $("timer-card").style.display = "none";
-    }
-    showScreen("screen-discuss");
-  }
-
-  function resetTimer() {
-    stopTimer();
-    state.timerRemaining = state.timerSeconds;
-    renderTimer();
-    $("btn-timer-toggle").textContent = "Start Timer";
-  }
-
-  function renderTimer() {
-    var m = Math.floor(state.timerRemaining / 60);
-    var s = state.timerRemaining % 60;
-    var display = $("timer-display");
-    display.textContent = m + ":" + (s < 10 ? "0" : "") + s;
-    display.classList.toggle("low", state.timerRemaining <= 10);
-  }
-
-  function stopTimer() {
-    if (state.timerHandle) { clearInterval(state.timerHandle); state.timerHandle = null; }
-    state.timerRunning = false;
-  }
-
-  $("btn-timer-toggle").addEventListener("click", function () {
-    if (state.timerRunning) {
-      stopTimer();
-      $("btn-timer-toggle").textContent = "Resume Timer";
-    } else {
-      if (state.timerRemaining <= 0) state.timerRemaining = state.timerSeconds;
-      state.timerRunning = true;
-      $("btn-timer-toggle").textContent = "Pause Timer";
-      state.timerHandle = setInterval(function () {
-        state.timerRemaining--;
-        renderTimer();
-        if (state.timerRemaining <= 0) {
-          stopTimer();
-          $("btn-timer-toggle").textContent = "Time's up!";
-          $("btn-timer-toggle").disabled = true;
-        }
-      }, 1000);
-    }
-  });
-
-  $("btn-go-vote").addEventListener("click", function () {
-    stopTimer();
-    state.voteIndex = 0;
-    state.votes = {};
-    goToVote();
-  });
-
-  // ---------- Voting ----------
-  function goToVote() {
-    if (state.voteIndex >= state.players.length) {
-      showResults();
-      return;
-    }
-    var voterName = state.players[state.voteIndex];
-    $("voter-name").textContent = voterName;
-
-    var list = $("vote-list");
-    list.innerHTML = "";
-    var selected = null;
-    state.players.forEach(function (name, idx) {
-      if (idx === state.voteIndex) return; // can't vote for self
-      var btn = document.createElement("button");
-      btn.className = "vote-btn";
-      btn.type = "button";
-      btn.textContent = name;
-      btn.addEventListener("click", function () {
-        Array.prototype.forEach.call(list.children, function (c) { c.classList.remove("selected"); });
-        btn.classList.add("selected");
-        selected = idx;
-        $("btn-submit-vote").disabled = false;
-      });
-      list.appendChild(btn);
-    });
-    $("btn-submit-vote").disabled = true;
-    $("btn-submit-vote").onclick = function () {
-      if (selected === null) return;
-      state.votes[state.voteIndex] = selected;
-      state.voteIndex++;
-      goToVote();
-    };
-    showScreen("screen-vote");
-  }
-
-  // ---------- Results ----------
-  function showResults() {
-    var round = state.round;
-    var tally = {};
-    state.players.forEach(function (_, idx) { tally[idx] = 0; });
-    Object.keys(state.votes).forEach(function (voter) {
-      var votedFor = state.votes[voter];
-      tally[votedFor]++;
-    });
-
-    var tallyBox = $("tally-box");
-    tallyBox.innerHTML = "";
-    var maxVotes = -1;
-    var topIdxs = [];
-    Object.keys(tally).forEach(function (idxStr) {
-      var idx = parseInt(idxStr, 10);
-      var row = document.createElement("div");
-      row.className = "tally-row";
-      row.innerHTML = "<span>" + state.players[idx] + "</span><span>" + tally[idx] + " vote(s)</span>";
-      tallyBox.appendChild(row);
-      if (tally[idx] > maxVotes) { maxVotes = tally[idx]; topIdxs = [idx]; }
-      else if (tally[idx] === maxVotes) { topIdxs.push(idx); }
-    });
-
-    var chameleonCaught = topIdxs.length === 1 && topIdxs[0] === round.chameleonIdx;
-    var revealBox = $("chameleon-reveal-box");
-    revealBox.innerHTML = "";
-    var title = document.createElement("div");
-    title.className = "big-name";
-    title.textContent = "🦎 " + state.players[round.chameleonIdx] + " was the Chameleon";
-    revealBox.appendChild(title);
-
-    var guessBox = $("guess-box");
-    var banner = $("result-banner");
-    var nextBtn = $("btn-next-round");
     banner.style.display = "none";
-    nextBtn.style.display = "none";
-    $("guess-input").value = "";
-
-    if (chameleonCaught) {
-      guessBox.style.display = "";
-      $("btn-submit-guess").onclick = function () {
-        var guess = $("guess-input").value.trim().toLowerCase();
-        var correct = guess === round.secretWord.toLowerCase();
-        guessBox.style.display = "none";
-        banner.style.display = "";
-        if (correct) {
-          banner.className = "result-banner result-win";
-          banner.textContent = "Chameleon guessed \"" + round.secretWord + "\" correctly! Chameleon wins the round.";
-          state.scores[state.players[round.chameleonIdx]] += 2;
-        } else {
-          banner.className = "result-banner result-lose";
-          banner.textContent = "Wrong guess (word was \"" + round.secretWord + "\"). Everyone else wins the round!";
-          state.players.forEach(function (name, idx) {
-            if (idx !== round.chameleonIdx) state.scores[name] += 1;
-          });
-        }
-        nextBtn.style.display = "";
-      };
-    } else {
-      guessBox.style.display = "none";
-      banner.style.display = "";
+    scoreboardCard.style.display = "none";
+    hostNav.style.display = "none";
+  } else {
+    guessBox.style.display = "none";
+    banner.style.display = "";
+    if (!settled) {
+      // Chameleon escaped detection — settle immediately (host only, once).
+      if (state.isHost) settleRound(false, null);
+      banner.textContent = "Settling round…";
+    } else if (round.chameleonWon) {
       banner.className = "result-banner result-win";
-      banner.textContent = "Chameleon escaped detection! Chameleon wins the round (secret word: \"" + round.secretWord + "\").";
-      state.scores[state.players[round.chameleonIdx]] += 2;
-      nextBtn.style.display = "";
+      if (round.guess) {
+        banner.textContent = "Chameleon guessed \"" + round.secretWord + "\" correctly! Chameleon wins the round.";
+      } else {
+        banner.textContent = "Chameleon escaped detection! Chameleon wins the round (secret word: \"" + round.secretWord + "\").";
+      }
+    } else {
+      banner.className = "result-banner result-lose";
+      banner.textContent = "Wrong guess (word was \"" + round.secretWord + "\"). Everyone else wins the round!";
     }
 
-    showScreen("screen-results");
+    if (settled) {
+      scoreboardCard.style.display = "";
+      renderScoreboard();
+      if (state.isHost) {
+        hostNav.style.display = "flex";
+        waiting.style.display = "none";
+      } else {
+        hostNav.style.display = "none";
+        waiting.style.display = "";
+        waiting.textContent = "Waiting for host…";
+      }
+    }
   }
 
-  $("btn-next-round").addEventListener("click", function () {
-    renderScoreboard();
-    showScreen("screen-scores");
-  });
+  showScreen("screen-results");
+}
 
-  // ---------- Scoreboard ----------
-  function renderScoreboard() {
-    var board = $("scoreboard");
-    board.innerHTML = "";
-    var entries = Object.keys(state.scores).map(function (name) {
-      return { name: name, score: state.scores[name] };
-    });
-    entries.sort(function (a, b) { return b.score - a.score; });
-    entries.forEach(function (e) {
-      var row = document.createElement("div");
-      row.className = "score-row";
-      row.innerHTML = "<span>" + e.name + "</span><strong>" + e.score + "</strong>";
-      board.appendChild(row);
+$("btn-submit-guess").addEventListener("click", function () {
+  var round = state.room.round;
+  if (round.chameleonUid !== state.uid) return;
+  var guess = $("guess-input").value.trim();
+  var correct = guess.toLowerCase() === round.secretWord.toLowerCase();
+  settleRound(correct, guess);
+});
+
+async function settleRound(chameleonWon, guess) {
+  var round = state.room.round;
+  await update(ref(db, "rooms/" + state.roomCode + "/round"), { settled: true, chameleonWon: chameleonWon, guess: guess });
+  var scoreUpdates = {};
+  var current = state.room.scores || {};
+  if (chameleonWon) {
+    scoreUpdates[round.chameleonUid] = (current[round.chameleonUid] || 0) + 2;
+  } else {
+    playerUids().forEach(function (uid) {
+      if (uid !== round.chameleonUid) scoreUpdates[uid] = (current[uid] || 0) + 1;
     });
   }
+  await update(ref(db, "rooms/" + state.roomCode + "/scores"), scoreUpdates);
+}
 
-  $("btn-back-to-round").addEventListener("click", function () {
-    startRound();
+function renderScoreboard() {
+  var scores = state.room.scores || {};
+  var board = $("scoreboard");
+  board.innerHTML = "";
+  var entries = playerUids().map(function (uid) {
+    return { name: playerName(uid), score: scores[uid] || 0 };
   });
-
-  $("btn-end-game").addEventListener("click", function () {
-    if (!confirm("End the game and return to setup?")) return;
-    showScreen("screen-setup");
+  entries.sort(function (a, b) { return b.score - a.score; });
+  entries.forEach(function (e) {
+    var row = document.createElement("div");
+    row.className = "score-row";
+    row.innerHTML = "<span>" + e.name + "</span><strong>" + e.score + "</strong>";
+    board.appendChild(row);
   });
+}
 
-  // ---------- Init ----------
-  renderPlayerList();
-  renderCategoryChips();
-})();
+$("btn-next-round").addEventListener("click", function () {
+  if (!state.isHost) return;
+  startRound();
+});
+
+$("btn-end-game").addEventListener("click", function () {
+  if (!state.isHost) return;
+  if (!confirm("End the game and return everyone to the lobby?")) return;
+  update(roomRef(state.roomCode), { phase: "lobby", round: null, votes: {} });
+});
 </script>
 </body>
 </html>
