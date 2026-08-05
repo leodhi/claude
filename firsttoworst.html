@@ -139,7 +139,7 @@
 <body>
 <div id="app">
   <h1>First to <span>Worst</span></h1>
-  <div class="subtitle">Rank it your way, then see how far off you were</div>
+  <div class="subtitle">One player ranks it their way — everyone else tries to read their mind</div>
 
   <!-- SETUP -->
   <div class="screen active" id="screen-setup">
@@ -162,7 +162,7 @@
       <label>Players (2&ndash;10)</label>
       <div id="player-list"></div>
       <button class="secondary" id="btn-add-player" type="button">+ Add player</button>
-      <small class="hint">You're scored against each other, so there's no solo mode here &mdash; at least 2 players are needed.</small>
+      <small class="hint">One player ranks each round, so at least 2 people are needed — there's no solo mode here.</small>
     </div>
     <div class="card">
       <label>Points to Win</label>
@@ -171,7 +171,7 @@
         <input type="number" id="target-score-input" class="target-score-field" min="1" max="99" value="15">
         <button class="stepper-btn" id="btn-target-up" type="button" aria-label="Increase">+</button>
       </div>
-      <small class="hint">Each round, five random things get ranked. Whoever ranked closest to the group's combined order earns the most points.</small>
+      <small class="hint">Each round, one player secretly ranks 5 random things — everyone else guesses the order. Nail it exactly for the most points; the ranker scores for every guess that misses.</small>
     </div>
     <button class="primary" id="btn-start-game" type="button">Start Game</button>
   </div>
@@ -179,12 +179,12 @@
   <!-- ROUND INTRO -->
   <div class="screen" id="screen-round-intro">
     <div class="card center">
-      <span class="category-label">This round</span>
-      <div class="big-name" style="font-size:1.3rem;">Rank these best to worst</div>
+      <span class="category-label">This round's Ranker</span>
+      <div class="big-name" id="ri-ranker-name"></div>
       <div class="item-preview-list" id="ri-items"></div>
-      <small class="hint">Everyone will rank these, one at a time and out of sight of each other. Best at the top, worst at the bottom &mdash; your call.</small>
+      <small class="hint">Everyone else will try to guess the order the Ranker secretly puts these in, best to worst.</small>
     </div>
-    <button class="primary" id="btn-start-ranking" type="button">Start Ranking</button>
+    <button class="primary" id="btn-start-ranking" type="button">Start This Round</button>
   </div>
 
   <!-- PASS TO PLAYER -->
@@ -193,15 +193,15 @@
       <div class="pass-icon">📱</div>
       <div>Pass the device to</div>
       <div class="big-name" id="pass-name"></div>
-      <small class="hint">Only <span id="pass-name-2"></span> should look &mdash; no peeking or shouting your list out.</small>
+      <small class="hint" id="pass-hint">Only <span id="pass-name-2"></span> should look &mdash; no peeking or shouting your list out.</small>
     </div>
-    <button class="primary" id="btn-ready-to-rank" type="button">I'm ready to rank</button>
+    <button class="primary" id="btn-ready-to-rank" type="button">I'm ready</button>
   </div>
 
   <!-- RANKING -->
   <div class="screen" id="screen-rank">
     <div class="card">
-      <span class="category-label">Your ranking</span>
+      <span class="category-label" id="rank-instructions">Your ranking</span>
       <div class="rank-endpoints"><span>Best</span><span>Worst</span></div>
       <div class="rank-list" id="rank-list"></div>
     </div>
@@ -212,21 +212,20 @@
   <div class="screen" id="screen-ready-reveal">
     <div class="card center">
       <div class="pass-icon">🙌</div>
-      <div>Everyone's ranked!</div>
+      <div>Everyone's guessed!</div>
       <div class="big-name" style="font-size:1.3rem;">Put the device in the middle so everyone can see.</div>
     </div>
-    <button class="primary" id="btn-show-reveal" type="button">Reveal the Group Order</button>
+    <button class="primary" id="btn-show-reveal" type="button">Reveal the Real Order</button>
   </div>
 
   <!-- REVEAL -->
   <div class="screen" id="screen-reveal">
     <div class="card">
-      <label>The group's combined order</label>
+      <label id="reveal-order-label">The ranker's real order</label>
       <div class="order-reveal-list" id="order-reveal-list"></div>
-      <small class="hint">Built by averaging where everyone placed each item &mdash; nobody chose this order on purpose.</small>
     </div>
     <div class="card">
-      <label>Closest to farthest off</label>
+      <label>Closest guess to farthest off</label>
       <div id="standings-list"></div>
       <div class="callout" id="round-callout"></div>
     </div>
@@ -289,13 +288,120 @@
   // handful from across all of it, so the mix itself is part of the fun.
   var ITEMS = [
     "Pepperoni", "Mushrooms", "Pineapple", "Sausage", "Extra Cheese", "Black Olives", "Bell Peppers", "Anchovies",
-    "Sledding", "Staying in Bed", "Building a Snowman", "Hot Chocolate", "Shoveling the Driveway", "Snowball Fight", "Movie Marathon", "Baking",
-    "Bike", "Car", "Train", "Airplane", "Sailboat", "Scooter", "Walking", "Horse",
-    "Math", "Science", "History", "Art", "Gym", "Music", "English", "A Foreign Language",
-    "Flight", "Invisibility", "Super Strength", "Reading Minds", "Time Travel", "Teleportation", "Shapeshifting", "Talking to Animals",
-    "Dishes", "Laundry", "Vacuuming", "Taking Out the Trash", "Cleaning the Bathroom", "Mowing the Lawn", "Dusting", "Grocery Shopping",
-    "Pancakes", "Cereal", "Scrambled Eggs", "Bacon", "Oatmeal", "Toast", "Waffles", "Fresh Fruit",
-    "Beach Trip", "Mountain Cabin", "Big City", "Theme Park", "Camping", "Cruise", "Road Trip", "Staying Home"
+    "Bacon", "Jalapenos", "Spinach", "Onions", "Vanilla", "Chocolate", "Strawberry", "Mint Chocolate Chip",
+    "Cookies and Cream", "Rocky Road", "Butter Pecan", "Pistachio", "Cookie Dough", "Coffee Ice Cream", "Neapolitan",
+    "Bubblegum", "Salted Caramel", "Mango Sorbet", "Flight", "Invisibility", "Super Strength", "Reading Minds",
+    "Time Travel", "Teleportation", "Shapeshifting", "Talking to Animals", "Super Speed", "X-Ray Vision",
+    "Healing Touch", "Freezing Time", "Doing the Dishes", "Laundry", "Vacuuming", "Taking Out the Trash",
+    "Cleaning the Bathroom", "Mowing the Lawn", "Dusting", "Grocery Shopping", "Making the Bed", "Folding Towels",
+    "Washing the Car", "Cleaning the Fridge", "Pancakes", "Cereal", "Scrambled Eggs", "Bacon Strips", "Oatmeal",
+    "Toast", "Waffles", "Fresh Fruit", "French Toast", "Bagels", "Yogurt", "Hash Browns", "Math", "Science",
+    "History", "Art Class", "Gym Class", "Music Class", "English", "A Foreign Language", "Recess", "Computer Class",
+    "Beach Trip", "Mountain Cabin", "Big City Trip", "Theme Park", "Camping Trip", "Cruise", "Road Trip",
+    "Staying Home", "Ski Resort", "National Park", "Island Getaway", "Backpacking Trip", "Bike", "Car", "Train",
+    "Airplane", "Sailboat", "Scooter", "Walking", "Horse", "Skateboard", "City Bus", "Sledding", "Staying in Bed",
+    "Building a Snowman", "Hot Chocolate", "Shoveling the Driveway", "Snowball Fight", "Movie Marathon", "Baking",
+    "Ice Skating", "Making Snow Angels", "Soccer", "Basketball", "Tennis", "Golf", "Boxing", "Swimming", "Cricket",
+    "Rugby", "Hockey", "Baseball", "Surfing", "Cycling", "Skiing", "Bowling", "Monopoly", "Chess", "Checkers",
+    "Scrabble", "Clue", "Risk", "Candy Land", "Sorry!", "Trivial Pursuit", "Jenga", "Battleship", "Connect Four",
+    "Pop Music", "Rock Music", "Country Music", "Jazz", "Classical Music", "Hip Hop", "Reggae", "Blues",
+    "Folk Music", "Electronic Music", "Punk Rock", "Opera", "Comedies", "Horror Movies", "Romance Movies",
+    "Action Movies", "Documentaries", "Musicals", "Westerns", "Fantasy Movies", "Mystery Movies", "Animated Movies",
+    "Thanksgiving", "Halloween", "Christmas", "New Year's Eve", "Fourth of July", "Valentine's Day", "Easter",
+    "Your Birthday", "Labor Day", "St. Patrick's Day", "Groundhog Day", "April Fools' Day", "Sunny Days",
+    "Rainy Days", "Snowy Days", "Windy Days", "Foggy Days", "Thunderstorms", "Cloudy Days", "Humid Days", "Toaster",
+    "Blender", "Microwave", "Air Fryer", "Coffee Maker", "Dishwasher", "Stand Mixer", "Slow Cooker", "Waffle Iron",
+    "Rice Cooker", "Happiness", "Excitement", "Nervousness", "Boredom", "Curiosity", "Jealousy", "Relief",
+    "Confusion", "Pride", "Nostalgia", "Doctor", "Chef", "Pilot", "Firefighter", "Teacher", "Plumber", "Lawyer",
+    "Artist", "Farmer", "Dentist", "Electrician", "Journalist", "Astronaut", "Veterinarian", "Chocolate Bars",
+    "Gummy Bears", "Lollipops", "Licorice", "Sour Candy", "Caramels", "Jellybeans", "Peanut Butter Cups", "Taffy",
+    "Marshmallows", "Hard Candy", "Cotton Candy", "Lemonade", "Iced Tea", "Orange Juice", "Soda", "Smoothies",
+    "Milkshakes", "Coffee", "Sparkling Water", "Apple Cider", "Root Beer", "Coconut Water", "Painting", "Reading",
+    "Gardening", "Photography", "Knitting", "Fishing", "Woodworking", "Playing Guitar", "Dancing", "Puzzles",
+    "Collecting Stamps", "The Kitchen", "The Living Room", "The Bathroom", "The Bedroom", "The Garage",
+    "The Basement", "The Attic", "The Backyard", "Apples", "Bananas", "Oranges", "Strawberries", "Grapes",
+    "Watermelon", "Fresh Pineapple", "Mangoes", "Blueberries", "Peaches", "Cherries", "Kiwi", "Raspberries", "Pears",
+    "Carrots", "Broccoli", "Potatoes", "Corn on the Cob", "Peas", "Fresh Spinach", "Tomatoes", "Cucumbers",
+    "Green Beans", "Raw Onions", "Fresh Bell Peppers", "Zucchini", "Piano", "Guitar", "Drums", "Violin", "Trumpet",
+    "Flute", "Saxophone", "Cello", "Clarinet", "Harmonica", "Ukulele", "Bass Guitar", "Spaghetti", "Penne",
+    "Fettuccine", "Macaroni", "Lasagna", "Ravioli", "Rigatoni", "Linguine", "Bowtie Pasta", "Angel Hair Pasta",
+    "Grilled Cheese", "Peanut Butter and Jelly", "A BLT", "Turkey Club", "Ham and Cheese", "Tuna Salad Sandwich",
+    "A Reuben", "Cheeseburger", "Chicken Salad Sandwich", "Meatball Sub", "Lions", "Elephants", "Giraffes", "Tigers",
+    "Penguins", "Zebras", "Monkeys", "Gorillas", "Kangaroos", "Pandas", "Hippos", "Rhinos", "Polar Bears", "Koalas",
+    "Labradors", "Golden Retrievers", "Poodles", "Bulldogs", "Beagles", "German Shepherds", "Chihuahuas",
+    "Dachshunds", "Huskies", "Pugs", "Corgis", "Boxers", "Snacks", "A Pillow", "A Playlist", "Sunglasses", "A Map",
+    "A Phone Charger", "A Good Book", "Travel Games", "A Camera", "A Water Bottle", "A Blanket",
+    "A Sense of Adventure", "Traffic", "Oversleeping", "Losing Your Keys", "A Car That Wouldn't Start",
+    "An Unexpected Phone Call", "Bad Weather", "No Parking Spots", "Forgetting Something at Home",
+    "A Long Coffee Line", "A Broken Alarm Clock", "A Costume Party", "A Pool Party", "Game Night", "Karaoke Night",
+    "Movie Night", "A Potluck", "A Bonfire", "A Dance Party", "Trivia Night", "A Surprise Party", "Batman",
+    "Superman", "Spider-Man", "Iron Man", "Thor", "The Hulk", "Wonder Woman", "The Flash", "Black Panther",
+    "Aquaman", "Wolverine", "Captain America", "Platformers", "Racing Games", "Puzzle Games", "Shooters", "RPGs",
+    "Sports Games", "Fighting Games", "Sandbox Games", "Rhythm Games", "Strategy Games", "Chocolate Cake",
+    "Vanilla Cake", "Red Velvet Cake", "Carrot Cake", "Cheesecake", "Birthday Cake", "Funfetti Cake", "Lemon Cake",
+    "Ice Cream Cake", "Pound Cake", "Chocolate Chip Cookies", "Oatmeal Raisin Cookies", "Sugar Cookies",
+    "Peanut Butter Cookies", "Snickerdoodles", "Gingerbread Cookies", "Macarons", "Shortbread", "Fortune Cookies",
+    "Sandwich Cookies", "Roller Coasters", "The Ferris Wheel", "Bumper Cars", "The Carousel", "Water Slides",
+    "The Haunted House", "The Log Flume", "Spinning Teacups", "The Drop Tower", "Go-Karts", "Spring", "Summer",
+    "Fall", "Winter", "Ants", "Bees", "Butterflies", "Ladybugs", "Spiders", "Grasshoppers", "Fireflies",
+    "Dragonflies", "Beetles", "Mosquitoes", "Dolphins", "Sharks", "Whales", "Octopuses", "Sea Turtles", "Starfish",
+    "Jellyfish", "Crabs", "Seahorses", "Stingrays", "Clownfish", "Sea Otters", "Cows", "Pigs", "Chickens",
+    "Farm Horses", "Sheep", "Goats", "Ducks", "Turkeys", "Donkeys", "Farm Rabbits", "Red", "Blue", "Green", "Yellow",
+    "Purple", "Orange", "Pink", "Black", "White", "Turquoise", "Maroon", "Gold", "Sneakers", "Sandals", "Boots",
+    "Flip Flops", "High Heels", "Slippers", "Loafers", "Rain Boots", "Cleats", "Hiking Boots", "Dogs", "Cats",
+    "Pet Fish", "Hamsters", "Guinea Pigs", "Pet Birds", "Pet Rabbits", "Pet Turtles", "Building Sandcastles",
+    "Swimming in the Ocean", "Sunbathing", "Collecting Seashells", "Playing Volleyball", "Flying a Kite",
+    "Boogie Boarding", "Reading on the Sand", "Having a Picnic", "Looking for Crabs", "French Fries", "Onion Rings",
+    "Chicken Nuggets", "Fast Food Milkshakes", "Tacos", "Burritos", "Hot Dogs", "Cheeseburgers", "Fried Chicken",
+    "Soft Pretzels", "Rubber Bands", "Old Batteries", "Loose Change", "Rolls of Tape", "Scissors", "Spare Keys",
+    "Birthday Candles", "Twist Ties", "Old Instruction Manuals", "Random Cables", "Taking a Bath", "Napping",
+    "Meditating", "Listening to Music", "Going for a Walk", "Reading a Book", "Watching TV", "Yoga",
+    "Deep Breathing", "Journaling", "Oak Trees", "Maple Trees", "Pine Trees", "Palm Trees", "Willow Trees",
+    "Birch Trees", "Redwoods", "Cherry Blossom Trees", "Cedar Trees", "Magnolia Trees", "Roses", "Tulips",
+    "Sunflowers", "Daisies", "Orchids", "Lilies", "Daffodils", "Peonies", "Marigolds", "Carnations", "Poker",
+    "Blackjack", "Uno", "Go Fish", "Solitaire", "Bridge", "Rummy", "War", "Crazy Eights", "Hearts", "The Joker",
+    "Lex Luthor", "Thanos", "Green Goblin", "Loki", "Magneto", "Darth Vader", "Voldemort", "Doctor Doom", "Venom",
+    "Ballet", "Hip Hop Dance", "Tap Dance", "Salsa Dancing", "Ballroom Dancing", "Breakdancing", "Jazz Dance",
+    "Line Dancing", "Contemporary Dance", "The Waltz", "Trapeze Artists", "Clowns", "Tightrope Walkers", "Jugglers",
+    "Lion Tamers", "Acrobats", "Fire Breathers", "Ringmasters", "A Spatula", "A Whisk", "A Ladle", "Tongs",
+    "A Rolling Pin", "A Grater", "A Peeler", "A Can Opener", "A Colander", "A Cutting Board", "Pizza Day",
+    "Chicken Tenders", "A PB&J", "Chocolate Milk", "Tater Tots", "Mystery Meat", "Fruit Cups",
+    "School Grilled Cheese", "The Salad Bar", "Ice Cream Sandwiches", "Tents", "Sleeping Bags", "Flashlights",
+    "Marshmallow Sticks", "Bug Spray", "Coolers", "Camp Chairs", "Lanterns", "Camping Boots", "Compasses",
+    "Carnival Cotton Candy", "Carnival Ferris Wheels", "Ring Toss", "Funnel Cake", "Fortune Tellers", "Photo Booths",
+    "Balloon Animals", "Face Painting", "Carousel Horses", "Prize Booths", "Snowboarding", "Ice Hockey",
+    "Winter Sledding", "Snowshoeing", "Curling", "Bobsledding", "Swimming Pools", "Backyard BBQs", "Fireworks",
+    "Water Balloon Fights", "Lemonade Stands", "Catching Fireflies", "Running Through Sprinklers", "Popsicles",
+    "Outdoor Movies", "Summer Bike Rides", "A Pocket Knife", "A Lighter", "A Water Filter", "A First Aid Kit",
+    "A Journal", "Sunscreen", "A Fishing Rod", "A Tarp", "A Radio", "A Deck of Cards", "Aries", "Taurus", "Gemini",
+    "Cancer", "Leo", "Virgo", "Libra", "Scorpio", "Sagittarius", "Capricorn", "Aquarius", "Pisces", "Cheddar",
+    "Mozzarella", "Swiss Cheese", "Brie", "Gouda", "Parmesan", "Blue Cheese", "Feta", "Provolone", "Pepper Jack",
+    "Almonds", "Cashews", "Peanuts", "Walnuts", "Pistachios", "Pecans", "Macadamia Nuts", "Hazelnuts", "Green Tea",
+    "Black Tea", "Chamomile Tea", "Peppermint Tea", "Earl Grey", "Herbal Tea", "Chai", "Swings", "Slides",
+    "Monkey Bars", "See-Saws", "Sandboxes", "Merry-Go-Rounds", "Climbing Walls", "Jungle Gyms", "Feeling Sick",
+    "A Snow Day", "A Dentist Appointment", "Sleeping Through Your Alarm", "A Family Trip", "A Broken Alarm",
+    "Just Not Feeling It", "A Ghost Costume", "A Vampire Costume", "A Witch Costume", "A Superhero Costume",
+    "A Pirate Costume", "A Zombie Costume", "A Princess Costume", "A Dinosaur Costume", "A Ninja Costume",
+    "A Mummy Costume", "Jigsaw Puzzles", "Crossword Puzzles", "Sudoku", "Word Searches", "Rubik's Cubes", "Riddles",
+    "Brain Teasers", "Escape Rooms", "A Picnic Blanket", "Sandwiches", "Napkins", "A Frisbee", "Paper Plates",
+    "Chips", "A Cooler", "Baseball Caps", "Beanies", "Sun Hats", "Top Hats", "Cowboy Hats", "Berets", "Fedoras",
+    "Bucket Hats", "Party Hats", "Bike Helmets", "Textbooks", "A School Water Bottle", "A Pencil Case",
+    "A Lunch Box", "Headphones", "A Notebook", "A Calculator", "A Spare Jacket", "Backpack Snacks", "A Laptop",
+    "White Bread", "Whole Wheat Bread", "Sourdough", "Rye Bread", "A Baguette", "Cornbread", "Banana Bread",
+    "Focaccia", "Pita Bread", "Fresh Bagels", "Chicken Noodle Soup", "Tomato Soup", "Minestrone", "Clam Chowder",
+    "Vegetable Soup", "French Onion Soup", "Chili", "Butternut Squash Soup", "Caesar Salad", "Garden Salad",
+    "Fruit Salad", "Potato Salad", "Cobb Salad", "Greek Salad", "Pasta Salad", "Coleslaw", "Fried Eggs",
+    "Poached Eggs", "Boiled Eggs", "Eggs Over Easy", "An Omelette", "Deviled Eggs", "Egg Salad", "A Hammer",
+    "A Screwdriver", "A Wrench", "Nails", "Duct Tape", "A Tape Measure", "Pliers", "A Level", "A Small Flashlight",
+    "Sandpaper", "Reading a Good Book", "Watching Movies", "Baking Cookies", "Doing a Puzzle", "Playing Board Games",
+    "Taking a Nap", "Drawing", "Building a Blanket Fort", "Sleeping In", "A Trip to the Park", "Watching Cartoons",
+    "Playing Video Games", "Visiting Friends", "A Bike Ride", "Baking Something", "Going Shopping",
+    "A Movie Marathon", "Doing Absolutely Nothing", "Charades", "Musical Chairs", "Pin the Tail on the Donkey",
+    "Freeze Dance", "Hot Potato", "Twister", "Truth or Dare", "Scavenger Hunts", "Balloon Pop", "Limbo",
+    "Watching Movies All Night", "Making Popcorn", "Telling Ghost Stories", "Staying Up Too Late", "Pillow Fights",
+    "Karaoke", "Face Masks", "Cornhole", "Horseshoes", "Croquet", "Badminton", "Backyard Frisbee",
+    "A Water Balloon Toss", "Tag", "Hide and Seek", "A Pizza Place", "A Diner", "A Food Truck", "A Buffet",
+    "A Sushi Bar", "A Steakhouse", "A Bakery", "An Ice Cream Shop"
   ];
 
   var state = {
@@ -304,11 +410,13 @@
     lastWinningScore: 0,
     scores: {},
     usedItems: [],
+    rankerIndex: -1,
     round: null,
-    turnOrder: [],
-    turnIndex: 0,
+    rankerOrder: null,
+    guesses: {},
+    turnQueue: [],
+    turnPos: 0,
     currentRankOrder: [],
-    rankings: {},
     canResume: false
   };
 
@@ -380,12 +488,13 @@
 
   $("btn-start-game").addEventListener("click", function () {
     var names = state.players.map(function (n) { return n.trim(); }).filter(function (n) { return n.length > 0; });
-    if (names.length < 2) { alert("Need at least 2 players — you're ranked against each other."); return; }
+    if (names.length < 2) { alert("Need at least 2 players — one ranks, everyone else guesses."); return; }
     clampTarget();
     state.players = names;
     state.scores = {};
     names.forEach(function (n) { state.scores[n] = 0; });
     state.usedItems = [];
+    state.rankerIndex = -1;
     state.lastWinningScore = 0;
     state.canResume = false;
     $("resume-banner").style.display = "none";
@@ -395,6 +504,25 @@
   });
 
   // ---------- Round setup ----------
+  function buildTurnQueue() {
+    var others = [];
+    state.players.forEach(function (_, i) { if (i !== state.rankerIndex) others.push(i); });
+    var queue = [{ role: "ranker", idx: state.rankerIndex }];
+    shuffled(others).forEach(function (idx) { queue.push({ role: "guess", idx: idx }); });
+    return queue;
+  }
+
+  function renderItemPreview(items) {
+    var itemsWrap = $("ri-items");
+    itemsWrap.innerHTML = "";
+    items.forEach(function (item) {
+      var el = document.createElement("div");
+      el.className = "item-preview";
+      el.textContent = item;
+      itemsWrap.appendChild(el);
+    });
+  }
+
   function nextRound() {
     var available = ITEMS.filter(function (it) { return state.usedItems.indexOf(it) === -1; });
     if (available.length < ITEMS_PER_ROUND) {
@@ -405,18 +533,14 @@
     picks.forEach(function (it) { state.usedItems.push(it); });
 
     state.round = { items: picks };
-    state.turnOrder = shuffled(state.players.map(function (_, i) { return i; }));
-    state.turnIndex = 0;
-    state.rankings = {};
+    state.rankerIndex = (state.rankerIndex + 1) % state.players.length;
+    state.rankerOrder = null;
+    state.guesses = {};
+    state.turnQueue = buildTurnQueue();
+    state.turnPos = 0;
 
-    var itemsWrap = $("ri-items");
-    itemsWrap.innerHTML = "";
-    picks.forEach(function (item) {
-      var el = document.createElement("div");
-      el.className = "item-preview";
-      el.textContent = item;
-      itemsWrap.appendChild(el);
-    });
+    $("ri-ranker-name").textContent = state.players[state.rankerIndex];
+    renderItemPreview(picks);
     showScreen("screen-round-intro");
     saveCheckpoint("screen-round-intro");
   }
@@ -424,19 +548,30 @@
   $("btn-start-ranking").addEventListener("click", goToPassTurn);
 
   // ---------- Pass-and-rank loop ----------
+  function currentTurn() { return state.turnQueue[state.turnPos]; }
+
   function goToPassTurn() {
-    if (state.turnIndex >= state.turnOrder.length) {
+    if (state.turnPos >= state.turnQueue.length) {
       showScreen("screen-ready-reveal");
       return;
     }
-    var name = state.players[state.turnOrder[state.turnIndex]];
+    var turn = currentTurn();
+    var name = state.players[turn.idx];
     $("pass-name").textContent = name;
     $("pass-name-2").textContent = name;
+    $("pass-hint").innerHTML = turn.role === "ranker"
+      ? "Only <span id=\"pass-name-2\">" + name + "</span> should look &mdash; you're making the real ranking everyone else has to guess."
+      : "Only <span id=\"pass-name-2\">" + name + "</span> should look &mdash; no peeking or comparing notes.";
     showScreen("screen-pass-turn");
   }
 
   $("btn-ready-to-rank").addEventListener("click", function () {
+    var turn = currentTurn();
     state.currentRankOrder = shuffled(state.round.items);
+    $("rank-instructions").textContent = turn.role === "ranker"
+      ? "Arrange these YOUR way, best to worst — this is what everyone else will try to guess."
+      : "Guess how " + state.players[state.rankerIndex] + " secretly ranked these, best to worst.";
+    $("btn-submit-rank").textContent = turn.role === "ranker" ? "Lock In My Real Ranking" : "Lock In My Guess";
     renderRankList();
     showScreen("screen-rank");
   });
@@ -492,34 +627,42 @@
   }
 
   $("btn-submit-rank").addEventListener("click", function () {
-    var name = state.players[state.turnOrder[state.turnIndex]];
-    state.rankings[name] = state.currentRankOrder.slice();
-    state.turnIndex++;
+    var turn = currentTurn();
+    if (turn.role === "ranker") {
+      state.rankerOrder = state.currentRankOrder.slice();
+    } else {
+      state.guesses[state.players[turn.idx]] = state.currentRankOrder.slice();
+    }
+    state.turnPos++;
     goToPassTurn();
   });
 
   $("btn-show-reveal").addEventListener("click", renderReveal);
 
   // ---------- Reveal + scoring ----------
+  // A guesser's distance from the ranker's real order (Spearman footrule,
+  // 0 = perfect match) maps to points on a fixed tier -- absolute, not
+  // relative to other players, so it stays meaningful whether there's 1
+  // guesser or 9 of them.
+  function pointsForDistance(d) {
+    if (d === 0) return 5;
+    if (d <= 2) return 3;
+    if (d <= 4) return 2;
+    if (d <= 6) return 1;
+    return 0;
+  }
+
   function renderReveal() {
     var items = state.round.items;
-    var players = state.players;
+    var rankerName = state.players[state.rankerIndex];
+    var trueOrder = state.rankerOrder;
+    var trueIndex = {};
+    trueOrder.forEach(function (item, i) { trueIndex[item] = i; });
 
-    // Average rank (1-indexed) each item received across every player's list.
-    var avgRank = {};
-    items.forEach(function (item) { avgRank[item] = 0; });
-    players.forEach(function (name) {
-      state.rankings[name].forEach(function (item, i) { avgRank[item] += (i + 1); });
-    });
-    items.forEach(function (item) { avgRank[item] = avgRank[item] / players.length; });
-
-    var groupOrder = items.slice().sort(function (a, b) { return avgRank[a] - avgRank[b]; });
-    var groupIndex = {};
-    groupOrder.forEach(function (item, i) { groupIndex[item] = i; });
-
+    $("reveal-order-label").textContent = rankerName + "'s real order";
     var orderList = $("order-reveal-list");
     orderList.innerHTML = "";
-    groupOrder.forEach(function (item, i) {
+    trueOrder.forEach(function (item, i) {
       var row = document.createElement("div");
       row.className = "order-reveal-row";
       var num = document.createElement("div");
@@ -533,34 +676,36 @@
       orderList.appendChild(row);
     });
 
-    // Distance = how far a player's personal order sits from the group order,
-    // summed item by item (a Spearman footrule distance).
+    var guesserNames = [];
+    state.turnQueue.forEach(function (turn) {
+      if (turn.role === "guess") guesserNames.push(state.players[turn.idx]);
+    });
+
     var distances = {};
-    players.forEach(function (name) {
-      var playerIndex = {};
-      state.rankings[name].forEach(function (item, i) { playerIndex[item] = i; });
+    guesserNames.forEach(function (name) {
+      var guessIndex = {};
+      state.guesses[name].forEach(function (item, i) { guessIndex[item] = i; });
       var d = 0;
-      items.forEach(function (item) { d += Math.abs(playerIndex[item] - groupIndex[item]); });
+      items.forEach(function (item) { d += Math.abs(guessIndex[item] - trueIndex[item]); });
       distances[name] = d;
     });
 
-    var uniqueDistances = [];
-    players.forEach(function (name) {
-      if (uniqueDistances.indexOf(distances[name]) === -1) uniqueDistances.push(distances[name]);
-    });
-    uniqueDistances.sort(function (a, b) { return a - b; });
-
     var roundPoints = {};
-    players.forEach(function (name) {
-      var rank = uniqueDistances.indexOf(distances[name]) + 1;
-      roundPoints[name] = Math.max(1, players.length - rank + 1);
-      state.scores[name] += roundPoints[name];
+    guesserNames.forEach(function (name) {
+      var pts = pointsForDistance(distances[name]);
+      roundPoints[name] = pts;
+      state.scores[name] = (state.scores[name] || 0) + pts;
     });
 
-    var sortedRoundPlayers = players.slice().sort(function (a, b) { return distances[a] - distances[b]; });
+    // The ranker scores for every guess that didn't land exactly --
+    // a personal ranking that's easy to predict earns them nothing.
+    var stumped = guesserNames.filter(function (name) { return distances[name] > 0; }).length;
+    state.scores[rankerName] = (state.scores[rankerName] || 0) + stumped;
+
+    var sortedGuessers = guesserNames.slice().sort(function (a, b) { return distances[a] - distances[b]; });
     var standings = $("standings-list");
     standings.innerHTML = "";
-    sortedRoundPlayers.forEach(function (name) {
+    sortedGuessers.forEach(function (name) {
       var row = document.createElement("div");
       row.className = "standings-row";
       row.innerHTML = "<span class=\"pname\">" + name + "</span>" +
@@ -568,14 +713,20 @@
         "<span class=\"ppts\">+" + roundPoints[name] + "</span>";
       standings.appendChild(row);
     });
+    var rankerRow = document.createElement("div");
+    rankerRow.className = "standings-row";
+    rankerRow.innerHTML = "<span class=\"pname\">" + rankerName + " (Ranker)</span>" +
+      "<span class=\"pdist\">stumped " + stumped + " of " + guesserNames.length + "</span>" +
+      "<span class=\"ppts\">+" + stumped + "</span>";
+    standings.appendChild(rankerRow);
 
     var callout = $("round-callout");
-    if (sortedRoundPlayers.length > 1) {
-      var best = sortedRoundPlayers[0], worst = sortedRoundPlayers[sortedRoundPlayers.length - 1];
-      if (distances[best] === distances[worst]) {
-        callout.textContent = "Everyone landed equally close (or far) this round.";
+    if (sortedGuessers.length > 0) {
+      var best = sortedGuessers[0];
+      if (distances[best] === 0) {
+        callout.textContent = best + " read " + rankerName + "'s mind exactly.";
       } else {
-        callout.textContent = best + " read the room best. " + worst + " is on their own wavelength.";
+        callout.textContent = best + " got closest to " + rankerName + "'s real order.";
       }
     } else {
       callout.textContent = "";
@@ -682,9 +833,10 @@
 
   // ---------- Refresh-resume persistence ----------
   // Saved only at points where nothing unsafe-to-redo has happened yet:
-  // the start of a round (before any rankings are recorded) or right after
-  // a round's scores are already committed (screen-scores / screen-game-won).
-  // Never mid-ranking, since replaying that would double-apply scoring.
+  // the start of a round (before the ranker or any guesser has locked
+  // anything in) or right after a round's scores are already committed
+  // (screen-scores / screen-game-won). Never mid-round, since replaying
+  // that would double-apply scoring.
   var SAVE_KEY = "firstToWorstSave";
 
   function saveCheckpoint(screenId) {
@@ -697,6 +849,7 @@
           lastWinningScore: state.lastWinningScore,
           scores: state.scores,
           usedItems: state.usedItems,
+          rankerIndex: state.rankerIndex,
           round: state.round
         }
       };
@@ -738,6 +891,7 @@
     state.lastWinningScore = saved.lastWinningScore || 0;
     state.scores = saved.scores;
     state.usedItems = saved.usedItems || [];
+    state.rankerIndex = saved.rankerIndex;
     state.round = saved.round;
     $("refresh-resume-banner").style.display = "none";
 
@@ -753,18 +907,13 @@
       showScreen("screen-game-won");
     } else {
       // start of the in-progress round -- the safest resumable point, since
-      // nobody's ranking for it has happened yet
-      state.turnOrder = shuffled(state.players.map(function (_, i) { return i; }));
-      state.turnIndex = 0;
-      state.rankings = {};
-      var itemsWrap = $("ri-items");
-      itemsWrap.innerHTML = "";
-      state.round.items.forEach(function (item) {
-        var el = document.createElement("div");
-        el.className = "item-preview";
-        el.textContent = item;
-        itemsWrap.appendChild(el);
-      });
+      // nobody's turn for it has happened yet
+      state.rankerOrder = null;
+      state.guesses = {};
+      state.turnQueue = buildTurnQueue();
+      state.turnPos = 0;
+      $("ri-ranker-name").textContent = state.players[state.rankerIndex];
+      renderItemPreview(state.round.items);
       showScreen("screen-round-intro");
       saveCheckpoint("screen-round-intro");
     }
