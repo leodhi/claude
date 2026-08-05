@@ -120,6 +120,19 @@
   }
   .target-score-line strong { color: var(--accent); font-size: 1.1rem; }
   small.hint { color: var(--text-dim); display: block; margin-top: 4px; font-size: 0.78rem; }
+
+  .chip.static { cursor: default; }
+  button.link {
+    background: none; border: none; color: var(--text-dim); text-decoration: underline;
+    font-size: 0.8rem; cursor: pointer; padding: 6px;
+  }
+  .room-code { font-size: 2.6rem; font-weight: 800; letter-spacing: 0.2em; text-align: center; color: var(--accent); margin: 8px 0; }
+  .player-chip-list { display: flex; flex-wrap: wrap; gap: 8px; }
+  .player-chip { background: var(--panel-2); border: 1px solid var(--border); border-radius: 999px; padding: 7px 14px; font-size: 0.85rem; }
+  .host-badge { color: var(--accent); font-size: 0.7rem; margin-left: 4px; }
+  .waiting-text { color: var(--text-dim); text-align: center; padding: 16px 0; }
+  .footer-nav { display: flex; gap: 8px; margin-top: auto; padding-top: 10px; }
+  .footer-nav button { flex: 1; }
 </style>
 </head>
 <body>
@@ -130,81 +143,64 @@
   <div class="subtitle">Pass-and-play trivia — everyone answers in private &middot; <a class="top-link" href="index.html">&larr; all games</a></div>
 
   <!-- SETUP -->
-  <div class="screen active" id="screen-setup">
-    <div class="card" id="refresh-resume-banner" style="display:none;">
-      <div class="row" style="align-items:center; gap:10px;">
-        <div style="flex:1;">Looks like the page was refreshed mid-game. Want to keep playing?</div>
-      </div>
-      <div class="row" style="margin-top:10px;">
-        <button class="secondary" id="btn-refresh-startnew" type="button">Start New Game</button>
-        <button class="primary" id="btn-refresh-continue" type="button">Continue Game</button>
-      </div>
+  
+  <!-- HOME: play locally, or create/join a room -->
+  <div class="screen active" id="screen-home">
+    <div class="card">
+      <button class="primary" id="btn-local-mode" type="button">Play on One Device</button>
+      <small class="hint">Pass the phone around the table — classic pass-and-play.</small>
     </div>
-    <div class="card" id="resume-banner" style="display:none;">
-      <div class="row" style="align-items:center; gap:10px;">
-        <div style="flex:1;">Your last game was ended. Was that an accident?</div>
-        <button class="secondary" id="btn-resume-game" type="button" style="width:auto; flex:none; padding:10px 14px;">Resume Game</button>
-      </div>
+    <div class="center" style="color:var(--text-dim);font-size:0.8rem;">— or play across devices —</div>
+    <div class="card">
+      <label>Your name</label>
+      <input type="text" id="input-name" maxlength="20" placeholder="Enter your name">
     </div>
     <div class="card">
-      <label>Players (1–10)</label>
-      <div id="player-list"></div>
-      <button class="secondary" id="btn-add-player" type="button">+ Add player</button>
-      <small class="hint">Playing solo or with just one friend? Remove a row with ✕ — you don't need 3.</small>
+      <button class="secondary" id="btn-create-room" type="button">Create Room</button>
     </div>
     <div class="card">
+      <label>Join a room</label>
+      <input type="text" id="input-join-code" maxlength="4" placeholder="Room code">
+      <button class="secondary" id="btn-join-room" type="button" style="margin-top:10px">Join Room</button>
+    </div>
+    <div class="center" id="home-status" style="color:var(--text-dim);font-size:0.85rem;"></div>
+  </div>
+
+  <!-- MULTIPLAYER LOBBY -->
+  <div class="screen" id="screen-lobby">
+    <div class="card center">
+      <label>Room code — share with players</label>
+      <div class="room-code" id="lobby-code"></div>
+      <small class="hint">Everyone opens this page on their own device and enters this code to join.</small>
+    </div>
+    <div class="card">
+      <label>Players</label>
+      <div class="player-chip-list" id="lobby-players"></div>
+    </div>
+    <div class="card" id="lobby-settings-card">
       <label>Categories</label>
       <div class="chip-group" id="category-chips"></div>
-      <small class="hint">Pick specific categories, or leave them all selected for the full mix.</small>
-    </div>
-    <div class="card">
-      <label>Difficulty</label>
+      <label style="margin-top:12px">Difficulty</label>
       <div class="chip-group" id="difficulty-chips"></div>
-      <small class="hint">Pick any mix — each round randomly draws from whichever levels are selected, the same for everyone at the table that round. Easy is tuned for around age 7, Medium for around age 11, and Hard for around age 16.</small>
-    </div>
-    <div class="card">
-      <label>Guessing Mode</label>
+      <label style="margin-top:12px">Guessing Mode</label>
       <div class="chip-group" id="guess-mode-chips"></div>
-      <small class="hint">Type the Answer: everyone types what they think it is. Multiple Choice: players pick from a list of options — easier for younger or non-reading-fluent players. Random Mix: each round randomly gets one or the other, so it's the same for every player that round — nobody gets an easier or harder turn than anyone else.</small>
-    </div>
-    <div class="card">
-      <label>Points to Win</label>
+      <label style="margin-top:12px">Points to Win</label>
       <div class="target-score-row">
         <button class="stepper-btn" id="btn-target-down" type="button" aria-label="Decrease">&minus;</button>
         <input type="number" id="target-score-input" class="target-score-field" min="1" max="99" value="10">
         <button class="stepper-btn" id="btn-target-up" type="button" aria-label="Increase">+</button>
       </div>
-      <small class="hint">First to reach this score wins. Miss 2 in a row and you lose a point (never below 0).</small>
     </div>
     <button class="primary" id="btn-start-game" type="button">Start Game</button>
+    <div class="waiting-text" id="lobby-waiting" style="display:none">Waiting for the host to start the game…</div>
+    <button class="link" id="btn-leave-room" type="button">Leave room</button>
   </div>
 
-  <!-- ROUND INTRO -->
-  <div class="screen" id="screen-round-intro">
-    <div class="card center">
-      <span class="category-label" id="ri-category"></span>
-      <div class="question-text" id="ri-text"></div>
-      <small class="hint">The device will be passed to each player one at a time to type their own answer in private — no calling it out! Each player gets 30 seconds once it's their turn.</small>
-    </div>
-    <button class="primary" id="btn-start-answering" type="button">Start Answering</button>
-  </div>
-
-  <!-- PASS TO PLAYER -->
-  <div class="screen" id="screen-pass-turn">
-    <div class="card center">
-      <div class="pass-icon">📱➡️✍️</div>
-      <div>Pass the device to</div>
-      <div class="big-name" id="pass-name"></div>
-      <small class="hint">Only <span id="pass-name-2"></span> should look at the screen — everyone else, look away! Your 30 seconds starts once you tap ready.</small>
-    </div>
-    <button class="primary" id="btn-ready-to-answer" type="button">I'm ready to answer</button>
-  </div>
-
-  <!-- ANSWER INPUT -->
+  <!-- MULTIPLAYER: ANSWERING (question shown directly, no passing needed) -->
   <div class="screen" id="screen-answer-input">
     <div class="card center" style="padding:10px 16px;">
       <span class="category-label">Answering as</span>
-      <div class="big-name" id="input-name" style="font-size:1.3rem; margin:2px 0;"></div>
+      <div class="big-name" id="round-answerer-name" style="font-size:1.3rem; margin:2px 0;"></div>
       <div class="timer-display" id="input-timer">0:30</div>
     </div>
     <div class="card">
@@ -220,52 +216,40 @@
       </div>
     </div>
     <button class="primary" id="btn-submit-answer" type="button">Lock In Answer</button>
+    <div class="waiting-text" id="round-waiting" style="display:none">Waiting for other players…</div>
   </div>
 
-  <!-- READY TO REVEAL -->
-  <div class="screen" id="screen-ready-reveal">
-    <div class="card center">
-      <div class="pass-icon">🙌</div>
-      <div>Everyone's answered!</div>
-      <div class="big-name" style="font-size:1.3rem;">Put the device in the middle so everyone can see.</div>
-    </div>
-    <button class="primary" id="btn-show-answer" type="button">Show the Answer</button>
-  </div>
-
-  <!-- REVEAL + JUDGE -->
+  <!-- MULTIPLAYER: REVEAL + JUDGE -->
   <div class="screen" id="screen-reveal">
     <div class="card center">
       <span class="category-label">The answer was</span>
       <div class="answer-text" id="reveal-answer-text"></div>
     </div>
     <div class="card">
-      <label>Who got it right? (auto-checked — tap to correct any calls)</label>
+      <label>Who got it right? (auto-checked — host can tap to correct any calls)</label>
       <div id="judge-list"></div>
     </div>
-    <button class="primary" id="btn-next-round" type="button">Next Round</button>
+    <div class="footer-nav" id="reveal-host-nav" style="display:none">
+      <button class="primary" id="btn-next-round" type="button">Next Round</button>
+    </div>
+    <div class="waiting-text" id="reveal-waiting" style="display:none">Waiting for host…</div>
   </div>
 
-  <!-- SCOREBOARD (between rounds) -->
+  <!-- MULTIPLAYER: SCOREBOARD -->
   <div class="screen" id="screen-scores">
     <div class="card">
       <label>Scoreboard</label>
       <div class="scoreboard" id="scoreboard"></div>
       <div class="target-score-line">Playing to <strong id="scoreboard-target"></strong> points</div>
     </div>
-    <div class="card center" id="end-game-confirm" style="display:none;">
-      <div>End the game and return to the start screen?</div>
-      <div class="row" style="margin-top:10px;">
-        <button class="secondary" id="btn-cancel-end-game" type="button">Cancel</button>
-        <button class="danger" id="btn-confirm-end-game" type="button">Yes, End Game</button>
-      </div>
-    </div>
-    <div class="row">
+    <div class="footer-nav" id="scores-host-nav" style="display:none">
       <button class="secondary" id="btn-back-to-round" type="button">Continue Playing</button>
       <button class="danger" id="btn-end-game" type="button">End Game</button>
     </div>
+    <div class="waiting-text" id="scores-waiting" style="display:none">Waiting for host…</div>
   </div>
 
-  <!-- GAME WON -->
+  <!-- MULTIPLAYER: GAME WON -->
   <div class="screen" id="screen-game-won">
     <div class="card center">
       <div class="pass-icon">🏆</div>
@@ -276,28 +260,187 @@
       <label>Final Scores</label>
       <div class="scoreboard" id="winner-scoreboard"></div>
     </div>
-    <div class="card center" id="extend-game-form" style="display:none;">
+    <div class="footer-nav" id="won-host-nav" style="display:none">
+      <button class="primary" id="btn-new-game" type="button">New Game</button>
+    </div>
+    <div class="waiting-text" id="won-waiting" style="display:none">Waiting for host…</div>
+  </div>
+<div class="screen" id="local-screen-setup">
+    <div class="card" id="local-refresh-resume-banner" style="display:none;">
+      <div class="row" style="align-items:center; gap:10px;">
+        <div style="flex:1;">Looks like the page was refreshed mid-game. Want to keep playing?</div>
+      </div>
+      <div class="row" style="margin-top:10px;">
+        <button class="secondary" id="local-btn-refresh-startnew" type="button">Start New Game</button>
+        <button class="primary" id="local-btn-refresh-continue" type="button">Continue Game</button>
+      </div>
+    </div>
+    <div class="card" id="local-resume-banner" style="display:none;">
+      <div class="row" style="align-items:center; gap:10px;">
+        <div style="flex:1;">Your last game was ended. Was that an accident?</div>
+        <button class="secondary" id="local-btn-resume-game" type="button" style="width:auto; flex:none; padding:10px 14px;">Resume Game</button>
+      </div>
+    </div>
+    <div class="card">
+      <label>Players (1–10)</label>
+      <div id="local-player-list"></div>
+      <button class="secondary" id="local-btn-add-player" type="button">+ Add player</button>
+      <small class="hint">Playing solo or with just one friend? Remove a row with ✕ — you don't need 3.</small>
+    </div>
+    <div class="card">
+      <label>Categories</label>
+      <div class="chip-group" id="local-category-chips"></div>
+      <small class="hint">Pick specific categories, or leave them all selected for the full mix.</small>
+    </div>
+    <div class="card">
+      <label>Difficulty</label>
+      <div class="chip-group" id="local-difficulty-chips"></div>
+      <small class="hint">Pick any mix — each round randomly draws from whichever levels are selected, the same for everyone at the table that round. Easy is tuned for around age 7, Medium for around age 11, and Hard for around age 16.</small>
+    </div>
+    <div class="card">
+      <label>Guessing Mode</label>
+      <div class="chip-group" id="local-guess-mode-chips"></div>
+      <small class="hint">Type the Answer: everyone types what they think it is. Multiple Choice: players pick from a list of options — easier for younger or non-reading-fluent players. Random Mix: each round randomly gets one or the other, so it's the same for every player that round — nobody gets an easier or harder turn than anyone else.</small>
+    </div>
+    <div class="card">
+      <label>Points to Win</label>
+      <div class="target-score-row">
+        <button class="stepper-btn" id="local-btn-target-down" type="button" aria-label="Decrease">&minus;</button>
+        <input type="number" id="local-target-score-input" class="target-score-field" min="1" max="99" value="10">
+        <button class="stepper-btn" id="local-btn-target-up" type="button" aria-label="Increase">+</button>
+      </div>
+      <small class="hint">First to reach this score wins. Miss 2 in a row and you lose a point (never below 0).</small>
+    </div>
+    <button class="primary" id="local-btn-start-game" type="button">Start Game</button>
+    <button class="link" id="local-btn-back-home" type="button">Back to home</button>
+  </div>
+
+  <!-- ROUND INTRO -->
+  <div class="screen" id="local-screen-round-intro">
+    <div class="card center">
+      <span class="category-label" id="local-ri-category"></span>
+      <div class="question-text" id="local-ri-text"></div>
+      <small class="hint">The device will be passed to each player one at a time to type their own answer in private — no calling it out! Each player gets 30 seconds once it's their turn.</small>
+    </div>
+    <button class="primary" id="local-btn-start-answering" type="button">Start Answering</button>
+  </div>
+
+  <!-- PASS TO PLAYER -->
+  <div class="screen" id="local-screen-pass-turn">
+    <div class="card center">
+      <div class="pass-icon">📱➡️✍️</div>
+      <div>Pass the device to</div>
+      <div class="big-name" id="local-pass-name"></div>
+      <small class="hint">Only <span id="local-pass-name-2"></span> should look at the screen — everyone else, look away! Your 30 seconds starts once you tap ready.</small>
+    </div>
+    <button class="primary" id="local-btn-ready-to-answer" type="button">I'm ready to answer</button>
+  </div>
+
+  <!-- ANSWER INPUT -->
+  <div class="screen" id="local-screen-answer-input">
+    <div class="card center" style="padding:10px 16px;">
+      <span class="category-label">Answering as</span>
+      <div class="big-name" id="local-input-name" style="font-size:1.3rem; margin:2px 0;"></div>
+      <div class="timer-display" id="local-input-timer">0:30</div>
+    </div>
+    <div class="card">
+      <span class="category-label" id="local-input-category"></span>
+      <div class="question-text" id="local-input-question"></div>
+      <div id="local-input-type-card">
+        <label>Your answer</label>
+        <input type="text" id="local-input-answer-field" placeholder="Type what you think it is..." maxlength="60">
+      </div>
+      <div id="local-input-choice-card" style="display:none;">
+        <label>Pick your answer</label>
+        <div class="chip-group" id="local-input-choice-options"></div>
+      </div>
+    </div>
+    <button class="primary" id="local-btn-submit-answer" type="button">Lock In Answer</button>
+  </div>
+
+  <!-- READY TO REVEAL -->
+  <div class="screen" id="local-screen-ready-reveal">
+    <div class="card center">
+      <div class="pass-icon">🙌</div>
+      <div>Everyone's answered!</div>
+      <div class="big-name" style="font-size:1.3rem;">Put the device in the middle so everyone can see.</div>
+    </div>
+    <button class="primary" id="local-btn-show-answer" type="button">Show the Answer</button>
+  </div>
+
+  <!-- REVEAL + JUDGE -->
+  <div class="screen" id="local-screen-reveal">
+    <div class="card center">
+      <span class="category-label">The answer was</span>
+      <div class="answer-text" id="local-reveal-answer-text"></div>
+    </div>
+    <div class="card">
+      <label>Who got it right? (auto-checked — tap to correct any calls)</label>
+      <div id="local-judge-list"></div>
+    </div>
+    <button class="primary" id="local-btn-next-round" type="button">Next Round</button>
+  </div>
+
+  <!-- SCOREBOARD (between rounds) -->
+  <div class="screen" id="local-screen-scores">
+    <div class="card">
+      <label>Scoreboard</label>
+      <div class="scoreboard" id="local-scoreboard"></div>
+      <div class="target-score-line">Playing to <strong id="local-scoreboard-target"></strong> points</div>
+    </div>
+    <div class="card center" id="local-end-game-confirm" style="display:none;">
+      <div>End the game and return to the start screen?</div>
+      <div class="row" style="margin-top:10px;">
+        <button class="secondary" id="local-btn-cancel-end-game" type="button">Cancel</button>
+        <button class="danger" id="local-btn-confirm-end-game" type="button">Yes, End Game</button>
+      </div>
+    </div>
+    <div class="row">
+      <button class="secondary" id="local-btn-back-to-round" type="button">Continue Playing</button>
+      <button class="danger" id="local-btn-end-game" type="button">End Game</button>
+    </div>
+  </div>
+
+  <!-- GAME WON -->
+  <div class="screen" id="local-screen-game-won">
+    <div class="card center">
+      <div class="pass-icon">🏆</div>
+      <div class="big-name" id="local-winner-name"></div>
+      <div>wins the game!</div>
+    </div>
+    <div class="card">
+      <label>Final Scores</label>
+      <div class="scoreboard" id="local-winner-scoreboard"></div>
+    </div>
+    <div class="card center" id="local-extend-game-form" style="display:none;">
       <label>New points to win</label>
       <div class="target-score-row">
-        <button class="stepper-btn" id="btn-extend-down" type="button" aria-label="Decrease">&minus;</button>
-        <input type="number" id="extend-target-input" class="target-score-field" min="1" max="99">
-        <button class="stepper-btn" id="btn-extend-up" type="button" aria-label="Increase">+</button>
+        <button class="stepper-btn" id="local-btn-extend-down" type="button" aria-label="Decrease">&minus;</button>
+        <input type="number" id="local-extend-target-input" class="target-score-field" min="1" max="99">
+        <button class="stepper-btn" id="local-btn-extend-up" type="button" aria-label="Increase">+</button>
       </div>
       <small class="hint">Only continue if everyone agrees to keep playing!</small>
-      <button class="secondary" id="btn-confirm-extend" type="button" style="margin-top:10px;">Everyone Agrees — Keep Playing</button>
+      <button class="secondary" id="local-btn-confirm-extend" type="button" style="margin-top:10px;">Everyone Agrees — Keep Playing</button>
     </div>
-    <button class="secondary" id="btn-extend-game" type="button">Extend the Game</button>
-    <button class="primary" id="btn-new-game" type="button">New Game</button>
+    <button class="secondary" id="local-btn-extend-game" type="button">Extend the Game</button>
+    <button class="primary" id="local-btn-new-game" type="button">New Game</button>
   </div>
+
 </div>
 
-<script>
-(function () {
-  "use strict";
+<script type="module">
+import { firebaseConfig } from "./firebase-config.js";
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+import { getDatabase, ref, set, get, update, onValue } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
 
-  var ROUND_TIME = 30;
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getDatabase(app);
 
-  var CATEGORIES = {
+var ROUND_TIME = 30;
+
+var CATEGORIES = {
     "Animals": {
       "Easy": [
         ["What do you call a baby dog?", "A puppy"],
@@ -671,173 +814,23 @@
     }
   };
 
-  var DIFFICULTIES = ["Easy", "Medium", "Hard"];
+var DIFFICULTIES = ["Easy", "Medium", "Hard"];
 
-  var state = {
-    players: ["", ""],
-    selectedCategories: Object.keys(CATEGORIES),
-    selectedDifficulties: DIFFICULTIES.slice(),
-    guessMode: "type",
-    targetScore: 10,
-    scores: {},
-    wrongStreaks: {},
-    usedQuestions: {},
-    currentQuestion: null,
-    turnOrder: [],
-    turnIndex: 0,
-    givenAnswers: {},
-    judgedCorrect: {},
-    currentTurnMode: "type",
-    roundGuessMode: "type",
-    roundChoiceOptions: null,
-    currentChoiceSelected: null,
-    timerHandle: null,
-    timerRemaining: 0,
-    canResume: false,
-    lastWinningScore: 0
-  };
+var CONTINENTS = ["Africa", "Asia", "Europe", "North America", "South America", "Antarctica", "Australia"];
 
-  function $(id) { return document.getElementById(id); }
-  function showScreen(id) {
+var OCEANS = ["The Pacific Ocean", "The Atlantic Ocean", "The Indian Ocean", "The Arctic Ocean", "The Southern Ocean"];
+
+function $(id) { return document.getElementById(id); }
+
+
+function showScreen(id) {
     document.querySelectorAll(".screen").forEach(function (s) { s.classList.remove("active"); });
     $(id).classList.add("active");
   }
 
-  // ---------- Setup screen ----------
-  function renderPlayerList() {
-    var wrap = $("player-list");
-    wrap.innerHTML = "";
-    state.players.forEach(function (name, i) {
-      var row = document.createElement("div");
-      row.className = "player-row";
-      var input = document.createElement("input");
-      input.type = "text";
-      input.placeholder = "Player " + (i + 1);
-      input.value = name;
-      input.maxLength = 20;
-      input.addEventListener("input", function () { state.players[i] = input.value; });
-      row.appendChild(input);
-      if (state.players.length > 1) {
-        var rm = document.createElement("button");
-        rm.className = "icon-btn";
-        rm.type = "button";
-        rm.textContent = "✕";
-        rm.addEventListener("click", function () {
-          state.players.splice(i, 1);
-          renderPlayerList();
-        });
-        row.appendChild(rm);
-      }
-      wrap.appendChild(row);
-    });
-  }
+function pickRandom(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
 
-  $("btn-add-player").addEventListener("click", function () {
-    if (state.players.length >= 10) return;
-    state.players.push("");
-    renderPlayerList();
-  });
-
-  function renderCategoryChips() {
-    var wrap = $("category-chips");
-    wrap.innerHTML = "";
-    Object.keys(CATEGORIES).forEach(function (cat) {
-      var chip = document.createElement("div");
-      chip.className = "chip" + (state.selectedCategories.indexOf(cat) !== -1 ? " selected" : "");
-      chip.textContent = cat;
-      chip.addEventListener("click", function () {
-        var idx = state.selectedCategories.indexOf(cat);
-        if (idx !== -1) {
-          if (state.selectedCategories.length === 1) return;
-          state.selectedCategories.splice(idx, 1);
-        } else {
-          state.selectedCategories.push(cat);
-        }
-        renderCategoryChips();
-      });
-      wrap.appendChild(chip);
-    });
-  }
-
-  function renderDifficultyChips() {
-    var wrap = $("difficulty-chips");
-    wrap.innerHTML = "";
-    DIFFICULTIES.forEach(function (diff) {
-      var chip = document.createElement("div");
-      chip.className = "chip" + (state.selectedDifficulties.indexOf(diff) !== -1 ? " selected" : "");
-      chip.textContent = diff;
-      chip.addEventListener("click", function () {
-        var idx = state.selectedDifficulties.indexOf(diff);
-        if (idx !== -1) {
-          if (state.selectedDifficulties.length === 1) return;
-          state.selectedDifficulties.splice(idx, 1);
-        } else {
-          state.selectedDifficulties.push(diff);
-        }
-        renderDifficultyChips();
-      });
-      wrap.appendChild(chip);
-    });
-  }
-
-  var GUESS_MODES = [
-    { id: "type", label: "Type the Answer" },
-    { id: "choice", label: "Multiple Choice" },
-    { id: "mix", label: "Random Mix" }
-  ];
-
-  function renderGuessModeChips() {
-    var wrap = $("guess-mode-chips");
-    wrap.innerHTML = "";
-    GUESS_MODES.forEach(function (mode) {
-      var chip = document.createElement("div");
-      chip.className = "chip" + (state.guessMode === mode.id ? " selected" : "");
-      chip.textContent = mode.label;
-      chip.addEventListener("click", function () {
-        state.guessMode = mode.id;
-        renderGuessModeChips();
-      });
-      wrap.appendChild(chip);
-    });
-  }
-
-  function clampTarget() {
-    var v = parseInt($("target-score-input").value, 10);
-    if (isNaN(v) || v < 1) v = 1;
-    if (v > 99) v = 99;
-    $("target-score-input").value = v;
-    state.targetScore = v;
-  }
-  $("target-score-input").addEventListener("change", clampTarget);
-  $("btn-target-down").addEventListener("click", function () {
-    $("target-score-input").value = Math.max(1, (parseInt($("target-score-input").value, 10) || 1) - 1);
-    clampTarget();
-  });
-  $("btn-target-up").addEventListener("click", function () {
-    $("target-score-input").value = Math.min(99, (parseInt($("target-score-input").value, 10) || 1) + 1);
-    clampTarget();
-  });
-
-  $("btn-start-game").addEventListener("click", function () {
-    var names = state.players.map(function (n) { return n.trim(); }).filter(function (n) { return n.length > 0; });
-    if (names.length < 1) { alert("Enter at least one player name."); return; }
-    clampTarget();
-    state.players = names;
-    state.scores = {};
-    state.wrongStreaks = {};
-    names.forEach(function (n) { state.scores[n] = 0; state.wrongStreaks[n] = 0; });
-    state.usedQuestions = {};
-    state.canResume = false;
-    $("resume-banner").style.display = "none";
-    pendingResume = null;
-    $("refresh-resume-banner").style.display = "none";
-    nextRound();
-  });
-
-  // ---------- Round setup ----------
-  function pickRandom(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
-
-  function categoryAnswers(cat) {
+function categoryAnswers(cat) {
     var all = [];
     DIFFICULTIES.forEach(function (diff) {
       CATEGORIES[cat][diff].forEach(function (q) { all.push(q[1]); });
@@ -845,25 +838,13 @@
     return all;
   }
 
-  function allAnswers() {
+function allAnswers() {
     var all = [];
     Object.keys(CATEGORIES).forEach(function (cat) { all = all.concat(categoryAnswers(cat)); });
     return all;
   }
 
-  // A handful of well-known finite sets are too thin in the question bank
-  // itself to fill 9 real distractors (e.g. only 2-3 answers happen to be
-  // continents), so these are curated supplements -- not "correct answers"
-  // to any question, just plausible same-type options to draw from.
-  var CONTINENTS = ["Africa", "Asia", "Europe", "North America", "South America", "Antarctica", "Australia"];
-  var OCEANS = ["The Pacific Ocean", "The Atlantic Ocean", "The Indian Ocean", "The Arctic Ocean", "The Southern Ocean"];
-
-  // Classifies an answer so distractors are pulled from the same kind of
-  // thing -- a numeric question gets other numbers, a continent question
-  // gets other continents, a country/city question gets other places --
-  // instead of a plausible-looking category mash of numbers, places, and
-  // random terms where the real answer stands out by elimination.
-  function classifyAnswer(answer, cat) {
+function classifyAnswer(answer, cat) {
     if (/^-?\d/.test((answer || "").trim())) return "number";
     if (cat === "Geography") {
       if (CONTINENTS.indexOf(answer) !== -1) return "continent";
@@ -873,7 +854,7 @@
     return "text";
   }
 
-  function buildChoiceOptions(correctAnswer, cat) {
+function buildChoiceOptions(correctAnswer, cat) {
     var type = classifyAnswer(correctAnswer, cat);
     var nonNumeric = function (arr) { return arr.filter(function (a) { return classifyAnswer(a, cat) !== "number"; }); };
     var numeric = function (arr) { return arr.filter(function (a) { return classifyAnswer(a, cat) === "number"; }); };
@@ -932,215 +913,13 @@
     return options;
   }
 
-  function questionKey(cat, diff) { return cat + "::" + diff; }
+function questionKey(cat, diff) { return cat + "::" + diff; }
 
-  // ---------- Refresh-resume persistence ----------
-  // Saved only at points where nothing unsafe-to-redo has happened yet:
-  // the start of a round (before any answers are recorded) or right after
-  // a round's scores are already committed (screen-scores / screen-game-won).
-  // Never mid-answering, since replaying that would double-apply scoring.
-  var SAVE_KEY = "triviaPartySave";
-
-  function saveCheckpoint(screenId) {
-    try {
-      var snapshot = {
-        screen: screenId,
-        state: {
-          players: state.players,
-          selectedCategories: state.selectedCategories,
-          selectedDifficulties: state.selectedDifficulties,
-          guessMode: state.guessMode,
-          targetScore: state.targetScore,
-          lastWinningScore: state.lastWinningScore,
-          scores: state.scores,
-          wrongStreaks: state.wrongStreaks,
-          usedQuestions: state.usedQuestions,
-          currentQuestion: state.currentQuestion,
-          roundGuessMode: state.roundGuessMode,
-          roundChoiceOptions: state.roundChoiceOptions
-        }
-      };
-      localStorage.setItem(SAVE_KEY, JSON.stringify(snapshot));
-    } catch (e) { /* private browsing or storage disabled -- resume just won't be offered */ }
-  }
-
-  function clearSavedGame() {
-    try { localStorage.removeItem(SAVE_KEY); } catch (e) {}
-  }
-
-  function loadSavedGame() {
-    try {
-      var raw = localStorage.getItem(SAVE_KEY);
-      return raw ? JSON.parse(raw) : null;
-    } catch (e) { return null; }
-  }
-
-  function buildPool() {
-    var pool = [];
-    state.selectedCategories.forEach(function (cat) {
-      state.selectedDifficulties.forEach(function (diff) {
-        var key = questionKey(cat, diff);
-        var used = state.usedQuestions[key] || [];
-        CATEGORIES[cat][diff].forEach(function (q, i) {
-          if (used.indexOf(i) === -1) pool.push({ cat: cat, diff: diff, idx: i, q: q[0], a: q[1] });
-        });
-      });
-    });
-    return pool;
-  }
-
-  function nextRound() {
-    var pool = buildPool();
-    if (pool.length === 0) {
-      state.selectedCategories.forEach(function (cat) {
-        state.selectedDifficulties.forEach(function (diff) {
-          state.usedQuestions[questionKey(cat, diff)] = [];
-        });
-      });
-      pool = buildPool();
-    }
-    var pick = pickRandom(pool);
-    var key = questionKey(pick.cat, pick.diff);
-    if (!state.usedQuestions[key]) state.usedQuestions[key] = [];
-    state.usedQuestions[key].push(pick.idx);
-    state.currentQuestion = pick;
-    state.givenAnswers = {};
-    state.judgedCorrect = {};
-
-    // Random Mix rolls type-vs-choice ONCE per round here -- every player
-    // this round gets the same mode, so nobody has an easier/harder turn
-    // than anyone else. It's just unpredictable round to round.
-    state.roundGuessMode = (state.guessMode === "mix")
-      ? ((Math.random() < 0.5) ? "type" : "choice")
-      : state.guessMode;
-    state.roundChoiceOptions = (state.roundGuessMode === "choice")
-      ? buildChoiceOptions(pick.a, pick.cat)
-      : null;
-
-    var order = state.players.map(function (_, i) { return i; });
-    for (var i = order.length - 1; i > 0; i--) {
-      var j = Math.floor(Math.random() * (i + 1));
-      var tmp = order[i]; order[i] = order[j]; order[j] = tmp;
-    }
-    state.turnOrder = order;
-    state.turnIndex = 0;
-
-    $("ri-category").textContent = pick.cat + " · " + pick.diff;
-    $("ri-text").textContent = pick.q;
-    showScreen("screen-round-intro");
-    saveCheckpoint("screen-round-intro");
-  }
-
-  // ---------- Timer (restarted fresh for each player's turn) ----------
-  function startTimer(displayIds, onExpire) {
-    clearInterval(state.timerHandle);
-    state.timerRemaining = ROUND_TIME;
-    state.timerDisplayIds = displayIds;
-    updateTimerDisplay();
-    state.timerHandle = setInterval(function () {
-      state.timerRemaining--;
-      updateTimerDisplay();
-      if (state.timerRemaining <= 0) {
-        clearInterval(state.timerHandle);
-        onExpire();
-      }
-    }, 1000);
-  }
-
-  function updateTimerDisplay() {
-    var m = Math.floor(state.timerRemaining / 60);
-    var s = state.timerRemaining % 60;
-    var text = m + ":" + (s < 10 ? "0" : "") + s;
-    (state.timerDisplayIds || []).forEach(function (id) {
-      var el = $(id);
-      if (!el) return;
-      el.textContent = text;
-      el.classList.toggle("low", state.timerRemaining <= 10);
-    });
-  }
-
-  // ---------- Pass-and-play turn loop ----------
-  $("btn-start-answering").addEventListener("click", function () {
-    goToPassTurn();
-  });
-
-  function goToPassTurn() {
-    if (state.turnIndex >= state.turnOrder.length) {
-      clearInterval(state.timerHandle);
-      showScreen("screen-ready-reveal");
-      return;
-    }
-    var name = state.players[state.turnOrder[state.turnIndex]];
-    $("pass-name").textContent = name;
-    $("pass-name-2").textContent = name;
-    showScreen("screen-pass-turn");
-  }
-
-  $("btn-ready-to-answer").addEventListener("click", function () {
-    var name = state.players[state.turnOrder[state.turnIndex]];
-    $("input-name").textContent = name;
-    $("input-category").textContent = state.currentQuestion.cat + " · " + state.currentQuestion.diff;
-    $("input-question").textContent = state.currentQuestion.q;
-    $("input-answer-field").value = "";
-
-    state.currentTurnMode = state.roundGuessMode;
-
-    if (state.currentTurnMode === "choice") {
-      state.currentChoiceSelected = null;
-      renderChoiceOptions();
-      $("input-type-card").style.display = "none";
-      $("input-choice-card").style.display = "";
-    } else {
-      $("input-type-card").style.display = "";
-      $("input-choice-card").style.display = "none";
-    }
-
-    showScreen("screen-answer-input");
-    startTimer(["input-timer"], submitCurrentTurn);
-    if (state.currentTurnMode !== "choice") $("input-answer-field").focus();
-  });
-
-  function renderChoiceOptions() {
-    var wrap = $("input-choice-options");
-    wrap.innerHTML = "";
-    state.roundChoiceOptions.forEach(function (opt) {
-      var chip = document.createElement("div");
-      chip.className = "chip" + (opt === state.currentChoiceSelected ? " selected" : "");
-      chip.textContent = opt;
-      chip.addEventListener("click", function () {
-        state.currentChoiceSelected = opt;
-        renderChoiceOptions();
-      });
-      wrap.appendChild(chip);
-    });
-  }
-
-  function currentTurnAnswer() {
-    if (state.currentTurnMode === "choice") return state.currentChoiceSelected || "";
-    return $("input-answer-field").value.trim();
-  }
-
-  function submitCurrentTurn() {
-    clearInterval(state.timerHandle);
-    var name = state.players[state.turnOrder[state.turnIndex]];
-    state.givenAnswers[name] = currentTurnAnswer();
-    state.turnIndex++;
-    goToPassTurn();
-  }
-
-  $("btn-submit-answer").addEventListener("click", submitCurrentTurn);
-
-
-  $("btn-show-answer").addEventListener("click", function () {
-    renderReveal();
-  });
-
-  // ---------- Reveal + judging ----------
-  function normalize(s) {
+function normalize(s) {
     return (s || "").toLowerCase().trim().replace(/^(a|an|the)\s+/, "").replace(/[^a-z0-9 ]/g, "").replace(/\s+/g, " ");
   }
 
-  function levenshtein(a, b) {
+function levenshtein(a, b) {
     var m = a.length, n = b.length;
     var prev = [];
     for (var j = 0; j <= n; j++) prev[j] = j;
@@ -1155,10 +934,7 @@
     return prev[n];
   }
 
-  // typo-tolerant match: exact, simple plural, substring containment, or a
-  // small Levenshtein distance that scales with word length so short words
-  // (where a 1-letter edit can turn one real word into another) stay strict
-  function isCloseAnswer(given, correct) {
+function isCloseAnswer(given, correct) {
     var g = normalize(given);
     var a = normalize(correct);
     if (!g) return false;
@@ -1172,237 +948,1215 @@
     return levenshtein(g, a) <= threshold;
   }
 
-  function goToReveal() {
-    clearInterval(state.timerHandle);
-    renderReveal();
-    showScreen("screen-reveal");
+// =========================================================================
+// MULTIPLAYER MODE
+// =========================================================================
+
+var CODE_CHARS = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+var mpGuessModes = [
+  { id: "type", label: "Type the Answer" },
+  { id: "choice", label: "Multiple Choice" },
+  { id: "mix", label: "Random Mix" }
+];
+var WRONG_STREAK_PENALTY = 2;
+
+var mp = {
+  uid: null,
+  name: "",
+  roomCode: null,
+  isHost: false,
+  room: null,
+  answer: "",
+  choiceSelected: null,
+  timerHandle: null,
+  timerRemaining: 0,
+  timerRoundKey: null
+};
+
+function roomRef(code) { return ref(db, "rooms/" + code); }
+function generateRoomCode() {
+  var out = "";
+  for (var i = 0; i < 4; i++) out += CODE_CHARS[Math.floor(Math.random() * CODE_CHARS.length)];
+  return out;
+}
+function roundKey(round) { return round.cat + "::" + round.diff + "::" + round.q; }
+
+signInAnonymously(auth).catch(function (err) {
+  $("home-status").textContent = "Couldn't connect: " + err.message;
+});
+
+onAuthStateChanged(auth, function (user) {
+  if (!user) return;
+  mp.uid = user.uid;
+  tryAutoRejoin();
+});
+
+function tryAutoRejoin() {
+  var saved = null;
+  try { saved = JSON.parse(localStorage.getItem("trivia_room") || "null"); } catch (e) {}
+  if (!saved || !saved.code || !saved.name) return;
+  $("input-name").value = saved.name;
+  get(roomRef(saved.code)).then(function (snap) {
+    if (!snap.exists()) { localStorage.removeItem("trivia_room"); return; }
+    var roomVal = snap.val();
+    if (roomVal.players && roomVal.players[mp.uid]) {
+      mp.roomCode = saved.code;
+      mp.name = saved.name;
+      mp.isHost = roomVal.hostUid === mp.uid;
+      subscribeRoom(saved.code);
+    }
+  });
+}
+
+$("btn-create-room").addEventListener("click", function () {
+  var name = $("input-name").value.trim();
+  if (!name) { $("home-status").textContent = "Enter your name first."; return; }
+  if (!mp.uid) { $("home-status").textContent = "Still connecting, try again in a moment."; return; }
+  createRoomFlow(name);
+});
+
+$("btn-join-room").addEventListener("click", function () {
+  var name = $("input-name").value.trim();
+  var code = $("input-join-code").value.trim().toUpperCase();
+  if (!name) { $("home-status").textContent = "Enter your name first."; return; }
+  if (!code) { $("home-status").textContent = "Enter a room code."; return; }
+  if (!mp.uid) { $("home-status").textContent = "Still connecting, try again in a moment."; return; }
+  joinRoomFlow(code, name);
+});
+
+async function createRoomFlow(name) {
+  $("home-status").textContent = "Creating room…";
+  var code;
+  do { code = generateRoomCode(); } while ((await get(roomRef(code))).exists());
+  var uid = mp.uid;
+  await set(roomRef(code), {
+    createdAt: Date.now(),
+    hostUid: uid,
+    phase: "lobby",
+    settings: { categories: Object.keys(CATEGORIES), difficulties: DIFFICULTIES.slice(), guessMode: "type", targetScore: 10 },
+    players: { [uid]: { name: name, joinedAt: Date.now() } },
+    scores: { [uid]: 0 },
+    wrongStreaks: { [uid]: 0 },
+    usedQuestions: {}
+  });
+  mp.roomCode = code;
+  mp.name = name;
+  mp.isHost = true;
+  localStorage.setItem("trivia_room", JSON.stringify({ code: code, name: name }));
+  subscribeRoom(code);
+}
+
+async function joinRoomFlow(code, name) {
+  $("home-status").textContent = "Joining…";
+  var snap = await get(roomRef(code));
+  if (!snap.exists()) { $("home-status").textContent = "Room not found."; return; }
+  var uid = mp.uid;
+  var val = snap.val();
+  await update(ref(db, "rooms/" + code + "/players/" + uid), { name: name, joinedAt: Date.now() });
+  if (!val.scores || val.scores[uid] === undefined) {
+    await update(ref(db, "rooms/" + code + "/scores"), (function () { var o = {}; o[uid] = 0; return o; })());
+    await update(ref(db, "rooms/" + code + "/wrongStreaks"), (function () { var o = {}; o[uid] = 0; return o; })());
+  }
+  mp.roomCode = code;
+  mp.name = name;
+  mp.isHost = val.hostUid === uid;
+  localStorage.setItem("trivia_room", JSON.stringify({ code: code, name: name }));
+  subscribeRoom(code);
+}
+
+$("btn-leave-room").addEventListener("click", function () {
+  if (!confirm("Leave this room?")) return;
+  localStorage.removeItem("trivia_room");
+  location.reload();
+});
+
+function subscribeRoom(code) {
+  onValue(roomRef(code), function (snap) {
+    mp.room = snap.val();
+    if (!mp.room) {
+      localStorage.removeItem("trivia_room");
+      showScreen("screen-home");
+      $("home-status").textContent = "Room closed.";
+      return;
+    }
+    mp.isHost = mp.room.hostUid === mp.uid;
+    render();
+  });
+}
+
+function render() {
+  var room = mp.room;
+  if (!room) return;
+  if (room.phase === "lobby") renderLobby();
+  else if (room.phase === "round") renderRound();
+  else if (room.phase === "reveal") renderRevealScreen();
+  else if (room.phase === "scores") renderScoresScreen();
+  else if (room.phase === "game-won") renderGameWonScreen();
+}
+
+function mpPlayerName(uid) {
+  return mp.room.players && mp.room.players[uid] ? mp.room.players[uid].name : "?";
+}
+function mpPlayerUids() { return mp.room.players ? Object.keys(mp.room.players) : []; }
+
+// ---------- Lobby ----------
+function renderLobby() {
+  var room = mp.room;
+  $("lobby-code").textContent = mp.roomCode;
+
+  var list = $("lobby-players");
+  list.innerHTML = "";
+  mpPlayerUids().forEach(function (uid) {
+    var chip = document.createElement("div");
+    chip.className = "player-chip";
+    chip.textContent = mpPlayerName(uid);
+    if (uid === room.hostUid) {
+      var badge = document.createElement("span");
+      badge.className = "host-badge";
+      badge.textContent = "HOST";
+      chip.appendChild(badge);
+    }
+    list.appendChild(chip);
+  });
+
+  var catWrap = $("category-chips");
+  catWrap.innerHTML = "";
+  var selectedCats = room.settings.categories || [];
+  Object.keys(CATEGORIES).forEach(function (cat) {
+    var chip = document.createElement("div");
+    chip.className = "chip" + (selectedCats.indexOf(cat) !== -1 ? " selected" : "") + (mp.isHost ? "" : " static");
+    chip.textContent = cat;
+    if (mp.isHost) {
+      chip.addEventListener("click", function () {
+        var idx = selectedCats.indexOf(cat);
+        var next = selectedCats.slice();
+        if (idx !== -1) {
+          if (next.length === 1) return;
+          next.splice(idx, 1);
+        } else {
+          next.push(cat);
+        }
+        update(ref(db, "rooms/" + mp.roomCode + "/settings"), { categories: next });
+      });
+    }
+    catWrap.appendChild(chip);
+  });
+
+  var diffWrap = $("difficulty-chips");
+  diffWrap.innerHTML = "";
+  var selectedDiffs = room.settings.difficulties || [];
+  DIFFICULTIES.forEach(function (diff) {
+    var chip = document.createElement("div");
+    chip.className = "chip" + (selectedDiffs.indexOf(diff) !== -1 ? " selected" : "") + (mp.isHost ? "" : " static");
+    chip.textContent = diff;
+    if (mp.isHost) {
+      chip.addEventListener("click", function () {
+        var idx = selectedDiffs.indexOf(diff);
+        var next = selectedDiffs.slice();
+        if (idx !== -1) {
+          if (next.length === 1) return;
+          next.splice(idx, 1);
+        } else {
+          next.push(diff);
+        }
+        update(ref(db, "rooms/" + mp.roomCode + "/settings"), { difficulties: next });
+      });
+    }
+    diffWrap.appendChild(chip);
+  });
+
+  var modeWrap = $("guess-mode-chips");
+  modeWrap.innerHTML = "";
+  mpGuessModes.forEach(function (mode) {
+    var chip = document.createElement("div");
+    chip.className = "chip" + (room.settings.guessMode === mode.id ? " selected" : "") + (mp.isHost ? "" : " static");
+    chip.textContent = mode.label;
+    if (mp.isHost) {
+      chip.addEventListener("click", function () {
+        update(ref(db, "rooms/" + mp.roomCode + "/settings"), { guessMode: mode.id });
+      });
+    }
+    modeWrap.appendChild(chip);
+  });
+
+  var targetInput = $("target-score-input");
+  targetInput.value = room.settings.targetScore;
+  targetInput.disabled = !mp.isHost;
+  var setTarget = function (v) {
+    v = Math.max(1, Math.min(99, v));
+    update(ref(db, "rooms/" + mp.roomCode + "/settings"), { targetScore: v });
+  };
+  targetInput.onchange = function () { setTarget(parseInt(targetInput.value, 10) || 1); };
+  $("btn-target-down").onclick = function () { setTarget((room.settings.targetScore || 1) - 1); };
+  $("btn-target-up").onclick = function () { setTarget((room.settings.targetScore || 1) + 1); };
+  $("btn-target-down").disabled = !mp.isHost;
+  $("btn-target-up").disabled = !mp.isHost;
+
+  var startBtn = $("btn-start-game");
+  var waiting = $("lobby-waiting");
+  if (mp.isHost) {
+    startBtn.style.display = "";
+    waiting.style.display = "none";
+    startBtn.disabled = mpPlayerUids().length < 1;
+  } else {
+    startBtn.style.display = "none";
+    waiting.style.display = "";
   }
 
-  function renderReveal() {
-    var correctAnswer = state.currentQuestion.a;
-    $("reveal-answer-text").textContent = correctAnswer;
+  showScreen("screen-lobby");
+}
 
-    state.players.forEach(function (name) {
-      if (state.judgedCorrect.hasOwnProperty(name)) return;
-      var given = state.givenAnswers[name];
-      state.judgedCorrect[name] = isCloseAnswer(given, correctAnswer);
+$("btn-start-game").addEventListener("click", function () {
+  if (!mp.isHost) return;
+  startMpRound();
+});
+
+function mpBuildPool(room) {
+  var pool = [];
+  (room.settings.categories || []).forEach(function (cat) {
+    (room.settings.difficulties || []).forEach(function (diff) {
+      var key = questionKey(cat, diff);
+      var used = (room.usedQuestions && room.usedQuestions[key]) || [];
+      CATEGORIES[cat][diff].forEach(function (q, i) {
+        if (used.indexOf(i) === -1) pool.push({ cat: cat, diff: diff, idx: i, q: q[0], a: q[1] });
+      });
+    });
+  });
+  return pool;
+}
+
+async function startMpRound() {
+  var room = mp.room;
+  var pool = mpBuildPool(room);
+  var usedQuestions = room.usedQuestions || {};
+  if (pool.length === 0) {
+    usedQuestions = {};
+    pool = mpBuildPool(Object.assign({}, room, { usedQuestions: {} }));
+  }
+  var pick = pickRandom(pool);
+  var key = questionKey(pick.cat, pick.diff);
+  var usedForKey = (usedQuestions[key] || []).concat([pick.idx]);
+  usedQuestions = Object.assign({}, usedQuestions);
+  usedQuestions[key] = usedForKey;
+
+  var roundGuessMode = room.settings.guessMode === "mix"
+    ? ((Math.random() < 0.5) ? "type" : "choice")
+    : room.settings.guessMode;
+  var roundChoiceOptions = roundGuessMode === "choice" ? buildChoiceOptions(pick.a, pick.cat) : null;
+
+  await update(roomRef(mp.roomCode), {
+    phase: "round",
+    usedQuestions: usedQuestions,
+    round: {
+      cat: pick.cat, diff: pick.diff, q: pick.q, a: pick.a,
+      roundGuessMode: roundGuessMode, roundChoiceOptions: roundChoiceOptions,
+      answers: {}, judged: {}
+    }
+  });
+}
+
+// ---------- Round (answering) ----------
+function renderRound() {
+  var room = mp.room;
+  var round = room.round;
+  var key = roundKey(round);
+  var myAnswer = round.answers ? round.answers[mp.uid] : undefined;
+
+  $("input-category").textContent = round.cat + " · " + round.diff;
+  $("input-question").textContent = round.q;
+  $("round-answerer-name").textContent = mp.name;
+
+  if (myAnswer !== undefined) {
+    $("input-type-card").style.display = "none";
+    $("input-choice-card").style.display = "none";
+    $("btn-submit-answer").style.display = "none";
+    $("round-waiting").style.display = "";
+    stopMpTimer();
+  } else {
+    $("round-waiting").style.display = "none";
+    $("btn-submit-answer").style.display = "";
+    if (round.roundGuessMode === "choice") {
+      $("input-type-card").style.display = "none";
+      $("input-choice-card").style.display = "";
+      renderMpChoiceOptions(round.roundChoiceOptions);
+    } else {
+      $("input-type-card").style.display = "";
+      $("input-choice-card").style.display = "none";
+    }
+    if (mp.timerRoundKey !== key) {
+      mp.timerRoundKey = key;
+      mp.answer = "";
+      mp.choiceSelected = null;
+      $("input-answer-field").value = "";
+      startMpTimer();
+    }
+  }
+
+  showScreen("screen-answer-input");
+
+  if (mp.isHost) {
+    var uids = mpPlayerUids();
+    var count = round.answers ? Object.keys(round.answers).length : 0;
+    if (count >= uids.length && uids.length > 0) {
+      finishMpRound();
+    }
+  }
+}
+
+function renderMpChoiceOptions(options) {
+  var wrap = $("input-choice-options");
+  wrap.innerHTML = "";
+  options.forEach(function (opt) {
+    var chip = document.createElement("div");
+    chip.className = "chip" + (opt === mp.choiceSelected ? " selected" : "");
+    chip.textContent = opt;
+    chip.addEventListener("click", function () {
+      mp.choiceSelected = opt;
+      renderMpChoiceOptions(options);
+    });
+    wrap.appendChild(chip);
+  });
+}
+
+function startMpTimer() {
+  stopMpTimer();
+  mp.timerRemaining = ROUND_TIME;
+  updateMpTimerDisplay();
+  mp.timerHandle = setInterval(function () {
+    mp.timerRemaining--;
+    updateMpTimerDisplay();
+    if (mp.timerRemaining <= 0) {
+      stopMpTimer();
+      submitMpAnswer();
+    }
+  }, 1000);
+}
+function stopMpTimer() {
+  if (mp.timerHandle) { clearInterval(mp.timerHandle); mp.timerHandle = null; }
+}
+function updateMpTimerDisplay() {
+  var m = Math.floor(mp.timerRemaining / 60);
+  var s = mp.timerRemaining % 60;
+  var el = $("input-timer");
+  el.textContent = m + ":" + (s < 10 ? "0" : "") + s;
+  el.classList.toggle("low", mp.timerRemaining <= 10);
+}
+
+function submitMpAnswer() {
+  var round = mp.room.round;
+  var answer = round.roundGuessMode === "choice" ? (mp.choiceSelected || "") : $("input-answer-field").value.trim();
+  update(ref(db, "rooms/" + mp.roomCode + "/round/answers"), (function () { var o = {}; o[mp.uid] = answer; return o; })());
+}
+
+$("btn-submit-answer").addEventListener("click", submitMpAnswer);
+
+async function finishMpRound() {
+  var room = mp.room;
+  var round = room.round;
+  var judged = {};
+  mpPlayerUids().forEach(function (uid) {
+    judged[uid] = isCloseAnswer(round.answers[uid], round.a);
+  });
+  await update(roomRef(mp.roomCode), { phase: "reveal", round: Object.assign({}, round, { judged: judged }) });
+}
+
+// ---------- Reveal + judging ----------
+function renderRevealScreen() {
+  var room = mp.room;
+  var round = room.round;
+  $("reveal-answer-text").textContent = round.a;
+
+  var wrap = $("judge-list");
+  wrap.innerHTML = "";
+  mpPlayerUids().forEach(function (uid) {
+    var correct = round.judged[uid];
+    var row = document.createElement("div");
+    row.className = "judge-row" + (correct ? " correct" : "");
+    var left = document.createElement("div");
+    var pname = document.createElement("div");
+    pname.className = "pname";
+    pname.textContent = mpPlayerName(uid);
+    var given = document.createElement("div");
+    given.className = "given-answer";
+    given.textContent = round.answers[uid] ? "Answered: \"" + round.answers[uid] + "\"" : "No answer given";
+    left.appendChild(pname);
+    left.appendChild(given);
+    var mark = document.createElement("span");
+    mark.className = "mark";
+    mark.textContent = correct ? "✓" : "✗";
+    row.appendChild(left);
+    row.appendChild(mark);
+    if (mp.isHost) {
+      row.addEventListener("click", function () {
+        var next = Object.assign({}, round.judged);
+        next[uid] = !next[uid];
+        update(ref(db, "rooms/" + mp.roomCode + "/round"), { judged: next });
+      });
+    }
+    wrap.appendChild(row);
+  });
+
+  var hostNav = $("reveal-host-nav");
+  var waiting = $("reveal-waiting");
+  if (mp.isHost) {
+    hostNav.style.display = "flex";
+    waiting.style.display = "none";
+  } else {
+    hostNav.style.display = "none";
+    waiting.style.display = "";
+  }
+  showScreen("screen-reveal");
+}
+
+$("btn-next-round").addEventListener("click", function () {
+  if (!mp.isHost) return;
+  var room = mp.room;
+  var round = room.round;
+  var scoreUpdates = {};
+  var streakUpdates = {};
+  mpPlayerUids().forEach(function (uid) {
+    var score = room.scores[uid] || 0;
+    var streak = (room.wrongStreaks && room.wrongStreaks[uid]) || 0;
+    if (round.judged[uid]) {
+      score += 1;
+      streak = 0;
+    } else {
+      streak += 1;
+      if (streak >= WRONG_STREAK_PENALTY) {
+        score = Math.max(0, score - 1);
+        streak = 0;
+      }
+    }
+    scoreUpdates[uid] = score;
+    streakUpdates[uid] = streak;
+  });
+
+  var sorted = mpPlayerUids().slice().sort(function (a, b) { return scoreUpdates[b] - scoreUpdates[a]; });
+  var topScore = scoreUpdates[sorted[0]] || 0;
+  var winnerUid = null;
+  if (topScore >= room.settings.targetScore) {
+    var topPlayers = sorted.filter(function (uid) { return scoreUpdates[uid] === topScore; });
+    if (topPlayers.length === 1) winnerUid = topPlayers[0];
+  }
+
+  if (winnerUid) {
+    update(roomRef(mp.roomCode), { phase: "game-won", scores: scoreUpdates, wrongStreaks: streakUpdates, winnerUid: winnerUid });
+  } else {
+    update(roomRef(mp.roomCode), { phase: "scores", scores: scoreUpdates, wrongStreaks: streakUpdates });
+  }
+});
+
+// ---------- Scoreboard ----------
+function renderScoresScreen() {
+  var room = mp.room;
+  var scoresByName = {};
+  mpPlayerUids().forEach(function (uid) { scoresByName[mpPlayerName(uid)] = room.scores[uid] || 0; });
+  renderScoreboardInto($("scoreboard"), scoresByName);
+  $("scoreboard-target").textContent = room.settings.targetScore;
+
+  var hostNav = $("scores-host-nav");
+  var waiting = $("scores-waiting");
+  if (mp.isHost) {
+    hostNav.style.display = "flex";
+    waiting.style.display = "none";
+  } else {
+    hostNav.style.display = "none";
+    waiting.style.display = "";
+  }
+  showScreen("screen-scores");
+}
+
+$("btn-back-to-round").addEventListener("click", function () {
+  if (!mp.isHost) return;
+  startMpRound();
+});
+$("btn-end-game").addEventListener("click", function () {
+  if (!mp.isHost) return;
+  if (!confirm("End the game and return everyone to the lobby?")) return;
+  update(roomRef(mp.roomCode), { phase: "lobby", round: null });
+});
+
+// ---------- Game won ----------
+function renderGameWonScreen() {
+  var room = mp.room;
+  $("winner-name").textContent = mpPlayerName(room.winnerUid);
+  var scoresByName = {};
+  mpPlayerUids().forEach(function (uid) { scoresByName[mpPlayerName(uid)] = room.scores[uid] || 0; });
+  renderScoreboardInto($("winner-scoreboard"), scoresByName);
+
+  var hostNav = $("won-host-nav");
+  var waiting = $("won-waiting");
+  if (mp.isHost) {
+    hostNav.style.display = "flex";
+    waiting.style.display = "none";
+  } else {
+    hostNav.style.display = "none";
+    waiting.style.display = "";
+  }
+  showScreen("screen-game-won");
+}
+
+$("btn-new-game").addEventListener("click", function () {
+  if (!mp.isHost) return;
+  update(roomRef(mp.roomCode), { phase: "lobby", round: null, usedQuestions: {} });
+});
+
+function renderScoreboardInto(el, scores) {
+  el.innerHTML = "";
+  var entries = Object.keys(scores).map(function (name) { return { name: name, score: scores[name] }; });
+  entries.sort(function (a, b) { return b.score - a.score; });
+  entries.forEach(function (e) {
+    var row = document.createElement("div");
+    row.className = "score-row";
+    row.innerHTML = "<span>" + e.name + "</span><strong>" + e.score + "</strong>";
+    el.appendChild(row);
+  });
+}
+
+$("btn-local-mode").addEventListener("click", function () {
+  localRenderPlayerList();
+  localRenderCategoryChips();
+  localRenderDifficultyChips();
+  localRenderGuessModeChips();
+  showScreen("local-screen-setup");
+});
+$("local-btn-back-home").addEventListener("click", function () { showScreen("screen-home"); });
+
+
+
+(function () {
+  "use strict";
+
+  
+
+  
+
+  
+
+  var localState = {
+    players: ["", ""],
+    selectedCategories: Object.keys(CATEGORIES),
+    selectedDifficulties: DIFFICULTIES.slice(),
+    guessMode: "type",
+    targetScore: 10,
+    scores: {},
+    wrongStreaks: {},
+    usedQuestions: {},
+    currentQuestion: null,
+    turnOrder: [],
+    turnIndex: 0,
+    givenAnswers: {},
+    judgedCorrect: {},
+    currentTurnMode: "type",
+    roundGuessMode: "type",
+    roundChoiceOptions: null,
+    currentChoiceSelected: null,
+    timerHandle: null,
+    timerRemaining: 0,
+    canResume: false,
+    lastWinningScore: 0
+  };
+
+    
+
+  // ---------- Setup screen ----------
+  function localRenderPlayerList() {
+    var wrap = $("local-player-list");
+    wrap.innerHTML = "";
+    localState.players.forEach(function (name, i) {
+      var row = document.createElement("div");
+      row.className = "player-row";
+      var input = document.createElement("input");
+      input.type = "text";
+      input.placeholder = "Player " + (i + 1);
+      input.value = name;
+      input.maxLength = 20;
+      input.addEventListener("input", function () { localState.players[i] = input.value; });
+      row.appendChild(input);
+      if (localState.players.length > 1) {
+        var rm = document.createElement("button");
+        rm.className = "icon-btn";
+        rm.type = "button";
+        rm.textContent = "✕";
+        rm.addEventListener("click", function () {
+          localState.players.splice(i, 1);
+          localRenderPlayerList();
+        });
+        row.appendChild(rm);
+      }
+      wrap.appendChild(row);
+    });
+  }
+
+  $("local-btn-add-player").addEventListener("click", function () {
+    if (localState.players.length >= 10) return;
+    localState.players.push("");
+    localRenderPlayerList();
+  });
+
+  function localRenderCategoryChips() {
+    var wrap = $("local-category-chips");
+    wrap.innerHTML = "";
+    Object.keys(CATEGORIES).forEach(function (cat) {
+      var chip = document.createElement("div");
+      chip.className = "chip" + (localState.selectedCategories.indexOf(cat) !== -1 ? " selected" : "");
+      chip.textContent = cat;
+      chip.addEventListener("click", function () {
+        var idx = localState.selectedCategories.indexOf(cat);
+        if (idx !== -1) {
+          if (localState.selectedCategories.length === 1) return;
+          localState.selectedCategories.splice(idx, 1);
+        } else {
+          localState.selectedCategories.push(cat);
+        }
+        localRenderCategoryChips();
+      });
+      wrap.appendChild(chip);
+    });
+  }
+
+  function localRenderDifficultyChips() {
+    var wrap = $("local-difficulty-chips");
+    wrap.innerHTML = "";
+    DIFFICULTIES.forEach(function (diff) {
+      var chip = document.createElement("div");
+      chip.className = "chip" + (localState.selectedDifficulties.indexOf(diff) !== -1 ? " selected" : "");
+      chip.textContent = diff;
+      chip.addEventListener("click", function () {
+        var idx = localState.selectedDifficulties.indexOf(diff);
+        if (idx !== -1) {
+          if (localState.selectedDifficulties.length === 1) return;
+          localState.selectedDifficulties.splice(idx, 1);
+        } else {
+          localState.selectedDifficulties.push(diff);
+        }
+        localRenderDifficultyChips();
+      });
+      wrap.appendChild(chip);
+    });
+  }
+
+  var GUESS_MODES = [
+    { id: "type", label: "Type the Answer" },
+    { id: "choice", label: "Multiple Choice" },
+    { id: "mix", label: "Random Mix" }
+  ];
+
+  function localRenderGuessModeChips() {
+    var wrap = $("local-guess-mode-chips");
+    wrap.innerHTML = "";
+    GUESS_MODES.forEach(function (mode) {
+      var chip = document.createElement("div");
+      chip.className = "chip" + (localState.guessMode === mode.id ? " selected" : "");
+      chip.textContent = mode.label;
+      chip.addEventListener("click", function () {
+        localState.guessMode = mode.id;
+        localRenderGuessModeChips();
+      });
+      wrap.appendChild(chip);
+    });
+  }
+
+  function localClampTarget() {
+    var v = parseInt($("local-target-score-input").value, 10);
+    if (isNaN(v) || v < 1) v = 1;
+    if (v > 99) v = 99;
+    $("local-target-score-input").value = v;
+    localState.targetScore = v;
+  }
+  $("local-target-score-input").addEventListener("change", localClampTarget);
+  $("local-btn-target-down").addEventListener("click", function () {
+    $("local-target-score-input").value = Math.max(1, (parseInt($("local-target-score-input").value, 10) || 1) - 1);
+    localClampTarget();
+  });
+  $("local-btn-target-up").addEventListener("click", function () {
+    $("local-target-score-input").value = Math.min(99, (parseInt($("local-target-score-input").value, 10) || 1) + 1);
+    localClampTarget();
+  });
+
+  $("local-btn-start-game").addEventListener("click", function () {
+    var names = localState.players.map(function (n) { return n.trim(); }).filter(function (n) { return n.length > 0; });
+    if (names.length < 1) { alert("Enter at least one player name."); return; }
+    localClampTarget();
+    localState.players = names;
+    localState.scores = {};
+    localState.wrongStreaks = {};
+    names.forEach(function (n) { localState.scores[n] = 0; localState.wrongStreaks[n] = 0; });
+    localState.usedQuestions = {};
+    localState.canResume = false;
+    $("local-resume-banner").style.display = "none";
+    localPendingResume = null;
+    $("local-refresh-resume-banner").style.display = "none";
+    localNextRound();
+  });
+
+  // ---------- Round setup ----------
+  
+
+  
+
+  
+
+  // A handful of well-known finite sets are too thin in the question bank
+  // itself to fill 9 real distractors (e.g. only 2-3 answers happen to be
+  // continents), so these are curated supplements -- not "correct answers"
+  // to any question, just plausible same-type options to draw from.
+  
+  
+
+  // Classifies an answer so distractors are pulled from the same kind of
+  // thing -- a numeric question gets other numbers, a continent question
+  // gets other continents, a country/city question gets other places --
+  // instead of a plausible-looking category mash of numbers, places, and
+  // random terms where the real answer stands out by elimination.
+  
+
+  
+
+  
+
+  // ---------- Refresh-resume persistence ----------
+  // Saved only at points where nothing unsafe-to-redo has happened yet:
+  // the start of a round (before any answers are recorded) or right after
+  // a round's scores are already committed (screen-scores / screen-game-won).
+  // Never mid-answering, since replaying that would double-apply scoring.
+  var LOCAL_SAVE_KEY = "triviaPartySave";
+
+  function localSaveCheckpoint(screenId) {
+    try {
+      var snapshot = {
+        screen: screenId,
+        localState: {
+          players: localState.players,
+          selectedCategories: localState.selectedCategories,
+          selectedDifficulties: localState.selectedDifficulties,
+          guessMode: localState.guessMode,
+          targetScore: localState.targetScore,
+          lastWinningScore: localState.lastWinningScore,
+          scores: localState.scores,
+          wrongStreaks: localState.wrongStreaks,
+          usedQuestions: localState.usedQuestions,
+          currentQuestion: localState.currentQuestion,
+          roundGuessMode: localState.roundGuessMode,
+          roundChoiceOptions: localState.roundChoiceOptions
+        }
+      };
+      localStorage.setItem(LOCAL_SAVE_KEY, JSON.stringify(snapshot));
+    } catch (e) { /* private browsing or storage disabled -- resume just won't be offered */ }
+  }
+
+  function localClearSavedGame() {
+    try { localStorage.removeItem(LOCAL_SAVE_KEY); } catch (e) {}
+  }
+
+  function localLoadSavedGame() {
+    try {
+      var raw = localStorage.getItem(LOCAL_SAVE_KEY);
+      return raw ? JSON.parse(raw) : null;
+    } catch (e) { return null; }
+  }
+
+  function localBuildPool() {
+    var pool = [];
+    localState.selectedCategories.forEach(function (cat) {
+      localState.selectedDifficulties.forEach(function (diff) {
+        var key = questionKey(cat, diff);
+        var used = localState.usedQuestions[key] || [];
+        CATEGORIES[cat][diff].forEach(function (q, i) {
+          if (used.indexOf(i) === -1) pool.push({ cat: cat, diff: diff, idx: i, q: q[0], a: q[1] });
+        });
+      });
+    });
+    return pool;
+  }
+
+  function localNextRound() {
+    var pool = localBuildPool();
+    if (pool.length === 0) {
+      localState.selectedCategories.forEach(function (cat) {
+        localState.selectedDifficulties.forEach(function (diff) {
+          localState.usedQuestions[questionKey(cat, diff)] = [];
+        });
+      });
+      pool = localBuildPool();
+    }
+    var pick = pickRandom(pool);
+    var key = questionKey(pick.cat, pick.diff);
+    if (!localState.usedQuestions[key]) localState.usedQuestions[key] = [];
+    localState.usedQuestions[key].push(pick.idx);
+    localState.currentQuestion = pick;
+    localState.givenAnswers = {};
+    localState.judgedCorrect = {};
+
+    // Random Mix rolls type-vs-choice ONCE per round here -- every player
+    // this round gets the same mode, so nobody has an easier/harder turn
+    // than anyone else. It's just unpredictable round to round.
+    localState.roundGuessMode = (localState.guessMode === "mix")
+      ? ((Math.random() < 0.5) ? "type" : "choice")
+      : localState.guessMode;
+    localState.roundChoiceOptions = (localState.roundGuessMode === "choice")
+      ? buildChoiceOptions(pick.a, pick.cat)
+      : null;
+
+    var order = localState.players.map(function (_, i) { return i; });
+    for (var i = order.length - 1; i > 0; i--) {
+      var j = Math.floor(Math.random() * (i + 1));
+      var tmp = order[i]; order[i] = order[j]; order[j] = tmp;
+    }
+    localState.turnOrder = order;
+    localState.turnIndex = 0;
+
+    $("local-ri-category").textContent = pick.cat + " · " + pick.diff;
+    $("local-ri-text").textContent = pick.q;
+    showScreen("local-screen-round-intro");
+    localSaveCheckpoint("local-screen-round-intro");
+  }
+
+  // ---------- Timer (restarted fresh for each player's turn) ----------
+  function localStartTimer(displayIds, onExpire) {
+    clearInterval(localState.timerHandle);
+    localState.timerRemaining = ROUND_TIME;
+    localState.timerDisplayIds = displayIds;
+    localUpdateTimerDisplay();
+    localState.timerHandle = setInterval(function () {
+      localState.timerRemaining--;
+      localUpdateTimerDisplay();
+      if (localState.timerRemaining <= 0) {
+        clearInterval(localState.timerHandle);
+        onExpire();
+      }
+    }, 1000);
+  }
+
+  function localUpdateTimerDisplay() {
+    var m = Math.floor(localState.timerRemaining / 60);
+    var s = localState.timerRemaining % 60;
+    var text = m + ":" + (s < 10 ? "0" : "") + s;
+    (localState.timerDisplayIds || []).forEach(function (id) {
+      var el = $(id);
+      if (!el) return;
+      el.textContent = text;
+      el.classList.toggle("low", localState.timerRemaining <= 10);
+    });
+  }
+
+  // ---------- Pass-and-play turn loop ----------
+  $("local-btn-start-answering").addEventListener("click", function () {
+    localGoToPassTurn();
+  });
+
+  function localGoToPassTurn() {
+    if (localState.turnIndex >= localState.turnOrder.length) {
+      clearInterval(localState.timerHandle);
+      showScreen("local-screen-ready-reveal");
+      return;
+    }
+    var name = localState.players[localState.turnOrder[localState.turnIndex]];
+    $("local-pass-name").textContent = name;
+    $("local-pass-name-2").textContent = name;
+    showScreen("local-screen-pass-turn");
+  }
+
+  $("local-btn-ready-to-answer").addEventListener("click", function () {
+    var name = localState.players[localState.turnOrder[localState.turnIndex]];
+    $("local-input-name").textContent = name;
+    $("local-input-category").textContent = localState.currentQuestion.cat + " · " + localState.currentQuestion.diff;
+    $("local-input-question").textContent = localState.currentQuestion.q;
+    $("local-input-answer-field").value = "";
+
+    localState.currentTurnMode = localState.roundGuessMode;
+
+    if (localState.currentTurnMode === "choice") {
+      localState.currentChoiceSelected = null;
+      localRenderChoiceOptions();
+      $("local-input-type-card").style.display = "none";
+      $("local-input-choice-card").style.display = "";
+    } else {
+      $("local-input-type-card").style.display = "";
+      $("local-input-choice-card").style.display = "none";
+    }
+
+    showScreen("local-screen-answer-input");
+    localStartTimer(["local-input-timer"], localSubmitCurrentTurn);
+    if (localState.currentTurnMode !== "choice") $("local-input-answer-field").focus();
+  });
+
+  function localRenderChoiceOptions() {
+    var wrap = $("local-input-choice-options");
+    wrap.innerHTML = "";
+    localState.roundChoiceOptions.forEach(function (opt) {
+      var chip = document.createElement("div");
+      chip.className = "chip" + (opt === localState.currentChoiceSelected ? " selected" : "");
+      chip.textContent = opt;
+      chip.addEventListener("click", function () {
+        localState.currentChoiceSelected = opt;
+        localRenderChoiceOptions();
+      });
+      wrap.appendChild(chip);
+    });
+  }
+
+  function localCurrentTurnAnswer() {
+    if (localState.currentTurnMode === "choice") return localState.currentChoiceSelected || "";
+    return $("local-input-answer-field").value.trim();
+  }
+
+  function localSubmitCurrentTurn() {
+    clearInterval(localState.timerHandle);
+    var name = localState.players[localState.turnOrder[localState.turnIndex]];
+    localState.givenAnswers[name] = localCurrentTurnAnswer();
+    localState.turnIndex++;
+    localGoToPassTurn();
+  }
+
+  $("local-btn-submit-answer").addEventListener("click", localSubmitCurrentTurn);
+
+
+  $("local-btn-show-answer").addEventListener("click", function () {
+    localRenderReveal();
+  });
+
+  // ---------- Reveal + judging ----------
+  
+
+  
+
+  // typo-tolerant match: exact, simple plural, substring containment, or a
+  // small Levenshtein distance that scales with word length so short words
+  // (where a 1-letter edit can turn one real word into another) stay strict
+  
+
+  function localGoToReveal() {
+    clearInterval(localState.timerHandle);
+    localRenderReveal();
+    showScreen("local-screen-reveal");
+  }
+
+  function localRenderReveal() {
+    var correctAnswer = localState.currentQuestion.a;
+    $("local-reveal-answer-text").textContent = correctAnswer;
+
+    localState.players.forEach(function (name) {
+      if (localState.judgedCorrect.hasOwnProperty(name)) return;
+      var given = localState.givenAnswers[name];
+      localState.judgedCorrect[name] = isCloseAnswer(given, correctAnswer);
     });
 
-    var wrap = $("judge-list");
+    var wrap = $("local-judge-list");
     wrap.innerHTML = "";
-    state.players.forEach(function (name) {
+    localState.players.forEach(function (name) {
       var row = document.createElement("div");
-      row.className = "judge-row" + (state.judgedCorrect[name] ? " correct" : "");
+      row.className = "judge-row" + (localState.judgedCorrect[name] ? " correct" : "");
       var left = document.createElement("div");
       var pname = document.createElement("div");
       pname.className = "pname";
       pname.textContent = name;
       var given = document.createElement("div");
       given.className = "given-answer";
-      given.textContent = state.givenAnswers[name] ? "Answered: \"" + state.givenAnswers[name] + "\"" : "No answer given";
+      given.textContent = localState.givenAnswers[name] ? "Answered: \"" + localState.givenAnswers[name] + "\"" : "No answer given";
       left.appendChild(pname);
       left.appendChild(given);
       var mark = document.createElement("span");
       mark.className = "mark";
-      mark.textContent = state.judgedCorrect[name] ? "✓" : "✗";
+      mark.textContent = localState.judgedCorrect[name] ? "✓" : "✗";
       row.appendChild(left);
       row.appendChild(mark);
       row.addEventListener("click", function () {
-        state.judgedCorrect[name] = !state.judgedCorrect[name];
-        renderReveal();
+        localState.judgedCorrect[name] = !localState.judgedCorrect[name];
+        localRenderReveal();
       });
       wrap.appendChild(row);
     });
-    showScreen("screen-reveal");
+    showScreen("local-screen-reveal");
   }
 
   // ---------- Scoreboard & win condition ----------
-  function sortedPlayers() {
-    return state.players.slice().sort(function (a, b) { return (state.scores[b] || 0) - (state.scores[a] || 0); });
+  function localSortedPlayers() {
+    return localState.players.slice().sort(function (a, b) { return (localState.scores[b] || 0) - (localState.scores[a] || 0); });
   }
 
-  function renderScoreboardInto(elId) {
+  function localRenderScoreboardInto(elId) {
     var board = $(elId);
     board.innerHTML = "";
-    sortedPlayers().forEach(function (name) {
+    localSortedPlayers().forEach(function (name) {
       var row = document.createElement("div");
       row.className = "score-row";
-      row.innerHTML = "<span>" + name + "</span><span>" + (state.scores[name] || 0) + "</span>";
+      row.innerHTML = "<span>" + name + "</span><span>" + (localState.scores[name] || 0) + "</span>";
       board.appendChild(row);
     });
   }
 
-  function computeWinner() {
-    var sorted = sortedPlayers();
-    var topScore = state.scores[sorted[0]] || 0;
-    if (topScore < state.targetScore) return null;
-    var topPlayers = sorted.filter(function (name) { return (state.scores[name] || 0) === topScore; });
+  function localComputeWinner() {
+    var sorted = localSortedPlayers();
+    var topScore = localState.scores[sorted[0]] || 0;
+    if (topScore < localState.targetScore) return null;
+    var topPlayers = sorted.filter(function (name) { return (localState.scores[name] || 0) === topScore; });
     if (topPlayers.length === 1) return topPlayers[0];
     return null; // tied at/above target -- keep playing until someone pulls ahead
   }
 
-  var WRONG_STREAK_PENALTY = 2;
+  var LOCAL_WRONG_STREAK_PENALTY = 2;
 
-  $("btn-next-round").addEventListener("click", function () {
-    state.players.forEach(function (name) {
-      if (state.judgedCorrect[name]) {
-        state.scores[name] = (state.scores[name] || 0) + 1;
-        state.wrongStreaks[name] = 0;
+  $("local-btn-next-round").addEventListener("click", function () {
+    localState.players.forEach(function (name) {
+      if (localState.judgedCorrect[name]) {
+        localState.scores[name] = (localState.scores[name] || 0) + 1;
+        localState.wrongStreaks[name] = 0;
       } else {
-        state.wrongStreaks[name] = (state.wrongStreaks[name] || 0) + 1;
-        if (state.wrongStreaks[name] >= WRONG_STREAK_PENALTY) {
-          state.scores[name] = Math.max(0, (state.scores[name] || 0) - 1);
-          state.wrongStreaks[name] = 0;
+        localState.wrongStreaks[name] = (localState.wrongStreaks[name] || 0) + 1;
+        if (localState.wrongStreaks[name] >= LOCAL_WRONG_STREAK_PENALTY) {
+          localState.scores[name] = Math.max(0, (localState.scores[name] || 0) - 1);
+          localState.wrongStreaks[name] = 0;
         }
       }
     });
-    var winner = computeWinner();
+    var winner = localComputeWinner();
     if (winner) {
-      state.lastWinningScore = state.scores[winner];
-      $("winner-name").textContent = winner;
-      renderScoreboardInto("winner-scoreboard");
-      $("extend-game-form").style.display = "none";
-      showScreen("screen-game-won");
-      saveCheckpoint("screen-game-won");
+      localState.lastWinningScore = localState.scores[winner];
+      $("local-winner-name").textContent = winner;
+      localRenderScoreboardInto("local-winner-scoreboard");
+      $("local-extend-game-form").style.display = "none";
+      showScreen("local-screen-game-won");
+      localSaveCheckpoint("local-screen-game-won");
     } else {
-      renderScoreboardInto("scoreboard");
-      $("scoreboard-target").textContent = state.targetScore;
-      $("end-game-confirm").style.display = "none";
-      showScreen("screen-scores");
-      saveCheckpoint("screen-scores");
+      localRenderScoreboardInto("local-scoreboard");
+      $("local-scoreboard-target").textContent = localState.targetScore;
+      $("local-end-game-confirm").style.display = "none";
+      showScreen("local-screen-scores");
+      localSaveCheckpoint("local-screen-scores");
     }
   });
 
-  $("btn-back-to-round").addEventListener("click", function () {
-    nextRound();
+  $("local-btn-back-to-round").addEventListener("click", function () {
+    localNextRound();
   });
 
   // ---------- Extend game ----------
-  $("btn-extend-game").addEventListener("click", function () {
-    var floor = state.lastWinningScore + 1;
-    $("extend-target-input").min = floor;
-    $("extend-target-input").value = state.lastWinningScore + 5;
-    $("extend-game-form").style.display = "";
+  $("local-btn-extend-game").addEventListener("click", function () {
+    var floor = localState.lastWinningScore + 1;
+    $("local-extend-target-input").min = floor;
+    $("local-extend-target-input").value = localState.lastWinningScore + 5;
+    $("local-extend-game-form").style.display = "";
   });
-  $("btn-extend-down").addEventListener("click", function () {
-    var floor = state.lastWinningScore + 1;
-    $("extend-target-input").value = Math.max(floor, (parseInt($("extend-target-input").value, 10) || floor) - 1);
+  $("local-btn-extend-down").addEventListener("click", function () {
+    var floor = localState.lastWinningScore + 1;
+    $("local-extend-target-input").value = Math.max(floor, (parseInt($("local-extend-target-input").value, 10) || floor) - 1);
   });
-  $("btn-extend-up").addEventListener("click", function () {
-    $("extend-target-input").value = Math.min(99, (parseInt($("extend-target-input").value, 10) || 1) + 1);
+  $("local-btn-extend-up").addEventListener("click", function () {
+    $("local-extend-target-input").value = Math.min(99, (parseInt($("local-extend-target-input").value, 10) || 1) + 1);
   });
-  $("btn-confirm-extend").addEventListener("click", function () {
-    var floor = state.lastWinningScore + 1;
-    var newTarget = parseInt($("extend-target-input").value, 10);
-    if (!(newTarget >= floor)) newTarget = state.lastWinningScore + 5;
-    state.targetScore = newTarget;
-    nextRound();
+  $("local-btn-confirm-extend").addEventListener("click", function () {
+    var floor = localState.lastWinningScore + 1;
+    var newTarget = parseInt($("local-extend-target-input").value, 10);
+    if (!(newTarget >= floor)) newTarget = localState.lastWinningScore + 5;
+    localState.targetScore = newTarget;
+    localNextRound();
   });
 
   // ---------- End game (with undo) ----------
-  $("btn-end-game").addEventListener("click", function () {
-    $("end-game-confirm").style.display = "";
+  $("local-btn-end-game").addEventListener("click", function () {
+    $("local-end-game-confirm").style.display = "";
   });
-  $("btn-cancel-end-game").addEventListener("click", function () {
-    $("end-game-confirm").style.display = "none";
+  $("local-btn-cancel-end-game").addEventListener("click", function () {
+    $("local-end-game-confirm").style.display = "none";
   });
-  $("btn-confirm-end-game").addEventListener("click", function () {
-    $("end-game-confirm").style.display = "none";
-    state.canResume = true;
-    $("resume-banner").style.display = "";
-    showScreen("screen-setup");
+  $("local-btn-confirm-end-game").addEventListener("click", function () {
+    $("local-end-game-confirm").style.display = "none";
+    localState.canResume = true;
+    $("local-resume-banner").style.display = "";
+    showScreen("local-screen-setup");
   });
-  $("btn-resume-game").addEventListener("click", function () {
-    if (!state.canResume) return;
-    renderScoreboardInto("scoreboard");
-    $("scoreboard-target").textContent = state.targetScore;
-    showScreen("screen-scores");
+  $("local-btn-resume-game").addEventListener("click", function () {
+    if (!localState.canResume) return;
+    localRenderScoreboardInto("local-scoreboard");
+    $("local-scoreboard-target").textContent = localState.targetScore;
+    showScreen("local-screen-scores");
   });
 
-  $("btn-new-game").addEventListener("click", function () {
-    state.canResume = false;
-    $("resume-banner").style.display = "none";
-    clearSavedGame();
-    showScreen("screen-setup");
+  $("local-btn-new-game").addEventListener("click", function () {
+    localState.canResume = false;
+    $("local-resume-banner").style.display = "none";
+    localClearSavedGame();
+    showScreen("local-screen-setup");
   });
 
   // ---------- Refresh-resume prompt ----------
-  var pendingResume = loadSavedGame();
-  if (pendingResume && pendingResume.state && pendingResume.state.players && pendingResume.state.players.length >= 1) {
-    $("refresh-resume-banner").style.display = "";
+  var localPendingResume = localLoadSavedGame();
+  if (localPendingResume && localPendingResume.localState && localPendingResume.localState.players && localPendingResume.localState.players.length >= 1) {
+    $("local-refresh-resume-banner").style.display = "";
   } else {
-    pendingResume = null;
+    localPendingResume = null;
   }
 
-  $("btn-refresh-startnew").addEventListener("click", function () {
-    clearSavedGame();
-    pendingResume = null;
-    $("refresh-resume-banner").style.display = "none";
+  $("local-btn-refresh-startnew").addEventListener("click", function () {
+    localClearSavedGame();
+    localPendingResume = null;
+    $("local-refresh-resume-banner").style.display = "none";
   });
 
-  $("btn-refresh-continue").addEventListener("click", function () {
-    if (!pendingResume) return;
-    var saved = pendingResume.state;
-    state.players = saved.players;
-    state.selectedCategories = saved.selectedCategories;
-    state.selectedDifficulties = saved.selectedDifficulties;
-    state.guessMode = saved.guessMode || "type";
-    renderGuessModeChips();
-    renderCategoryChips();
-    renderDifficultyChips();
-    state.targetScore = saved.targetScore;
-    state.lastWinningScore = saved.lastWinningScore;
-    state.scores = saved.scores;
-    state.wrongStreaks = saved.wrongStreaks || {};
-    state.usedQuestions = saved.usedQuestions;
-    state.currentQuestion = saved.currentQuestion;
-    state.roundGuessMode = saved.roundGuessMode;
-    state.roundChoiceOptions = saved.roundChoiceOptions;
-    $("refresh-resume-banner").style.display = "none";
-    if (pendingResume.screen === "screen-scores") {
-      renderScoreboardInto("scoreboard");
-      $("scoreboard-target").textContent = state.targetScore;
-      showScreen("screen-scores");
-    } else if (pendingResume.screen === "screen-game-won") {
-      var winner = computeWinner();
-      $("winner-name").textContent = winner || "";
-      renderScoreboardInto("winner-scoreboard");
-      $("extend-game-form").style.display = "none";
-      showScreen("screen-game-won");
+  $("local-btn-refresh-continue").addEventListener("click", function () {
+    if (!localPendingResume) return;
+    var saved = localPendingResume.localState;
+    localState.players = saved.players;
+    localState.selectedCategories = saved.selectedCategories;
+    localState.selectedDifficulties = saved.selectedDifficulties;
+    localState.guessMode = saved.guessMode || "type";
+    localRenderGuessModeChips();
+    localRenderCategoryChips();
+    localRenderDifficultyChips();
+    localState.targetScore = saved.targetScore;
+    localState.lastWinningScore = saved.lastWinningScore;
+    localState.scores = saved.scores;
+    localState.wrongStreaks = saved.wrongStreaks || {};
+    localState.usedQuestions = saved.usedQuestions;
+    localState.currentQuestion = saved.currentQuestion;
+    localState.roundGuessMode = saved.roundGuessMode;
+    localState.roundChoiceOptions = saved.roundChoiceOptions;
+    $("local-refresh-resume-banner").style.display = "none";
+    if (localPendingResume.screen === "local-screen-scores") {
+      localRenderScoreboardInto("local-scoreboard");
+      $("local-scoreboard-target").textContent = localState.targetScore;
+      showScreen("local-screen-scores");
+    } else if (localPendingResume.screen === "local-screen-game-won") {
+      var winner = localComputeWinner();
+      $("local-winner-name").textContent = winner || "";
+      localRenderScoreboardInto("local-winner-scoreboard");
+      $("local-extend-game-form").style.display = "none";
+      showScreen("local-screen-game-won");
     } else {
       // start of the in-progress round -- the safest resumable point, since
       // nothing about that round (turn order, scoring) has happened yet
-      var pick = state.currentQuestion;
-      var order = state.players.map(function (_, i) { return i; });
+      var pick = localState.currentQuestion;
+      var order = localState.players.map(function (_, i) { return i; });
       for (var i = order.length - 1; i > 0; i--) {
         var j = Math.floor(Math.random() * (i + 1));
         var tmp = order[i]; order[i] = order[j]; order[j] = tmp;
       }
-      state.turnOrder = order;
-      state.turnIndex = 0;
-      state.givenAnswers = {};
-      state.judgedCorrect = {};
-      $("ri-category").textContent = pick.cat + " · " + pick.diff;
-      $("ri-text").textContent = pick.q;
-      showScreen("screen-round-intro");
-      saveCheckpoint("screen-round-intro");
+      localState.turnOrder = order;
+      localState.turnIndex = 0;
+      localState.givenAnswers = {};
+      localState.judgedCorrect = {};
+      $("local-ri-category").textContent = pick.cat + " · " + pick.diff;
+      $("local-ri-text").textContent = pick.q;
+      showScreen("local-screen-round-intro");
+      localSaveCheckpoint("local-screen-round-intro");
     }
-    pendingResume = null;
+    localPendingResume = null;
   });
 
   // ---------- Enter key advances the current screen ----------
   // Maps each screen to its main forward action, so pressing Enter anywhere
   // on that screen (a text field, a number field, or nothing focused at all)
   // behaves like tapping that screen's primary button.
-  var SCREEN_ENTER_TARGETS = {
-    "screen-setup": "btn-start-game",
-    "screen-round-intro": "btn-start-answering",
-    "screen-pass-turn": "btn-ready-to-answer",
-    "screen-answer-input": "btn-submit-answer",
-    "screen-ready-reveal": "btn-show-answer",
-    "screen-reveal": "btn-next-round",
-    "screen-scores": "btn-back-to-round",
-    "screen-game-won": "btn-new-game"
+  var LOCAL_SCREEN_ENTER_TARGETS = {
+    "local-screen-setup": "local-btn-start-game",
+    "local-screen-round-intro": "local-btn-start-answering",
+    "local-screen-pass-turn": "local-btn-ready-to-answer",
+    "local-screen-answer-input": "local-btn-submit-answer",
+    "local-screen-ready-reveal": "local-btn-show-answer",
+    "local-screen-reveal": "local-btn-next-round",
+    "local-screen-scores": "local-btn-back-to-round",
+    "local-screen-game-won": "local-btn-new-game"
   };
 
   document.addEventListener("keydown", function (e) {
@@ -1413,11 +2167,11 @@
     var screenId = activeScreen.id;
 
     // never let Enter reach for a destructive confirmation on its own
-    if (screenId === "screen-scores" && $("end-game-confirm").style.display !== "none") return;
+    if (screenId === "local-screen-scores" && $("local-end-game-confirm").style.display !== "none") return;
 
-    var targetId = (screenId === "screen-game-won" && $("extend-game-form").style.display !== "none")
-      ? "btn-confirm-extend"
-      : SCREEN_ENTER_TARGETS[screenId];
+    var targetId = (screenId === "local-screen-game-won" && $("local-extend-game-form").style.display !== "none")
+      ? "local-btn-confirm-extend"
+      : LOCAL_SCREEN_ENTER_TARGETS[screenId];
     if (!targetId) return;
 
     var btn = $(targetId);
@@ -1432,16 +2186,17 @@
   });
 
   // ---------- Init ----------
-  renderPlayerList();
-  renderCategoryChips();
-  renderDifficultyChips();
-  renderGuessModeChips();
-  var firstPlayerInput = $("player-list").querySelector("input[type=text]");
-  if (firstPlayerInput) {
-    firstPlayerInput.setAttribute("autofocus", "autofocus");
-    firstPlayerInput.focus();
+  localRenderPlayerList();
+  localRenderCategoryChips();
+  localRenderDifficultyChips();
+  localRenderGuessModeChips();
+  var localFirstPlayerInput = $("local-player-list").querySelector("input[type=text]");
+  if (localFirstPlayerInput) {
+    localFirstPlayerInput.setAttribute("autofocus", "autofocus");
+    localFirstPlayerInput.focus();
   }
 })();
+
 </script>
 </body>
 </html>
