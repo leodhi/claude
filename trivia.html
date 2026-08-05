@@ -1,0 +1,494 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>Trivia Party</title>
+<style>
+  :root {
+    --bg: #10151f;
+    --panel: #1a2233;
+    --panel-2: #232e45;
+    --accent: #4ee6a7;
+    --accent-2: #ff5d8f;
+    --accent-3: #ffd166;
+    --text: #eef2f9;
+    --text-dim: #93a0b8;
+    --border: #2c3a55;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; padding: 0; height: 100%;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    -webkit-tap-highlight-color: transparent;
+  }
+  #app {
+    max-width: 560px;
+    margin: 0 auto;
+    min-height: 100vh;
+    min-height: 100dvh;
+    display: flex;
+    flex-direction: column;
+    padding: 20px 16px 40px;
+  }
+  h1 { font-size: 1.6rem; margin: 4px 0 2px; letter-spacing: 0.5px; }
+  h1 span { color: var(--accent); }
+  .subtitle { color: var(--text-dim); font-size: 0.85rem; margin-bottom: 18px; }
+  .top-link { color: var(--text-dim); font-size: 0.8rem; text-decoration: none; }
+  .top-link:hover { color: var(--accent); }
+  .screen { display: none; flex-direction: column; gap: 14px; flex: 1; }
+  .screen.active { display: flex; }
+  .card { background: var(--panel); border: 1px solid var(--border); border-radius: 14px; padding: 16px; }
+  label { display: block; font-size: 0.8rem; color: var(--text-dim); margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.06em; }
+  input[type="text"], input[type="number"] {
+    width: 100%; background: var(--panel-2); border: 1px solid var(--border);
+    color: var(--text); padding: 12px; border-radius: 10px; font-size: 1rem;
+  }
+  input:focus { outline: 2px solid var(--accent); }
+  .target-score-row { display: flex; align-items: stretch; gap: 8px; }
+  input.target-score-field {
+    flex: 1; font-size: 2rem; font-weight: 800; text-align: center; padding: 16px; color: var(--accent);
+    -moz-appearance: textfield;
+  }
+  input.target-score-field::-webkit-outer-spin-button,
+  input.target-score-field::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+  .stepper-btn {
+    flex: none; width: 56px; background: var(--panel-2); border: 1px solid var(--border);
+    color: var(--accent); font-size: 1.8rem; font-weight: 700; border-radius: 10px; cursor: pointer; line-height: 1;
+  }
+  .stepper-btn:active { transform: scale(0.96); }
+  .player-row { display: flex; gap: 8px; margin-bottom: 8px; align-items: center; }
+  .player-row input[type="text"] { flex: 1; }
+  .icon-btn {
+    background: var(--panel-2); border: 1px solid var(--border); color: var(--text-dim);
+    border-radius: 10px; width: 44px; height: 44px; font-size: 1.1rem; cursor: pointer; flex: none;
+  }
+  .icon-btn:active { transform: scale(0.95); }
+  button.primary {
+    background: var(--accent); color: #08130d; border: none; padding: 15px; border-radius: 12px;
+    font-size: 1.05rem; font-weight: 700; cursor: pointer; width: 100%;
+  }
+  button.primary:active { transform: scale(0.98); }
+  button.secondary {
+    background: transparent; color: var(--text); border: 1px solid var(--border);
+    padding: 13px; border-radius: 12px; font-size: 0.95rem; cursor: pointer; width: 100%;
+  }
+  button.danger { background: var(--accent-2); color: #2a0713; }
+  button:disabled { opacity: 0.4; cursor: not-allowed; }
+  .chip-group { display: flex; flex-wrap: wrap; gap: 8px; }
+  .chip {
+    padding: 8px 14px; border-radius: 999px; border: 1px solid var(--border);
+    background: var(--panel-2); color: var(--text-dim); font-size: 0.85rem; cursor: pointer; user-select: none;
+  }
+  .chip.selected { background: var(--accent); color: #08130d; border-color: var(--accent); font-weight: 600; }
+  .center { text-align: center; }
+  .category-label { color: var(--text-dim); font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.06em; }
+  .big-name { font-size: 1.8rem; font-weight: 800; margin: 6px 0; }
+  .timer-display {
+    font-size: 2.2rem; font-weight: 800; font-variant-numeric: tabular-nums;
+    color: var(--accent); margin: 6px 0;
+  }
+  .timer-display.low { color: var(--accent-2); }
+  .question-text { font-size: 1.4rem; font-weight: 700; margin: 10px 0; line-height: 1.35; }
+  .answer-text { font-size: 1.8rem; font-weight: 800; color: var(--accent); margin: 10px 0; }
+  .row { display: flex; gap: 8px; }
+  .row > * { flex: 1; }
+  .score-toggle-row {
+    display: flex; justify-content: space-between; align-items: center; gap: 10px;
+    padding: 10px 12px; border-radius: 10px; background: var(--panel-2); border: 1px solid var(--border);
+    margin-bottom: 8px; cursor: pointer; user-select: none;
+  }
+  .score-toggle-row.got-it { background: rgba(78,230,167,0.15); border-color: var(--accent); }
+  .score-toggle-row .pname { font-weight: 600; }
+  .score-toggle-row .mark { font-size: 1.3rem; color: var(--text-dim); }
+  .score-toggle-row.got-it .mark { color: var(--accent); }
+  .scoreboard { display: flex; flex-direction: column; gap: 6px; }
+  .score-row { display: flex; justify-content: space-between; padding: 6px 4px; }
+  .target-score-line {
+    text-align: center; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border);
+    color: var(--text-dim); font-size: 0.95rem;
+  }
+  .target-score-line strong { color: var(--accent); font-size: 1.1rem; }
+  small.hint { color: var(--text-dim); display: block; margin-top: 4px; font-size: 0.78rem; }
+  .pass-icon { font-size: 3rem; margin: 10px 0; }
+</style>
+</head>
+<body>
+<div id="app">
+  <div class="row" style="align-items:center; margin-bottom:4px;">
+    <h1 style="margin:0;">🧠 Trivia <span>Party</span></h1>
+  </div>
+  <div class="subtitle">Pass-and-play trivia — everyone plays off one screen &middot; <a class="top-link" href="index.html">&larr; all games</a></div>
+
+  <!-- SETUP -->
+  <div class="screen active" id="screen-setup">
+    <div class="card">
+      <label>Players (2–10)</label>
+      <div id="player-list"></div>
+      <button class="secondary" id="btn-add-player" type="button">+ Add player</button>
+    </div>
+    <div class="card">
+      <label>Categories</label>
+      <div class="chip-group" id="category-chips"></div>
+      <small class="hint">Pick specific categories, or leave "All" selected for the full mix.</small>
+    </div>
+    <div class="card">
+      <label>Points to Win</label>
+      <div class="target-score-row">
+        <button class="stepper-btn" id="btn-target-down" type="button" aria-label="Decrease">&minus;</button>
+        <input type="number" id="target-score-input" class="target-score-field" min="1" max="99" value="10">
+        <button class="stepper-btn" id="btn-target-up" type="button" aria-label="Increase">+</button>
+      </div>
+      <small class="hint">First to reach this score wins.</small>
+    </div>
+    <button class="primary" id="btn-start-game" type="button">Start Game</button>
+  </div>
+
+  <!-- QUESTION -->
+  <div class="screen" id="screen-question">
+    <div class="card center">
+      <span class="category-label" id="q-category"></span>
+      <div class="question-text" id="q-text"></div>
+      <div class="timer-display" id="q-timer">0:60</div>
+      <small class="hint">Everyone shout out or write down your answer before time's up!</small>
+    </div>
+    <button class="primary" id="btn-everyone-ready" type="button">Everyone's Ready — Reveal Answer</button>
+    <small class="hint center">Tap this early if the whole table agrees — no need to wait out the full 60 seconds.</small>
+  </div>
+
+  <!-- ANSWER REVEAL + SCORING -->
+  <div class="screen" id="screen-answer">
+    <div class="card center">
+      <span class="category-label">The answer is</span>
+      <div class="answer-text" id="a-text"></div>
+    </div>
+    <div class="card">
+      <label>Who got it right? (tap to award a point)</label>
+      <div id="score-toggle-list"></div>
+    </div>
+    <button class="primary" id="btn-next-question" type="button">Next Question</button>
+  </div>
+
+  <!-- GAME WON -->
+  <div class="screen" id="screen-game-won">
+    <div class="card center">
+      <div class="pass-icon">🏆</div>
+      <div class="big-name" id="winner-name"></div>
+      <div>wins the game!</div>
+    </div>
+    <div class="card">
+      <label>Final Scores</label>
+      <div class="scoreboard" id="winner-scoreboard"></div>
+    </div>
+    <button class="primary" id="btn-new-game" type="button">New Game</button>
+  </div>
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  var QUESTION_TIME = 60;
+
+  var CATEGORIES = {
+    "Animals": [
+      ["What do you call a baby dog?", "A puppy"],
+      ["Which animal is known as the \"King of the Jungle\"?", "The lion"],
+      ["How many legs does a spider have?", "8"],
+      ["What do bees make?", "Honey"],
+      ["What is the tallest animal in the world?", "The giraffe"],
+      ["What do you call a baby cat?", "A kitten"],
+      ["Which bird can't fly but is a great swimmer?", "The penguin"],
+      ["What animal says \"moo\"?", "A cow"],
+      ["How many legs does an insect have?", "6"],
+      ["What do you call a group of wolves?", "A pack"]
+    ],
+    "Movies & Shows": [
+      ["In \"Frozen,\" what is Elsa's power?", "Ice/snow magic"],
+      ["What color is SpongeBob?", "Yellow"],
+      ["What kind of animal is Simba in \"The Lion King\"?", "A lion"],
+      ["In \"Toy Story,\" what kind of toy is Woody?", "A cowboy"],
+      ["What do Mario and Luigi both wear on their heads?", "A cap"],
+      ["What color is Elmo?", "Red"],
+      ["In \"Finding Nemo,\" what kind of fish is Nemo?", "A clownfish"],
+      ["What is the name of the yellow sponge who lives in a pineapple?", "SpongeBob"],
+      ["What animal is Pikachu?", "A mouse (electric mouse)"],
+      ["In \"Moana,\" what does Moana sail across?", "The ocean"]
+    ],
+    "Science": [
+      ["What do plants need from the sun to grow?", "Sunlight/light"],
+      ["What is frozen water called?", "Ice"],
+      ["What planet do we live on?", "Earth"],
+      ["What do you call water falling from the sky?", "Rain"],
+      ["What part of your body do you use to see?", "Your eyes"],
+      ["What gas do we breathe in to stay alive?", "Oxygen"],
+      ["What happens to water when it gets very cold?", "It freezes"],
+      ["What do caterpillars turn into?", "Butterflies"],
+      ["What is the closest star to Earth?", "The Sun"],
+      ["How many bones are in the human body (roughly)?", "206"]
+    ],
+    "Sports": [
+      ["How many players are on a basketball team on the court at once?", "5"],
+      ["What do you wear on your head when riding a bike?", "A helmet"],
+      ["In soccer, what do you call it when the ball goes in the net?", "A goal"],
+      ["What sport uses a racket and a net, with players hitting a ball back and forth?", "Tennis"],
+      ["How many players are on a soccer team on the field?", "11"],
+      ["What do swimmers wear on their eyes?", "Goggles"],
+      ["In baseball, how many bases are there (not counting home plate)?", "3"],
+      ["What do you call it when you score in football (American) by carrying the ball into the end zone?", "A touchdown"],
+      ["What shape is a soccer ball's classic pattern made of?", "Pentagons and hexagons"],
+      ["What sport is played on ice with a puck?", "Hockey"]
+    ],
+    "Geography": [
+      ["What is the tallest mountain in the world?", "Mount Everest"],
+      ["What ocean is the biggest?", "The Pacific Ocean"],
+      ["What do you call a very large, sandy area with little water?", "A desert"],
+      ["What country is shaped like a boot?", "Italy"],
+      ["What is the name of the frozen continent at the bottom of the world?", "Antarctica"],
+      ["What do you call a small piece of land surrounded by water?", "An island"],
+      ["What river runs through Egypt?", "The Nile"],
+      ["What country has the Great Wall?", "China"],
+      ["What is the capital city of France?", "Paris"],
+      ["What do you call the line around the middle of the Earth?", "The equator"]
+    ],
+    "Silly & General": [
+      ["How many days are in a week?", "7"],
+      ["What do you call a group of fish?", "A school"],
+      ["What do you call a person who flies a plane?", "A pilot"],
+      ["What shape has three sides?", "A triangle"],
+      ["What do you use to brush your teeth?", "A toothbrush"],
+      ["How many months are in a year?", "12"],
+      ["What do you call the first meal of the day?", "Breakfast"],
+      ["What color do you get when you mix blue and yellow?", "Green"],
+      ["What do you call a story that isn't true, made up for fun?", "Fiction / a made-up story"],
+      ["What holiday do you carve a pumpkin for?", "Halloween"]
+    ]
+  };
+
+  var state = {
+    players: ["", "", ""],
+    selectedCategories: Object.keys(CATEGORIES),
+    targetScore: 10,
+    scores: {},
+    usedQuestions: {},
+    currentQuestion: null,
+    scoredThisRound: {},
+    timerHandle: null,
+    timerRemaining: 0
+  };
+
+  function $(id) { return document.getElementById(id); }
+  function showScreen(id) {
+    document.querySelectorAll(".screen").forEach(function (s) { s.classList.remove("active"); });
+    $(id).classList.add("active");
+  }
+
+  // ---------- Setup screen ----------
+  function renderPlayerList() {
+    var wrap = $("player-list");
+    wrap.innerHTML = "";
+    state.players.forEach(function (name, i) {
+      var row = document.createElement("div");
+      row.className = "player-row";
+      var input = document.createElement("input");
+      input.type = "text";
+      input.placeholder = "Player " + (i + 1);
+      input.value = name;
+      input.maxLength = 20;
+      input.addEventListener("input", function () { state.players[i] = input.value; });
+      row.appendChild(input);
+      if (state.players.length > 2) {
+        var rm = document.createElement("button");
+        rm.className = "icon-btn";
+        rm.type = "button";
+        rm.textContent = "✕";
+        rm.addEventListener("click", function () {
+          state.players.splice(i, 1);
+          renderPlayerList();
+        });
+        row.appendChild(rm);
+      }
+      wrap.appendChild(row);
+    });
+  }
+
+  $("btn-add-player").addEventListener("click", function () {
+    if (state.players.length >= 10) return;
+    state.players.push("");
+    renderPlayerList();
+  });
+
+  function renderCategoryChips() {
+    var wrap = $("category-chips");
+    wrap.innerHTML = "";
+    Object.keys(CATEGORIES).forEach(function (cat) {
+      var chip = document.createElement("div");
+      chip.className = "chip" + (state.selectedCategories.indexOf(cat) !== -1 ? " selected" : "");
+      chip.textContent = cat;
+      chip.addEventListener("click", function () {
+        var idx = state.selectedCategories.indexOf(cat);
+        if (idx !== -1) {
+          if (state.selectedCategories.length === 1) return;
+          state.selectedCategories.splice(idx, 1);
+        } else {
+          state.selectedCategories.push(cat);
+        }
+        renderCategoryChips();
+      });
+      wrap.appendChild(chip);
+    });
+  }
+
+  function clampTarget() {
+    var v = parseInt($("target-score-input").value, 10);
+    if (isNaN(v) || v < 1) v = 1;
+    if (v > 99) v = 99;
+    $("target-score-input").value = v;
+    state.targetScore = v;
+  }
+  $("target-score-input").addEventListener("change", clampTarget);
+  $("btn-target-down").addEventListener("click", function () {
+    $("target-score-input").value = Math.max(1, (parseInt($("target-score-input").value, 10) || 1) - 1);
+    clampTarget();
+  });
+  $("btn-target-up").addEventListener("click", function () {
+    $("target-score-input").value = Math.min(99, (parseInt($("target-score-input").value, 10) || 1) + 1);
+    clampTarget();
+  });
+
+  $("btn-start-game").addEventListener("click", function () {
+    var names = state.players.map(function (n, i) { return n.trim() || ("Player " + (i + 1)); });
+    if (names.length < 2) { alert("Need at least 2 players."); return; }
+    clampTarget();
+    state.players = names;
+    state.scores = {};
+    names.forEach(function (n) { state.scores[n] = 0; });
+    state.usedQuestions = {};
+    nextQuestion();
+  });
+
+  // ---------- Question flow ----------
+  function pickRandom(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
+
+  function nextQuestion() {
+    var pool = [];
+    state.selectedCategories.forEach(function (cat) {
+      var used = state.usedQuestions[cat] || [];
+      CATEGORIES[cat].forEach(function (q, i) {
+        if (used.indexOf(i) === -1) pool.push({ cat: cat, idx: i, q: q[0], a: q[1] });
+      });
+    });
+    if (pool.length === 0) {
+      // reshuffle: everything's been used, start the used-list over
+      state.selectedCategories.forEach(function (cat) { state.usedQuestions[cat] = []; });
+      state.selectedCategories.forEach(function (cat) {
+        CATEGORIES[cat].forEach(function (q, i) { pool.push({ cat: cat, idx: i, q: q[0], a: q[1] }); });
+      });
+    }
+    var pick = pickRandom(pool);
+    if (!state.usedQuestions[pick.cat]) state.usedQuestions[pick.cat] = [];
+    state.usedQuestions[pick.cat].push(pick.idx);
+    state.currentQuestion = pick;
+    state.scoredThisRound = {};
+
+    $("q-category").textContent = pick.cat;
+    $("q-text").textContent = pick.q;
+    startTimer();
+    showScreen("screen-question");
+  }
+
+  function startTimer() {
+    clearInterval(state.timerHandle);
+    state.timerRemaining = QUESTION_TIME;
+    updateTimerDisplay();
+    state.timerHandle = setInterval(function () {
+      state.timerRemaining--;
+      updateTimerDisplay();
+      if (state.timerRemaining <= 0) {
+        clearInterval(state.timerHandle);
+        goToAnswer();
+      }
+    }, 1000);
+  }
+
+  function updateTimerDisplay() {
+    var m = Math.floor(state.timerRemaining / 60);
+    var s = state.timerRemaining % 60;
+    var el = $("q-timer");
+    el.textContent = m + ":" + (s < 10 ? "0" : "") + s;
+    el.classList.toggle("low", state.timerRemaining <= 10);
+  }
+
+  $("btn-everyone-ready").addEventListener("click", function () {
+    clearInterval(state.timerHandle);
+    goToAnswer();
+  });
+
+  // ---------- Answer + scoring ----------
+  function goToAnswer() {
+    $("a-text").textContent = state.currentQuestion.a;
+    renderScoreToggleList();
+    showScreen("screen-answer");
+  }
+
+  function renderScoreToggleList() {
+    var wrap = $("score-toggle-list");
+    wrap.innerHTML = "";
+    state.players.forEach(function (name) {
+      var row = document.createElement("div");
+      row.className = "score-toggle-row" + (state.scoredThisRound[name] ? " got-it" : "");
+      var pname = document.createElement("span");
+      pname.className = "pname";
+      pname.textContent = name;
+      var mark = document.createElement("span");
+      mark.className = "mark";
+      mark.textContent = state.scoredThisRound[name] ? "✓" : "";
+      row.appendChild(pname);
+      row.appendChild(mark);
+      row.addEventListener("click", function () {
+        state.scoredThisRound[name] = !state.scoredThisRound[name];
+        renderScoreToggleList();
+      });
+      wrap.appendChild(row);
+    });
+  }
+
+  $("btn-next-question").addEventListener("click", function () {
+    state.players.forEach(function (name) {
+      if (state.scoredThisRound[name]) state.scores[name] = (state.scores[name] || 0) + 1;
+    });
+    var winner = state.players.find(function (name) { return state.scores[name] >= state.targetScore; });
+    if (winner) {
+      showWinner();
+    } else {
+      nextQuestion();
+    }
+  });
+
+  function showWinner() {
+    var sorted = state.players.slice().sort(function (a, b) { return state.scores[b] - state.scores[a]; });
+    $("winner-name").textContent = sorted[0];
+    var board = $("winner-scoreboard");
+    board.innerHTML = "";
+    sorted.forEach(function (name) {
+      var row = document.createElement("div");
+      row.className = "score-row";
+      row.innerHTML = "<span>" + name + "</span><span>" + state.scores[name] + "</span>";
+      board.appendChild(row);
+    });
+    showScreen("screen-game-won");
+  }
+
+  $("btn-new-game").addEventListener("click", function () {
+    showScreen("screen-setup");
+  });
+
+  // ---------- Init ----------
+  renderPlayerList();
+  renderCategoryChips();
+})();
+</script>
+</body>
+</html>
