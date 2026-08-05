@@ -183,7 +183,6 @@
       <div class="timer-display" id="pass-timer" style="margin-top:10px;">0:30</div>
     </div>
     <button class="primary" id="btn-ready-to-answer" type="button">I'm ready to answer</button>
-    <button class="secondary" id="btn-reveal-now-pass" type="button">Everyone agrees — reveal answers now</button>
   </div>
 
   <!-- ANSWER INPUT -->
@@ -206,7 +205,6 @@
       </div>
     </div>
     <button class="primary" id="btn-submit-answer" type="button">Lock In Answer</button>
-    <button class="secondary" id="btn-reveal-now-input" type="button">Everyone agrees — reveal answers now</button>
   </div>
 
   <!-- READY TO REVEAL -->
@@ -733,12 +731,6 @@
     goToPassTurn();
   });
 
-  $("btn-reveal-now-pass").addEventListener("click", goToReveal);
-  $("btn-reveal-now-input").addEventListener("click", function () {
-    var name = state.players[state.turnOrder[state.turnIndex]];
-    state.givenAnswers[name] = currentTurnAnswer();
-    goToReveal();
-  });
 
   $("btn-show-answer").addEventListener("click", function () {
     renderReveal();
