@@ -7,14 +7,14 @@
 <link rel="apple-touch-icon" href="icon-firsttoworst.png">
 <style>
   :root {
-    --bg: #171009;
-    --panel: #241a10;
-    --panel-2: #2f2216;
-    --accent: #e8a33d;
-    --accent-2: #b03a3a;
-    --text: #f3e9da;
-    --text-dim: #a6927a;
-    --border: #40311f;
+    --bg: #faf7f2;
+    --panel: #ffffff;
+    --panel-2: #f2ece1;
+    --accent: #b45309;
+    --accent-2: #b91c1c;
+    --text: #2b2015;
+    --text-dim: #8a7a68;
+    --border: #e6ddcf;
   }
   * { box-sizing: border-box; }
   html, body {
@@ -38,11 +38,9 @@
   h1 { font-size: 1.5rem; margin: 4px 0 2px; letter-spacing: 0.3px; }
   h1 span { color: var(--accent); }
   .subtitle { color: var(--text-dim); font-size: 0.85rem; margin-bottom: 18px; }
-  .top-link { color: var(--text-dim); font-size: 0.8rem; text-decoration: none; }
-  .top-link:hover { color: var(--accent); }
   .screen { display: none; flex-direction: column; gap: 14px; flex: 1; }
   .screen.active { display: flex; }
-  .card { background: var(--panel); border: 1px solid var(--border); border-radius: 14px; padding: 16px; }
+  .card { background: var(--panel); border: 1px solid var(--border); border-radius: 14px; padding: 16px; box-shadow: 0 1px 2px rgba(43,32,21,0.04); }
   label { display: block; font-size: 0.8rem; color: var(--text-dim); margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.06em; }
   input[type="text"], input[type="number"] {
     width: 100%; background: var(--panel-2); border: 1px solid var(--border);
@@ -69,7 +67,7 @@
   }
   .icon-btn:active { transform: scale(0.95); }
   button.primary {
-    background: var(--accent); color: #2a1300; border: none; padding: 15px; border-radius: 12px;
+    background: var(--accent); color: #fff; border: none; padding: 15px; border-radius: 12px;
     font-size: 1.05rem; font-weight: 700; cursor: pointer; width: 100%;
   }
   button.primary:active { transform: scale(0.98); }
@@ -77,14 +75,8 @@
     background: transparent; color: var(--text); border: 1px solid var(--border);
     padding: 13px; border-radius: 12px; font-size: 0.95rem; cursor: pointer; width: 100%;
   }
-  button.danger { background: var(--accent-2); color: #2a0d0d; }
+  button.danger { background: var(--accent-2); color: #fff; }
   button:disabled { opacity: 0.4; cursor: not-allowed; }
-  .chip-group { display: flex; flex-wrap: wrap; gap: 8px; }
-  .chip {
-    padding: 8px 14px; border-radius: 999px; border: 1px solid var(--border);
-    background: var(--panel-2); color: var(--text-dim); font-size: 0.85rem; cursor: pointer; user-select: none;
-  }
-  .chip.selected { background: var(--accent); color: #2a1300; border-color: var(--accent); font-weight: 600; }
   .center { text-align: center; }
   .category-label { color: var(--text-dim); font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.06em; }
   .big-name { font-size: 1.8rem; font-weight: 800; margin: 6px 0; }
@@ -103,19 +95,19 @@
   }
   .rank-num {
     flex: none; width: 30px; height: 30px; border-radius: 50%;
-    background: var(--bg); border: 1px solid var(--border);
+    background: var(--panel); border: 1px solid var(--border);
     display: flex; align-items: center; justify-content: center;
     font-weight: 800; font-size: 0.9rem; color: var(--accent);
   }
-  .rank-row:first-child .rank-num { background: var(--accent); color: #2a1300; border-color: var(--accent); }
-  .rank-row:last-child .rank-num { background: var(--accent-2); color: #2a0d0d; border-color: var(--accent-2); }
+  .rank-row:first-child .rank-num { background: var(--accent); color: #fff; border-color: var(--accent); }
+  .rank-row:last-child .rank-num { background: var(--accent-2); color: #fff; border-color: var(--accent-2); }
   .rank-item-name { flex: 1; font-size: 1rem; }
   .rank-moves { display: flex; flex-direction: column; gap: 3px; flex: none; }
   .rank-move-btn {
-    width: 34px; height: 22px; background: var(--bg); border: 1px solid var(--border);
+    width: 34px; height: 22px; background: var(--panel); border: 1px solid var(--border);
     color: var(--text-dim); border-radius: 6px; font-size: 0.75rem; cursor: pointer; line-height: 1;
   }
-  .rank-move-btn:disabled { opacity: 0.25; cursor: not-allowed; }
+  .rank-move-btn:disabled { opacity: 0.3; cursor: not-allowed; }
   .rank-move-btn:active:not(:disabled) { transform: scale(0.92); }
   .rank-endpoints { display: flex; justify-content: space-between; color: var(--text-dim); font-size: 0.75rem; padding: 0 4px; text-transform: uppercase; letter-spacing: 0.06em; }
 
@@ -147,19 +139,30 @@
 <body>
 <div id="app">
   <h1>First to <span>Worst</span></h1>
-  <div class="subtitle">Rank it your way, then see how far off you were &middot; <a class="top-link" href="index.html">&larr; all games</a></div>
+  <div class="subtitle">Rank it your way, then see how far off you were</div>
 
   <!-- SETUP -->
   <div class="screen active" id="screen-setup">
+    <div class="card" id="refresh-resume-banner" style="display:none;">
+      <div class="row" style="align-items:center; gap:10px;">
+        <div style="flex:1;">Looks like the page was refreshed mid-game. Want to keep playing?</div>
+      </div>
+      <div class="row" style="margin-top:10px;">
+        <button class="secondary" id="btn-refresh-startnew" type="button">Start New Game</button>
+        <button class="primary" id="btn-refresh-continue" type="button">Continue Game</button>
+      </div>
+    </div>
+    <div class="card" id="resume-banner" style="display:none;">
+      <div class="row" style="align-items:center; gap:10px;">
+        <div style="flex:1;">Your last game was ended. Was that an accident?</div>
+        <button class="secondary" id="btn-resume-game" type="button" style="width:auto; flex:none; padding:10px 14px;">Resume Game</button>
+      </div>
+    </div>
     <div class="card">
       <label>Players (2&ndash;10)</label>
       <div id="player-list"></div>
       <button class="secondary" id="btn-add-player" type="button">+ Add player</button>
-    </div>
-    <div class="card">
-      <label>Topics</label>
-      <div class="chip-group" id="category-chips"></div>
-      <small class="hint">Each round draws one topic and everyone ranks it best to worst, in private. There's no right answer &mdash; you're being scored against each other.</small>
+      <small class="hint">You're scored against each other, so there's no solo mode here &mdash; at least 2 players are needed.</small>
     </div>
     <div class="card">
       <label>Points to Win</label>
@@ -168,7 +171,7 @@
         <input type="number" id="target-score-input" class="target-score-field" min="1" max="99" value="15">
         <button class="stepper-btn" id="btn-target-up" type="button" aria-label="Increase">+</button>
       </div>
-      <small class="hint">Each round, whoever ranked closest to the group's combined order earns the most points.</small>
+      <small class="hint">Each round, five random things get ranked. Whoever ranked closest to the group's combined order earns the most points.</small>
     </div>
     <button class="primary" id="btn-start-game" type="button">Start Game</button>
   </div>
@@ -176,8 +179,8 @@
   <!-- ROUND INTRO -->
   <div class="screen" id="screen-round-intro">
     <div class="card center">
-      <span class="category-label">This round's topic</span>
-      <div class="big-name" id="ri-category"></div>
+      <span class="category-label">This round</span>
+      <div class="big-name" style="font-size:1.3rem;">Rank these best to worst</div>
       <div class="item-preview-list" id="ri-items"></div>
       <small class="hint">Everyone will rank these, one at a time and out of sight of each other. Best at the top, worst at the bottom &mdash; your call.</small>
     </div>
@@ -198,7 +201,7 @@
   <!-- RANKING -->
   <div class="screen" id="screen-rank">
     <div class="card">
-      <span class="category-label" id="rank-category"></span>
+      <span class="category-label">Your ranking</span>
       <div class="rank-endpoints"><span>Best</span><span>Worst</span></div>
       <div class="rank-list" id="rank-list"></div>
     </div>
@@ -261,6 +264,17 @@
       <label>Final Scores</label>
       <div class="scoreboard" id="winner-scoreboard"></div>
     </div>
+    <div class="card center" id="extend-game-form" style="display:none;">
+      <label>New points to win</label>
+      <div class="target-score-row">
+        <button class="stepper-btn" id="btn-extend-down" type="button" aria-label="Decrease">&minus;</button>
+        <input type="number" id="extend-target-input" class="target-score-field" min="1" max="99">
+        <button class="stepper-btn" id="btn-extend-up" type="button" aria-label="Increase">+</button>
+      </div>
+      <small class="hint">Only continue if everyone agrees to keep playing!</small>
+      <button class="secondary" id="btn-confirm-extend" type="button" style="margin-top:10px;">Everyone Agrees &mdash; Keep Playing</button>
+    </div>
+    <button class="secondary" id="btn-extend-game" type="button">Extend the Game</button>
     <button class="primary" id="btn-new-game" type="button">New Game</button>
   </div>
 </div>
@@ -269,28 +283,33 @@
 (function () {
   "use strict";
 
-  var CATEGORIES = {
-    "Pizza Toppings": ["Pepperoni", "Mushrooms", "Pineapple", "Sausage", "Extra Cheese", "Black Olives", "Bell Peppers", "Anchovies"],
-    "Ways to Spend a Snow Day": ["Sledding", "Staying in Bed", "Building a Snowman", "Hot Chocolate", "Shoveling the Driveway", "Snowball Fight", "Movie Marathon", "Baking"],
-    "Ways to Get Around": ["Bike", "Car", "Train", "Airplane", "Sailboat", "Scooter", "Walking", "Horse"],
-    "School Subjects": ["Math", "Science", "History", "Art", "Gym", "Music", "English", "A Foreign Language"],
-    "Superpowers": ["Flight", "Invisibility", "Super Strength", "Reading Minds", "Time Travel", "Teleportation", "Shapeshifting", "Talking to Animals"],
-    "Chores": ["Dishes", "Laundry", "Vacuuming", "Taking Out the Trash", "Cleaning the Bathroom", "Mowing the Lawn", "Dusting", "Grocery Shopping"],
-    "Breakfast Foods": ["Pancakes", "Cereal", "Scrambled Eggs", "Bacon", "Oatmeal", "Toast", "Waffles", "Fresh Fruit"],
-    "Vacation Types": ["Beach Trip", "Mountain Cabin", "Big City", "Theme Park", "Camping", "Cruise", "Road Trip", "Staying Home"]
-  };
+  var ITEMS_PER_ROUND = 5;
+
+  // One flat, category-free pool -- every round draws a totally random
+  // handful from across all of it, so the mix itself is part of the fun.
+  var ITEMS = [
+    "Pepperoni", "Mushrooms", "Pineapple", "Sausage", "Extra Cheese", "Black Olives", "Bell Peppers", "Anchovies",
+    "Sledding", "Staying in Bed", "Building a Snowman", "Hot Chocolate", "Shoveling the Driveway", "Snowball Fight", "Movie Marathon", "Baking",
+    "Bike", "Car", "Train", "Airplane", "Sailboat", "Scooter", "Walking", "Horse",
+    "Math", "Science", "History", "Art", "Gym", "Music", "English", "A Foreign Language",
+    "Flight", "Invisibility", "Super Strength", "Reading Minds", "Time Travel", "Teleportation", "Shapeshifting", "Talking to Animals",
+    "Dishes", "Laundry", "Vacuuming", "Taking Out the Trash", "Cleaning the Bathroom", "Mowing the Lawn", "Dusting", "Grocery Shopping",
+    "Pancakes", "Cereal", "Scrambled Eggs", "Bacon", "Oatmeal", "Toast", "Waffles", "Fresh Fruit",
+    "Beach Trip", "Mountain Cabin", "Big City", "Theme Park", "Camping", "Cruise", "Road Trip", "Staying Home"
+  ];
 
   var state = {
     players: ["", ""],
-    selectedCategories: Object.keys(CATEGORIES),
     targetScore: 15,
+    lastWinningScore: 0,
     scores: {},
-    usedCategories: [],
+    usedItems: [],
     round: null,
     turnOrder: [],
     turnIndex: 0,
     currentRankOrder: [],
-    rankings: {}
+    rankings: {},
+    canResume: false
   };
 
   function $(id) { return document.getElementById(id); }
@@ -298,7 +317,6 @@
     document.querySelectorAll(".screen").forEach(function (s) { s.classList.remove("active"); });
     $(id).classList.add("active");
   }
-  function pickRandom(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
   function shuffled(arr) {
     var a = arr.slice();
     for (var i = a.length - 1; i > 0; i--) {
@@ -343,27 +361,6 @@
     renderPlayerList();
   });
 
-  function renderCategoryChips() {
-    var wrap = $("category-chips");
-    wrap.innerHTML = "";
-    Object.keys(CATEGORIES).forEach(function (cat) {
-      var chip = document.createElement("div");
-      chip.className = "chip" + (state.selectedCategories.indexOf(cat) !== -1 ? " selected" : "");
-      chip.textContent = cat;
-      chip.addEventListener("click", function () {
-        var idx = state.selectedCategories.indexOf(cat);
-        if (idx !== -1) {
-          if (state.selectedCategories.length === 1) return;
-          state.selectedCategories.splice(idx, 1);
-        } else {
-          state.selectedCategories.push(cat);
-        }
-        renderCategoryChips();
-      });
-      wrap.appendChild(chip);
-    });
-  }
-
   function clampTarget() {
     var v = parseInt($("target-score-input").value, 10);
     if (isNaN(v) || v < 1) v = 1;
@@ -388,35 +385,40 @@
     state.players = names;
     state.scores = {};
     names.forEach(function (n) { state.scores[n] = 0; });
-    state.usedCategories = [];
+    state.usedItems = [];
+    state.lastWinningScore = 0;
+    state.canResume = false;
+    $("resume-banner").style.display = "none";
+    pendingResume = null;
+    $("refresh-resume-banner").style.display = "none";
     nextRound();
   });
 
   // ---------- Round setup ----------
   function nextRound() {
-    var available = state.selectedCategories.filter(function (c) { return state.usedCategories.indexOf(c) === -1; });
-    if (available.length === 0) {
-      state.usedCategories = [];
-      available = state.selectedCategories.slice();
+    var available = ITEMS.filter(function (it) { return state.usedItems.indexOf(it) === -1; });
+    if (available.length < ITEMS_PER_ROUND) {
+      state.usedItems = [];
+      available = ITEMS.slice();
     }
-    var cat = pickRandom(available);
-    state.usedCategories.push(cat);
+    var picks = shuffled(available).slice(0, ITEMS_PER_ROUND);
+    picks.forEach(function (it) { state.usedItems.push(it); });
 
-    state.round = { category: cat, items: CATEGORIES[cat] };
+    state.round = { items: picks };
     state.turnOrder = shuffled(state.players.map(function (_, i) { return i; }));
     state.turnIndex = 0;
     state.rankings = {};
 
-    $("ri-category").textContent = cat;
     var itemsWrap = $("ri-items");
     itemsWrap.innerHTML = "";
-    state.round.items.forEach(function (item) {
+    picks.forEach(function (item) {
       var el = document.createElement("div");
       el.className = "item-preview";
       el.textContent = item;
       itemsWrap.appendChild(el);
     });
     showScreen("screen-round-intro");
+    saveCheckpoint("screen-round-intro");
   }
 
   $("btn-start-ranking").addEventListener("click", goToPassTurn);
@@ -434,7 +436,6 @@
   }
 
   $("btn-ready-to-rank").addEventListener("click", function () {
-    $("rank-category").textContent = state.round.category;
     state.currentRankOrder = shuffled(state.round.items);
     renderRankList();
     showScreen("screen-rank");
@@ -556,10 +557,10 @@
       state.scores[name] += roundPoints[name];
     });
 
-    var sortedPlayers = players.slice().sort(function (a, b) { return distances[a] - distances[b]; });
+    var sortedRoundPlayers = players.slice().sort(function (a, b) { return distances[a] - distances[b]; });
     var standings = $("standings-list");
     standings.innerHTML = "";
-    sortedPlayers.forEach(function (name) {
+    sortedRoundPlayers.forEach(function (name) {
       var row = document.createElement("div");
       row.className = "standings-row";
       row.innerHTML = "<span class=\"pname\">" + name + "</span>" +
@@ -569,8 +570,8 @@
     });
 
     var callout = $("round-callout");
-    if (sortedPlayers.length > 1) {
-      var best = sortedPlayers[0], worst = sortedPlayers[sortedPlayers.length - 1];
+    if (sortedRoundPlayers.length > 1) {
+      var best = sortedRoundPlayers[0], worst = sortedRoundPlayers[sortedRoundPlayers.length - 1];
       if (distances[best] === distances[worst]) {
         callout.textContent = "Everyone landed equally close (or far) this round.";
       } else {
@@ -583,39 +584,76 @@
     showScreen("screen-reveal");
   }
 
+  // ---------- Scoreboard & win condition ----------
+  function sortedByScore() {
+    return state.players.slice().sort(function (a, b) { return (state.scores[b] || 0) - (state.scores[a] || 0); });
+  }
+
+  function renderScoreboardInto(elId) {
+    var board = $(elId);
+    board.innerHTML = "";
+    sortedByScore().forEach(function (name) {
+      var row = document.createElement("div");
+      row.className = "score-row";
+      row.innerHTML = "<span>" + name + "</span><strong>" + (state.scores[name] || 0) + "</strong>";
+      board.appendChild(row);
+    });
+  }
+
+  function computeWinner() {
+    var sorted = sortedByScore();
+    var topScore = state.scores[sorted[0]] || 0;
+    if (topScore < state.targetScore) return null;
+    var topPlayers = sorted.filter(function (name) { return (state.scores[name] || 0) === topScore; });
+    if (topPlayers.length === 1) return topPlayers[0];
+    return null; // tied at/above target -- keep playing until someone pulls ahead alone
+  }
+
   $("btn-next-round").addEventListener("click", function () {
-    var winner = state.players.filter(function (n) { return state.scores[n] >= state.targetScore; })
-      .sort(function (a, b) { return state.scores[b] - state.scores[a]; })[0];
+    var winner = computeWinner();
     if (winner) {
-      showGameWon(winner);
+      state.lastWinningScore = state.scores[winner];
+      $("winner-name").textContent = winner;
+      renderScoreboardInto("winner-scoreboard");
+      $("extend-game-form").style.display = "none";
+      showScreen("screen-game-won");
+      saveCheckpoint("screen-game-won");
     } else {
-      renderScoreboard();
+      renderScoreboardInto("scoreboard");
+      $("scoreboard-target").textContent = state.targetScore;
+      $("end-game-confirm").style.display = "none";
       showScreen("screen-scores");
+      saveCheckpoint("screen-scores");
     }
   });
 
-  // ---------- Scoreboard ----------
-  function renderScoreboard() {
-    var board = $("scoreboard");
-    board.innerHTML = "";
-    var entries = Object.keys(state.scores).map(function (name) {
-      return { name: name, score: state.scores[name] };
-    });
-    entries.sort(function (a, b) { return b.score - a.score; });
-    entries.forEach(function (e) {
-      var row = document.createElement("div");
-      row.className = "score-row";
-      row.innerHTML = "<span>" + e.name + "</span><strong>" + e.score + "</strong>";
-      board.appendChild(row);
-    });
-    $("scoreboard-target").textContent = state.targetScore;
-  }
-
   $("btn-back-to-round").addEventListener("click", function () {
-    $("end-game-confirm").style.display = "none";
     nextRound();
   });
 
+  // ---------- Extend game ----------
+  $("btn-extend-game").addEventListener("click", function () {
+    var floor = state.lastWinningScore + 1;
+    $("extend-target-input").min = floor;
+    $("extend-target-input").value = state.lastWinningScore + 5;
+    $("extend-game-form").style.display = "";
+  });
+  $("btn-extend-down").addEventListener("click", function () {
+    var floor = state.lastWinningScore + 1;
+    $("extend-target-input").value = Math.max(floor, (parseInt($("extend-target-input").value, 10) || floor) - 1);
+  });
+  $("btn-extend-up").addEventListener("click", function () {
+    $("extend-target-input").value = Math.min(99, (parseInt($("extend-target-input").value, 10) || 1) + 1);
+  });
+  $("btn-confirm-extend").addEventListener("click", function () {
+    var floor = state.lastWinningScore + 1;
+    var newTarget = parseInt($("extend-target-input").value, 10);
+    if (!(newTarget >= floor)) newTarget = state.lastWinningScore + 5;
+    state.targetScore = newTarget;
+    nextRound();
+  });
+
+  // ---------- End game (with undo) ----------
   $("btn-end-game").addEventListener("click", function () {
     $("end-game-confirm").style.display = "";
   });
@@ -624,34 +662,163 @@
   });
   $("btn-confirm-end-game").addEventListener("click", function () {
     $("end-game-confirm").style.display = "none";
+    state.canResume = true;
+    $("resume-banner").style.display = "";
+    showScreen("screen-setup");
+  });
+  $("btn-resume-game").addEventListener("click", function () {
+    if (!state.canResume) return;
+    renderScoreboardInto("scoreboard");
+    $("scoreboard-target").textContent = state.targetScore;
+    showScreen("screen-scores");
+  });
+
+  $("btn-new-game").addEventListener("click", function () {
+    state.canResume = false;
+    $("resume-banner").style.display = "none";
+    clearSavedGame();
     showScreen("screen-setup");
   });
 
-  // ---------- Game won ----------
-  function showGameWon(winner) {
-    $("winner-name").textContent = winner;
-    var board = $("winner-scoreboard");
-    board.innerHTML = "";
-    var entries = Object.keys(state.scores).map(function (name) {
-      return { name: name, score: state.scores[name] };
-    });
-    entries.sort(function (a, b) { return b.score - a.score; });
-    entries.forEach(function (e) {
-      var row = document.createElement("div");
-      row.className = "score-row";
-      row.innerHTML = "<span>" + e.name + "</span><strong>" + e.score + "</strong>";
-      board.appendChild(row);
-    });
-    showScreen("screen-game-won");
+  // ---------- Refresh-resume persistence ----------
+  // Saved only at points where nothing unsafe-to-redo has happened yet:
+  // the start of a round (before any rankings are recorded) or right after
+  // a round's scores are already committed (screen-scores / screen-game-won).
+  // Never mid-ranking, since replaying that would double-apply scoring.
+  var SAVE_KEY = "firstToWorstSave";
+
+  function saveCheckpoint(screenId) {
+    try {
+      var snapshot = {
+        screen: screenId,
+        state: {
+          players: state.players,
+          targetScore: state.targetScore,
+          lastWinningScore: state.lastWinningScore,
+          scores: state.scores,
+          usedItems: state.usedItems,
+          round: state.round
+        }
+      };
+      localStorage.setItem(SAVE_KEY, JSON.stringify(snapshot));
+    } catch (e) { /* private browsing or storage disabled -- resume just won't be offered */ }
   }
 
-  $("btn-new-game").addEventListener("click", function () {
-    showScreen("screen-setup");
+  function clearSavedGame() {
+    try { localStorage.removeItem(SAVE_KEY); } catch (e) {}
+  }
+
+  function loadSavedGame() {
+    try {
+      var raw = localStorage.getItem(SAVE_KEY);
+      return raw ? JSON.parse(raw) : null;
+    } catch (e) { return null; }
+  }
+
+  var pendingResume = loadSavedGame();
+  if (pendingResume && pendingResume.state && pendingResume.state.players && pendingResume.state.players.length >= 2) {
+    $("refresh-resume-banner").style.display = "";
+  } else {
+    pendingResume = null;
+  }
+
+  $("btn-refresh-startnew").addEventListener("click", function () {
+    clearSavedGame();
+    pendingResume = null;
+    $("refresh-resume-banner").style.display = "none";
+  });
+
+  $("btn-refresh-continue").addEventListener("click", function () {
+    if (!pendingResume) return;
+    var saved = pendingResume.state;
+    state.players = saved.players;
+    renderPlayerList();
+    state.targetScore = saved.targetScore;
+    $("target-score-input").value = saved.targetScore;
+    state.lastWinningScore = saved.lastWinningScore || 0;
+    state.scores = saved.scores;
+    state.usedItems = saved.usedItems || [];
+    state.round = saved.round;
+    $("refresh-resume-banner").style.display = "none";
+
+    if (pendingResume.screen === "screen-scores") {
+      renderScoreboardInto("scoreboard");
+      $("scoreboard-target").textContent = state.targetScore;
+      showScreen("screen-scores");
+    } else if (pendingResume.screen === "screen-game-won") {
+      var winner = computeWinner();
+      $("winner-name").textContent = winner || "";
+      renderScoreboardInto("winner-scoreboard");
+      $("extend-game-form").style.display = "none";
+      showScreen("screen-game-won");
+    } else {
+      // start of the in-progress round -- the safest resumable point, since
+      // nobody's ranking for it has happened yet
+      state.turnOrder = shuffled(state.players.map(function (_, i) { return i; }));
+      state.turnIndex = 0;
+      state.rankings = {};
+      var itemsWrap = $("ri-items");
+      itemsWrap.innerHTML = "";
+      state.round.items.forEach(function (item) {
+        var el = document.createElement("div");
+        el.className = "item-preview";
+        el.textContent = item;
+        itemsWrap.appendChild(el);
+      });
+      showScreen("screen-round-intro");
+      saveCheckpoint("screen-round-intro");
+    }
+    pendingResume = null;
+  });
+
+  // ---------- Enter key advances the current screen ----------
+  // Maps each screen to its main forward action, so pressing Enter anywhere
+  // on that screen (a text field, a number field, or nothing focused at all)
+  // behaves like tapping that screen's primary button.
+  var SCREEN_ENTER_TARGETS = {
+    "screen-setup": "btn-start-game",
+    "screen-round-intro": "btn-start-ranking",
+    "screen-pass-turn": "btn-ready-to-rank",
+    "screen-rank": "btn-submit-rank",
+    "screen-ready-reveal": "btn-show-reveal",
+    "screen-reveal": "btn-next-round",
+    "screen-scores": "btn-back-to-round",
+    "screen-game-won": "btn-new-game"
+  };
+
+  document.addEventListener("keydown", function (e) {
+    if (e.key !== "Enter") return;
+
+    var activeScreen = document.querySelector(".screen.active");
+    if (!activeScreen) return;
+    var screenId = activeScreen.id;
+
+    // never let Enter reach for a destructive confirmation on its own
+    if (screenId === "screen-scores" && $("end-game-confirm").style.display !== "none") return;
+
+    var targetId = (screenId === "screen-game-won" && $("extend-game-form").style.display !== "none")
+      ? "btn-confirm-extend"
+      : SCREEN_ENTER_TARGETS[screenId];
+    if (!targetId) return;
+
+    var btn = $(targetId);
+    if (!btn || btn.disabled || btn.offsetParent === null) return;
+
+    // that exact button is already focused -- its own native Enter-activation
+    // will fire, so don't also click it here and cause a double-submit
+    if (document.activeElement === btn) return;
+
+    e.preventDefault();
+    btn.click();
   });
 
   // ---------- Init ----------
   renderPlayerList();
-  renderCategoryChips();
+  var firstPlayerInput = $("player-list").querySelector("input[type=text]");
+  if (firstPlayerInput) {
+    firstPlayerInput.setAttribute("autofocus", "autofocus");
+    firstPlayerInput.focus();
+  }
 })();
 </script>
 </body>
