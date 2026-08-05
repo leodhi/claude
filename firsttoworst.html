@@ -136,6 +136,13 @@
     background: var(--panel-2); border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px;
   }
   .order-reveal-row .rank-num { width: 26px; height: 26px; font-size: 0.8rem; }
+  .order-reveal-row.correct { background: rgba(63,125,79,0.13); border-color: #3f7d4f; }
+  .order-reveal-row.wrong { background: rgba(185,28,28,0.08); border-color: var(--accent-2); }
+  .guess-mark { flex: none; font-weight: 800; font-size: 1rem; }
+  .order-reveal-row.correct .guess-mark { color: #3f7d4f; }
+  .order-reveal-row.wrong .guess-mark { color: var(--accent-2); }
+  .guess-block-label { font-size: 0.85rem; font-weight: 600; margin: 12px 0 6px; }
+  .guess-block-label:first-child { margin-top: 0; }
   .standings-row {
     display: flex; justify-content: space-between; align-items: baseline;
     padding: 9px 4px; border-bottom: 1px solid var(--border);
@@ -199,27 +206,13 @@
     <div class="card">
       <label>How Scoring Works</label>
       <div style="font-size:0.9rem; line-height:1.7;">
-        A guess earns <strong>1 point for every item in its exact correct spot</strong> &mdash; out of 5 possible each round.
-        <div style="margin:6px 0 8px 2px;">
-          <div>All 5 in the right spot &mdash; <strong>5 points</strong></div>
-          <div>3 of 5 in the right spot &mdash; <strong>3 points</strong></div>
-          <div>None in the right spot &mdash; <strong>0 points</strong></div>
+        A guess earns <strong>1 point for every item that lands in its exact correct spot</strong>, out of 5 possible each round &mdash; so if you get 4 of the 5 spots right, that's 4 points; 2 right is 2 points, and so on.
+        <div style="margin-top:8px;">
+          The Ranker only scores if at least one guess gets <strong>all 5</strong> exactly right &mdash; then the Ranker earns the full 5 points too. If nobody nails it, the Ranker gets 0.
         </div>
-        The Ranker only scores if at least one guess gets all 5 exactly right &mdash; then the Ranker earns the full 5 points too. If nobody nails it, the Ranker gets 0.
       </div>
     </div>
     <button class="primary" id="btn-start-game" type="button">Start Game</button>
-  </div>
-
-  <!-- ROUND INTRO -->
-  <div class="screen" id="screen-round-intro">
-    <div class="card center">
-      <span class="category-label">This round's Ranker</span>
-      <div class="big-name" id="ri-ranker-name"></div>
-      <div class="item-preview-list" id="ri-items"></div>
-      <small class="hint">Everyone else will try to guess the order the Ranker secretly puts these in, best to worst.</small>
-    </div>
-    <button class="primary" id="btn-start-ranking" type="button">Start This Round</button>
   </div>
 
   <!-- PASS TO PLAYER -->
@@ -229,6 +222,8 @@
       <div id="pass-lead">Pass the device to</div>
       <div class="big-name" id="pass-name"></div>
       <small class="hint" id="pass-hint">Only <span id="pass-name-2"></span> should look &mdash; no peeking or shouting your list out.</small>
+      <div class="category-label" id="pass-items-label" style="margin-top:14px; display:none;">This round's 5 things</div>
+      <div class="item-preview-list" id="pass-items" style="display:none;"></div>
     </div>
     <button class="primary" id="btn-ready-to-rank" type="button">I'm ready</button>
   </div>
@@ -260,7 +255,11 @@
       <div class="order-reveal-list" id="order-reveal-list"></div>
     </div>
     <div class="card">
-      <label>Closest guess to farthest off</label>
+      <label>Everyone's Guesses</label>
+      <div id="guess-breakdown"></div>
+    </div>
+    <div class="card">
+      <label>Points This Round</label>
       <div id="standings-list"></div>
       <div class="callout" id="round-callout"></div>
     </div>
@@ -444,7 +443,10 @@
     targetScore: 15,
     guessMode: "separate",
     lastWinningScore: 0,
-    scores: {},
+    // scores/guesses are keyed by player INDEX, never by name -- two
+    // players can share a display name, and a name-keyed map would let
+    // one player's score/guess silently overwrite another's.
+    scores: [],
     usedItems: [],
     rankerIndex: -1,
     round: null,
@@ -550,8 +552,7 @@
     if (names.length < 2) { alert("Need at least 2 players — one ranks, everyone else guesses."); return; }
     clampTarget();
     state.players = names;
-    state.scores = {};
-    names.forEach(function (n) { state.scores[n] = 0; });
+    state.scores = names.map(function () { return 0; });
     state.usedItems = [];
     state.rankerIndex = -1;
     state.lastWinningScore = 0;
@@ -576,7 +577,7 @@
   }
 
   function renderItemPreview(items) {
-    var itemsWrap = $("ri-items");
+    var itemsWrap = $("pass-items");
     itemsWrap.innerHTML = "";
     items.forEach(function (item) {
       var el = document.createElement("div");
@@ -603,13 +604,9 @@
     state.turnQueue = buildTurnQueue();
     state.turnPos = 0;
 
-    $("ri-ranker-name").textContent = state.players[state.rankerIndex];
-    renderItemPreview(picks);
-    showScreen("screen-round-intro");
-    saveCheckpoint("screen-round-intro");
+    goToPassTurn();
+    saveCheckpoint("screen-pass-turn");
   }
-
-  $("btn-start-ranking").addEventListener("click", goToPassTurn);
 
   // ---------- Pass-and-rank loop ----------
   function currentTurn() { return state.turnQueue[state.turnPos]; }
@@ -621,6 +618,13 @@
     }
     var turn = currentTurn();
     var rankerName = state.players[state.rankerIndex];
+    // Only the very first turn of a round (the Ranker's) shows the item
+    // list -- that's the one moment everyone sees the 5 things together,
+    // before the device starts getting passed privately.
+    var showItems = turn.role === "ranker";
+    $("pass-items-label").style.display = showItems ? "" : "none";
+    $("pass-items").style.display = showItems ? "" : "none";
+    if (showItems) renderItemPreview(state.round.items);
 
     if (turn.role === "guess-together") {
       $("pass-icon").textContent = "👥";
@@ -748,7 +752,7 @@
     } else if (turn.role === "guess-together") {
       state.sharedGuess = state.currentRankOrder.slice();
     } else {
-      state.guesses[state.players[turn.idx]] = state.currentRankOrder.slice();
+      state.guesses[turn.idx] = state.currentRankOrder.slice();
     }
     state.turnPos++;
     goToPassTurn();
@@ -768,9 +772,43 @@
     return count;
   }
 
+  // Renders one player's (or the group's) guessed order as a list of rows,
+  // each colored green when that spot matches the ranker's real order and
+  // red when it doesn't -- so the whole table can see exactly where every
+  // guess landed, not just the final tally.
+  function renderGuessBreakdown(container, label, guessOrder, trueOrder) {
+    var lbl = document.createElement("div");
+    lbl.className = "guess-block-label";
+    lbl.textContent = label;
+    container.appendChild(lbl);
+
+    var list = document.createElement("div");
+    list.className = "order-reveal-list";
+    guessOrder.forEach(function (item, i) {
+      var correct = item === trueOrder[i];
+      var row = document.createElement("div");
+      row.className = "order-reveal-row " + (correct ? "correct" : "wrong");
+      var num = document.createElement("div");
+      num.className = "rank-num";
+      num.textContent = i + 1;
+      row.appendChild(num);
+      var nameEl = document.createElement("div");
+      nameEl.style.flex = "1";
+      nameEl.textContent = item;
+      row.appendChild(nameEl);
+      var mark = document.createElement("div");
+      mark.className = "guess-mark";
+      mark.textContent = correct ? "✓" : "✗";
+      row.appendChild(mark);
+      list.appendChild(row);
+    });
+    container.appendChild(list);
+  }
+
   function renderReveal() {
     var items = state.round.items;
-    var rankerName = state.players[state.rankerIndex];
+    var rankerIdx = state.rankerIndex;
+    var rankerName = state.players[rankerIdx];
     var trueOrder = state.rankerOrder;
 
     $("reveal-order-label").textContent = rankerName + "'s real order";
@@ -790,9 +828,13 @@
       orderList.appendChild(row);
     });
 
-    var guesserNames = [];
-    state.players.forEach(function (name, i) { if (i !== state.rankerIndex) guesserNames.push(name); });
+    // Guessers are tracked by INDEX, not name, so two players sharing a
+    // display name never collide in scores/guesses.
+    var guesserIndices = [];
+    state.players.forEach(function (name, i) { if (i !== rankerIdx) guesserIndices.push(i); });
 
+    var breakdown = $("guess-breakdown");
+    breakdown.innerHTML = "";
     var standings = $("standings-list");
     standings.innerHTML = "";
     var callout = $("round-callout");
@@ -800,11 +842,13 @@
 
     if (state.guessMode === "together") {
       var sharedPts = correctSpots(state.sharedGuess, trueOrder);
-      guesserNames.forEach(function (name) {
-        state.scores[name] = (state.scores[name] || 0) + sharedPts;
+      guesserIndices.forEach(function (idx) {
+        state.scores[idx] = (state.scores[idx] || 0) + sharedPts;
       });
       anyPerfect = sharedPts === items.length;
-      state.scores[rankerName] = (state.scores[rankerName] || 0) + (anyPerfect ? items.length : 0);
+      state.scores[rankerIdx] = (state.scores[rankerIdx] || 0) + (anyPerfect ? items.length : 0);
+
+      renderGuessBreakdown(breakdown, "Everyone Else (together)", state.sharedGuess, trueOrder);
 
       var groupRow = document.createElement("div");
       groupRow.className = "standings-row";
@@ -818,29 +862,32 @@
         : "The group's shared guess got " + sharedPts + " of " + items.length + " spots right.";
     } else {
       var roundPoints = {};
-      guesserNames.forEach(function (name) {
-        roundPoints[name] = correctSpots(state.guesses[name], trueOrder);
-        state.scores[name] = (state.scores[name] || 0) + roundPoints[name];
+      guesserIndices.forEach(function (idx) {
+        roundPoints[idx] = correctSpots(state.guesses[idx], trueOrder);
+        state.scores[idx] = (state.scores[idx] || 0) + roundPoints[idx];
+        renderGuessBreakdown(breakdown, state.players[idx], state.guesses[idx], trueOrder);
       });
 
-      anyPerfect = guesserNames.some(function (name) { return roundPoints[name] === items.length; });
-      state.scores[rankerName] = (state.scores[rankerName] || 0) + (anyPerfect ? items.length : 0);
+      anyPerfect = guesserIndices.some(function (idx) { return roundPoints[idx] === items.length; });
+      state.scores[rankerIdx] = (state.scores[rankerIdx] || 0) + (anyPerfect ? items.length : 0);
 
-      var sortedGuessers = guesserNames.slice().sort(function (a, b) { return roundPoints[b] - roundPoints[a]; });
-      sortedGuessers.forEach(function (name) {
+      var sortedIdx = guesserIndices.slice().sort(function (a, b) { return roundPoints[b] - roundPoints[a]; });
+      sortedIdx.forEach(function (idx) {
+        var name = state.players[idx];
         var row = document.createElement("div");
         row.className = "standings-row";
         row.innerHTML = "<span class=\"pname\">" + name + "</span>" +
-          "<span class=\"pdist\">" + roundPoints[name] + " of " + items.length + " correct</span>" +
-          "<span class=\"ppts\">+" + roundPoints[name] + "</span>";
+          "<span class=\"pdist\">" + roundPoints[idx] + " of " + items.length + " correct</span>" +
+          "<span class=\"ppts\">+" + roundPoints[idx] + "</span>";
         standings.appendChild(row);
       });
 
-      if (sortedGuessers.length > 0) {
-        var best = sortedGuessers[0];
-        callout.textContent = roundPoints[best] === items.length
-          ? best + " guessed " + rankerName + "'s exact order!"
-          : best + " got the most spots right (" + roundPoints[best] + " of " + items.length + ").";
+      if (sortedIdx.length > 0) {
+        var bestIdx = sortedIdx[0];
+        var bestName = state.players[bestIdx];
+        callout.textContent = roundPoints[bestIdx] === items.length
+          ? bestName + " guessed " + rankerName + "'s exact order!"
+          : bestName + " got the most spots right (" + roundPoints[bestIdx] + " of " + items.length + ").";
       } else {
         callout.textContent = "";
       }
@@ -857,35 +904,36 @@
   }
 
   // ---------- Scoreboard & win condition ----------
-  function sortedByScore() {
-    return state.players.slice().sort(function (a, b) { return (state.scores[b] || 0) - (state.scores[a] || 0); });
+  function sortedIndicesByScore() {
+    return state.players.map(function (_, i) { return i; })
+      .sort(function (a, b) { return (state.scores[b] || 0) - (state.scores[a] || 0); });
   }
 
   function renderScoreboardInto(elId) {
     var board = $(elId);
     board.innerHTML = "";
-    sortedByScore().forEach(function (name) {
+    sortedIndicesByScore().forEach(function (idx) {
       var row = document.createElement("div");
       row.className = "score-row";
-      row.innerHTML = "<span>" + name + "</span><strong>" + (state.scores[name] || 0) + "</strong>";
+      row.innerHTML = "<span>" + state.players[idx] + "</span><strong>" + (state.scores[idx] || 0) + "</strong>";
       board.appendChild(row);
     });
   }
 
   function computeWinner() {
-    var sorted = sortedByScore();
+    var sorted = sortedIndicesByScore();
     var topScore = state.scores[sorted[0]] || 0;
     if (topScore < state.targetScore) return null;
-    var topPlayers = sorted.filter(function (name) { return (state.scores[name] || 0) === topScore; });
-    if (topPlayers.length === 1) return topPlayers[0];
+    var topIndices = sorted.filter(function (idx) { return (state.scores[idx] || 0) === topScore; });
+    if (topIndices.length === 1) return topIndices[0];
     return null; // tied at/above target -- keep playing until someone pulls ahead alone
   }
 
   $("btn-next-round").addEventListener("click", function () {
-    var winner = computeWinner();
-    if (winner) {
-      state.lastWinningScore = state.scores[winner];
-      $("winner-name").textContent = winner;
+    var winnerIdx = computeWinner();
+    if (winnerIdx !== null) {
+      state.lastWinningScore = state.scores[winnerIdx];
+      $("winner-name").textContent = state.players[winnerIdx];
       renderScoreboardInto("winner-scoreboard");
       $("extend-game-form").style.display = "none";
       showScreen("screen-game-won");
@@ -1024,8 +1072,8 @@
       $("scoreboard-target").textContent = state.targetScore;
       showScreen("screen-scores");
     } else if (pendingResume.screen === "screen-game-won") {
-      var winner = computeWinner();
-      $("winner-name").textContent = winner || "";
+      var winnerIdx = computeWinner();
+      $("winner-name").textContent = winnerIdx !== null ? state.players[winnerIdx] : "";
       renderScoreboardInto("winner-scoreboard");
       $("extend-game-form").style.display = "none";
       showScreen("screen-game-won");
@@ -1037,10 +1085,8 @@
       state.sharedGuess = null;
       state.turnQueue = buildTurnQueue();
       state.turnPos = 0;
-      $("ri-ranker-name").textContent = state.players[state.rankerIndex];
-      renderItemPreview(state.round.items);
-      showScreen("screen-round-intro");
-      saveCheckpoint("screen-round-intro");
+      goToPassTurn();
+      saveCheckpoint("screen-pass-turn");
     }
     pendingResume = null;
   });
@@ -1051,7 +1097,6 @@
   // behaves like tapping that screen's primary button.
   var SCREEN_ENTER_TARGETS = {
     "screen-setup": "btn-start-game",
-    "screen-round-intro": "btn-start-ranking",
     "screen-pass-turn": "btn-ready-to-rank",
     "screen-rank": "btn-submit-rank",
     "screen-ready-reveal": "btn-show-reveal",
