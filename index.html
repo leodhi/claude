@@ -237,14 +237,19 @@
   <h1>🦎 Chame<span>leon</span></h1>
   <div class="subtitle">Play with friends on their own phones — everyone joins the same room</div>
 
-  <!-- HOME: create or join a room -->
+  <!-- HOME: play locally, or create/join a room -->
   <div class="screen active" id="screen-home">
+    <div class="card">
+      <button class="primary" id="btn-local-mode" type="button">Play on One Device</button>
+      <small class="hint">Pass the phone around the table — classic pass-and-play.</small>
+    </div>
+    <div class="center" style="color:var(--text-dim);font-size:0.8rem;">— or play across devices —</div>
     <div class="card">
       <label>Your name</label>
       <input type="text" id="input-name" maxlength="20" placeholder="Enter your name">
     </div>
     <div class="card">
-      <button class="primary" id="btn-create-room" type="button">Create Room</button>
+      <button class="secondary" id="btn-create-room" type="button">Create Room</button>
     </div>
     <div class="card">
       <label>Join a room</label>
@@ -252,6 +257,109 @@
       <button class="secondary" id="btn-join-room" type="button" style="margin-top:10px">Join Room</button>
     </div>
     <div class="center" id="home-status" style="color:var(--text-dim);font-size:0.85rem;"></div>
+  </div>
+
+  <!-- LOCAL PASS-AND-PLAY SETUP -->
+  <div class="screen" id="screen-local-setup">
+    <div class="card">
+      <label>Players (3–12)</label>
+      <div id="local-player-list"></div>
+      <button class="secondary" id="local-btn-add-player" type="button">+ Add player</button>
+    </div>
+    <div class="card">
+      <label>Categories</label>
+      <div class="chip-group" id="local-category-chips"></div>
+      <small class="hint">Tap to toggle. At least one must stay selected.</small>
+    </div>
+    <div class="card">
+      <label>Clue timer (seconds)</label>
+      <select id="local-timer-select">
+        <option value="0">No timer</option>
+        <option value="60">60</option>
+        <option value="90" selected>90</option>
+        <option value="120">120</option>
+        <option value="180">180</option>
+      </select>
+    </div>
+    <button class="primary" id="local-btn-start-game" type="button">Start Game</button>
+    <button class="link" id="local-btn-back-home" type="button">Back to home</button>
+  </div>
+
+  <!-- LOCAL: pass device -->
+  <div class="screen" id="screen-local-reveal">
+    <div class="card center">
+      <div class="pass-icon" style="font-size:3rem;margin:10px 0;">📱➡️</div>
+      <div>Pass the device to</div>
+      <div class="big-name" id="local-reveal-name"></div>
+      <small class="hint">Only <span id="local-reveal-name-2"></span> should look at the screen now.</small>
+    </div>
+    <button class="primary" id="local-btn-show-role" type="button">I'm ready — show my role</button>
+  </div>
+
+  <div class="screen" id="screen-local-role">
+    <div class="reveal-box" id="local-role-box">
+      <div class="category-label" id="local-role-category"></div>
+      <div id="local-role-word-wrap"></div>
+      <div class="word-grid" id="local-role-grid"></div>
+    </div>
+    <button class="primary" id="local-btn-next-player" type="button">Got it, pass to next player</button>
+  </div>
+
+  <!-- LOCAL: discussion -->
+  <div class="screen" id="screen-local-discuss">
+    <div class="card center">
+      <div class="category-label">Category</div>
+      <div class="big-name" id="local-discuss-category"></div>
+      <small class="hint">Everyone can see this — the secret word is not shown here.</small>
+    </div>
+    <div class="card">
+      <label>Say-a-clue-word order</label>
+      <div class="order-list" id="local-order-list"></div>
+    </div>
+    <div class="card center" id="local-timer-card">
+      <div class="timer" id="local-timer-display">--:--</div>
+      <button class="secondary" id="local-btn-timer-toggle" type="button">Start Timer</button>
+    </div>
+    <button class="primary" id="local-btn-go-vote" type="button">Move to Voting</button>
+  </div>
+
+  <!-- LOCAL: voting -->
+  <div class="screen" id="screen-local-vote">
+    <div class="card center">
+      <div>Pass the device to</div>
+      <div class="big-name" id="local-voter-name"></div>
+      <small class="hint">Who do you think is the Chameleon?</small>
+    </div>
+    <div class="vote-list" id="local-vote-list"></div>
+    <button class="primary" id="local-btn-submit-vote" type="button" disabled>Submit Vote</button>
+  </div>
+
+  <!-- LOCAL: results -->
+  <div class="screen" id="screen-local-results">
+    <div class="card">
+      <label>Votes</label>
+      <div id="local-tally-box"></div>
+    </div>
+    <div class="card center" id="local-chameleon-reveal-box"></div>
+    <div class="card center" id="local-guess-box" style="display:none">
+      <label>Chameleon's guess for the secret word</label>
+      <input type="text" id="local-guess-input" placeholder="Type the word you think it is...">
+      <button class="secondary" id="local-btn-submit-guess" type="button" style="margin-top:10px">Reveal Answer</button>
+    </div>
+    <div class="result-banner" id="local-result-banner" style="display:none"></div>
+    <button class="primary" id="local-btn-next-round" type="button" style="display:none">Next Round</button>
+  </div>
+
+  <!-- LOCAL: scoreboard -->
+  <div class="screen" id="screen-local-scores">
+    <div class="card">
+      <label>Scoreboard</label>
+      <div class="scoreboard" id="local-scoreboard"></div>
+    </div>
+    <div class="footer-nav">
+      <button class="secondary" id="local-btn-back-to-round" type="button">Back to Game</button>
+      <button class="danger" id="local-btn-end-game" type="button">End Game</button>
+    </div>
   </div>
 
   <!-- LOBBY -->
@@ -907,6 +1015,378 @@ $("btn-end-game").addEventListener("click", function () {
   if (!state.isHost) return;
   if (!confirm("End the game and return everyone to the lobby?")) return;
   update(roomRef(state.roomCode), { phase: "lobby", round: null, votes: {} });
+});
+
+// =========================================================================
+// LOCAL PASS-AND-PLAY MODE (single device, no Firebase)
+// =========================================================================
+
+var localState = {
+  players: ["", "", ""],
+  selectedCategories: Object.keys(CATEGORIES),
+  timerSeconds: 90,
+  scores: {},
+  round: null,
+  revealIndex: 0,
+  voteIndex: 0,
+  votes: {},
+  timerHandle: null,
+  timerRemaining: 0,
+  timerRunning: false
+};
+
+$("btn-local-mode").addEventListener("click", function () {
+  renderLocalPlayerList();
+  renderLocalCategoryChips();
+  showScreen("screen-local-setup");
+});
+
+$("local-btn-back-home").addEventListener("click", function () {
+  showScreen("screen-home");
+});
+
+function renderLocalPlayerList() {
+  var wrap = $("local-player-list");
+  wrap.innerHTML = "";
+  localState.players.forEach(function (name, i) {
+    var row = document.createElement("div");
+    row.className = "player-row";
+    row.style.display = "flex";
+    row.style.gap = "8px";
+    row.style.marginBottom = "8px";
+    var input = document.createElement("input");
+    input.type = "text";
+    input.placeholder = "Player " + (i + 1);
+    input.value = name;
+    input.maxLength = 20;
+    input.style.flex = "1";
+    input.addEventListener("input", function () { localState.players[i] = input.value; });
+    row.appendChild(input);
+    if (localState.players.length > 3) {
+      var rm = document.createElement("button");
+      rm.className = "icon-btn";
+      rm.type = "button";
+      rm.textContent = "✕";
+      rm.style.cssText = "background:var(--panel-2);border:1px solid var(--border);color:var(--text-dim);border-radius:10px;width:44px;height:44px;font-size:1.1rem;cursor:pointer;";
+      rm.addEventListener("click", function () {
+        localState.players.splice(i, 1);
+        renderLocalPlayerList();
+      });
+      row.appendChild(rm);
+    }
+    wrap.appendChild(row);
+  });
+}
+
+$("local-btn-add-player").addEventListener("click", function () {
+  if (localState.players.length >= 12) return;
+  localState.players.push("");
+  renderLocalPlayerList();
+});
+
+function renderLocalCategoryChips() {
+  var wrap = $("local-category-chips");
+  wrap.innerHTML = "";
+  Object.keys(CATEGORIES).forEach(function (cat) {
+    var chip = document.createElement("div");
+    chip.className = "chip" + (localState.selectedCategories.indexOf(cat) !== -1 ? " selected" : "");
+    chip.textContent = cat;
+    chip.addEventListener("click", function () {
+      var idx = localState.selectedCategories.indexOf(cat);
+      if (idx !== -1) {
+        if (localState.selectedCategories.length === 1) return;
+        localState.selectedCategories.splice(idx, 1);
+      } else {
+        localState.selectedCategories.push(cat);
+      }
+      renderLocalCategoryChips();
+    });
+    wrap.appendChild(chip);
+  });
+}
+
+$("local-timer-select").addEventListener("change", function (e) {
+  localState.timerSeconds = parseInt(e.target.value, 10);
+});
+
+$("local-btn-start-game").addEventListener("click", function () {
+  var names = localState.players.map(function (n, i) { return n.trim() || ("Player " + (i + 1)); });
+  if (names.length < 3) { alert("Need at least 3 players."); return; }
+  localState.players = names;
+  localState.scores = {};
+  names.forEach(function (n) { localState.scores[n] = 0; });
+  startLocalRound();
+});
+
+function startLocalRound() {
+  var cat = pickRandom(localState.selectedCategories);
+  var words = CATEGORIES[cat];
+  var secretWord = pickRandom(words);
+  var chameleonIdx = Math.floor(Math.random() * localState.players.length);
+  var order = shuffle(localState.players.map(function (_, i) { return i; }));
+  localState.round = {
+    category: cat,
+    words: words,
+    secretWord: secretWord,
+    chameleonIdx: chameleonIdx,
+    order: order
+  };
+  localState.revealIndex = 0;
+  localState.votes = {};
+  localState.voteIndex = 0;
+  goToLocalReveal();
+}
+
+function goToLocalReveal() {
+  if (localState.revealIndex >= localState.players.length) {
+    goToLocalDiscuss();
+    return;
+  }
+  var name = localState.players[localState.revealIndex];
+  $("local-reveal-name").textContent = name;
+  $("local-reveal-name-2").textContent = name;
+  showScreen("screen-local-reveal");
+}
+
+$("local-btn-show-role").addEventListener("click", function () {
+  renderLocalRoleScreen();
+  showScreen("screen-local-role");
+});
+
+function renderLocalRoleScreen() {
+  var round = localState.round;
+  var isChameleon = localState.revealIndex === round.chameleonIdx;
+  $("local-role-category").textContent = round.category;
+  var wordWrap = $("local-role-word-wrap");
+  wordWrap.innerHTML = "";
+  var el = document.createElement("div");
+  if (isChameleon) {
+    el.className = "chameleon-word";
+    el.textContent = "You are the Chameleon!";
+  } else {
+    el.className = "secret-word";
+    el.textContent = round.secretWord;
+  }
+  wordWrap.appendChild(el);
+
+  var grid = $("local-role-grid");
+  grid.innerHTML = "";
+  round.words.forEach(function (w) {
+    var cell = document.createElement("div");
+    cell.className = "word-cell" + (!isChameleon && w === round.secretWord ? " highlight" : "");
+    cell.textContent = w;
+    grid.appendChild(cell);
+  });
+}
+
+$("local-btn-next-player").addEventListener("click", function () {
+  localState.revealIndex++;
+  goToLocalReveal();
+});
+
+function goToLocalDiscuss() {
+  var round = localState.round;
+  $("local-discuss-category").textContent = round.category;
+  var list = $("local-order-list");
+  list.innerHTML = "";
+  round.order.forEach(function (playerIdx, pos) {
+    var item = document.createElement("div");
+    item.className = "order-item";
+    var num = document.createElement("span");
+    num.innerHTML = '<span class="num">' + (pos + 1) + ".</span> " + localState.players[playerIdx];
+    item.appendChild(num);
+    list.appendChild(item);
+  });
+
+  if (localState.timerSeconds > 0) {
+    $("local-timer-card").style.display = "";
+    resetLocalTimer();
+  } else {
+    $("local-timer-card").style.display = "none";
+  }
+  showScreen("screen-local-discuss");
+}
+
+function resetLocalTimer() {
+  stopLocalTimer();
+  localState.timerRemaining = localState.timerSeconds;
+  renderLocalTimer();
+  $("local-btn-timer-toggle").textContent = "Start Timer";
+  $("local-btn-timer-toggle").disabled = false;
+}
+
+function renderLocalTimer() {
+  var m = Math.floor(localState.timerRemaining / 60);
+  var s = localState.timerRemaining % 60;
+  var display = $("local-timer-display");
+  display.textContent = m + ":" + (s < 10 ? "0" : "") + s;
+  display.classList.toggle("low", localState.timerRemaining <= 10);
+}
+
+function stopLocalTimer() {
+  if (localState.timerHandle) { clearInterval(localState.timerHandle); localState.timerHandle = null; }
+  localState.timerRunning = false;
+}
+
+$("local-btn-timer-toggle").addEventListener("click", function () {
+  if (localState.timerRunning) {
+    stopLocalTimer();
+    $("local-btn-timer-toggle").textContent = "Resume Timer";
+  } else {
+    if (localState.timerRemaining <= 0) localState.timerRemaining = localState.timerSeconds;
+    localState.timerRunning = true;
+    $("local-btn-timer-toggle").textContent = "Pause Timer";
+    localState.timerHandle = setInterval(function () {
+      localState.timerRemaining--;
+      renderLocalTimer();
+      if (localState.timerRemaining <= 0) {
+        stopLocalTimer();
+        $("local-btn-timer-toggle").textContent = "Time's up!";
+        $("local-btn-timer-toggle").disabled = true;
+      }
+    }, 1000);
+  }
+});
+
+$("local-btn-go-vote").addEventListener("click", function () {
+  stopLocalTimer();
+  localState.voteIndex = 0;
+  localState.votes = {};
+  goToLocalVote();
+});
+
+function goToLocalVote() {
+  if (localState.voteIndex >= localState.players.length) {
+    showLocalResults();
+    return;
+  }
+  var voterName = localState.players[localState.voteIndex];
+  $("local-voter-name").textContent = voterName;
+
+  var list = $("local-vote-list");
+  list.innerHTML = "";
+  var selected = null;
+  localState.players.forEach(function (name, idx) {
+    if (idx === localState.voteIndex) return;
+    var btn = document.createElement("button");
+    btn.className = "vote-btn";
+    btn.type = "button";
+    btn.textContent = name;
+    btn.addEventListener("click", function () {
+      Array.prototype.forEach.call(list.children, function (c) { c.classList.remove("selected"); });
+      btn.classList.add("selected");
+      selected = idx;
+      $("local-btn-submit-vote").disabled = false;
+    });
+    list.appendChild(btn);
+  });
+  $("local-btn-submit-vote").disabled = true;
+  $("local-btn-submit-vote").onclick = function () {
+    if (selected === null) return;
+    localState.votes[localState.voteIndex] = selected;
+    localState.voteIndex++;
+    goToLocalVote();
+  };
+  showScreen("screen-local-vote");
+}
+
+function showLocalResults() {
+  var round = localState.round;
+  var tally = {};
+  localState.players.forEach(function (_, idx) { tally[idx] = 0; });
+  Object.keys(localState.votes).forEach(function (voter) {
+    var votedFor = localState.votes[voter];
+    tally[votedFor]++;
+  });
+
+  var tallyBox = $("local-tally-box");
+  tallyBox.innerHTML = "";
+  var maxVotes = -1;
+  var topIdxs = [];
+  Object.keys(tally).forEach(function (idxStr) {
+    var idx = parseInt(idxStr, 10);
+    var row = document.createElement("div");
+    row.className = "tally-row";
+    row.innerHTML = "<span>" + localState.players[idx] + "</span><span>" + tally[idx] + " vote(s)</span>";
+    tallyBox.appendChild(row);
+    if (tally[idx] > maxVotes) { maxVotes = tally[idx]; topIdxs = [idx]; }
+    else if (tally[idx] === maxVotes) { topIdxs.push(idx); }
+  });
+
+  var chameleonCaught = topIdxs.length === 1 && topIdxs[0] === round.chameleonIdx;
+  var revealBox = $("local-chameleon-reveal-box");
+  revealBox.innerHTML = "";
+  var title = document.createElement("div");
+  title.className = "big-name";
+  title.textContent = "🦎 " + localState.players[round.chameleonIdx] + " was the Chameleon";
+  revealBox.appendChild(title);
+
+  var guessBox = $("local-guess-box");
+  var banner = $("local-result-banner");
+  var nextBtn = $("local-btn-next-round");
+  banner.style.display = "none";
+  nextBtn.style.display = "none";
+  $("local-guess-input").value = "";
+
+  if (chameleonCaught) {
+    guessBox.style.display = "";
+    $("local-btn-submit-guess").onclick = function () {
+      var guess = $("local-guess-input").value.trim().toLowerCase();
+      var correct = guess === round.secretWord.toLowerCase();
+      guessBox.style.display = "none";
+      banner.style.display = "";
+      if (correct) {
+        banner.className = "result-banner result-win";
+        banner.textContent = "Chameleon guessed \"" + round.secretWord + "\" correctly! Chameleon wins the round.";
+        localState.scores[localState.players[round.chameleonIdx]] += 2;
+      } else {
+        banner.className = "result-banner result-lose";
+        banner.textContent = "Wrong guess (word was \"" + round.secretWord + "\"). Everyone else wins the round!";
+        localState.players.forEach(function (name, idx) {
+          if (idx !== round.chameleonIdx) localState.scores[name] += 1;
+        });
+      }
+      nextBtn.style.display = "";
+    };
+  } else {
+    guessBox.style.display = "none";
+    banner.style.display = "";
+    banner.className = "result-banner result-win";
+    banner.textContent = "Chameleon escaped detection! Chameleon wins the round (secret word: \"" + round.secretWord + "\").";
+    localState.scores[localState.players[round.chameleonIdx]] += 2;
+    nextBtn.style.display = "";
+  }
+
+  showScreen("screen-local-results");
+}
+
+$("local-btn-next-round").addEventListener("click", function () {
+  renderLocalScoreboard();
+  showScreen("screen-local-scores");
+});
+
+function renderLocalScoreboard() {
+  var board = $("local-scoreboard");
+  board.innerHTML = "";
+  var entries = Object.keys(localState.scores).map(function (name) {
+    return { name: name, score: localState.scores[name] };
+  });
+  entries.sort(function (a, b) { return b.score - a.score; });
+  entries.forEach(function (e) {
+    var row = document.createElement("div");
+    row.className = "score-row";
+    row.innerHTML = "<span>" + e.name + "</span><strong>" + e.score + "</strong>";
+    board.appendChild(row);
+  });
+}
+
+$("local-btn-back-to-round").addEventListener("click", function () {
+  startLocalRound();
+});
+
+$("local-btn-end-game").addEventListener("click", function () {
+  if (!confirm("End the game and return to setup?")) return;
+  showScreen("screen-local-setup");
 });
 </script>
 </body>
