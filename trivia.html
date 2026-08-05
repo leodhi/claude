@@ -839,8 +839,18 @@
       $("input-choice-card").style.display = "none";
     }
 
-    startTimer(["input-timer"], submitCurrentTurn);
+    clearInterval(state.timerHandle);
+    state.timerRemaining = ROUND_TIME;
+    state.timerDisplayIds = ["input-timer"];
+    state.turnTimerArmed = false;
+    updateTimerDisplay();
     showScreen("screen-answer-input");
+  }
+
+  function armTurnTimer() {
+    if (state.turnTimerArmed) return;
+    state.turnTimerArmed = true;
+    startTimer(["input-timer"], submitCurrentTurn);
   }
 
   function renderChoiceOptions() {
@@ -851,6 +861,7 @@
       chip.className = "chip" + (opt === state.currentChoiceSelected ? " selected" : "");
       chip.textContent = opt;
       chip.addEventListener("click", function () {
+        armTurnTimer();
         state.currentChoiceSelected = opt;
         renderChoiceOptions();
       });
@@ -871,6 +882,15 @@
   }
 
   $("btn-submit-answer").addEventListener("click", submitCurrentTurn);
+
+  $("input-answer-field").addEventListener("focus", armTurnTimer);
+  $("input-answer-field").addEventListener("input", armTurnTimer);
+  $("input-answer-field").addEventListener("keydown", function (e) {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      submitCurrentTurn();
+    }
+  });
 
 
   $("btn-show-answer").addEventListener("click", function () {
@@ -962,6 +982,8 @@
   renderCategoryChips();
   renderDifficultyChips();
   renderGuessModeChips();
+  var firstPlayerInput = $("player-list").querySelector("input[type=text]");
+  if (firstPlayerInput) firstPlayerInput.focus();
 })();
 </script>
 </body>
