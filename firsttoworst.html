@@ -661,28 +661,29 @@
   });
 
   // Drag-to-reorder state. Re-rendering mid-drag replaces the DOM node the
-  // pointer was captured on, but a captured pointer keeps delivering events
-  // to that (now detached) node's listeners regardless -- so this closure
-  // state, not the DOM, is what tracks the drag across re-renders.
-  var dragState = { active: false, item: null, startY: 0, startIndex: 0, rowHeight: 44 };
+  // drag started on, and pointer capture is released the instant its
+  // element leaves the DOM -- so the move/up listeners live on `document`
+  // (which is never removed) instead of the row itself, and this closure
+  // state (not any DOM reference) is what tracks the drag across re-renders.
+  var dragState = { active: false, item: null, pointerId: null, startY: 0, startIndex: 0, rowHeight: 44 };
 
   function startDrag(e, item, index, rowEl) {
     if (e.button !== undefined && e.button !== 0) return;
     e.preventDefault();
     dragState.active = true;
     dragState.item = item;
+    dragState.pointerId = e.pointerId;
     dragState.startY = e.clientY;
     dragState.startIndex = index;
     dragState.rowHeight = rowEl.offsetHeight + 6; // + .rank-list gap
-    try { rowEl.setPointerCapture(e.pointerId); } catch (err) {}
-    rowEl.addEventListener("pointermove", onDragMove);
-    rowEl.addEventListener("pointerup", onDragEnd);
-    rowEl.addEventListener("pointercancel", onDragEnd);
+    document.addEventListener("pointermove", onDragMove);
+    document.addEventListener("pointerup", onDragEnd);
+    document.addEventListener("pointercancel", onDragEnd);
     renderRankList();
   }
 
   function onDragMove(e) {
-    if (!dragState.active) return;
+    if (!dragState.active || e.pointerId !== dragState.pointerId) return;
     var deltaY = e.clientY - dragState.startY;
     var deltaIndex = Math.round(deltaY / dragState.rowHeight);
     var n = state.currentRankOrder.length;
@@ -695,9 +696,13 @@
     }
   }
 
-  function onDragEnd() {
+  function onDragEnd(e) {
+    if (e && e.pointerId !== dragState.pointerId) return;
     dragState.active = false;
     dragState.item = null;
+    document.removeEventListener("pointermove", onDragMove);
+    document.removeEventListener("pointerup", onDragEnd);
+    document.removeEventListener("pointercancel", onDragEnd);
     renderRankList();
   }
 
