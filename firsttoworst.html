@@ -199,15 +199,13 @@
     <div class="card">
       <label>How Scoring Works</label>
       <div style="font-size:0.9rem; line-height:1.7;">
-        A guess is scored by how close it lands to the Ranker's real order:
+        A guess earns <strong>1 point for every item in its exact correct spot</strong> &mdash; out of 5 possible each round.
         <div style="margin:6px 0 8px 2px;">
-          <div>🎯 Exact match &mdash; <strong>5 points</strong></div>
-          <div>Off by 1&ndash;2 spots &mdash; <strong>3 points</strong></div>
-          <div>Off by 3&ndash;4 spots &mdash; <strong>2 points</strong></div>
-          <div>Off by 5&ndash;6 spots &mdash; <strong>1 point</strong></div>
-          <div>Off by more &mdash; <strong>0 points</strong></div>
+          <div>All 5 in the right spot &mdash; <strong>5 points</strong></div>
+          <div>3 of 5 in the right spot &mdash; <strong>3 points</strong></div>
+          <div>None in the right spot &mdash; <strong>0 points</strong></div>
         </div>
-        The Ranker scores too: <strong>+1 point</strong> for every guess that lands a perfect match. A ranking nobody can guess earns the Ranker nothing.
+        The Ranker only scores if at least one guess gets all 5 exactly right &mdash; then the Ranker earns the full 5 points too. If nobody nails it, the Ranker gets 0.
       </div>
     </div>
     <button class="primary" id="btn-start-game" type="button">Start Game</button>
@@ -759,24 +757,21 @@
   $("btn-show-reveal").addEventListener("click", renderReveal);
 
   // ---------- Reveal + scoring ----------
-  // A guesser's distance from the ranker's real order (Spearman footrule,
-  // 0 = perfect match) maps to points on a fixed tier -- absolute, not
-  // relative to other players, so it stays meaningful whether there's 1
-  // guesser or 9 of them.
-  function pointsForDistance(d) {
-    if (d === 0) return 5;
-    if (d <= 2) return 3;
-    if (d <= 4) return 2;
-    if (d <= 6) return 1;
-    return 0;
+  // A guess earns one point per item that landed in its exact correct
+  // spot -- simple to read off at a glance, and it maxes out at
+  // ITEMS_PER_ROUND regardless of how many people are guessing.
+  function correctSpots(guessOrder, trueOrder) {
+    var count = 0;
+    for (var i = 0; i < trueOrder.length; i++) {
+      if (guessOrder[i] === trueOrder[i]) count++;
+    }
+    return count;
   }
 
   function renderReveal() {
     var items = state.round.items;
     var rankerName = state.players[state.rankerIndex];
     var trueOrder = state.rankerOrder;
-    var trueIndex = {};
-    trueOrder.forEach(function (item, i) { trueIndex[item] = i; });
 
     $("reveal-order-label").textContent = rankerName + "'s real order";
     var orderList = $("order-reveal-list");
@@ -801,67 +796,51 @@
     var standings = $("standings-list");
     standings.innerHTML = "";
     var callout = $("round-callout");
-    var nailed;
+    var anyPerfect;
 
     if (state.guessMode === "together") {
-      var sharedIndex = {};
-      state.sharedGuess.forEach(function (item, i) { sharedIndex[item] = i; });
-      var sharedDist = 0;
-      items.forEach(function (item) { sharedDist += Math.abs(sharedIndex[item] - trueIndex[item]); });
-      var sharedPts = pointsForDistance(sharedDist);
+      var sharedPts = correctSpots(state.sharedGuess, trueOrder);
       guesserNames.forEach(function (name) {
         state.scores[name] = (state.scores[name] || 0) + sharedPts;
       });
-      nailed = sharedDist === 0 ? guesserNames.length : 0;
-      state.scores[rankerName] = (state.scores[rankerName] || 0) + nailed;
+      anyPerfect = sharedPts === items.length;
+      state.scores[rankerName] = (state.scores[rankerName] || 0) + (anyPerfect ? items.length : 0);
 
       var groupRow = document.createElement("div");
       groupRow.className = "standings-row";
       groupRow.innerHTML = "<span class=\"pname\">Everyone Else (together)</span>" +
-        "<span class=\"pdist\">off by " + sharedDist + "</span>" +
+        "<span class=\"pdist\">" + sharedPts + " of " + items.length + " correct</span>" +
         "<span class=\"ppts\">+" + sharedPts + " each</span>";
       standings.appendChild(groupRow);
 
-      callout.textContent = sharedDist === 0
+      callout.textContent = anyPerfect
         ? "The group guessed " + rankerName + "'s exact order!"
-        : "The group's shared guess was off by " + sharedDist + ".";
+        : "The group's shared guess got " + sharedPts + " of " + items.length + " spots right.";
     } else {
-      var distances = {};
-      guesserNames.forEach(function (name) {
-        var guessIndex = {};
-        state.guesses[name].forEach(function (item, i) { guessIndex[item] = i; });
-        var d = 0;
-        items.forEach(function (item) { d += Math.abs(guessIndex[item] - trueIndex[item]); });
-        distances[name] = d;
-      });
-
       var roundPoints = {};
       guesserNames.forEach(function (name) {
-        var pts = pointsForDistance(distances[name]);
-        roundPoints[name] = pts;
-        state.scores[name] = (state.scores[name] || 0) + pts;
+        roundPoints[name] = correctSpots(state.guesses[name], trueOrder);
+        state.scores[name] = (state.scores[name] || 0) + roundPoints[name];
       });
 
-      // The ranker scores for every guess that landed exactly --
-      // a fair, guessable ranking pays off for the ranker too.
-      nailed = guesserNames.filter(function (name) { return distances[name] === 0; }).length;
-      state.scores[rankerName] = (state.scores[rankerName] || 0) + nailed;
+      anyPerfect = guesserNames.some(function (name) { return roundPoints[name] === items.length; });
+      state.scores[rankerName] = (state.scores[rankerName] || 0) + (anyPerfect ? items.length : 0);
 
-      var sortedGuessers = guesserNames.slice().sort(function (a, b) { return distances[a] - distances[b]; });
+      var sortedGuessers = guesserNames.slice().sort(function (a, b) { return roundPoints[b] - roundPoints[a]; });
       sortedGuessers.forEach(function (name) {
         var row = document.createElement("div");
         row.className = "standings-row";
         row.innerHTML = "<span class=\"pname\">" + name + "</span>" +
-          "<span class=\"pdist\">off by " + distances[name] + "</span>" +
+          "<span class=\"pdist\">" + roundPoints[name] + " of " + items.length + " correct</span>" +
           "<span class=\"ppts\">+" + roundPoints[name] + "</span>";
         standings.appendChild(row);
       });
 
       if (sortedGuessers.length > 0) {
         var best = sortedGuessers[0];
-        callout.textContent = distances[best] === 0
+        callout.textContent = roundPoints[best] === items.length
           ? best + " guessed " + rankerName + "'s exact order!"
-          : best + " got closest to " + rankerName + "'s real order.";
+          : best + " got the most spots right (" + roundPoints[best] + " of " + items.length + ").";
       } else {
         callout.textContent = "";
       }
@@ -870,8 +849,8 @@
     var rankerRow = document.createElement("div");
     rankerRow.className = "standings-row";
     rankerRow.innerHTML = "<span class=\"pname\">" + rankerName + " (Ranker)</span>" +
-      "<span class=\"pdist\">" + nailed + " of " + guesserNames.length + " guessed it exactly</span>" +
-      "<span class=\"ppts\">+" + nailed + "</span>";
+      "<span class=\"pdist\">" + (anyPerfect ? "someone nailed it" : "nobody nailed it") + "</span>" +
+      "<span class=\"ppts\">+" + (anyPerfect ? items.length : 0) + "</span>";
     standings.appendChild(rankerRow);
 
     showScreen("screen-reveal");
