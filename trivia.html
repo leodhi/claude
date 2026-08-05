@@ -573,7 +573,7 @@
     var pool = allAnswers(diff).filter(function (a) { return a !== correctAnswer; });
     var unique = pool.filter(function (v, i) { return pool.indexOf(v) === i; });
     var distractors = [];
-    while (distractors.length < 3 && unique.length) {
+    while (distractors.length < 9 && unique.length) {
       var idx = Math.floor(Math.random() * unique.length);
       distractors.push(unique.splice(idx, 1)[0]);
     }
