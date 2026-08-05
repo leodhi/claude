@@ -130,6 +130,15 @@
 
   <!-- SETUP -->
   <div class="screen active" id="screen-setup">
+    <div class="card" id="refresh-resume-banner" style="display:none;">
+      <div class="row" style="align-items:center; gap:10px;">
+        <div style="flex:1;">Looks like the page was refreshed mid-game. Want to keep playing?</div>
+      </div>
+      <div class="row" style="margin-top:10px;">
+        <button class="secondary" id="btn-refresh-startnew" type="button">Start New Game</button>
+        <button class="primary" id="btn-refresh-continue" type="button">Continue Game</button>
+      </div>
+    </div>
     <div class="card" id="resume-banner" style="display:none;">
       <div class="row" style="align-items:center; gap:10px;">
         <div style="flex:1;">Your last game was ended. Was that an accident?</div>
@@ -765,6 +774,8 @@
     state.usedQuestions = {};
     state.canResume = false;
     $("resume-banner").style.display = "none";
+    pendingResume = null;
+    $("refresh-resume-banner").style.display = "none";
     nextRound();
   });
 
@@ -814,6 +825,47 @@
   }
 
   function questionKey(cat, diff) { return cat + "::" + diff; }
+
+  // ---------- Refresh-resume persistence ----------
+  // Saved only at points where nothing unsafe-to-redo has happened yet:
+  // the start of a round (before any answers are recorded) or right after
+  // a round's scores are already committed (screen-scores / screen-game-won).
+  // Never mid-answering, since replaying that would double-apply scoring.
+  var SAVE_KEY = "triviaPartySave";
+
+  function saveCheckpoint(screenId) {
+    try {
+      var snapshot = {
+        screen: screenId,
+        state: {
+          players: state.players,
+          selectedCategories: state.selectedCategories,
+          selectedDifficulties: state.selectedDifficulties,
+          guessMode: state.guessMode,
+          targetScore: state.targetScore,
+          lastWinningScore: state.lastWinningScore,
+          scores: state.scores,
+          wrongStreaks: state.wrongStreaks,
+          usedQuestions: state.usedQuestions,
+          currentQuestion: state.currentQuestion,
+          roundGuessMode: state.roundGuessMode,
+          roundChoiceOptions: state.roundChoiceOptions
+        }
+      };
+      localStorage.setItem(SAVE_KEY, JSON.stringify(snapshot));
+    } catch (e) { /* private browsing or storage disabled -- resume just won't be offered */ }
+  }
+
+  function clearSavedGame() {
+    try { localStorage.removeItem(SAVE_KEY); } catch (e) {}
+  }
+
+  function loadSavedGame() {
+    try {
+      var raw = localStorage.getItem(SAVE_KEY);
+      return raw ? JSON.parse(raw) : null;
+    } catch (e) { return null; }
+  }
 
   function buildPool() {
     var pool = [];
@@ -868,6 +920,7 @@
     $("ri-category").textContent = pick.cat + " · " + pick.diff;
     $("ri-text").textContent = pick.q;
     showScreen("screen-round-intro");
+    saveCheckpoint("screen-round-intro");
   }
 
   // ---------- Timer (restarted fresh for each player's turn) ----------
@@ -1109,11 +1162,13 @@
       renderScoreboardInto("winner-scoreboard");
       $("extend-game-form").style.display = "none";
       showScreen("screen-game-won");
+      saveCheckpoint("screen-game-won");
     } else {
       renderScoreboardInto("scoreboard");
       $("scoreboard-target").textContent = state.targetScore;
       $("end-game-confirm").style.display = "none";
       showScreen("screen-scores");
+      saveCheckpoint("screen-scores");
     }
   });
 
@@ -1166,7 +1221,72 @@
   $("btn-new-game").addEventListener("click", function () {
     state.canResume = false;
     $("resume-banner").style.display = "none";
+    clearSavedGame();
     showScreen("screen-setup");
+  });
+
+  // ---------- Refresh-resume prompt ----------
+  var pendingResume = loadSavedGame();
+  if (pendingResume && pendingResume.state && pendingResume.state.players && pendingResume.state.players.length >= 1) {
+    $("refresh-resume-banner").style.display = "";
+  } else {
+    pendingResume = null;
+  }
+
+  $("btn-refresh-startnew").addEventListener("click", function () {
+    clearSavedGame();
+    pendingResume = null;
+    $("refresh-resume-banner").style.display = "none";
+  });
+
+  $("btn-refresh-continue").addEventListener("click", function () {
+    if (!pendingResume) return;
+    var saved = pendingResume.state;
+    state.players = saved.players;
+    state.selectedCategories = saved.selectedCategories;
+    state.selectedDifficulties = saved.selectedDifficulties;
+    state.guessMode = saved.guessMode || "type";
+    renderGuessModeChips();
+    renderCategoryChips();
+    renderDifficultyChips();
+    state.targetScore = saved.targetScore;
+    state.lastWinningScore = saved.lastWinningScore;
+    state.scores = saved.scores;
+    state.wrongStreaks = saved.wrongStreaks || {};
+    state.usedQuestions = saved.usedQuestions;
+    state.currentQuestion = saved.currentQuestion;
+    state.roundGuessMode = saved.roundGuessMode;
+    state.roundChoiceOptions = saved.roundChoiceOptions;
+    $("refresh-resume-banner").style.display = "none";
+    if (pendingResume.screen === "screen-scores") {
+      renderScoreboardInto("scoreboard");
+      $("scoreboard-target").textContent = state.targetScore;
+      showScreen("screen-scores");
+    } else if (pendingResume.screen === "screen-game-won") {
+      var winner = computeWinner();
+      $("winner-name").textContent = winner || "";
+      renderScoreboardInto("winner-scoreboard");
+      $("extend-game-form").style.display = "none";
+      showScreen("screen-game-won");
+    } else {
+      // start of the in-progress round -- the safest resumable point, since
+      // nothing about that round (turn order, scoring) has happened yet
+      var pick = state.currentQuestion;
+      var order = state.players.map(function (_, i) { return i; });
+      for (var i = order.length - 1; i > 0; i--) {
+        var j = Math.floor(Math.random() * (i + 1));
+        var tmp = order[i]; order[i] = order[j]; order[j] = tmp;
+      }
+      state.turnOrder = order;
+      state.turnIndex = 0;
+      state.givenAnswers = {};
+      state.judgedCorrect = {};
+      $("ri-category").textContent = pick.cat + " · " + pick.diff;
+      $("ri-text").textContent = pick.q;
+      showScreen("screen-round-intro");
+      saveCheckpoint("screen-round-intro");
+    }
+    pendingResume = null;
   });
 
   // ---------- Init ----------
