@@ -78,6 +78,10 @@
     padding: 13px; border-radius: 12px; font-size: 0.95rem; cursor: pointer; width: 100%;
   }
   button.danger { background: var(--accent-2); color: #2a0d0d; }
+  button.link {
+    background: none; border: none; color: var(--text-dim); text-decoration: underline;
+    font-size: 0.8rem; cursor: pointer; padding: 6px;
+  }
   button:disabled { opacity: 0.4; cursor: not-allowed; }
   .chip-group { display: flex; flex-wrap: wrap; gap: 8px; }
   .chip {
@@ -85,16 +89,21 @@
     background: var(--panel-2); color: var(--text-dim); font-size: 0.85rem; cursor: pointer; user-select: none;
   }
   .chip.selected { background: var(--accent); color: #2a1300; border-color: var(--accent); font-weight: 600; }
+  .chip.static { cursor: default; }
   .center { text-align: center; }
   .category-label { color: var(--text-dim); font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.06em; }
   .big-name { font-size: 1.8rem; font-weight: 800; margin: 6px 0; }
+  .room-code { font-size: 2.6rem; font-weight: 800; letter-spacing: 0.2em; text-align: center; color: var(--accent); margin: 8px 0; }
+  .player-chip-list { display: flex; flex-wrap: wrap; gap: 8px; }
+  .player-chip { background: var(--panel-2); border: 1px solid var(--border); border-radius: 999px; padding: 7px 14px; font-size: 0.85rem; }
+  .host-badge { color: var(--accent); font-size: 0.7rem; margin-left: 4px; }
+  .waiting-text { color: var(--text-dim); text-align: center; padding: 16px 0; }
   .pass-icon { font-size: 3rem; margin: 10px 0; }
   .row { display: flex; gap: 8px; }
   .row > * { flex: 1; }
   .item-preview-list { display: flex; flex-direction: column; gap: 6px; margin-top: 10px; }
   .item-preview { padding: 8px 12px; background: var(--panel-2); border: 1px solid var(--border); border-radius: 10px; font-size: 0.95rem; }
 
-  /* Ranking list -- tap the arrows to move an item up/down the stack */
   .rank-list { display: flex; flex-direction: column; gap: 6px; }
   .rank-row {
     display: flex; align-items: center; gap: 10px;
@@ -149,53 +158,182 @@
   <h1>First to <span>Worst</span></h1>
   <div class="subtitle">Rank it your way, then see how far off you were &middot; <a class="top-link" href="index.html">&larr; all games</a></div>
 
-  <!-- SETUP -->
-  <div class="screen active" id="screen-setup">
+  <!-- HOME: play locally, or create/join a room -->
+  <div class="screen active" id="screen-home">
+    <div class="card">
+      <button class="primary" id="btn-local-mode" type="button">Play on One Device</button>
+      <small class="hint">Pass the phone around the table — classic pass-and-play.</small>
+    </div>
+    <div class="center" style="color:var(--text-dim);font-size:0.8rem;">— or play across devices —</div>
+    <div class="card">
+      <label>Your name</label>
+      <input type="text" id="input-name" maxlength="20" placeholder="Enter your name">
+    </div>
+    <div class="card">
+      <button class="secondary" id="btn-create-room" type="button">Create Room</button>
+    </div>
+    <div class="card">
+      <label>Join a room</label>
+      <input type="text" id="input-join-code" maxlength="4" placeholder="Room code">
+      <button class="secondary" id="btn-join-room" type="button" style="margin-top:10px">Join Room</button>
+    </div>
+    <div class="center" id="home-status" style="color:var(--text-dim);font-size:0.85rem;"></div>
+  </div>
+
+  <!-- LOCAL SETUP -->
+  <div class="screen" id="screen-local-setup">
     <div class="card">
       <label>Players (2&ndash;10)</label>
-      <div id="player-list"></div>
-      <button class="secondary" id="btn-add-player" type="button">+ Add player</button>
+      <div id="local-player-list"></div>
+      <button class="secondary" id="local-btn-add-player" type="button">+ Add player</button>
     </div>
     <div class="card">
       <label>Topics</label>
-      <div class="chip-group" id="category-chips"></div>
+      <div class="chip-group" id="local-category-chips"></div>
       <small class="hint">Each round draws one topic and everyone ranks it best to worst, in private. There's no right answer &mdash; you're being scored against each other.</small>
     </div>
     <div class="card">
       <label>Points to Win</label>
       <div class="target-score-row">
+        <button class="stepper-btn" id="local-btn-target-down" type="button" aria-label="Decrease">&minus;</button>
+        <input type="number" id="local-target-score-input" class="target-score-field" min="1" max="99" value="15">
+        <button class="stepper-btn" id="local-btn-target-up" type="button" aria-label="Increase">+</button>
+      </div>
+      <small class="hint">Each round, whoever ranked closest to the group's combined order earns the most points.</small>
+    </div>
+    <button class="primary" id="local-btn-start-game" type="button">Start Game</button>
+    <button class="link" id="local-btn-back-home" type="button">Back to home</button>
+  </div>
+
+  <!-- LOCAL: ROUND INTRO -->
+  <div class="screen" id="screen-local-round-intro">
+    <div class="card center">
+      <span class="category-label">This round's topic</span>
+      <div class="big-name" id="local-ri-category"></div>
+      <div class="item-preview-list" id="local-ri-items"></div>
+      <small class="hint">Everyone will rank these, one at a time and out of sight of each other. Best at the top, worst at the bottom &mdash; your call.</small>
+    </div>
+    <button class="primary" id="local-btn-start-ranking" type="button">Start Ranking</button>
+  </div>
+
+  <!-- LOCAL: PASS TO PLAYER -->
+  <div class="screen" id="screen-local-pass-turn">
+    <div class="card center">
+      <div class="pass-icon">📱</div>
+      <div>Pass the device to</div>
+      <div class="big-name" id="local-pass-name"></div>
+      <small class="hint">Only <span id="local-pass-name-2"></span> should look &mdash; no peeking or shouting your list out.</small>
+    </div>
+    <button class="primary" id="local-btn-ready-to-rank" type="button">I'm ready to rank</button>
+  </div>
+
+  <!-- LOCAL: RANKING -->
+  <div class="screen" id="screen-local-rank">
+    <div class="card">
+      <span class="category-label" id="local-rank-category"></span>
+      <div class="rank-endpoints"><span>Best</span><span>Worst</span></div>
+      <div class="rank-list" id="local-rank-list"></div>
+    </div>
+    <button class="primary" id="local-btn-submit-rank" type="button">Lock In My Order</button>
+  </div>
+
+  <!-- LOCAL: READY TO REVEAL -->
+  <div class="screen" id="screen-local-ready-reveal">
+    <div class="card center">
+      <div class="pass-icon">🙌</div>
+      <div>Everyone's ranked!</div>
+      <div class="big-name" style="font-size:1.3rem;">Put the device in the middle so everyone can see.</div>
+    </div>
+    <button class="primary" id="local-btn-show-reveal" type="button">Reveal the Group Order</button>
+  </div>
+
+  <!-- LOCAL: REVEAL -->
+  <div class="screen" id="screen-local-reveal">
+    <div class="card">
+      <label>The group's combined order</label>
+      <div class="order-reveal-list" id="local-order-reveal-list"></div>
+      <small class="hint">Built by averaging where everyone placed each item &mdash; nobody chose this order on purpose.</small>
+    </div>
+    <div class="card">
+      <label>Closest to farthest off</label>
+      <div id="local-standings-list"></div>
+      <div class="callout" id="local-round-callout"></div>
+    </div>
+    <button class="primary" id="local-btn-next-round" type="button">Next Round</button>
+  </div>
+
+  <!-- LOCAL: SCOREBOARD -->
+  <div class="screen" id="screen-local-scores">
+    <div class="card">
+      <label>Scoreboard</label>
+      <div class="scoreboard" id="local-scoreboard"></div>
+      <div class="target-score-line">Playing to <strong id="local-scoreboard-target"></strong> points</div>
+    </div>
+    <div class="card center" id="local-end-game-confirm" style="display:none;">
+      <div>End the game and return to the start screen?</div>
+      <div class="row" style="margin-top:10px;">
+        <button class="secondary" id="local-btn-cancel-end-game" type="button">Cancel</button>
+        <button class="danger" id="local-btn-confirm-end-game" type="button">Yes, End Game</button>
+      </div>
+    </div>
+    <div class="row">
+      <button class="secondary" id="local-btn-back-to-round" type="button">Continue Playing</button>
+      <button class="danger" id="local-btn-end-game" type="button">End Game</button>
+    </div>
+  </div>
+
+  <!-- LOCAL: GAME WON -->
+  <div class="screen" id="screen-local-game-won">
+    <div class="card center">
+      <div class="pass-icon">🏆</div>
+      <div class="big-name" id="local-winner-name"></div>
+      <div>came out on top.</div>
+    </div>
+    <div class="card">
+      <label>Final Scores</label>
+      <div class="scoreboard" id="local-winner-scoreboard"></div>
+    </div>
+    <button class="primary" id="local-btn-new-game" type="button">New Game</button>
+  </div>
+
+  <!-- MULTIPLAYER LOBBY -->
+  <div class="screen" id="screen-lobby">
+    <div class="card center">
+      <label>Room code — share with players</label>
+      <div class="room-code" id="lobby-code"></div>
+      <small class="hint">Everyone opens this page on their own device and enters this code to join.</small>
+    </div>
+    <div class="card">
+      <label>Players</label>
+      <div class="player-chip-list" id="lobby-players"></div>
+    </div>
+    <div class="card" id="lobby-settings-card">
+      <label>Topics</label>
+      <div class="chip-group" id="category-chips"></div>
+      <label style="margin-top:12px">Points to Win</label>
+      <div class="target-score-row">
         <button class="stepper-btn" id="btn-target-down" type="button" aria-label="Decrease">&minus;</button>
         <input type="number" id="target-score-input" class="target-score-field" min="1" max="99" value="15">
         <button class="stepper-btn" id="btn-target-up" type="button" aria-label="Increase">+</button>
       </div>
-      <small class="hint">Each round, whoever ranked closest to the group's combined order earns the most points.</small>
     </div>
     <button class="primary" id="btn-start-game" type="button">Start Game</button>
+    <div class="waiting-text" id="lobby-waiting" style="display:none">Waiting for the host to start the game…</div>
+    <button class="link" id="btn-leave-room" type="button">Leave room</button>
   </div>
 
-  <!-- ROUND INTRO -->
+  <!-- MULTIPLAYER: ROUND INTRO -->
   <div class="screen" id="screen-round-intro">
     <div class="card center">
       <span class="category-label">This round's topic</span>
       <div class="big-name" id="ri-category"></div>
       <div class="item-preview-list" id="ri-items"></div>
-      <small class="hint">Everyone will rank these, one at a time and out of sight of each other. Best at the top, worst at the bottom &mdash; your call.</small>
+      <small class="hint">Rank these on your own device, best at the top, worst at the bottom &mdash; your call. Nobody can see anyone else's list until everyone's locked in.</small>
     </div>
     <button class="primary" id="btn-start-ranking" type="button">Start Ranking</button>
   </div>
 
-  <!-- PASS TO PLAYER -->
-  <div class="screen" id="screen-pass-turn">
-    <div class="card center">
-      <div class="pass-icon">📱</div>
-      <div>Pass the device to</div>
-      <div class="big-name" id="pass-name"></div>
-      <small class="hint">Only <span id="pass-name-2"></span> should look &mdash; no peeking or shouting your list out.</small>
-    </div>
-    <button class="primary" id="btn-ready-to-rank" type="button">I'm ready to rank</button>
-  </div>
-
-  <!-- RANKING -->
+  <!-- MULTIPLAYER: RANKING -->
   <div class="screen" id="screen-rank">
     <div class="card">
       <span class="category-label" id="rank-category"></span>
@@ -203,19 +341,10 @@
       <div class="rank-list" id="rank-list"></div>
     </div>
     <button class="primary" id="btn-submit-rank" type="button">Lock In My Order</button>
+    <div class="waiting-text" id="rank-waiting" style="display:none">Waiting for other players…</div>
   </div>
 
-  <!-- READY TO REVEAL -->
-  <div class="screen" id="screen-ready-reveal">
-    <div class="card center">
-      <div class="pass-icon">🙌</div>
-      <div>Everyone's ranked!</div>
-      <div class="big-name" style="font-size:1.3rem;">Put the device in the middle so everyone can see.</div>
-    </div>
-    <button class="primary" id="btn-show-reveal" type="button">Reveal the Group Order</button>
-  </div>
-
-  <!-- REVEAL -->
+  <!-- MULTIPLAYER: REVEAL -->
   <div class="screen" id="screen-reveal">
     <div class="card">
       <label>The group's combined order</label>
@@ -227,30 +356,27 @@
       <div id="standings-list"></div>
       <div class="callout" id="round-callout"></div>
     </div>
-    <button class="primary" id="btn-next-round" type="button">Next Round</button>
+    <div class="footer-nav" id="reveal-host-nav" style="display:none">
+      <button class="primary" id="btn-next-round" type="button">Next Round</button>
+    </div>
+    <div class="waiting-text" id="reveal-waiting" style="display:none">Waiting for host…</div>
   </div>
 
-  <!-- SCOREBOARD -->
+  <!-- MULTIPLAYER: SCOREBOARD -->
   <div class="screen" id="screen-scores">
     <div class="card">
       <label>Scoreboard</label>
       <div class="scoreboard" id="scoreboard"></div>
       <div class="target-score-line">Playing to <strong id="scoreboard-target"></strong> points</div>
     </div>
-    <div class="card center" id="end-game-confirm" style="display:none;">
-      <div>End the game and return to the start screen?</div>
-      <div class="row" style="margin-top:10px;">
-        <button class="secondary" id="btn-cancel-end-game" type="button">Cancel</button>
-        <button class="danger" id="btn-confirm-end-game" type="button">Yes, End Game</button>
-      </div>
-    </div>
-    <div class="row">
+    <div class="footer-nav" id="scores-host-nav" style="display:none">
       <button class="secondary" id="btn-back-to-round" type="button">Continue Playing</button>
       <button class="danger" id="btn-end-game" type="button">End Game</button>
     </div>
+    <div class="waiting-text" id="scores-waiting" style="display:none">Waiting for host…</div>
   </div>
 
-  <!-- GAME WON -->
+  <!-- MULTIPLAYER: GAME WON -->
   <div class="screen" id="screen-game-won">
     <div class="card center">
       <div class="pass-icon">🏆</div>
@@ -261,398 +387,829 @@
       <label>Final Scores</label>
       <div class="scoreboard" id="winner-scoreboard"></div>
     </div>
-    <button class="primary" id="btn-new-game" type="button">New Game</button>
+    <div class="footer-nav" id="won-host-nav" style="display:none">
+      <button class="primary" id="btn-new-game" type="button">New Game</button>
+    </div>
+    <div class="waiting-text" id="won-waiting" style="display:none">Waiting for host…</div>
   </div>
 </div>
 
-<script>
-(function () {
-  "use strict";
+<script type="module">
+import { firebaseConfig } from "./firebase-config.js";
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+import { getDatabase, ref, set, get, update, onValue } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
 
-  var CATEGORIES = {
-    "Pizza Toppings": ["Pepperoni", "Mushrooms", "Pineapple", "Sausage", "Extra Cheese", "Black Olives", "Bell Peppers", "Anchovies"],
-    "Ways to Spend a Snow Day": ["Sledding", "Staying in Bed", "Building a Snowman", "Hot Chocolate", "Shoveling the Driveway", "Snowball Fight", "Movie Marathon", "Baking"],
-    "Ways to Get Around": ["Bike", "Car", "Train", "Airplane", "Sailboat", "Scooter", "Walking", "Horse"],
-    "School Subjects": ["Math", "Science", "History", "Art", "Gym", "Music", "English", "A Foreign Language"],
-    "Superpowers": ["Flight", "Invisibility", "Super Strength", "Reading Minds", "Time Travel", "Teleportation", "Shapeshifting", "Talking to Animals"],
-    "Chores": ["Dishes", "Laundry", "Vacuuming", "Taking Out the Trash", "Cleaning the Bathroom", "Mowing the Lawn", "Dusting", "Grocery Shopping"],
-    "Breakfast Foods": ["Pancakes", "Cereal", "Scrambled Eggs", "Bacon", "Oatmeal", "Toast", "Waffles", "Fresh Fruit"],
-    "Vacation Types": ["Beach Trip", "Mountain Cabin", "Big City", "Theme Park", "Camping", "Cruise", "Road Trip", "Staying Home"]
-  };
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getDatabase(app);
 
-  var state = {
-    players: ["", ""],
-    selectedCategories: Object.keys(CATEGORIES),
-    targetScore: 15,
-    scores: {},
+var CATEGORIES = {
+  "Pizza Toppings": ["Pepperoni", "Mushrooms", "Pineapple", "Sausage", "Extra Cheese", "Black Olives", "Bell Peppers", "Anchovies"],
+  "Ways to Spend a Snow Day": ["Sledding", "Staying in Bed", "Building a Snowman", "Hot Chocolate", "Shoveling the Driveway", "Snowball Fight", "Movie Marathon", "Baking"],
+  "Ways to Get Around": ["Bike", "Car", "Train", "Airplane", "Sailboat", "Scooter", "Walking", "Horse"],
+  "School Subjects": ["Math", "Science", "History", "Art", "Gym", "Music", "English", "A Foreign Language"],
+  "Superpowers": ["Flight", "Invisibility", "Super Strength", "Reading Minds", "Time Travel", "Teleportation", "Shapeshifting", "Talking to Animals"],
+  "Chores": ["Dishes", "Laundry", "Vacuuming", "Taking Out the Trash", "Cleaning the Bathroom", "Mowing the Lawn", "Dusting", "Grocery Shopping"],
+  "Breakfast Foods": ["Pancakes", "Cereal", "Scrambled Eggs", "Bacon", "Oatmeal", "Toast", "Waffles", "Fresh Fruit"],
+  "Vacation Types": ["Beach Trip", "Mountain Cabin", "Big City", "Theme Park", "Camping", "Cruise", "Road Trip", "Staying Home"]
+};
+var CODE_CHARS = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+
+function $(id) { return document.getElementById(id); }
+function showScreen(id) {
+  document.querySelectorAll(".screen").forEach(function (s) { s.classList.remove("active"); });
+  $(id).classList.add("active");
+}
+function pickRandom(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
+function shuffled(arr) {
+  var a = arr.slice();
+  for (var i = a.length - 1; i > 0; i--) {
+    var j = Math.floor(Math.random() * (i + 1));
+    var tmp = a[i]; a[i] = a[j]; a[j] = tmp;
+  }
+  return a;
+}
+
+// Shared scoring/reveal math used by both local and multiplayer modes.
+function computeReveal(items, playerNames, rankingsByName) {
+  var avgRank = {};
+  items.forEach(function (item) { avgRank[item] = 0; });
+  playerNames.forEach(function (name) {
+    rankingsByName[name].forEach(function (item, i) { avgRank[item] += (i + 1); });
+  });
+  items.forEach(function (item) { avgRank[item] = avgRank[item] / playerNames.length; });
+
+  var groupOrder = items.slice().sort(function (a, b) { return avgRank[a] - avgRank[b]; });
+  var groupIndex = {};
+  groupOrder.forEach(function (item, i) { groupIndex[item] = i; });
+
+  var distances = {};
+  playerNames.forEach(function (name) {
+    var playerIndex = {};
+    rankingsByName[name].forEach(function (item, i) { playerIndex[item] = i; });
+    var d = 0;
+    items.forEach(function (item) { d += Math.abs(playerIndex[item] - groupIndex[item]); });
+    distances[name] = d;
+  });
+
+  var uniqueDistances = [];
+  playerNames.forEach(function (name) {
+    if (uniqueDistances.indexOf(distances[name]) === -1) uniqueDistances.push(distances[name]);
+  });
+  uniqueDistances.sort(function (a, b) { return a - b; });
+
+  var roundPoints = {};
+  playerNames.forEach(function (name) {
+    var rank = uniqueDistances.indexOf(distances[name]) + 1;
+    roundPoints[name] = Math.max(1, playerNames.length - rank + 1);
+  });
+
+  return { groupOrder: groupOrder, distances: distances, roundPoints: roundPoints };
+}
+
+function renderOrderRevealList(el, groupOrder) {
+  el.innerHTML = "";
+  groupOrder.forEach(function (item, i) {
+    var row = document.createElement("div");
+    row.className = "order-reveal-row";
+    var num = document.createElement("div");
+    num.className = "rank-num";
+    num.textContent = i + 1;
+    row.appendChild(num);
+    var nameEl = document.createElement("div");
+    nameEl.style.flex = "1";
+    nameEl.textContent = item;
+    row.appendChild(nameEl);
+    el.appendChild(row);
+  });
+}
+
+function renderStandingsList(el, calloutEl, playerNames, distances, roundPoints) {
+  var sortedPlayers = playerNames.slice().sort(function (a, b) { return distances[a] - distances[b]; });
+  el.innerHTML = "";
+  sortedPlayers.forEach(function (name) {
+    var row = document.createElement("div");
+    row.className = "standings-row";
+    row.innerHTML = "<span class=\"pname\">" + name + "</span>" +
+      "<span class=\"pdist\">off by " + distances[name] + "</span>" +
+      "<span class=\"ppts\">+" + roundPoints[name] + "</span>";
+    el.appendChild(row);
+  });
+  if (sortedPlayers.length > 1) {
+    var best = sortedPlayers[0], worst = sortedPlayers[sortedPlayers.length - 1];
+    calloutEl.textContent = (distances[best] === distances[worst])
+      ? "Everyone landed equally close (or far) this round."
+      : best + " read the room best. " + worst + " is on their own wavelength.";
+  } else {
+    calloutEl.textContent = "";
+  }
+}
+
+function renderScoreboardInto(el, scores) {
+  el.innerHTML = "";
+  var entries = Object.keys(scores).map(function (name) { return { name: name, score: scores[name] }; });
+  entries.sort(function (a, b) { return b.score - a.score; });
+  entries.forEach(function (e) {
+    var row = document.createElement("div");
+    row.className = "score-row";
+    row.innerHTML = "<span>" + e.name + "</span><strong>" + e.score + "</strong>";
+    el.appendChild(row);
+  });
+}
+
+// =========================================================================
+// MULTIPLAYER MODE
+// =========================================================================
+
+var state = {
+  uid: null,
+  name: "",
+  roomCode: null,
+  isHost: false,
+  room: null
+};
+
+function roomRef(code) { return ref(db, "rooms/" + code); }
+function generateRoomCode() {
+  var out = "";
+  for (var i = 0; i < 4; i++) out += CODE_CHARS[Math.floor(Math.random() * CODE_CHARS.length)];
+  return out;
+}
+
+signInAnonymously(auth).catch(function (err) {
+  $("home-status").textContent = "Couldn't connect: " + err.message;
+});
+
+onAuthStateChanged(auth, function (user) {
+  if (!user) return;
+  state.uid = user.uid;
+  tryAutoRejoin();
+});
+
+function tryAutoRejoin() {
+  var saved = null;
+  try { saved = JSON.parse(localStorage.getItem("f2w_room") || "null"); } catch (e) {}
+  if (!saved || !saved.code || !saved.name) return;
+  $("input-name").value = saved.name;
+  get(roomRef(saved.code)).then(function (snap) {
+    if (!snap.exists()) { localStorage.removeItem("f2w_room"); return; }
+    var roomVal = snap.val();
+    if (roomVal.players && roomVal.players[state.uid]) {
+      state.roomCode = saved.code;
+      state.name = saved.name;
+      state.isHost = roomVal.hostUid === state.uid;
+      subscribeRoom(saved.code);
+    }
+  });
+}
+
+$("btn-create-room").addEventListener("click", function () {
+  var name = $("input-name").value.trim();
+  if (!name) { $("home-status").textContent = "Enter your name first."; return; }
+  if (!state.uid) { $("home-status").textContent = "Still connecting, try again in a moment."; return; }
+  createRoomFlow(name);
+});
+
+$("btn-join-room").addEventListener("click", function () {
+  var name = $("input-name").value.trim();
+  var code = $("input-join-code").value.trim().toUpperCase();
+  if (!name) { $("home-status").textContent = "Enter your name first."; return; }
+  if (!code) { $("home-status").textContent = "Enter a room code."; return; }
+  if (!state.uid) { $("home-status").textContent = "Still connecting, try again in a moment."; return; }
+  joinRoomFlow(code, name);
+});
+
+async function createRoomFlow(name) {
+  $("home-status").textContent = "Creating room…";
+  var code;
+  do { code = generateRoomCode(); } while ((await get(roomRef(code))).exists());
+  var uid = state.uid;
+  await set(roomRef(code), {
+    createdAt: Date.now(),
+    hostUid: uid,
+    phase: "lobby",
+    settings: { categories: Object.keys(CATEGORIES), targetScore: 15 },
     usedCategories: [],
-    round: null,
-    turnOrder: [],
-    turnIndex: 0,
-    currentRankOrder: [],
-    rankings: {}
-  };
-
-  function $(id) { return document.getElementById(id); }
-  function showScreen(id) {
-    document.querySelectorAll(".screen").forEach(function (s) { s.classList.remove("active"); });
-    $(id).classList.add("active");
-  }
-  function pickRandom(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
-  function shuffled(arr) {
-    var a = arr.slice();
-    for (var i = a.length - 1; i > 0; i--) {
-      var j = Math.floor(Math.random() * (i + 1));
-      var tmp = a[i]; a[i] = a[j]; a[j] = tmp;
-    }
-    return a;
-  }
-
-  // ---------- Setup screen ----------
-  function renderPlayerList() {
-    var wrap = $("player-list");
-    wrap.innerHTML = "";
-    state.players.forEach(function (name, i) {
-      var row = document.createElement("div");
-      row.className = "player-row";
-      var input = document.createElement("input");
-      input.type = "text";
-      input.placeholder = "Player " + (i + 1);
-      input.value = name;
-      input.maxLength = 20;
-      input.addEventListener("input", function () { state.players[i] = input.value; });
-      row.appendChild(input);
-      if (state.players.length > 2) {
-        var rm = document.createElement("button");
-        rm.className = "icon-btn";
-        rm.type = "button";
-        rm.textContent = "✕";
-        rm.addEventListener("click", function () {
-          state.players.splice(i, 1);
-          renderPlayerList();
-        });
-        row.appendChild(rm);
-      }
-      wrap.appendChild(row);
-    });
-  }
-
-  $("btn-add-player").addEventListener("click", function () {
-    if (state.players.length >= 10) return;
-    state.players.push("");
-    renderPlayerList();
+    players: { [uid]: { name: name, joinedAt: Date.now() } },
+    scores: { [uid]: 0 }
   });
+  state.roomCode = code;
+  state.name = name;
+  state.isHost = true;
+  localStorage.setItem("f2w_room", JSON.stringify({ code: code, name: name }));
+  subscribeRoom(code);
+}
 
-  function renderCategoryChips() {
-    var wrap = $("category-chips");
-    wrap.innerHTML = "";
-    Object.keys(CATEGORIES).forEach(function (cat) {
-      var chip = document.createElement("div");
-      chip.className = "chip" + (state.selectedCategories.indexOf(cat) !== -1 ? " selected" : "");
-      chip.textContent = cat;
-      chip.addEventListener("click", function () {
-        var idx = state.selectedCategories.indexOf(cat);
-        if (idx !== -1) {
-          if (state.selectedCategories.length === 1) return;
-          state.selectedCategories.splice(idx, 1);
-        } else {
-          state.selectedCategories.push(cat);
-        }
-        renderCategoryChips();
-      });
-      wrap.appendChild(chip);
-    });
+async function joinRoomFlow(code, name) {
+  $("home-status").textContent = "Joining…";
+  var snap = await get(roomRef(code));
+  if (!snap.exists()) { $("home-status").textContent = "Room not found."; return; }
+  var uid = state.uid;
+  var val = snap.val();
+  await update(ref(db, "rooms/" + code + "/players/" + uid), { name: name, joinedAt: Date.now() });
+  if (!val.scores || val.scores[uid] === undefined) {
+    await update(ref(db, "rooms/" + code + "/scores"), (function () { var o = {}; o[uid] = 0; return o; })());
   }
+  state.roomCode = code;
+  state.name = name;
+  state.isHost = val.hostUid === uid;
+  localStorage.setItem("f2w_room", JSON.stringify({ code: code, name: name }));
+  subscribeRoom(code);
+}
 
-  function clampTarget() {
-    var v = parseInt($("target-score-input").value, 10);
-    if (isNaN(v) || v < 1) v = 1;
-    if (v > 99) v = 99;
-    $("target-score-input").value = v;
-    state.targetScore = v;
-  }
-  $("target-score-input").addEventListener("change", clampTarget);
-  $("btn-target-down").addEventListener("click", function () {
-    $("target-score-input").value = Math.max(1, (parseInt($("target-score-input").value, 10) || 1) - 1);
-    clampTarget();
-  });
-  $("btn-target-up").addEventListener("click", function () {
-    $("target-score-input").value = Math.min(99, (parseInt($("target-score-input").value, 10) || 1) + 1);
-    clampTarget();
-  });
+$("btn-leave-room").addEventListener("click", function () {
+  if (!confirm("Leave this room?")) return;
+  localStorage.removeItem("f2w_room");
+  location.reload();
+});
 
-  $("btn-start-game").addEventListener("click", function () {
-    var names = state.players.map(function (n) { return n.trim(); }).filter(function (n) { return n.length > 0; });
-    if (names.length < 2) { alert("Need at least 2 players — you're ranked against each other."); return; }
-    clampTarget();
-    state.players = names;
-    state.scores = {};
-    names.forEach(function (n) { state.scores[n] = 0; });
-    state.usedCategories = [];
-    nextRound();
-  });
-
-  // ---------- Round setup ----------
-  function nextRound() {
-    var available = state.selectedCategories.filter(function (c) { return state.usedCategories.indexOf(c) === -1; });
-    if (available.length === 0) {
-      state.usedCategories = [];
-      available = state.selectedCategories.slice();
-    }
-    var cat = pickRandom(available);
-    state.usedCategories.push(cat);
-
-    state.round = { category: cat, items: CATEGORIES[cat] };
-    state.turnOrder = shuffled(state.players.map(function (_, i) { return i; }));
-    state.turnIndex = 0;
-    state.rankings = {};
-
-    $("ri-category").textContent = cat;
-    var itemsWrap = $("ri-items");
-    itemsWrap.innerHTML = "";
-    state.round.items.forEach(function (item) {
-      var el = document.createElement("div");
-      el.className = "item-preview";
-      el.textContent = item;
-      itemsWrap.appendChild(el);
-    });
-    showScreen("screen-round-intro");
-  }
-
-  $("btn-start-ranking").addEventListener("click", goToPassTurn);
-
-  // ---------- Pass-and-rank loop ----------
-  function goToPassTurn() {
-    if (state.turnIndex >= state.turnOrder.length) {
-      showScreen("screen-ready-reveal");
+function subscribeRoom(code) {
+  onValue(roomRef(code), function (snap) {
+    state.room = snap.val();
+    if (!state.room) {
+      localStorage.removeItem("f2w_room");
+      showScreen("screen-home");
+      $("home-status").textContent = "Room closed.";
       return;
     }
-    var name = state.players[state.turnOrder[state.turnIndex]];
-    $("pass-name").textContent = name;
-    $("pass-name-2").textContent = name;
-    showScreen("screen-pass-turn");
-  }
+    state.isHost = state.room.hostUid === state.uid;
+    render();
+  });
+}
 
-  $("btn-ready-to-rank").addEventListener("click", function () {
-    $("rank-category").textContent = state.round.category;
-    state.currentRankOrder = shuffled(state.round.items);
-    renderRankList();
-    showScreen("screen-rank");
+function render() {
+  var room = state.room;
+  if (!room) return;
+  if (room.phase === "lobby") renderLobby();
+  else if (room.phase === "round-intro") renderRoundIntro();
+  else if (room.phase === "rank") renderRank();
+  else if (room.phase === "reveal") renderRevealScreen();
+  else if (room.phase === "scores") renderScoresScreen();
+  else if (room.phase === "game-won") renderGameWonScreen();
+}
+
+function playerName(uid) {
+  return state.room.players && state.room.players[uid] ? state.room.players[uid].name : "?";
+}
+function playerUids() { return state.room.players ? Object.keys(state.room.players) : []; }
+function playerNames() { return playerUids().map(playerName); }
+
+// ---------- Lobby ----------
+function renderLobby() {
+  var room = state.room;
+  $("lobby-code").textContent = state.roomCode;
+
+  var list = $("lobby-players");
+  list.innerHTML = "";
+  playerUids().forEach(function (uid) {
+    var chip = document.createElement("div");
+    chip.className = "player-chip";
+    chip.textContent = playerName(uid);
+    if (uid === room.hostUid) {
+      var badge = document.createElement("span");
+      badge.className = "host-badge";
+      badge.textContent = "HOST";
+      chip.appendChild(badge);
+    }
+    list.appendChild(chip);
   });
 
-  function renderRankList() {
-    var wrap = $("rank-list");
-    wrap.innerHTML = "";
-    var n = state.currentRankOrder.length;
-    state.currentRankOrder.forEach(function (item, i) {
-      var row = document.createElement("div");
-      row.className = "rank-row";
-
-      var num = document.createElement("div");
-      num.className = "rank-num";
-      num.textContent = i + 1;
-      row.appendChild(num);
-
-      var nameEl = document.createElement("div");
-      nameEl.className = "rank-item-name";
-      nameEl.textContent = item;
-      row.appendChild(nameEl);
-
-      var moves = document.createElement("div");
-      moves.className = "rank-moves";
-
-      var up = document.createElement("button");
-      up.className = "rank-move-btn";
-      up.type = "button";
-      up.textContent = "▲";
-      up.disabled = i === 0;
-      up.addEventListener("click", function () {
-        var arr = state.currentRankOrder;
-        var tmp = arr[i - 1]; arr[i - 1] = arr[i]; arr[i] = tmp;
-        renderRankList();
+  var catWrap = $("category-chips");
+  catWrap.innerHTML = "";
+  var selected = room.settings.categories || [];
+  Object.keys(CATEGORIES).forEach(function (cat) {
+    var chip = document.createElement("div");
+    chip.className = "chip" + (selected.indexOf(cat) !== -1 ? " selected" : "") + (state.isHost ? "" : " static");
+    chip.textContent = cat;
+    if (state.isHost) {
+      chip.addEventListener("click", function () {
+        var idx = selected.indexOf(cat);
+        var next = selected.slice();
+        if (idx !== -1) {
+          if (next.length === 1) return;
+          next.splice(idx, 1);
+        } else {
+          next.push(cat);
+        }
+        update(ref(db, "rooms/" + state.roomCode + "/settings"), { categories: next });
       });
-      moves.appendChild(up);
-
-      var down = document.createElement("button");
-      down.className = "rank-move-btn";
-      down.type = "button";
-      down.textContent = "▼";
-      down.disabled = i === n - 1;
-      down.addEventListener("click", function () {
-        var arr = state.currentRankOrder;
-        var tmp = arr[i + 1]; arr[i + 1] = arr[i]; arr[i] = tmp;
-        renderRankList();
-      });
-      moves.appendChild(down);
-
-      row.appendChild(moves);
-      wrap.appendChild(row);
-    });
-  }
-
-  $("btn-submit-rank").addEventListener("click", function () {
-    var name = state.players[state.turnOrder[state.turnIndex]];
-    state.rankings[name] = state.currentRankOrder.slice();
-    state.turnIndex++;
-    goToPassTurn();
+    }
+    catWrap.appendChild(chip);
   });
 
-  $("btn-show-reveal").addEventListener("click", renderReveal);
+  var targetInput = $("target-score-input");
+  targetInput.value = room.settings.targetScore;
+  targetInput.disabled = !state.isHost;
+  var setTarget = function (v) {
+    v = Math.max(1, Math.min(99, v));
+    update(ref(db, "rooms/" + state.roomCode + "/settings"), { targetScore: v });
+  };
+  targetInput.onchange = function () { setTarget(parseInt(targetInput.value, 10) || 1); };
+  $("btn-target-down").onclick = function () { setTarget((room.settings.targetScore || 1) - 1); };
+  $("btn-target-up").onclick = function () { setTarget((room.settings.targetScore || 1) + 1); };
+  $("btn-target-down").disabled = !state.isHost;
+  $("btn-target-up").disabled = !state.isHost;
 
-  // ---------- Reveal + scoring ----------
-  function renderReveal() {
-    var items = state.round.items;
-    var players = state.players;
+  var startBtn = $("btn-start-game");
+  var waiting = $("lobby-waiting");
+  if (state.isHost) {
+    startBtn.style.display = "";
+    waiting.style.display = "none";
+    startBtn.disabled = playerUids().length < 1;
+  } else {
+    startBtn.style.display = "none";
+    waiting.style.display = "";
+  }
 
-    // Average rank (1-indexed) each item received across every player's list.
-    var avgRank = {};
-    items.forEach(function (item) { avgRank[item] = 0; });
-    players.forEach(function (name) {
-      state.rankings[name].forEach(function (item, i) { avgRank[item] += (i + 1); });
+  showScreen("screen-lobby");
+}
+
+$("btn-start-game").addEventListener("click", function () {
+  if (!state.isHost) return;
+  startRound();
+});
+
+async function startRound() {
+  var room = state.room;
+  var used = room.usedCategories || [];
+  var available = (room.settings.categories || []).filter(function (c) { return used.indexOf(c) === -1; });
+  if (available.length === 0) {
+    used = [];
+    available = (room.settings.categories || []).slice();
+  }
+  var cat = pickRandom(available);
+  used = used.concat([cat]);
+
+  await update(roomRef(state.roomCode), {
+    phase: "round-intro",
+    usedCategories: used,
+    round: { category: cat, items: CATEGORIES[cat], rankings: {} }
+  });
+}
+
+// ---------- Round intro ----------
+function renderRoundIntro() {
+  var round = state.room.round;
+  $("ri-category").textContent = round.category;
+  var wrap = $("ri-items");
+  wrap.innerHTML = "";
+  round.items.forEach(function (item) {
+    var el = document.createElement("div");
+    el.className = "item-preview";
+    el.textContent = item;
+    wrap.appendChild(el);
+  });
+  showScreen("screen-round-intro");
+}
+
+var myRankOrder = [];
+
+$("btn-start-ranking").addEventListener("click", function () {
+  var round = state.room.round;
+  myRankOrder = shuffled(round.items);
+  $("rank-category").textContent = round.category;
+  renderMyRankList();
+  $("rank-waiting").style.display = "none";
+  $("btn-submit-rank").style.display = "";
+  update(roomRef(state.roomCode), { phase: "rank" });
+});
+
+// ---------- Ranking ----------
+function renderRank() {
+  var round = state.room.round;
+  var myVoted = round.rankings && round.rankings[state.uid];
+  $("rank-category").textContent = round.category;
+  if (!myVoted && myRankOrder.length === 0) {
+    myRankOrder = shuffled(round.items);
+  }
+  if (myVoted) {
+    $("btn-submit-rank").style.display = "none";
+    $("rank-waiting").style.display = "";
+    $("rank-list").innerHTML = "";
+  } else {
+    $("btn-submit-rank").style.display = "";
+    $("rank-waiting").style.display = "none";
+    renderMyRankList();
+  }
+  showScreen("screen-rank");
+
+  if (state.isHost) {
+    var uids = playerUids();
+    var count = round.rankings ? Object.keys(round.rankings).length : 0;
+    if (count >= uids.length && uids.length > 0) {
+      finishRanking();
+    }
+  }
+}
+
+function renderMyRankList() {
+  var wrap = $("rank-list");
+  wrap.innerHTML = "";
+  var n = myRankOrder.length;
+  myRankOrder.forEach(function (item, i) {
+    var row = document.createElement("div");
+    row.className = "rank-row";
+    var num = document.createElement("div");
+    num.className = "rank-num";
+    num.textContent = i + 1;
+    row.appendChild(num);
+    var nameEl = document.createElement("div");
+    nameEl.className = "rank-item-name";
+    nameEl.textContent = item;
+    row.appendChild(nameEl);
+
+    var moves = document.createElement("div");
+    moves.className = "rank-moves";
+    var up = document.createElement("button");
+    up.className = "rank-move-btn";
+    up.type = "button";
+    up.textContent = "▲";
+    up.disabled = i === 0;
+    up.addEventListener("click", function () {
+      var tmp = myRankOrder[i - 1]; myRankOrder[i - 1] = myRankOrder[i]; myRankOrder[i] = tmp;
+      renderMyRankList();
     });
-    items.forEach(function (item) { avgRank[item] = avgRank[item] / players.length; });
-
-    var groupOrder = items.slice().sort(function (a, b) { return avgRank[a] - avgRank[b]; });
-    var groupIndex = {};
-    groupOrder.forEach(function (item, i) { groupIndex[item] = i; });
-
-    var orderList = $("order-reveal-list");
-    orderList.innerHTML = "";
-    groupOrder.forEach(function (item, i) {
-      var row = document.createElement("div");
-      row.className = "order-reveal-row";
-      var num = document.createElement("div");
-      num.className = "rank-num";
-      num.textContent = i + 1;
-      row.appendChild(num);
-      var nameEl = document.createElement("div");
-      nameEl.style.flex = "1";
-      nameEl.textContent = item;
-      row.appendChild(nameEl);
-      orderList.appendChild(row);
+    moves.appendChild(up);
+    var down = document.createElement("button");
+    down.className = "rank-move-btn";
+    down.type = "button";
+    down.textContent = "▼";
+    down.disabled = i === n - 1;
+    down.addEventListener("click", function () {
+      var tmp = myRankOrder[i + 1]; myRankOrder[i + 1] = myRankOrder[i]; myRankOrder[i] = tmp;
+      renderMyRankList();
     });
+    moves.appendChild(down);
+    row.appendChild(moves);
+    wrap.appendChild(row);
+  });
+}
 
-    // Distance = how far a player's personal order sits from the group order,
-    // summed item by item (a Spearman footrule distance).
-    var distances = {};
-    players.forEach(function (name) {
-      var playerIndex = {};
-      state.rankings[name].forEach(function (item, i) { playerIndex[item] = i; });
-      var d = 0;
-      items.forEach(function (item) { d += Math.abs(playerIndex[item] - groupIndex[item]); });
-      distances[name] = d;
-    });
+$("btn-submit-rank").addEventListener("click", function () {
+  update(ref(db, "rooms/" + state.roomCode + "/round/rankings"), (function () { var o = {}; o[state.uid] = myRankOrder; return o; })());
+});
 
-    var uniqueDistances = [];
-    players.forEach(function (name) {
-      if (uniqueDistances.indexOf(distances[name]) === -1) uniqueDistances.push(distances[name]);
-    });
-    uniqueDistances.sort(function (a, b) { return a - b; });
+async function finishRanking() {
+  var room = state.room;
+  var round = room.round;
+  var names = playerNames();
+  var rankingsByName = {};
+  playerUids().forEach(function (uid) { rankingsByName[playerName(uid)] = round.rankings[uid]; });
+  var result = computeReveal(round.items, names, rankingsByName);
 
-    var roundPoints = {};
-    players.forEach(function (name) {
-      var rank = uniqueDistances.indexOf(distances[name]) + 1;
-      roundPoints[name] = Math.max(1, players.length - rank + 1);
-      state.scores[name] += roundPoints[name];
-    });
+  var scoreUpdates = {};
+  playerUids().forEach(function (uid) {
+    var name = playerName(uid);
+    scoreUpdates[uid] = (room.scores[uid] || 0) + result.roundPoints[name];
+  });
 
-    var sortedPlayers = players.slice().sort(function (a, b) { return distances[a] - distances[b]; });
-    var standings = $("standings-list");
-    standings.innerHTML = "";
-    sortedPlayers.forEach(function (name) {
-      var row = document.createElement("div");
-      row.className = "standings-row";
-      row.innerHTML = "<span class=\"pname\">" + name + "</span>" +
-        "<span class=\"pdist\">off by " + distances[name] + "</span>" +
-        "<span class=\"ppts\">+" + roundPoints[name] + "</span>";
-      standings.appendChild(row);
-    });
+  await update(roomRef(state.roomCode), {
+    phase: "reveal",
+    scores: scoreUpdates,
+    round: Object.assign({}, round, { groupOrder: result.groupOrder, distances: result.distances, roundPoints: result.roundPoints })
+  });
+}
 
-    var callout = $("round-callout");
-    if (sortedPlayers.length > 1) {
-      var best = sortedPlayers[0], worst = sortedPlayers[sortedPlayers.length - 1];
-      if (distances[best] === distances[worst]) {
-        callout.textContent = "Everyone landed equally close (or far) this round.";
+// ---------- Reveal ----------
+function renderRevealScreen() {
+  var round = state.room.round;
+  renderOrderRevealList($("order-reveal-list"), round.groupOrder);
+
+  var namesByDistanceKey = {};
+  playerUids().forEach(function (uid) { namesByDistanceKey[playerName(uid)] = true; });
+  renderStandingsList($("standings-list"), $("round-callout"), Object.keys(namesByDistanceKey), round.distances, round.roundPoints);
+
+  var hostNav = $("reveal-host-nav");
+  var waiting = $("reveal-waiting");
+  if (state.isHost) {
+    hostNav.style.display = "flex";
+    waiting.style.display = "none";
+  } else {
+    hostNav.style.display = "none";
+    waiting.style.display = "";
+  }
+  showScreen("screen-reveal");
+}
+
+$("btn-next-round").addEventListener("click", function () {
+  if (!state.isHost) return;
+  var room = state.room;
+  var winnerUid = playerUids().filter(function (uid) { return room.scores[uid] >= room.settings.targetScore; })
+    .sort(function (a, b) { return room.scores[b] - room.scores[a]; })[0];
+  if (winnerUid) {
+    update(roomRef(state.roomCode), { phase: "game-won", winnerUid: winnerUid });
+  } else {
+    update(roomRef(state.roomCode), { phase: "scores" });
+  }
+});
+
+// ---------- Scoreboard ----------
+function renderScoresScreen() {
+  var room = state.room;
+  var scoresByName = {};
+  playerUids().forEach(function (uid) { scoresByName[playerName(uid)] = room.scores[uid] || 0; });
+  renderScoreboardInto($("scoreboard"), scoresByName);
+  $("scoreboard-target").textContent = room.settings.targetScore;
+
+  var hostNav = $("scores-host-nav");
+  var waiting = $("scores-waiting");
+  if (state.isHost) {
+    hostNav.style.display = "flex";
+    waiting.style.display = "none";
+  } else {
+    hostNav.style.display = "none";
+    waiting.style.display = "";
+  }
+  showScreen("screen-scores");
+}
+
+$("btn-back-to-round").addEventListener("click", function () {
+  if (!state.isHost) return;
+  startRound();
+});
+$("btn-end-game").addEventListener("click", function () {
+  if (!state.isHost) return;
+  if (!confirm("End the game and return everyone to the lobby?")) return;
+  update(roomRef(state.roomCode), { phase: "lobby", round: null });
+});
+
+// ---------- Game won ----------
+function renderGameWonScreen() {
+  var room = state.room;
+  $("winner-name").textContent = playerName(room.winnerUid);
+  var scoresByName = {};
+  playerUids().forEach(function (uid) { scoresByName[playerName(uid)] = room.scores[uid] || 0; });
+  renderScoreboardInto($("winner-scoreboard"), scoresByName);
+
+  var hostNav = $("won-host-nav");
+  var waiting = $("won-waiting");
+  if (state.isHost) {
+    hostNav.style.display = "flex";
+    waiting.style.display = "none";
+  } else {
+    hostNav.style.display = "none";
+    waiting.style.display = "";
+  }
+  showScreen("screen-game-won");
+}
+
+$("btn-new-game").addEventListener("click", function () {
+  if (!state.isHost) return;
+  update(roomRef(state.roomCode), { phase: "lobby", round: null, usedCategories: [] });
+});
+
+// =========================================================================
+// LOCAL PASS-AND-PLAY MODE (single device, no Firebase)
+// =========================================================================
+
+var localState = {
+  players: ["", ""],
+  selectedCategories: Object.keys(CATEGORIES),
+  targetScore: 15,
+  scores: {},
+  usedCategories: [],
+  round: null,
+  turnOrder: [],
+  turnIndex: 0,
+  currentRankOrder: [],
+  rankings: {}
+};
+
+$("btn-local-mode").addEventListener("click", function () {
+  renderLocalPlayerList();
+  renderLocalCategoryChips();
+  showScreen("screen-local-setup");
+});
+$("local-btn-back-home").addEventListener("click", function () { showScreen("screen-home"); });
+
+function renderLocalPlayerList() {
+  var wrap = $("local-player-list");
+  wrap.innerHTML = "";
+  localState.players.forEach(function (name, i) {
+    var row = document.createElement("div");
+    row.className = "player-row";
+    var input = document.createElement("input");
+    input.type = "text";
+    input.placeholder = "Player " + (i + 1);
+    input.value = name;
+    input.maxLength = 20;
+    input.addEventListener("input", function () { localState.players[i] = input.value; });
+    row.appendChild(input);
+    if (localState.players.length > 2) {
+      var rm = document.createElement("button");
+      rm.className = "icon-btn";
+      rm.type = "button";
+      rm.textContent = "✕";
+      rm.addEventListener("click", function () {
+        localState.players.splice(i, 1);
+        renderLocalPlayerList();
+      });
+      row.appendChild(rm);
+    }
+    wrap.appendChild(row);
+  });
+}
+
+$("local-btn-add-player").addEventListener("click", function () {
+  if (localState.players.length >= 10) return;
+  localState.players.push("");
+  renderLocalPlayerList();
+});
+
+function renderLocalCategoryChips() {
+  var wrap = $("local-category-chips");
+  wrap.innerHTML = "";
+  Object.keys(CATEGORIES).forEach(function (cat) {
+    var chip = document.createElement("div");
+    chip.className = "chip" + (localState.selectedCategories.indexOf(cat) !== -1 ? " selected" : "");
+    chip.textContent = cat;
+    chip.addEventListener("click", function () {
+      var idx = localState.selectedCategories.indexOf(cat);
+      if (idx !== -1) {
+        if (localState.selectedCategories.length === 1) return;
+        localState.selectedCategories.splice(idx, 1);
       } else {
-        callout.textContent = best + " read the room best. " + worst + " is on their own wavelength.";
+        localState.selectedCategories.push(cat);
       }
-    } else {
-      callout.textContent = "";
-    }
+      renderLocalCategoryChips();
+    });
+    wrap.appendChild(chip);
+  });
+}
 
-    showScreen("screen-reveal");
+function localClampTarget() {
+  var v = parseInt($("local-target-score-input").value, 10);
+  if (isNaN(v) || v < 1) v = 1;
+  if (v > 99) v = 99;
+  $("local-target-score-input").value = v;
+  localState.targetScore = v;
+}
+$("local-target-score-input").addEventListener("change", localClampTarget);
+$("local-btn-target-down").addEventListener("click", function () {
+  $("local-target-score-input").value = Math.max(1, (parseInt($("local-target-score-input").value, 10) || 1) - 1);
+  localClampTarget();
+});
+$("local-btn-target-up").addEventListener("click", function () {
+  $("local-target-score-input").value = Math.min(99, (parseInt($("local-target-score-input").value, 10) || 1) + 1);
+  localClampTarget();
+});
+
+$("local-btn-start-game").addEventListener("click", function () {
+  var names = localState.players.map(function (n) { return n.trim(); }).filter(function (n) { return n.length > 0; });
+  if (names.length < 2) { alert("Need at least 2 players — you're ranked against each other."); return; }
+  localClampTarget();
+  localState.players = names;
+  localState.scores = {};
+  names.forEach(function (n) { localState.scores[n] = 0; });
+  localState.usedCategories = [];
+  localNextRound();
+});
+
+function localNextRound() {
+  var available = localState.selectedCategories.filter(function (c) { return localState.usedCategories.indexOf(c) === -1; });
+  if (available.length === 0) {
+    localState.usedCategories = [];
+    available = localState.selectedCategories.slice();
   }
+  var cat = pickRandom(available);
+  localState.usedCategories.push(cat);
 
-  $("btn-next-round").addEventListener("click", function () {
-    var winner = state.players.filter(function (n) { return state.scores[n] >= state.targetScore; })
-      .sort(function (a, b) { return state.scores[b] - state.scores[a]; })[0];
-    if (winner) {
-      showGameWon(winner);
-    } else {
-      renderScoreboard();
-      showScreen("screen-scores");
-    }
+  localState.round = { category: cat, items: CATEGORIES[cat] };
+  localState.turnOrder = shuffled(localState.players.map(function (_, i) { return i; }));
+  localState.turnIndex = 0;
+  localState.rankings = {};
+
+  $("local-ri-category").textContent = cat;
+  var itemsWrap = $("local-ri-items");
+  itemsWrap.innerHTML = "";
+  localState.round.items.forEach(function (item) {
+    var el = document.createElement("div");
+    el.className = "item-preview";
+    el.textContent = item;
+    itemsWrap.appendChild(el);
   });
+  showScreen("screen-local-round-intro");
+}
 
-  // ---------- Scoreboard ----------
-  function renderScoreboard() {
-    var board = $("scoreboard");
-    board.innerHTML = "";
-    var entries = Object.keys(state.scores).map(function (name) {
-      return { name: name, score: state.scores[name] };
-    });
-    entries.sort(function (a, b) { return b.score - a.score; });
-    entries.forEach(function (e) {
-      var row = document.createElement("div");
-      row.className = "score-row";
-      row.innerHTML = "<span>" + e.name + "</span><strong>" + e.score + "</strong>";
-      board.appendChild(row);
-    });
-    $("scoreboard-target").textContent = state.targetScore;
+$("local-btn-start-ranking").addEventListener("click", localGoToPassTurn);
+
+function localGoToPassTurn() {
+  if (localState.turnIndex >= localState.turnOrder.length) {
+    showScreen("screen-local-ready-reveal");
+    return;
   }
+  var name = localState.players[localState.turnOrder[localState.turnIndex]];
+  $("local-pass-name").textContent = name;
+  $("local-pass-name-2").textContent = name;
+  showScreen("screen-local-pass-turn");
+}
 
-  $("btn-back-to-round").addEventListener("click", function () {
-    $("end-game-confirm").style.display = "none";
-    nextRound();
-  });
+$("local-btn-ready-to-rank").addEventListener("click", function () {
+  $("local-rank-category").textContent = localState.round.category;
+  localState.currentRankOrder = shuffled(localState.round.items);
+  renderLocalRankList();
+  showScreen("screen-local-rank");
+});
 
-  $("btn-end-game").addEventListener("click", function () {
-    $("end-game-confirm").style.display = "";
-  });
-  $("btn-cancel-end-game").addEventListener("click", function () {
-    $("end-game-confirm").style.display = "none";
-  });
-  $("btn-confirm-end-game").addEventListener("click", function () {
-    $("end-game-confirm").style.display = "none";
-    showScreen("screen-setup");
-  });
+function renderLocalRankList() {
+  var wrap = $("local-rank-list");
+  wrap.innerHTML = "";
+  var n = localState.currentRankOrder.length;
+  localState.currentRankOrder.forEach(function (item, i) {
+    var row = document.createElement("div");
+    row.className = "rank-row";
+    var num = document.createElement("div");
+    num.className = "rank-num";
+    num.textContent = i + 1;
+    row.appendChild(num);
+    var nameEl = document.createElement("div");
+    nameEl.className = "rank-item-name";
+    nameEl.textContent = item;
+    row.appendChild(nameEl);
 
-  // ---------- Game won ----------
-  function showGameWon(winner) {
-    $("winner-name").textContent = winner;
-    var board = $("winner-scoreboard");
-    board.innerHTML = "";
-    var entries = Object.keys(state.scores).map(function (name) {
-      return { name: name, score: state.scores[name] };
+    var moves = document.createElement("div");
+    moves.className = "rank-moves";
+    var up = document.createElement("button");
+    up.className = "rank-move-btn";
+    up.type = "button";
+    up.textContent = "▲";
+    up.disabled = i === 0;
+    up.addEventListener("click", function () {
+      var arr = localState.currentRankOrder;
+      var tmp = arr[i - 1]; arr[i - 1] = arr[i]; arr[i] = tmp;
+      renderLocalRankList();
     });
-    entries.sort(function (a, b) { return b.score - a.score; });
-    entries.forEach(function (e) {
-      var row = document.createElement("div");
-      row.className = "score-row";
-      row.innerHTML = "<span>" + e.name + "</span><strong>" + e.score + "</strong>";
-      board.appendChild(row);
+    moves.appendChild(up);
+    var down = document.createElement("button");
+    down.className = "rank-move-btn";
+    down.type = "button";
+    down.textContent = "▼";
+    down.disabled = i === n - 1;
+    down.addEventListener("click", function () {
+      var arr = localState.currentRankOrder;
+      var tmp = arr[i + 1]; arr[i + 1] = arr[i]; arr[i] = tmp;
+      renderLocalRankList();
     });
-    showScreen("screen-game-won");
+    moves.appendChild(down);
+    row.appendChild(moves);
+    wrap.appendChild(row);
+  });
+}
+
+$("local-btn-submit-rank").addEventListener("click", function () {
+  var name = localState.players[localState.turnOrder[localState.turnIndex]];
+  localState.rankings[name] = localState.currentRankOrder.slice();
+  localState.turnIndex++;
+  localGoToPassTurn();
+});
+
+$("local-btn-show-reveal").addEventListener("click", localRenderReveal);
+
+function localRenderReveal() {
+  var result = computeReveal(localState.round.items, localState.players, localState.rankings);
+  renderOrderRevealList($("local-order-reveal-list"), result.groupOrder);
+  renderStandingsList($("local-standings-list"), $("local-round-callout"), localState.players, result.distances, result.roundPoints);
+  localState.players.forEach(function (name) { localState.scores[name] += result.roundPoints[name]; });
+  showScreen("screen-local-reveal");
+}
+
+$("local-btn-next-round").addEventListener("click", function () {
+  var winner = localState.players.filter(function (n) { return localState.scores[n] >= localState.targetScore; })
+    .sort(function (a, b) { return localState.scores[b] - localState.scores[a]; })[0];
+  if (winner) {
+    localShowGameWon(winner);
+  } else {
+    renderLocalScoreboard();
+    showScreen("screen-local-scores");
   }
+});
 
-  $("btn-new-game").addEventListener("click", function () {
-    showScreen("screen-setup");
-  });
+function renderLocalScoreboard() {
+  renderScoreboardInto($("local-scoreboard"), localState.scores);
+  $("local-scoreboard-target").textContent = localState.targetScore;
+}
 
-  // ---------- Init ----------
-  renderPlayerList();
-  renderCategoryChips();
-})();
+$("local-btn-back-to-round").addEventListener("click", function () {
+  $("local-end-game-confirm").style.display = "none";
+  localNextRound();
+});
+$("local-btn-end-game").addEventListener("click", function () { $("local-end-game-confirm").style.display = ""; });
+$("local-btn-cancel-end-game").addEventListener("click", function () { $("local-end-game-confirm").style.display = "none"; });
+$("local-btn-confirm-end-game").addEventListener("click", function () {
+  $("local-end-game-confirm").style.display = "none";
+  showScreen("screen-local-setup");
+});
+
+function localShowGameWon(winner) {
+  $("local-winner-name").textContent = winner;
+  renderScoreboardInto($("local-winner-scoreboard"), localState.scores);
+  showScreen("screen-local-game-won");
+}
+
+$("local-btn-new-game").addEventListener("click", function () {
+  showScreen("screen-local-setup");
+});
 </script>
 </body>
 </html>
