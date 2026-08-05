@@ -143,7 +143,7 @@
     <div class="card">
       <label>Difficulty</label>
       <div class="chip-group" id="difficulty-chips"></div>
-      <small class="hint">Easy is tuned for around age 7, Medium for around age 11, and Hard for around age 16. Pick a mix, or leave them all selected.</small>
+      <small class="hint">Sets the difficulty for the whole game. Easy is tuned for around age 7, Medium for around age 11, and Hard for around age 16.</small>
     </div>
     <div class="card">
       <label>Guessing Mode</label>
@@ -417,7 +417,7 @@
   var state = {
     players: ["", "", ""],
     selectedCategories: Object.keys(CATEGORIES),
-    selectedDifficulties: DIFFICULTIES.slice(),
+    difficulty: "Medium",
     guessMode: "type",
     targetScore: 10,
     scores: {},
@@ -501,16 +501,10 @@
     wrap.innerHTML = "";
     DIFFICULTIES.forEach(function (diff) {
       var chip = document.createElement("div");
-      chip.className = "chip" + (state.selectedDifficulties.indexOf(diff) !== -1 ? " selected" : "");
+      chip.className = "chip" + (state.difficulty === diff ? " selected" : "");
       chip.textContent = diff;
       chip.addEventListener("click", function () {
-        var idx = state.selectedDifficulties.indexOf(diff);
-        if (idx !== -1) {
-          if (state.selectedDifficulties.length === 1) return;
-          state.selectedDifficulties.splice(idx, 1);
-        } else {
-          state.selectedDifficulties.push(diff);
-        }
+        state.difficulty = diff;
         renderDifficultyChips();
       });
       wrap.appendChild(chip);
@@ -569,18 +563,16 @@
   // ---------- Round setup ----------
   function pickRandom(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
 
-  function allAnswers() {
+  function allAnswers(diff) {
     var all = [];
     Object.keys(CATEGORIES).forEach(function (cat) {
-      DIFFICULTIES.forEach(function (diff) {
-        CATEGORIES[cat][diff].forEach(function (q) { all.push(q[1]); });
-      });
+      CATEGORIES[cat][diff].forEach(function (q) { all.push(q[1]); });
     });
     return all;
   }
 
-  function buildChoiceOptions(correctAnswer) {
-    var pool = allAnswers().filter(function (a) { return a !== correctAnswer; });
+  function buildChoiceOptions(correctAnswer, diff) {
+    var pool = allAnswers(diff).filter(function (a) { return a !== correctAnswer; });
     var unique = pool.filter(function (v, i) { return pool.indexOf(v) === i; });
     var distractors = [];
     while (distractors.length < 3 && unique.length) {
@@ -599,13 +591,12 @@
 
   function buildPool() {
     var pool = [];
+    var diff = state.difficulty;
     state.selectedCategories.forEach(function (cat) {
-      state.selectedDifficulties.forEach(function (diff) {
-        var key = questionKey(cat, diff);
-        var used = state.usedQuestions[key] || [];
-        CATEGORIES[cat][diff].forEach(function (q, i) {
-          if (used.indexOf(i) === -1) pool.push({ cat: cat, diff: diff, idx: i, q: q[0], a: q[1] });
-        });
+      var key = questionKey(cat, diff);
+      var used = state.usedQuestions[key] || [];
+      CATEGORIES[cat][diff].forEach(function (q, i) {
+        if (used.indexOf(i) === -1) pool.push({ cat: cat, diff: diff, idx: i, q: q[0], a: q[1] });
       });
     });
     return pool;
@@ -615,9 +606,7 @@
     var pool = buildPool();
     if (pool.length === 0) {
       state.selectedCategories.forEach(function (cat) {
-        state.selectedDifficulties.forEach(function (diff) {
-          state.usedQuestions[questionKey(cat, diff)] = [];
-        });
+        state.usedQuestions[questionKey(cat, state.difficulty)] = [];
       });
       pool = buildPool();
     }
@@ -722,7 +711,7 @@
       : state.guessMode;
 
     if (state.currentTurnMode === "choice") {
-      state.currentChoiceOptions = buildChoiceOptions(state.currentQuestion.a);
+      state.currentChoiceOptions = buildChoiceOptions(state.currentQuestion.a, state.currentQuestion.diff);
       state.currentChoiceSelected = null;
       renderChoiceOptions();
       $("input-type-card").style.display = "none";
