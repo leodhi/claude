@@ -32,6 +32,12 @@
     flex-direction: column;
     padding: 20px 16px 40px;
   }
+  @media (min-width: 700px) {
+    #app { max-width: 760px; }
+  }
+  @media (min-width: 1000px) {
+    #app { max-width: 900px; }
+  }
   h1 { font-size: 1.6rem; margin: 4px 0 2px; letter-spacing: 0.5px; }
   h1 span { color: var(--accent); }
   .subtitle { color: var(--text-dim); font-size: 0.85rem; margin-bottom: 18px; }
@@ -133,6 +139,11 @@
       <label>Categories</label>
       <div class="chip-group" id="category-chips"></div>
       <small class="hint">Pick specific categories, or leave them all selected for the full mix.</small>
+    </div>
+    <div class="card">
+      <label>Difficulty</label>
+      <div class="chip-group" id="difficulty-chips"></div>
+      <small class="hint">Easy is tuned for around age 7, Medium for around age 11, and Hard for around age 16. Pick a mix, or leave them all selected.</small>
     </div>
     <div class="card">
       <label>Guessing Mode</label>
@@ -243,83 +254,170 @@
   var ROUND_TIME = 30;
 
   var CATEGORIES = {
-    "Animals": [
-      ["What do you call a baby dog?", "A puppy"],
-      ["Which animal is known as the \"King of the Jungle\"?", "The lion"],
-      ["How many legs does a spider have?", "8"],
-      ["What do bees make?", "Honey"],
-      ["What is the tallest animal in the world?", "The giraffe"],
-      ["What do you call a baby cat?", "A kitten"],
-      ["Which bird can't fly but is a great swimmer?", "The penguin"],
-      ["What animal says \"moo\"?", "A cow"],
-      ["How many legs does an insect have?", "6"],
-      ["What do you call a group of wolves?", "A pack"]
-    ],
-    "Movies & Shows": [
-      ["In \"Frozen,\" what is Elsa's power?", "Ice/snow magic"],
-      ["What color is SpongeBob?", "Yellow"],
-      ["What kind of animal is Simba in \"The Lion King\"?", "A lion"],
-      ["In \"Toy Story,\" what kind of toy is Woody?", "A cowboy"],
-      ["What do Mario and Luigi both wear on their heads?", "A cap"],
-      ["What color is Elmo?", "Red"],
-      ["In \"Finding Nemo,\" what kind of fish is Nemo?", "A clownfish"],
-      ["What is the name of the yellow sponge who lives in a pineapple?", "SpongeBob"],
-      ["What animal is Pikachu?", "A mouse (electric mouse)"],
-      ["In \"Moana,\" what does Moana sail across?", "The ocean"]
-    ],
-    "Science": [
-      ["What do plants need from the sun to grow?", "Sunlight/light"],
-      ["What is frozen water called?", "Ice"],
-      ["What planet do we live on?", "Earth"],
-      ["What do you call water falling from the sky?", "Rain"],
-      ["What part of your body do you use to see?", "Your eyes"],
-      ["What gas do we breathe in to stay alive?", "Oxygen"],
-      ["What happens to water when it gets very cold?", "It freezes"],
-      ["What do caterpillars turn into?", "Butterflies"],
-      ["What is the closest star to Earth?", "The Sun"],
-      ["How many bones are in the human body (roughly)?", "206"]
-    ],
-    "Sports": [
-      ["How many players from one basketball team are on the court at once?", "5"],
-      ["What do you wear on your head when riding a bike?", "A helmet"],
-      ["In soccer, what do you call it when the ball goes in the net?", "A goal"],
-      ["What sport uses a racket and a net, with players hitting a ball back and forth?", "Tennis"],
-      ["How many players from one soccer team are on the field?", "11"],
-      ["What do swimmers wear on their eyes?", "Goggles"],
-      ["In baseball, how many bases are there (not counting home plate)?", "3"],
-      ["What do you call it when you score in football (American) by carrying the ball into the end zone?", "A touchdown"],
-      ["What shape is a soccer ball's classic pattern made of?", "Pentagons and hexagons"],
-      ["What sport is played on ice with a puck?", "Hockey"]
-    ],
-    "Geography": [
-      ["What is the tallest mountain in the world?", "Mount Everest"],
-      ["What ocean is the biggest?", "The Pacific Ocean"],
-      ["What do you call a very large, sandy area with little water?", "A desert"],
-      ["What country is shaped like a boot?", "Italy"],
-      ["What is the name of the frozen continent at the bottom of the world?", "Antarctica"],
-      ["What do you call a small piece of land surrounded by water?", "An island"],
-      ["What river runs through Egypt?", "The Nile"],
-      ["What country has the Great Wall?", "China"],
-      ["What is the capital city of France?", "Paris"],
-      ["What do you call the line around the middle of the Earth?", "The equator"]
-    ],
-    "Silly & General": [
-      ["How many days are in a week?", "7"],
-      ["What do you call a group of fish?", "A school"],
-      ["What do you call a person who flies a plane?", "A pilot"],
-      ["What shape has three sides?", "A triangle"],
-      ["What do you use to brush your teeth?", "A toothbrush"],
-      ["How many months are in a year?", "12"],
-      ["What do you call the first meal of the day?", "Breakfast"],
-      ["What color do you get when you mix blue and yellow?", "Green"],
-      ["What do you call a story that isn't true, made up for fun?", "Fiction / a made-up story"],
-      ["What holiday do you carve a pumpkin for?", "Halloween"]
-    ]
+    "Animals": {
+      "Easy": [
+        ["What do you call a baby dog?", "A puppy"],
+        ["Which animal is known as the \"King of the Jungle\"?", "The lion"],
+        ["How many legs does a spider have?", "8"],
+        ["What do bees make?", "Honey"],
+        ["What is the tallest animal in the world?", "The giraffe"],
+        ["What animal says \"moo\"?", "A cow"]
+      ],
+      "Medium": [
+        ["What is a group of lions called?", "A pride"],
+        ["Which animal is the fastest land animal?", "The cheetah"],
+        ["What do you call an animal that eats both plants and meat?", "An omnivore"],
+        ["Which sea creature has eight arms?", "An octopus"],
+        ["What is the largest mammal in the world?", "The blue whale"],
+        ["Which bird is known for mimicking human speech?", "The parrot"]
+      ],
+      "Hard": [
+        ["What is the only mammal capable of true flight?", "The bat"],
+        ["What is a baby kangaroo called?", "A joey"],
+        ["Which big cat is known for having a mane only on males?", "The lion"],
+        ["What is the process called when a caterpillar becomes a butterfly?", "Metamorphosis"],
+        ["Which animal is known to sleep for up to 22 hours a day?", "The koala"],
+        ["What is the largest species of penguin?", "The emperor penguin"]
+      ]
+    },
+    "Movies & Shows": {
+      "Easy": [
+        ["In \"Frozen,\" what is Elsa's power?", "Ice/snow magic"],
+        ["What color is SpongeBob?", "Yellow"],
+        ["What kind of animal is Simba in \"The Lion King\"?", "A lion"],
+        ["In \"Toy Story,\" what kind of toy is Woody?", "A cowboy"],
+        ["What color is Elmo?", "Red"],
+        ["In \"Finding Nemo,\" what kind of fish is Nemo?", "A clownfish"]
+      ],
+      "Medium": [
+        ["In \"Harry Potter,\" what house is Harry sorted into?", "Gryffindor"],
+        ["What is the name of the wizarding school in \"Harry Potter\"?", "Hogwarts"],
+        ["In \"Star Wars,\" who is Luke Skywalker's father?", "Darth Vader"],
+        ["In \"The Incredibles,\" what is the family's last name?", "Parr"],
+        ["What animated movie features a snowman named Olaf?", "Frozen"],
+        ["In \"Moana,\" what does Moana sail across?", "The ocean"]
+      ],
+      "Hard": [
+        ["Who directed the movie \"Jaws\"?", "Steven Spielberg"],
+        ["What year did the first \"Star Wars\" movie release?", "1977"],
+        ["In \"The Matrix,\" what color pill does Neo take to learn the truth?", "The red pill"],
+        ["Which actor played the Joker in \"The Dark Knight\"?", "Heath Ledger"],
+        ["What movie won Best Picture at the 2023 Oscars?", "Everything Everywhere All at Once"],
+        ["In \"Inception,\" what object does Cobb use to test if he's dreaming?", "A spinning top"]
+      ]
+    },
+    "Science": {
+      "Easy": [
+        ["What do plants need from the sun to grow?", "Sunlight/light"],
+        ["What is frozen water called?", "Ice"],
+        ["What planet do we live on?", "Earth"],
+        ["What gas do we breathe in to stay alive?", "Oxygen"],
+        ["What do caterpillars turn into?", "Butterflies"],
+        ["What is the closest star to Earth?", "The Sun"]
+      ],
+      "Medium": [
+        ["What is the center of an atom called?", "The nucleus"],
+        ["What force pulls objects toward the Earth?", "Gravity"],
+        ["What gas do plants absorb from the air?", "Carbon dioxide"],
+        ["What is the boiling point of water in Celsius?", "100 degrees"],
+        ["What planet is known as the Red Planet?", "Mars"],
+        ["What organ pumps blood through your body?", "The heart"]
+      ],
+      "Hard": [
+        ["What is the powerhouse of the cell called?", "The mitochondria"],
+        ["What is the chemical symbol for gold?", "Au"],
+        ["What theory explains how species change over time?", "The theory of evolution"],
+        ["What is the process by which plants make food using sunlight?", "Photosynthesis"],
+        ["What particle has a negative charge and orbits the nucleus of an atom?", "The electron"],
+        ["What is the most abundant gas in Earth's atmosphere?", "Nitrogen"]
+      ]
+    },
+    "Sports": {
+      "Easy": [
+        ["How many players from one basketball team are on the court at once?", "5"],
+        ["What do you wear on your head when riding a bike?", "A helmet"],
+        ["In soccer, what do you call it when the ball goes in the net?", "A goal"],
+        ["How many players from one soccer team are on the field?", "11"],
+        ["What do swimmers wear on their eyes?", "Goggles"],
+        ["What sport is played on ice with a puck?", "Hockey"]
+      ],
+      "Medium": [
+        ["How many points is a touchdown worth in football?", "6"],
+        ["In tennis, what is a score of zero called?", "Love"],
+        ["How many players are on a volleyball team on the court?", "6"],
+        ["What sport is known as \"America's pastime\"?", "Baseball"],
+        ["How many rings are on the Olympic flag?", "5"],
+        ["What shape is a soccer ball's classic pattern made of?", "Pentagons and hexagons"]
+      ],
+      "Hard": [
+        ["How many periods are in a standard game of ice hockey?", "3"],
+        ["In boxing, how many rounds are in a typical championship fight?", "12"],
+        ["What country has won the most FIFA World Cups?", "Brazil"],
+        ["What is the maximum score possible in ten-pin bowling?", "300"],
+        ["How far is a marathon, in miles?", "26.2 miles"],
+        ["In golf, what is it called when you finish a hole one stroke under par?", "A birdie"]
+      ]
+    },
+    "Geography": {
+      "Easy": [
+        ["What is the tallest mountain in the world?", "Mount Everest"],
+        ["What ocean is the biggest?", "The Pacific Ocean"],
+        ["What do you call a very large, sandy area with little water?", "A desert"],
+        ["What country is shaped like a boot?", "Italy"],
+        ["What river runs through Egypt?", "The Nile"],
+        ["What is the capital city of France?", "Paris"]
+      ],
+      "Medium": [
+        ["What is the largest country in the world by area?", "Russia"],
+        ["What continent is the Sahara Desert located on?", "Africa"],
+        ["What is the smallest country in the world?", "Vatican City"],
+        ["Which US state is known as the Sunshine State?", "Florida"],
+        ["What mountain range separates Europe and Asia in Russia?", "The Ural Mountains"],
+        ["What country has the Great Wall?", "China"]
+      ],
+      "Hard": [
+        ["What is the capital of Australia?", "Canberra"],
+        ["Which country has the most time zones?", "France"],
+        ["What strait separates Asia and North America?", "The Bering Strait"],
+        ["What is the driest desert in the world?", "The Atacama Desert"],
+        ["Which African country was formerly known as Abyssinia?", "Ethiopia"],
+        ["What is the only country that borders both France and Spain?", "Andorra"]
+      ]
+    },
+    "Silly & General": {
+      "Easy": [
+        ["How many days are in a week?", "7"],
+        ["What do you call a group of fish?", "A school"],
+        ["What shape has three sides?", "A triangle"],
+        ["How many months are in a year?", "12"],
+        ["What color do you get when you mix blue and yellow?", "Green"],
+        ["What holiday do you carve a pumpkin for?", "Halloween"]
+      ],
+      "Medium": [
+        ["How many sides does a hexagon have?", "6"],
+        ["What is the freezing point of water in Fahrenheit?", "32 degrees"],
+        ["How many continents are there?", "7"],
+        ["What is the largest organ in the human body?", "The skin"],
+        ["How many colors are in a rainbow?", "7"],
+        ["What do you call a word that's spelled the same forwards and backwards?", "A palindrome"]
+      ],
+      "Hard": [
+        ["How many amendments are in the U.S. Bill of Rights?", "10"],
+        ["What is the value of pi rounded to two decimal places?", "3.14"],
+        ["What year did the Titanic sink?", "1912"],
+        ["How many bones are in the adult human body?", "206"],
+        ["What is the smallest prime number?", "2"],
+        ["What is the term for a group of crows?", "A murder"]
+      ]
+    }
   };
+
+  var DIFFICULTIES = ["Easy", "Medium", "Hard"];
 
   var state = {
     players: ["", "", ""],
     selectedCategories: Object.keys(CATEGORIES),
+    selectedDifficulties: DIFFICULTIES.slice(),
     guessMode: "type",
     targetScore: 10,
     scores: {},
@@ -398,6 +496,27 @@
     });
   }
 
+  function renderDifficultyChips() {
+    var wrap = $("difficulty-chips");
+    wrap.innerHTML = "";
+    DIFFICULTIES.forEach(function (diff) {
+      var chip = document.createElement("div");
+      chip.className = "chip" + (state.selectedDifficulties.indexOf(diff) !== -1 ? " selected" : "");
+      chip.textContent = diff;
+      chip.addEventListener("click", function () {
+        var idx = state.selectedDifficulties.indexOf(diff);
+        if (idx !== -1) {
+          if (state.selectedDifficulties.length === 1) return;
+          state.selectedDifficulties.splice(idx, 1);
+        } else {
+          state.selectedDifficulties.push(diff);
+        }
+        renderDifficultyChips();
+      });
+      wrap.appendChild(chip);
+    });
+  }
+
   var GUESS_MODES = [
     { id: "type", label: "Type the Answer" },
     { id: "choice", label: "Multiple Choice" },
@@ -453,7 +572,9 @@
   function allAnswers() {
     var all = [];
     Object.keys(CATEGORIES).forEach(function (cat) {
-      CATEGORIES[cat].forEach(function (q) { all.push(q[1]); });
+      DIFFICULTIES.forEach(function (diff) {
+        CATEGORIES[cat][diff].forEach(function (q) { all.push(q[1]); });
+      });
     });
     return all;
   }
@@ -474,23 +595,36 @@
     return options;
   }
 
-  function nextRound() {
+  function questionKey(cat, diff) { return cat + "::" + diff; }
+
+  function buildPool() {
     var pool = [];
     state.selectedCategories.forEach(function (cat) {
-      var used = state.usedQuestions[cat] || [];
-      CATEGORIES[cat].forEach(function (q, i) {
-        if (used.indexOf(i) === -1) pool.push({ cat: cat, idx: i, q: q[0], a: q[1] });
+      state.selectedDifficulties.forEach(function (diff) {
+        var key = questionKey(cat, diff);
+        var used = state.usedQuestions[key] || [];
+        CATEGORIES[cat][diff].forEach(function (q, i) {
+          if (used.indexOf(i) === -1) pool.push({ cat: cat, diff: diff, idx: i, q: q[0], a: q[1] });
+        });
       });
     });
+    return pool;
+  }
+
+  function nextRound() {
+    var pool = buildPool();
     if (pool.length === 0) {
-      state.selectedCategories.forEach(function (cat) { state.usedQuestions[cat] = []; });
       state.selectedCategories.forEach(function (cat) {
-        CATEGORIES[cat].forEach(function (q, i) { pool.push({ cat: cat, idx: i, q: q[0], a: q[1] }); });
+        state.selectedDifficulties.forEach(function (diff) {
+          state.usedQuestions[questionKey(cat, diff)] = [];
+        });
       });
+      pool = buildPool();
     }
     var pick = pickRandom(pool);
-    if (!state.usedQuestions[pick.cat]) state.usedQuestions[pick.cat] = [];
-    state.usedQuestions[pick.cat].push(pick.idx);
+    var key = questionKey(pick.cat, pick.diff);
+    if (!state.usedQuestions[key]) state.usedQuestions[key] = [];
+    state.usedQuestions[key].push(pick.idx);
     state.currentQuestion = pick;
     state.givenAnswers = {};
     state.judgedCorrect = {};
@@ -503,7 +637,7 @@
     state.turnOrder = order;
     state.turnIndex = 0;
 
-    $("ri-category").textContent = pick.cat;
+    $("ri-category").textContent = pick.cat + " · " + pick.diff;
     $("ri-text").textContent = pick.q;
     startTimer(["ri-timer"]);
     showScreen("screen-round-intro");
@@ -579,7 +713,7 @@
   $("btn-ready-to-answer").addEventListener("click", function () {
     var name = state.players[state.turnOrder[state.turnIndex]];
     $("input-name").textContent = name;
-    $("input-category").textContent = state.currentQuestion.cat;
+    $("input-category").textContent = state.currentQuestion.cat + " · " + state.currentQuestion.diff;
     $("input-question").textContent = state.currentQuestion.q;
     $("input-answer-field").value = "";
 
@@ -704,6 +838,7 @@
   // ---------- Init ----------
   renderPlayerList();
   renderCategoryChips();
+  renderDifficultyChips();
   renderGuessModeChips();
 })();
 </script>
