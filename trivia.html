@@ -6,15 +6,14 @@
 <title>Trivia Party</title>
 <style>
   :root {
-    --bg: #10151f;
-    --panel: #1a2233;
-    --panel-2: #232e45;
-    --accent: #4ee6a7;
-    --accent-2: #ff5d8f;
-    --accent-3: #ffd166;
-    --text: #eef2f9;
-    --text-dim: #93a0b8;
-    --border: #2c3a55;
+    --bg: #1c1030;
+    --panel: #2a1b47;
+    --panel-2: #35225c;
+    --accent: #ffb454;
+    --accent-2: #ff5d7a;
+    --text: #f6efff;
+    --text-dim: #b6a2da;
+    --border: #4a2f73;
   }
   * { box-sizing: border-box; }
   html, body {
@@ -67,7 +66,7 @@
   }
   .icon-btn:active { transform: scale(0.95); }
   button.primary {
-    background: var(--accent); color: #08130d; border: none; padding: 15px; border-radius: 12px;
+    background: var(--accent); color: #2a1300; border: none; padding: 15px; border-radius: 12px;
     font-size: 1.05rem; font-weight: 700; cursor: pointer; width: 100%;
   }
   button.primary:active { transform: scale(0.98); }
@@ -75,35 +74,37 @@
     background: transparent; color: var(--text); border: 1px solid var(--border);
     padding: 13px; border-radius: 12px; font-size: 0.95rem; cursor: pointer; width: 100%;
   }
-  button.danger { background: var(--accent-2); color: #2a0713; }
+  button.danger { background: var(--accent-2); color: #340710; }
   button:disabled { opacity: 0.4; cursor: not-allowed; }
   .chip-group { display: flex; flex-wrap: wrap; gap: 8px; }
   .chip {
     padding: 8px 14px; border-radius: 999px; border: 1px solid var(--border);
     background: var(--panel-2); color: var(--text-dim); font-size: 0.85rem; cursor: pointer; user-select: none;
   }
-  .chip.selected { background: var(--accent); color: #08130d; border-color: var(--accent); font-weight: 600; }
+  .chip.selected { background: var(--accent); color: #2a1300; border-color: var(--accent); font-weight: 600; }
   .center { text-align: center; }
   .category-label { color: var(--text-dim); font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.06em; }
   .big-name { font-size: 1.8rem; font-weight: 800; margin: 6px 0; }
   .timer-display {
-    font-size: 2.2rem; font-weight: 800; font-variant-numeric: tabular-nums;
-    color: var(--accent); margin: 6px 0;
+    font-size: 1.7rem; font-weight: 800; font-variant-numeric: tabular-nums;
+    color: var(--accent); margin: 4px 0;
   }
   .timer-display.low { color: var(--accent-2); }
   .question-text { font-size: 1.4rem; font-weight: 700; margin: 10px 0; line-height: 1.35; }
   .answer-text { font-size: 1.8rem; font-weight: 800; color: var(--accent); margin: 10px 0; }
   .row { display: flex; gap: 8px; }
   .row > * { flex: 1; }
-  .score-toggle-row {
+  .pass-icon { font-size: 3rem; margin: 10px 0; }
+  .judge-row {
     display: flex; justify-content: space-between; align-items: center; gap: 10px;
     padding: 10px 12px; border-radius: 10px; background: var(--panel-2); border: 1px solid var(--border);
     margin-bottom: 8px; cursor: pointer; user-select: none;
   }
-  .score-toggle-row.got-it { background: rgba(78,230,167,0.15); border-color: var(--accent); }
-  .score-toggle-row .pname { font-weight: 600; }
-  .score-toggle-row .mark { font-size: 1.3rem; color: var(--text-dim); }
-  .score-toggle-row.got-it .mark { color: var(--accent); }
+  .judge-row.correct { background: rgba(255,180,84,0.18); border-color: var(--accent); }
+  .judge-row .pname { font-weight: 600; }
+  .judge-row .given-answer { color: var(--text-dim); font-size: 0.85rem; }
+  .judge-row .mark { font-size: 1.2rem; color: var(--text-dim); flex: none; }
+  .judge-row.correct .mark { color: var(--accent); }
   .scoreboard { display: flex; flex-direction: column; gap: 6px; }
   .score-row { display: flex; justify-content: space-between; padding: 6px 4px; }
   .target-score-line {
@@ -112,7 +113,6 @@
   }
   .target-score-line strong { color: var(--accent); font-size: 1.1rem; }
   small.hint { color: var(--text-dim); display: block; margin-top: 4px; font-size: 0.78rem; }
-  .pass-icon { font-size: 3rem; margin: 10px 0; }
 </style>
 </head>
 <body>
@@ -120,7 +120,7 @@
   <div class="row" style="align-items:center; margin-bottom:4px;">
     <h1 style="margin:0;">🧠 Trivia <span>Party</span></h1>
   </div>
-  <div class="subtitle">Pass-and-play trivia — everyone plays off one screen &middot; <a class="top-link" href="index.html">&larr; all games</a></div>
+  <div class="subtitle">Pass-and-play trivia — everyone answers in private &middot; <a class="top-link" href="index.html">&larr; all games</a></div>
 
   <!-- SETUP -->
   <div class="screen active" id="screen-setup">
@@ -132,7 +132,7 @@
     <div class="card">
       <label>Categories</label>
       <div class="chip-group" id="category-chips"></div>
-      <small class="hint">Pick specific categories, or leave "All" selected for the full mix.</small>
+      <small class="hint">Pick specific categories, or leave them all selected for the full mix.</small>
     </div>
     <div class="card">
       <label>Points to Win</label>
@@ -146,29 +146,68 @@
     <button class="primary" id="btn-start-game" type="button">Start Game</button>
   </div>
 
-  <!-- QUESTION -->
-  <div class="screen" id="screen-question">
+  <!-- ROUND INTRO -->
+  <div class="screen" id="screen-round-intro">
     <div class="card center">
-      <span class="category-label" id="q-category"></span>
-      <div class="question-text" id="q-text"></div>
-      <div class="timer-display" id="q-timer">0:60</div>
-      <small class="hint">Everyone shout out or write down your answer before time's up!</small>
+      <span class="category-label" id="ri-category"></span>
+      <div class="question-text" id="ri-text"></div>
+      <div class="timer-display" id="ri-timer">1:00</div>
+      <small class="hint">The device will be passed to each player one at a time to type their own answer in private — no calling it out!</small>
     </div>
-    <button class="primary" id="btn-everyone-ready" type="button">Everyone's Ready — Reveal Answer</button>
-    <small class="hint center">Tap this early if the whole table agrees — no need to wait out the full 60 seconds.</small>
+    <button class="primary" id="btn-start-answering" type="button">Start Answering</button>
   </div>
 
-  <!-- ANSWER REVEAL + SCORING -->
-  <div class="screen" id="screen-answer">
+  <!-- PASS TO PLAYER -->
+  <div class="screen" id="screen-pass-turn">
     <div class="card center">
-      <span class="category-label">The answer is</span>
-      <div class="answer-text" id="a-text"></div>
+      <div class="pass-icon">📱➡️✍️</div>
+      <div>Pass the device to</div>
+      <div class="big-name" id="pass-name"></div>
+      <small class="hint">Only <span id="pass-name-2"></span> should look at the screen — everyone else, look away!</small>
+      <div class="timer-display" id="pass-timer" style="margin-top:10px;">1:00</div>
+    </div>
+    <button class="primary" id="btn-ready-to-answer" type="button">I'm ready to answer</button>
+    <button class="secondary" id="btn-reveal-now-pass" type="button">Everyone agrees — reveal answers now</button>
+  </div>
+
+  <!-- ANSWER INPUT -->
+  <div class="screen" id="screen-answer-input">
+    <div class="card center" style="padding:10px 16px;">
+      <span class="category-label">Answering as</span>
+      <div class="big-name" id="input-name" style="font-size:1.3rem; margin:2px 0;"></div>
+      <div class="timer-display" id="input-timer">1:00</div>
     </div>
     <div class="card">
-      <label>Who got it right? (tap to award a point)</label>
-      <div id="score-toggle-list"></div>
+      <span class="category-label" id="input-category"></span>
+      <div class="question-text" id="input-question"></div>
+      <label>Your answer</label>
+      <input type="text" id="input-answer-field" placeholder="Type what you think it is..." maxlength="60">
     </div>
-    <button class="primary" id="btn-next-question" type="button">Next Question</button>
+    <button class="primary" id="btn-submit-answer" type="button">Lock In Answer</button>
+    <button class="secondary" id="btn-reveal-now-input" type="button">Everyone agrees — reveal answers now</button>
+  </div>
+
+  <!-- READY TO REVEAL -->
+  <div class="screen" id="screen-ready-reveal">
+    <div class="card center">
+      <div class="pass-icon">🙌</div>
+      <div>Everyone's answered!</div>
+      <div class="big-name" style="font-size:1.3rem;">Put the device in the middle so everyone can see.</div>
+    </div>
+    <button class="primary" id="btn-show-answer" type="button">Show the Answer</button>
+  </div>
+
+  <!-- REVEAL + JUDGE -->
+  <div class="screen" id="screen-reveal">
+    <div class="card center">
+      <span class="category-label">The answer was</span>
+      <div class="answer-text" id="reveal-answer-text"></div>
+    </div>
+    <div class="card">
+      <label>Who got it right? (auto-checked — tap to correct any calls)</label>
+      <div id="judge-list"></div>
+    </div>
+    <button class="primary" id="btn-next-round" type="button">Next Round</button>
   </div>
 
   <!-- GAME WON -->
@@ -190,7 +229,7 @@
 (function () {
   "use strict";
 
-  var QUESTION_TIME = 60;
+  var ROUND_TIME = 60;
 
   var CATEGORIES = {
     "Animals": [
@@ -230,11 +269,11 @@
       ["How many bones are in the human body (roughly)?", "206"]
     ],
     "Sports": [
-      ["How many players are on a basketball team on the court at once?", "5"],
+      ["How many players from one basketball team are on the court at once?", "5"],
       ["What do you wear on your head when riding a bike?", "A helmet"],
       ["In soccer, what do you call it when the ball goes in the net?", "A goal"],
       ["What sport uses a racket and a net, with players hitting a ball back and forth?", "Tennis"],
-      ["How many players are on a soccer team on the field?", "11"],
+      ["How many players from one soccer team are on the field?", "11"],
       ["What do swimmers wear on their eyes?", "Goggles"],
       ["In baseball, how many bases are there (not counting home plate)?", "3"],
       ["What do you call it when you score in football (American) by carrying the ball into the end zone?", "A touchdown"],
@@ -274,7 +313,10 @@
     scores: {},
     usedQuestions: {},
     currentQuestion: null,
-    scoredThisRound: {},
+    turnOrder: [],
+    turnIndex: 0,
+    givenAnswers: {},
+    judgedCorrect: {},
     timerHandle: null,
     timerRemaining: 0
   };
@@ -366,13 +408,13 @@
     state.scores = {};
     names.forEach(function (n) { state.scores[n] = 0; });
     state.usedQuestions = {};
-    nextQuestion();
+    nextRound();
   });
 
-  // ---------- Question flow ----------
+  // ---------- Round setup ----------
   function pickRandom(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
 
-  function nextQuestion() {
+  function nextRound() {
     var pool = [];
     state.selectedCategories.forEach(function (cat) {
       var used = state.usedQuestions[cat] || [];
@@ -381,7 +423,6 @@
       });
     });
     if (pool.length === 0) {
-      // reshuffle: everything's been used, start the used-list over
       state.selectedCategories.forEach(function (cat) { state.usedQuestions[cat] = []; });
       state.selectedCategories.forEach(function (cat) {
         CATEGORIES[cat].forEach(function (q, i) { pool.push({ cat: cat, idx: i, q: q[0], a: q[1] }); });
@@ -391,24 +432,35 @@
     if (!state.usedQuestions[pick.cat]) state.usedQuestions[pick.cat] = [];
     state.usedQuestions[pick.cat].push(pick.idx);
     state.currentQuestion = pick;
-    state.scoredThisRound = {};
+    state.givenAnswers = {};
+    state.judgedCorrect = {};
 
-    $("q-category").textContent = pick.cat;
-    $("q-text").textContent = pick.q;
-    startTimer();
-    showScreen("screen-question");
+    var order = state.players.map(function (_, i) { return i; });
+    for (var i = order.length - 1; i > 0; i--) {
+      var j = Math.floor(Math.random() * (i + 1));
+      var tmp = order[i]; order[i] = order[j]; order[j] = tmp;
+    }
+    state.turnOrder = order;
+    state.turnIndex = 0;
+
+    $("ri-category").textContent = pick.cat;
+    $("ri-text").textContent = pick.q;
+    startTimer(["ri-timer"]);
+    showScreen("screen-round-intro");
   }
 
-  function startTimer() {
+  // ---------- Timer (shared across round-intro + pass + input screens) ----------
+  function startTimer(displayIds) {
     clearInterval(state.timerHandle);
-    state.timerRemaining = QUESTION_TIME;
+    state.timerRemaining = ROUND_TIME;
+    state.timerDisplayIds = displayIds;
     updateTimerDisplay();
     state.timerHandle = setInterval(function () {
       state.timerRemaining--;
       updateTimerDisplay();
       if (state.timerRemaining <= 0) {
         clearInterval(state.timerHandle);
-        goToAnswer();
+        goToReveal();
       }
     }, 1000);
   }
@@ -416,54 +468,122 @@
   function updateTimerDisplay() {
     var m = Math.floor(state.timerRemaining / 60);
     var s = state.timerRemaining % 60;
-    var el = $("q-timer");
-    el.textContent = m + ":" + (s < 10 ? "0" : "") + s;
-    el.classList.toggle("low", state.timerRemaining <= 10);
-  }
-
-  $("btn-everyone-ready").addEventListener("click", function () {
-    clearInterval(state.timerHandle);
-    goToAnswer();
-  });
-
-  // ---------- Answer + scoring ----------
-  function goToAnswer() {
-    $("a-text").textContent = state.currentQuestion.a;
-    renderScoreToggleList();
-    showScreen("screen-answer");
-  }
-
-  function renderScoreToggleList() {
-    var wrap = $("score-toggle-list");
-    wrap.innerHTML = "";
-    state.players.forEach(function (name) {
-      var row = document.createElement("div");
-      row.className = "score-toggle-row" + (state.scoredThisRound[name] ? " got-it" : "");
-      var pname = document.createElement("span");
-      pname.className = "pname";
-      pname.textContent = name;
-      var mark = document.createElement("span");
-      mark.className = "mark";
-      mark.textContent = state.scoredThisRound[name] ? "✓" : "";
-      row.appendChild(pname);
-      row.appendChild(mark);
-      row.addEventListener("click", function () {
-        state.scoredThisRound[name] = !state.scoredThisRound[name];
-        renderScoreToggleList();
-      });
-      wrap.appendChild(row);
+    var text = m + ":" + (s < 10 ? "0" : "") + s;
+    (state.timerDisplayIds || []).forEach(function (id) {
+      var el = $(id);
+      if (!el) return;
+      el.textContent = text;
+      el.classList.toggle("low", state.timerRemaining <= 10);
     });
   }
 
-  $("btn-next-question").addEventListener("click", function () {
+  // ---------- Pass-and-play turn loop ----------
+  $("btn-start-answering").addEventListener("click", function () {
+    goToPassTurn();
+  });
+
+  function goToPassTurn() {
+    if (state.turnIndex >= state.turnOrder.length) {
+      clearInterval(state.timerHandle);
+      showScreen("screen-ready-reveal");
+      return;
+    }
+    var name = state.players[state.turnOrder[state.turnIndex]];
+    $("pass-name").textContent = name;
+    $("pass-name-2").textContent = name;
+    state.timerDisplayIds = ["pass-timer"];
+    updateTimerDisplay();
+    showScreen("screen-pass-turn");
+  }
+
+  $("btn-ready-to-answer").addEventListener("click", function () {
+    var name = state.players[state.turnOrder[state.turnIndex]];
+    $("input-name").textContent = name;
+    $("input-category").textContent = state.currentQuestion.cat;
+    $("input-question").textContent = state.currentQuestion.q;
+    $("input-answer-field").value = "";
+    state.timerDisplayIds = ["input-timer"];
+    updateTimerDisplay();
+    showScreen("screen-answer-input");
+  });
+
+  $("btn-submit-answer").addEventListener("click", function () {
+    var name = state.players[state.turnOrder[state.turnIndex]];
+    state.givenAnswers[name] = $("input-answer-field").value.trim();
+    state.turnIndex++;
+    goToPassTurn();
+  });
+
+  $("btn-reveal-now-pass").addEventListener("click", goToReveal);
+  $("btn-reveal-now-input").addEventListener("click", function () {
+    var name = state.players[state.turnOrder[state.turnIndex]];
+    state.givenAnswers[name] = $("input-answer-field").value.trim();
+    goToReveal();
+  });
+
+  $("btn-show-answer").addEventListener("click", function () {
+    renderReveal();
+  });
+
+  // ---------- Reveal + judging ----------
+  function normalize(s) {
+    return (s || "").toLowerCase().replace(/^(a|an|the)\s+/, "").trim();
+  }
+
+  function goToReveal() {
+    clearInterval(state.timerHandle);
+    renderReveal();
+    showScreen("screen-reveal");
+  }
+
+  function renderReveal() {
+    var correctAnswer = state.currentQuestion.a;
+    $("reveal-answer-text").textContent = correctAnswer;
+    var normCorrect = normalize(correctAnswer);
+
     state.players.forEach(function (name) {
-      if (state.scoredThisRound[name]) state.scores[name] = (state.scores[name] || 0) + 1;
+      if (state.judgedCorrect.hasOwnProperty(name)) return;
+      var given = state.givenAnswers[name];
+      state.judgedCorrect[name] = !!given && normalize(given) === normCorrect;
+    });
+
+    var wrap = $("judge-list");
+    wrap.innerHTML = "";
+    state.players.forEach(function (name) {
+      var row = document.createElement("div");
+      row.className = "judge-row" + (state.judgedCorrect[name] ? " correct" : "");
+      var left = document.createElement("div");
+      var pname = document.createElement("div");
+      pname.className = "pname";
+      pname.textContent = name;
+      var given = document.createElement("div");
+      given.className = "given-answer";
+      given.textContent = state.givenAnswers[name] ? "Answered: \"" + state.givenAnswers[name] + "\"" : "No answer given";
+      left.appendChild(pname);
+      left.appendChild(given);
+      var mark = document.createElement("span");
+      mark.className = "mark";
+      mark.textContent = state.judgedCorrect[name] ? "✓" : "✗";
+      row.appendChild(left);
+      row.appendChild(mark);
+      row.addEventListener("click", function () {
+        state.judgedCorrect[name] = !state.judgedCorrect[name];
+        renderReveal();
+      });
+      wrap.appendChild(row);
+    });
+    showScreen("screen-reveal");
+  }
+
+  $("btn-next-round").addEventListener("click", function () {
+    state.players.forEach(function (name) {
+      if (state.judgedCorrect[name]) state.scores[name] = (state.scores[name] || 0) + 1;
     });
     var winner = state.players.find(function (name) { return state.scores[name] >= state.targetScore; });
     if (winner) {
       showWinner();
     } else {
-      nextQuestion();
+      nextRound();
     }
   });
 
