@@ -3,20 +3,20 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
-<title>First to Worst</title>
 <link rel="apple-touch-icon" href="icon-firsttoworst.png">
 <style>
   :root {
-    --bg: #171009;
-    --panel: #241a10;
-    --panel-2: #2f2216;
-    --accent: #e8a33d;
-    --accent-2: #b03a3a;
-    --text: #f3e9da;
-    --text-dim: #a6927a;
-    --border: #40311f;
+    --bg: #faf7f2;
+    --panel: #ffffff;
+    --panel-2: #f2ece1;
+    --accent: #b45309;
+    --accent-2: #b91c1c;
+    --text: #2b2015;
+    --text-dim: #8a7a68;
+    --border: #e6ddcf;
   }
   * { box-sizing: border-box; }
+  html { font-size: 16px; }
   html, body {
     margin: 0; padding: 0; height: 100%;
     background: var(--bg);
@@ -33,16 +33,23 @@
     flex-direction: column;
     padding: 20px 16px 40px;
   }
-  @media (min-width: 700px) { #app { max-width: 760px; } }
-  @media (min-width: 1000px) { #app { max-width: 900px; } }
+  /* iPad portrait and up -- scale typography and spacing with the root
+     font-size (everything below is set in rem) instead of just widening
+     the container, so the game reads as genuinely bigger, not just wider. */
+  @media (min-width: 700px) {
+    html { font-size: 18px; }
+    #app { max-width: 700px; padding: 32px 24px 56px; }
+  }
+  @media (min-width: 1000px) {
+    html { font-size: 20px; }
+    #app { max-width: 860px; padding: 40px 32px 64px; }
+  }
   h1 { font-size: 1.5rem; margin: 4px 0 2px; letter-spacing: 0.3px; }
   h1 span { color: var(--accent); }
   .subtitle { color: var(--text-dim); font-size: 0.85rem; margin-bottom: 18px; }
-  .top-link { color: var(--text-dim); font-size: 0.8rem; text-decoration: none; }
-  .top-link:hover { color: var(--accent); }
   .screen { display: none; flex-direction: column; gap: 14px; flex: 1; }
   .screen.active { display: flex; }
-  .card { background: var(--panel); border: 1px solid var(--border); border-radius: 14px; padding: 16px; }
+  .card { background: var(--panel); border: 1px solid var(--border); border-radius: 14px; padding: 16px; box-shadow: 0 1px 2px rgba(43,32,21,0.04); }
   label { display: block; font-size: 0.8rem; color: var(--text-dim); margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.06em; }
   input[type="text"], input[type="number"] {
     width: 100%; background: var(--panel-2); border: 1px solid var(--border);
@@ -69,7 +76,7 @@
   }
   .icon-btn:active { transform: scale(0.95); }
   button.primary {
-    background: var(--accent); color: #2a1300; border: none; padding: 15px; border-radius: 12px;
+    background: var(--accent); color: #fff; border: none; padding: 15px; border-radius: 12px;
     font-size: 1.05rem; font-weight: 700; cursor: pointer; width: 100%;
   }
   button.primary:active { transform: scale(0.98); }
@@ -77,56 +84,50 @@
     background: transparent; color: var(--text); border: 1px solid var(--border);
     padding: 13px; border-radius: 12px; font-size: 0.95rem; cursor: pointer; width: 100%;
   }
-  button.danger { background: var(--accent-2); color: #2a0d0d; }
-  button.link {
-    background: none; border: none; color: var(--text-dim); text-decoration: underline;
-    font-size: 0.8rem; cursor: pointer; padding: 6px;
-  }
+  button.danger { background: var(--accent-2); color: #fff; }
   button:disabled { opacity: 0.4; cursor: not-allowed; }
   .chip-group { display: flex; flex-wrap: wrap; gap: 8px; }
   .chip {
     padding: 8px 14px; border-radius: 999px; border: 1px solid var(--border);
     background: var(--panel-2); color: var(--text-dim); font-size: 0.85rem; cursor: pointer; user-select: none;
   }
-  .chip.selected { background: var(--accent); color: #2a1300; border-color: var(--accent); font-weight: 600; }
-  .chip.static { cursor: default; }
+  .chip.selected { background: var(--accent); color: #fff; border-color: var(--accent); font-weight: 600; }
   .center { text-align: center; }
   .category-label { color: var(--text-dim); font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.06em; }
   .big-name { font-size: 1.8rem; font-weight: 800; margin: 6px 0; }
-  .room-code { font-size: 2.6rem; font-weight: 800; letter-spacing: 0.2em; text-align: center; color: var(--accent); margin: 8px 0; }
-  .player-chip-list { display: flex; flex-wrap: wrap; gap: 8px; }
-  .player-chip { background: var(--panel-2); border: 1px solid var(--border); border-radius: 999px; padding: 7px 14px; font-size: 0.85rem; }
-  .host-badge { color: var(--accent); font-size: 0.7rem; margin-left: 4px; }
-  .waiting-text { color: var(--text-dim); text-align: center; padding: 16px 0; }
   .pass-icon { font-size: 3rem; margin: 10px 0; }
   .row { display: flex; gap: 8px; }
   .row > * { flex: 1; }
   .item-preview-list { display: flex; flex-direction: column; gap: 6px; margin-top: 10px; }
   .item-preview { padding: 8px 12px; background: var(--panel-2); border: 1px solid var(--border); border-radius: 10px; font-size: 0.95rem; }
 
+  /* Ranking list -- drag an item by its handle to reorder */
   .rank-list { display: flex; flex-direction: column; gap: 6px; }
   .rank-row {
     display: flex; align-items: center; gap: 10px;
     background: var(--panel-2); border: 1px solid var(--border); border-radius: 12px;
     padding: 10px 10px 10px 6px;
+    transition: box-shadow 0.15s ease, border-color 0.15s ease;
   }
+  .rank-row.dragging { border-color: var(--accent); box-shadow: 0 4px 10px rgba(43,32,21,0.12); }
+  .drag-handle {
+    flex: none; width: 28px; height: 40px; display: flex; align-items: center; justify-content: center;
+    color: var(--text-dim); font-size: 1.3rem; cursor: grab; touch-action: none; letter-spacing: -1px;
+  }
+  .drag-handle:active { cursor: grabbing; }
+  .rank-num-wrap { flex: none; width: 38px; display: flex; flex-direction: column; align-items: center; gap: 2px; }
   .rank-num {
-    flex: none; width: 30px; height: 30px; border-radius: 50%;
-    background: var(--bg); border: 1px solid var(--border);
+    width: 30px; height: 30px; border-radius: 50%;
+    background: var(--panel); border: 1px solid var(--border);
     display: flex; align-items: center; justify-content: center;
     font-weight: 800; font-size: 0.9rem; color: var(--accent);
   }
-  .rank-row:first-child .rank-num { background: var(--accent); color: #2a1300; border-color: var(--accent); }
-  .rank-row:last-child .rank-num { background: var(--accent-2); color: #2a0d0d; border-color: var(--accent-2); }
+  .rank-row:first-child .rank-num { background: var(--accent); color: #fff; border-color: var(--accent); }
+  .rank-row:last-child .rank-num { background: var(--accent-2); color: #fff; border-color: var(--accent-2); }
+  .rank-num-tag { font-size: 0.6rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; }
+  .rank-row:first-child .rank-num-tag { color: var(--accent); }
+  .rank-row:last-child .rank-num-tag { color: var(--accent-2); }
   .rank-item-name { flex: 1; font-size: 1rem; }
-  .rank-moves { display: flex; flex-direction: column; gap: 3px; flex: none; }
-  .rank-move-btn {
-    width: 34px; height: 22px; background: var(--bg); border: 1px solid var(--border);
-    color: var(--text-dim); border-radius: 6px; font-size: 0.75rem; cursor: pointer; line-height: 1;
-  }
-  .rank-move-btn:disabled { opacity: 0.25; cursor: not-allowed; }
-  .rank-move-btn:active:not(:disabled) { transform: scale(0.92); }
-  .rank-endpoints { display: flex; justify-content: space-between; color: var(--text-dim); font-size: 0.75rem; padding: 0 4px; text-transform: uppercase; letter-spacing: 0.06em; }
 
   .order-reveal-list { display: flex; flex-direction: column; gap: 6px; }
   .order-reveal-row {
@@ -134,6 +135,13 @@
     background: var(--panel-2); border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px;
   }
   .order-reveal-row .rank-num { width: 26px; height: 26px; font-size: 0.8rem; }
+  .order-reveal-row.correct { background: rgba(63,125,79,0.13); border-color: #3f7d4f; }
+  .order-reveal-row.wrong { background: rgba(185,28,28,0.08); border-color: var(--accent-2); }
+  .guess-mark { flex: none; font-weight: 800; font-size: 1rem; }
+  .order-reveal-row.correct .guess-mark { color: #3f7d4f; }
+  .order-reveal-row.wrong .guess-mark { color: var(--accent-2); }
+  .guess-block-label { font-size: 0.85rem; font-weight: 600; margin: 12px 0 6px; }
+  .guess-block-label:first-child { margin-top: 0; }
   .standings-row {
     display: flex; justify-content: space-between; align-items: baseline;
     padding: 9px 4px; border-bottom: 1px solid var(--border);
@@ -151,12 +159,27 @@
   }
   .target-score-line strong { color: var(--accent); font-size: 1.1rem; }
   small.hint { color: var(--text-dim); display: block; margin-top: 4px; font-size: 0.78rem; }
+
+  .chip.static { cursor: default; }
+  button.link {
+    background: none; border: none; color: var(--text-dim); text-decoration: underline;
+    font-size: 0.8rem; cursor: pointer; padding: 6px;
+  }
+  .room-code { font-size: 2.6rem; font-weight: 800; letter-spacing: 0.2em; text-align: center; color: var(--accent); margin: 8px 0; }
+  .player-chip-list { display: flex; flex-wrap: wrap; gap: 8px; }
+  .player-chip { background: var(--panel-2); border: 1px solid var(--border); border-radius: 999px; padding: 7px 14px; font-size: 0.85rem; }
+  .host-badge { color: var(--accent); font-size: 0.7rem; margin-left: 4px; }
+  .waiting-text { color: var(--text-dim); text-align: center; padding: 16px 0; }
+  .footer-nav { display: flex; gap: 8px; margin-top: auto; padding-top: 10px; }
+  .footer-nav button { flex: 1; }
+  .top-link { color: var(--text-dim); font-size: 0.8rem; text-decoration: none; }
+  .top-link:hover { color: var(--accent); }
 </style>
 </head>
 <body>
 <div id="app">
   <h1>First to <span>Worst</span></h1>
-  <div class="subtitle">Rank it your way, then see how far off you were &middot; <a class="top-link" href="index.html">&larr; all games</a></div>
+  <div class="subtitle">Pass-and-play: one player secretly ranks 5 things, everyone else guesses the order &middot; <a class="top-link" href="index.html">&larr; all games</a></div>
 
   <!-- HOME: play locally, or create/join a room -->
   <div class="screen active" id="screen-home">
@@ -180,137 +203,24 @@
     <div class="center" id="home-status" style="color:var(--text-dim);font-size:0.85rem;"></div>
   </div>
 
-  <!-- LOCAL SETUP -->
-  <div class="screen" id="screen-local-setup">
-    <div class="card">
-      <label>Players (2&ndash;10)</label>
-      <div id="local-player-list"></div>
-      <button class="secondary" id="local-btn-add-player" type="button">+ Add player</button>
-    </div>
-    <div class="card">
-      <label>Topics</label>
-      <div class="chip-group" id="local-category-chips"></div>
-      <small class="hint">Each round draws one topic and everyone ranks it best to worst, in private. There's no right answer &mdash; you're being scored against each other.</small>
-    </div>
-    <div class="card">
-      <label>Points to Win</label>
-      <div class="target-score-row">
-        <button class="stepper-btn" id="local-btn-target-down" type="button" aria-label="Decrease">&minus;</button>
-        <input type="number" id="local-target-score-input" class="target-score-field" min="1" max="99" value="15">
-        <button class="stepper-btn" id="local-btn-target-up" type="button" aria-label="Increase">+</button>
-      </div>
-      <small class="hint">Each round, whoever ranked closest to the group's combined order earns the most points.</small>
-    </div>
-    <button class="primary" id="local-btn-start-game" type="button">Start Game</button>
-    <button class="link" id="local-btn-back-home" type="button">Back to home</button>
-  </div>
-
-  <!-- LOCAL: ROUND INTRO -->
-  <div class="screen" id="screen-local-round-intro">
-    <div class="card center">
-      <span class="category-label">This round's topic</span>
-      <div class="big-name" id="local-ri-category"></div>
-      <div class="item-preview-list" id="local-ri-items"></div>
-      <small class="hint">Everyone will rank these, one at a time and out of sight of each other. Best at the top, worst at the bottom &mdash; your call.</small>
-    </div>
-    <button class="primary" id="local-btn-start-ranking" type="button">Start Ranking</button>
-  </div>
-
-  <!-- LOCAL: PASS TO PLAYER -->
-  <div class="screen" id="screen-local-pass-turn">
-    <div class="card center">
-      <div class="pass-icon">📱</div>
-      <div>Pass the device to</div>
-      <div class="big-name" id="local-pass-name"></div>
-      <small class="hint">Only <span id="local-pass-name-2"></span> should look &mdash; no peeking or shouting your list out.</small>
-    </div>
-    <button class="primary" id="local-btn-ready-to-rank" type="button">I'm ready to rank</button>
-  </div>
-
-  <!-- LOCAL: RANKING -->
-  <div class="screen" id="screen-local-rank">
-    <div class="card">
-      <span class="category-label" id="local-rank-category"></span>
-      <div class="rank-endpoints"><span>Best</span><span>Worst</span></div>
-      <div class="rank-list" id="local-rank-list"></div>
-    </div>
-    <button class="primary" id="local-btn-submit-rank" type="button">Lock In My Order</button>
-  </div>
-
-  <!-- LOCAL: READY TO REVEAL -->
-  <div class="screen" id="screen-local-ready-reveal">
-    <div class="card center">
-      <div class="pass-icon">🙌</div>
-      <div>Everyone's ranked!</div>
-      <div class="big-name" style="font-size:1.3rem;">Put the device in the middle so everyone can see.</div>
-    </div>
-    <button class="primary" id="local-btn-show-reveal" type="button">Reveal the Group Order</button>
-  </div>
-
-  <!-- LOCAL: REVEAL -->
-  <div class="screen" id="screen-local-reveal">
-    <div class="card">
-      <label>The group's combined order</label>
-      <div class="order-reveal-list" id="local-order-reveal-list"></div>
-      <small class="hint">Built by averaging where everyone placed each item &mdash; nobody chose this order on purpose.</small>
-    </div>
-    <div class="card">
-      <label>Closest to farthest off</label>
-      <div id="local-standings-list"></div>
-      <div class="callout" id="local-round-callout"></div>
-    </div>
-    <button class="primary" id="local-btn-next-round" type="button">Next Round</button>
-  </div>
-
-  <!-- LOCAL: SCOREBOARD -->
-  <div class="screen" id="screen-local-scores">
-    <div class="card">
-      <label>Scoreboard</label>
-      <div class="scoreboard" id="local-scoreboard"></div>
-      <div class="target-score-line">Playing to <strong id="local-scoreboard-target"></strong> points</div>
-    </div>
-    <div class="card center" id="local-end-game-confirm" style="display:none;">
-      <div>End the game and return to the start screen?</div>
-      <div class="row" style="margin-top:10px;">
-        <button class="secondary" id="local-btn-cancel-end-game" type="button">Cancel</button>
-        <button class="danger" id="local-btn-confirm-end-game" type="button">Yes, End Game</button>
-      </div>
-    </div>
-    <div class="row">
-      <button class="secondary" id="local-btn-back-to-round" type="button">Continue Playing</button>
-      <button class="danger" id="local-btn-end-game" type="button">End Game</button>
-    </div>
-  </div>
-
-  <!-- LOCAL: GAME WON -->
-  <div class="screen" id="screen-local-game-won">
-    <div class="card center">
-      <div class="pass-icon">🏆</div>
-      <div class="big-name" id="local-winner-name"></div>
-      <div>came out on top.</div>
-    </div>
-    <div class="card">
-      <label>Final Scores</label>
-      <div class="scoreboard" id="local-winner-scoreboard"></div>
-    </div>
-    <button class="primary" id="local-btn-new-game" type="button">New Game</button>
-  </div>
-
   <!-- MULTIPLAYER LOBBY -->
   <div class="screen" id="screen-lobby">
     <div class="card center">
       <label>Room code — share with players</label>
       <div class="room-code" id="lobby-code"></div>
-      <small class="hint">Everyone opens this page on their own device and enters this code to join.</small>
+      <small class="hint">Everyone opens this page on their own device and enters this code to join. Each round, one random player secretly ranks 5 things and everyone else tries to guess the order.</small>
     </div>
     <div class="card">
       <label>Players</label>
       <div class="player-chip-list" id="lobby-players"></div>
     </div>
-    <div class="card" id="lobby-settings-card">
-      <label>Topics</label>
-      <div class="chip-group" id="category-chips"></div>
-      <label style="margin-top:12px">Points to Win</label>
+    <div class="card">
+      <label>How Do Guessers Play?</label>
+      <div class="chip-group" id="guess-mode-chips"></div>
+      <small class="hint" id="guess-mode-hint"></small>
+    </div>
+    <div class="card">
+      <label>Points to Win</label>
       <div class="target-score-row">
         <button class="stepper-btn" id="btn-target-down" type="button" aria-label="Decrease">&minus;</button>
         <input type="number" id="target-score-input" class="target-score-field" min="1" max="99" value="15">
@@ -322,37 +232,55 @@
     <button class="link" id="btn-leave-room" type="button">Leave room</button>
   </div>
 
-  <!-- MULTIPLAYER: ROUND INTRO -->
-  <div class="screen" id="screen-round-intro">
+  <!-- MULTIPLAYER: guessers wait for the ranker -->
+  <div class="screen" id="screen-guesser-waiting-ranker">
     <div class="card center">
-      <span class="category-label">This round's topic</span>
-      <div class="big-name" id="ri-category"></div>
-      <div class="item-preview-list" id="ri-items"></div>
-      <small class="hint">Rank these on your own device, best at the top, worst at the bottom &mdash; your call. Nobody can see anyone else's list until everyone's locked in.</small>
+      <div class="pass-icon">🤔</div>
+      <div><span id="guesser-waiting-ranker-name"></span> is secretly ranking this round's 5 things…</div>
+      <small class="hint">You'll get to guess the order once they've locked it in.</small>
     </div>
-    <button class="primary" id="btn-start-ranking" type="button">Start Ranking</button>
   </div>
 
-  <!-- MULTIPLAYER: RANKING -->
+  <!-- MULTIPLAYER: ranker waits for guesses -->
+  <div class="screen" id="screen-ranker-waiting">
+    <div class="card center">
+      <div class="pass-icon">🙌</div>
+      <div>Ranking locked in!</div>
+      <small class="hint">Everyone else is now guessing your order — results appear here once they're done.</small>
+    </div>
+  </div>
+
+  <!-- MULTIPLAYER: ranking / guessing (shared drag-list screen) -->
   <div class="screen" id="screen-rank">
     <div class="card">
-      <span class="category-label" id="rank-category"></span>
-      <div class="rank-endpoints"><span>Best</span><span>Worst</span></div>
+      <span class="category-label" id="rank-instructions">Your ranking</span>
       <div class="rank-list" id="rank-list"></div>
+      <small class="hint">Drag an item by its handle (⠿) to reorder &mdash; 1 is best, 5 is worst.</small>
     </div>
     <button class="primary" id="btn-submit-rank" type="button">Lock In My Order</button>
-    <div class="waiting-text" id="rank-waiting" style="display:none">Waiting for other players…</div>
+  </div>
+
+  <!-- MULTIPLAYER: guess locked in, waiting for others -->
+  <div class="screen" id="screen-guess-waiting">
+    <div class="card center">
+      <div class="pass-icon">🙌</div>
+      <div>Guess locked in!</div>
+      <small class="hint">Waiting for everyone else to finish guessing…</small>
+    </div>
   </div>
 
   <!-- MULTIPLAYER: REVEAL -->
   <div class="screen" id="screen-reveal">
     <div class="card">
-      <label>The group's combined order</label>
+      <label id="reveal-order-label">The ranker's real order</label>
       <div class="order-reveal-list" id="order-reveal-list"></div>
-      <small class="hint">Built by averaging where everyone placed each item &mdash; nobody chose this order on purpose.</small>
     </div>
     <div class="card">
-      <label>Closest to farthest off</label>
+      <label>Everyone's Guesses</label>
+      <div id="guess-breakdown"></div>
+    </div>
+    <div class="card">
+      <label>Points This Round</label>
       <div id="standings-list"></div>
       <div class="callout" id="round-callout"></div>
     </div>
@@ -392,6 +320,155 @@
     </div>
     <div class="waiting-text" id="won-waiting" style="display:none">Waiting for host…</div>
   </div>
+<div id="local-app">
+  <h1>First to <span>Worst</span></h1>
+  <div class="subtitle">Pass-and-play: one player secretly ranks 5 things, everyone else guesses the order</div>
+
+  <!-- SETUP -->
+  <div class="screen" id="local-screen-setup">
+    <div class="card" id="local-refresh-resume-banner" style="display:none;">
+      <div class="row" style="align-items:center; gap:10px;">
+        <div style="flex:1;">Looks like the page was refreshed mid-game. Want to keep playing?</div>
+      </div>
+      <div class="row" style="margin-top:10px;">
+        <button class="secondary" id="local-btn-refresh-startnew" type="button">Start New Game</button>
+        <button class="primary" id="local-btn-refresh-continue" type="button">Continue Game</button>
+      </div>
+    </div>
+    <div class="card" id="local-resume-banner" style="display:none;">
+      <div class="row" style="align-items:center; gap:10px;">
+        <div style="flex:1;">Your last game was ended. Was that an accident?</div>
+        <button class="secondary" id="local-btn-resume-game" type="button" style="width:auto; flex:none; padding:10px 14px;">Resume Game</button>
+      </div>
+    </div>
+    <div class="card">
+      <label>Players (2&ndash;10)</label>
+      <div id="local-player-list"></div>
+      <button class="secondary" id="local-btn-add-player" type="button">+ Add player</button>
+      <small class="hint">One player ranks each round, so at least 2 people are needed — there's no solo mode here.</small>
+    </div>
+    <div class="card">
+      <label>How Do Guessers Play?</label>
+      <div class="chip-group" id="local-guess-mode-chips"></div>
+      <small class="hint" id="local-guess-mode-hint"></small>
+    </div>
+    <div class="card">
+      <label>Points to Win</label>
+      <div class="target-score-row">
+        <button class="stepper-btn" id="local-btn-target-down" type="button" aria-label="Decrease">&minus;</button>
+        <input type="number" id="local-target-score-input" class="target-score-field" min="1" max="99" value="15">
+        <button class="stepper-btn" id="local-btn-target-up" type="button" aria-label="Increase">+</button>
+      </div>
+    </div>
+    <div class="card">
+      <label>How Scoring Works</label>
+      <div style="font-size:0.9rem; line-height:1.7;">
+        A guess earns <strong>1 point for every item that lands in its exact correct spot</strong>, out of 5 possible each round &mdash; so if you get 4 of the 5 spots right, that's 4 points; 2 right is 2 points, and so on.
+        <div style="margin-top:8px;">
+          The Ranker only scores if at least one guess gets <strong>all 5</strong> exactly right &mdash; then the Ranker earns 5 points too. That's a flat bonus for the round, not per guesser: even if everyone nails it, the Ranker still only gets 5, never more. If nobody nails it, the Ranker gets 0.
+        </div>
+      </div>
+    </div>
+    <button class="primary" id="local-btn-start-game" type="button">Start Game</button>
+    <button class="link" id="local-btn-back-home" type="button">Back to home</button>
+  </div>
+
+  <!-- PASS TO PLAYER -->
+  <div class="screen" id="local-screen-pass-turn">
+    <div class="card center">
+      <div class="pass-icon" id="local-pass-icon">📱</div>
+      <div id="local-pass-lead">Pass the device to</div>
+      <div class="big-name" id="local-pass-name"></div>
+      <small class="hint" id="local-pass-hint">Only <span id="local-pass-name-2"></span> should look &mdash; no peeking or shouting your list out.</small>
+      <div class="category-label" id="local-pass-items-label" style="margin-top:14px; display:none;">This round's 5 things</div>
+      <div class="item-preview-list" id="local-pass-items" style="display:none;"></div>
+    </div>
+    <button class="primary" id="local-btn-ready-to-rank" type="button">I'm ready</button>
+  </div>
+
+  <!-- RANKING -->
+  <div class="screen" id="local-screen-rank">
+    <div class="card">
+      <span class="category-label" id="local-rank-instructions">Your ranking</span>
+      <div class="rank-list" id="local-rank-list"></div>
+      <small class="hint">Drag an item by its handle (⠿) to reorder &mdash; 1 is best, 5 is worst.</small>
+    </div>
+    <button class="primary" id="local-btn-submit-rank" type="button">Lock In My Order</button>
+  </div>
+
+  <!-- READY TO REVEAL -->
+  <div class="screen" id="local-screen-ready-reveal">
+    <div class="card center">
+      <div class="pass-icon">🙌</div>
+      <div>Everyone's guessed!</div>
+      <div class="big-name" style="font-size:1.3rem;">Put the device in the middle so everyone can see.</div>
+    </div>
+    <button class="primary" id="local-btn-show-reveal" type="button">Reveal the Real Order</button>
+  </div>
+
+  <!-- REVEAL -->
+  <div class="screen" id="local-screen-reveal">
+    <div class="card">
+      <label id="local-reveal-order-label">The ranker's real order</label>
+      <div class="order-reveal-list" id="local-order-reveal-list"></div>
+    </div>
+    <div class="card">
+      <label>Everyone's Guesses</label>
+      <div id="local-guess-breakdown"></div>
+    </div>
+    <div class="card">
+      <label>Points This Round</label>
+      <div id="local-standings-list"></div>
+      <div class="callout" id="local-round-callout"></div>
+    </div>
+    <button class="primary" id="local-btn-next-round" type="button">Next Round</button>
+  </div>
+
+  <!-- SCOREBOARD -->
+  <div class="screen" id="local-screen-scores">
+    <div class="card">
+      <label>Scoreboard</label>
+      <div class="scoreboard" id="local-scoreboard"></div>
+      <div class="target-score-line">Playing to <strong id="local-scoreboard-target"></strong> points</div>
+    </div>
+    <div class="card center" id="local-end-game-confirm" style="display:none;">
+      <div>End the game and return to the start screen?</div>
+      <div class="row" style="margin-top:10px;">
+        <button class="secondary" id="local-btn-cancel-end-game" type="button">Cancel</button>
+        <button class="danger" id="local-btn-confirm-end-game" type="button">Yes, End Game</button>
+      </div>
+    </div>
+    <div class="row">
+      <button class="secondary" id="local-btn-back-to-round" type="button">Continue Playing</button>
+      <button class="danger" id="local-btn-end-game" type="button">End Game</button>
+    </div>
+  </div>
+
+  <!-- GAME WON -->
+  <div class="screen" id="local-screen-game-won">
+    <div class="card center">
+      <div class="pass-icon">🏆</div>
+      <div class="big-name" id="local-winner-name"></div>
+      <div>came out on top.</div>
+    </div>
+    <div class="card">
+      <label>Final Scores</label>
+      <div class="scoreboard" id="local-winner-scoreboard"></div>
+    </div>
+    <div class="card center" id="local-extend-game-form" style="display:none;">
+      <label>New points to win</label>
+      <div class="target-score-row">
+        <button class="stepper-btn" id="local-btn-extend-down" type="button" aria-label="Decrease">&minus;</button>
+        <input type="number" id="local-extend-target-input" class="target-score-field" min="1" max="99">
+        <button class="stepper-btn" id="local-btn-extend-up" type="button" aria-label="Increase">+</button>
+      </div>
+      <small class="hint">Only continue if everyone agrees to keep playing!</small>
+      <button class="secondary" id="local-btn-confirm-extend" type="button" style="margin-top:10px;">Everyone Agrees &mdash; Keep Playing</button>
+    </div>
+    <button class="secondary" id="local-btn-extend-game" type="button">Extend the Game</button>
+    <button class="primary" id="local-btn-new-game" type="button">New Game</button>
+  </div>
+
 </div>
 
 <script type="module">
@@ -404,125 +481,162 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getDatabase(app);
 
-var CATEGORIES = {
-  "Pizza Toppings": ["Pepperoni", "Mushrooms", "Pineapple", "Sausage", "Extra Cheese", "Black Olives", "Bell Peppers", "Anchovies"],
-  "Ways to Spend a Snow Day": ["Sledding", "Staying in Bed", "Building a Snowman", "Hot Chocolate", "Shoveling the Driveway", "Snowball Fight", "Movie Marathon", "Baking"],
-  "Ways to Get Around": ["Bike", "Car", "Train", "Airplane", "Sailboat", "Scooter", "Walking", "Horse"],
-  "School Subjects": ["Math", "Science", "History", "Art", "Gym", "Music", "English", "A Foreign Language"],
-  "Superpowers": ["Flight", "Invisibility", "Super Strength", "Reading Minds", "Time Travel", "Teleportation", "Shapeshifting", "Talking to Animals"],
-  "Chores": ["Dishes", "Laundry", "Vacuuming", "Taking Out the Trash", "Cleaning the Bathroom", "Mowing the Lawn", "Dusting", "Grocery Shopping"],
-  "Breakfast Foods": ["Pancakes", "Cereal", "Scrambled Eggs", "Bacon", "Oatmeal", "Toast", "Waffles", "Fresh Fruit"],
-  "Vacation Types": ["Beach Trip", "Mountain Cabin", "Big City", "Theme Park", "Camping", "Cruise", "Road Trip", "Staying Home"]
-};
-var CODE_CHARS = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+var ITEMS_PER_ROUND = 5;
+
+var ITEMS = [
+    "Pepperoni", "Mushrooms", "Pineapple", "Sausage", "Extra Cheese", "Black Olives", "Bell Peppers", "Anchovies",
+    "Bacon", "Jalapenos", "Spinach", "Onions", "Vanilla", "Chocolate", "Strawberry", "Mint Chocolate Chip",
+    "Cookies and Cream", "Rocky Road", "Butter Pecan", "Pistachio", "Cookie Dough", "Coffee Ice Cream", "Neapolitan",
+    "Bubblegum", "Salted Caramel", "Mango Sorbet", "Flight", "Invisibility", "Super Strength", "Reading Minds",
+    "Time Travel", "Teleportation", "Shapeshifting", "Talking to Animals", "Super Speed", "X-Ray Vision",
+    "Healing Touch", "Freezing Time", "Doing the Dishes", "Laundry", "Vacuuming", "Taking Out the Trash",
+    "Cleaning the Bathroom", "Mowing the Lawn", "Dusting", "Grocery Shopping", "Making the Bed", "Folding Towels",
+    "Washing the Car", "Cleaning the Fridge", "Pancakes", "Cereal", "Scrambled Eggs", "Bacon Strips", "Oatmeal",
+    "Toast", "Waffles", "Fresh Fruit", "French Toast", "Bagels", "Yogurt", "Hash Browns", "Math", "Science",
+    "History", "Art Class", "Gym Class", "Music Class", "English", "A Foreign Language", "Recess", "Computer Class",
+    "Beach Trip", "Mountain Cabin", "Big City Trip", "Theme Park", "Camping Trip", "Cruise", "Road Trip",
+    "Staying Home", "Ski Resort", "National Park", "Island Getaway", "Backpacking Trip", "Bike", "Car", "Train",
+    "Airplane", "Sailboat", "Scooter", "Walking", "Horse", "Skateboard", "City Bus", "Sledding", "Staying in Bed",
+    "Building a Snowman", "Hot Chocolate", "Shoveling the Driveway", "Snowball Fight", "Movie Marathon", "Baking",
+    "Ice Skating", "Making Snow Angels", "Soccer", "Basketball", "Tennis", "Golf", "Boxing", "Swimming", "Cricket",
+    "Rugby", "Hockey", "Baseball", "Surfing", "Cycling", "Skiing", "Bowling", "Monopoly", "Chess", "Checkers",
+    "Scrabble", "Clue", "Risk", "Candy Land", "Sorry!", "Trivial Pursuit", "Jenga", "Battleship", "Connect Four",
+    "Pop Music", "Rock Music", "Country Music", "Jazz", "Classical Music", "Hip Hop", "Reggae", "Blues",
+    "Folk Music", "Electronic Music", "Punk Rock", "Opera", "Comedies", "Horror Movies", "Romance Movies",
+    "Action Movies", "Documentaries", "Musicals", "Westerns", "Fantasy Movies", "Mystery Movies", "Animated Movies",
+    "Thanksgiving", "Halloween", "Christmas", "New Year's Eve", "Fourth of July", "Valentine's Day", "Easter",
+    "Your Birthday", "Labor Day", "St. Patrick's Day", "Groundhog Day", "April Fools' Day", "Sunny Days",
+    "Rainy Days", "Snowy Days", "Windy Days", "Foggy Days", "Thunderstorms", "Cloudy Days", "Humid Days", "Toaster",
+    "Blender", "Microwave", "Air Fryer", "Coffee Maker", "Dishwasher", "Stand Mixer", "Slow Cooker", "Waffle Iron",
+    "Rice Cooker", "Happiness", "Excitement", "Nervousness", "Boredom", "Curiosity", "Jealousy", "Relief",
+    "Confusion", "Pride", "Nostalgia", "Doctor", "Chef", "Pilot", "Firefighter", "Teacher", "Plumber", "Lawyer",
+    "Artist", "Farmer", "Dentist", "Electrician", "Journalist", "Astronaut", "Veterinarian", "Chocolate Bars",
+    "Gummy Bears", "Lollipops", "Licorice", "Sour Candy", "Caramels", "Jellybeans", "Peanut Butter Cups", "Taffy",
+    "Marshmallows", "Hard Candy", "Cotton Candy", "Lemonade", "Iced Tea", "Orange Juice", "Soda", "Smoothies",
+    "Milkshakes", "Coffee", "Sparkling Water", "Apple Cider", "Root Beer", "Coconut Water", "Painting", "Reading",
+    "Gardening", "Photography", "Knitting", "Fishing", "Woodworking", "Playing Guitar", "Dancing", "Puzzles",
+    "Collecting Stamps", "The Kitchen", "The Living Room", "The Bathroom", "The Bedroom", "The Garage",
+    "The Basement", "The Attic", "The Backyard", "Apples", "Bananas", "Oranges", "Strawberries", "Grapes",
+    "Watermelon", "Fresh Pineapple", "Mangoes", "Blueberries", "Peaches", "Cherries", "Kiwi", "Raspberries", "Pears",
+    "Carrots", "Broccoli", "Potatoes", "Corn on the Cob", "Peas", "Fresh Spinach", "Tomatoes", "Cucumbers",
+    "Green Beans", "Raw Onions", "Fresh Bell Peppers", "Zucchini", "Piano", "Guitar", "Drums", "Violin", "Trumpet",
+    "Flute", "Saxophone", "Cello", "Clarinet", "Harmonica", "Ukulele", "Bass Guitar", "Spaghetti", "Penne",
+    "Fettuccine", "Macaroni", "Lasagna", "Ravioli", "Rigatoni", "Linguine", "Bowtie Pasta", "Angel Hair Pasta",
+    "Grilled Cheese", "Peanut Butter and Jelly", "A BLT", "Turkey Club", "Ham and Cheese", "Tuna Salad Sandwich",
+    "A Reuben", "Cheeseburger", "Chicken Salad Sandwich", "Meatball Sub", "Lions", "Elephants", "Giraffes", "Tigers",
+    "Penguins", "Zebras", "Monkeys", "Gorillas", "Kangaroos", "Pandas", "Hippos", "Rhinos", "Polar Bears", "Koalas",
+    "Labradors", "Golden Retrievers", "Poodles", "Bulldogs", "Beagles", "German Shepherds", "Chihuahuas",
+    "Dachshunds", "Huskies", "Pugs", "Corgis", "Boxers", "Snacks", "A Pillow", "A Playlist", "Sunglasses", "A Map",
+    "A Phone Charger", "A Good Book", "Travel Games", "A Camera", "A Water Bottle", "A Blanket",
+    "A Sense of Adventure", "Traffic", "Oversleeping", "Losing Your Keys", "A Car That Wouldn't Start",
+    "An Unexpected Phone Call", "Bad Weather", "No Parking Spots", "Forgetting Something at Home",
+    "A Long Coffee Line", "A Broken Alarm Clock", "A Costume Party", "A Pool Party", "Game Night", "Karaoke Night",
+    "Movie Night", "A Potluck", "A Bonfire", "A Dance Party", "Trivia Night", "A Surprise Party", "Batman",
+    "Superman", "Spider-Man", "Iron Man", "Thor", "The Hulk", "Wonder Woman", "The Flash", "Black Panther",
+    "Aquaman", "Wolverine", "Captain America", "Platformers", "Racing Games", "Puzzle Games", "Shooters", "RPGs",
+    "Sports Games", "Fighting Games", "Sandbox Games", "Rhythm Games", "Strategy Games", "Chocolate Cake",
+    "Vanilla Cake", "Red Velvet Cake", "Carrot Cake", "Cheesecake", "Birthday Cake", "Funfetti Cake", "Lemon Cake",
+    "Ice Cream Cake", "Pound Cake", "Chocolate Chip Cookies", "Oatmeal Raisin Cookies", "Sugar Cookies",
+    "Peanut Butter Cookies", "Snickerdoodles", "Gingerbread Cookies", "Macarons", "Shortbread", "Fortune Cookies",
+    "Sandwich Cookies", "Roller Coasters", "The Ferris Wheel", "Bumper Cars", "The Carousel", "Water Slides",
+    "The Haunted House", "The Log Flume", "Spinning Teacups", "The Drop Tower", "Go-Karts", "Spring", "Summer",
+    "Fall", "Winter", "Ants", "Bees", "Butterflies", "Ladybugs", "Spiders", "Grasshoppers", "Fireflies",
+    "Dragonflies", "Beetles", "Mosquitoes", "Dolphins", "Sharks", "Whales", "Octopuses", "Sea Turtles", "Starfish",
+    "Jellyfish", "Crabs", "Seahorses", "Stingrays", "Clownfish", "Sea Otters", "Cows", "Pigs", "Chickens",
+    "Farm Horses", "Sheep", "Goats", "Ducks", "Turkeys", "Donkeys", "Farm Rabbits", "Red", "Blue", "Green", "Yellow",
+    "Purple", "Orange", "Pink", "Black", "White", "Turquoise", "Maroon", "Gold", "Sneakers", "Sandals", "Boots",
+    "Flip Flops", "High Heels", "Slippers", "Loafers", "Rain Boots", "Cleats", "Hiking Boots", "Dogs", "Cats",
+    "Pet Fish", "Hamsters", "Guinea Pigs", "Pet Birds", "Pet Rabbits", "Pet Turtles", "Building Sandcastles",
+    "Swimming in the Ocean", "Sunbathing", "Collecting Seashells", "Playing Volleyball", "Flying a Kite",
+    "Boogie Boarding", "Reading on the Sand", "Having a Picnic", "Looking for Crabs", "French Fries", "Onion Rings",
+    "Chicken Nuggets", "Fast Food Milkshakes", "Tacos", "Burritos", "Hot Dogs", "Cheeseburgers", "Fried Chicken",
+    "Soft Pretzels", "Rubber Bands", "Old Batteries", "Loose Change", "Rolls of Tape", "Scissors", "Spare Keys",
+    "Birthday Candles", "Twist Ties", "Old Instruction Manuals", "Random Cables", "Taking a Bath", "Napping",
+    "Meditating", "Listening to Music", "Going for a Walk", "Reading a Book", "Watching TV", "Yoga",
+    "Deep Breathing", "Journaling", "Oak Trees", "Maple Trees", "Pine Trees", "Palm Trees", "Willow Trees",
+    "Birch Trees", "Redwoods", "Cherry Blossom Trees", "Cedar Trees", "Magnolia Trees", "Roses", "Tulips",
+    "Sunflowers", "Daisies", "Orchids", "Lilies", "Daffodils", "Peonies", "Marigolds", "Carnations", "Poker",
+    "Blackjack", "Uno", "Go Fish", "Solitaire", "Bridge", "Rummy", "War", "Crazy Eights", "Hearts", "The Joker",
+    "Lex Luthor", "Thanos", "Green Goblin", "Loki", "Magneto", "Darth Vader", "Voldemort", "Doctor Doom", "Venom",
+    "Ballet", "Hip Hop Dance", "Tap Dance", "Salsa Dancing", "Ballroom Dancing", "Breakdancing", "Jazz Dance",
+    "Line Dancing", "Contemporary Dance", "The Waltz", "Trapeze Artists", "Clowns", "Tightrope Walkers", "Jugglers",
+    "Lion Tamers", "Acrobats", "Fire Breathers", "Ringmasters", "A Spatula", "A Whisk", "A Ladle", "Tongs",
+    "A Rolling Pin", "A Grater", "A Peeler", "A Can Opener", "A Colander", "A Cutting Board", "Pizza Day",
+    "Chicken Tenders", "A PB&J", "Chocolate Milk", "Tater Tots", "Mystery Meat", "Fruit Cups",
+    "School Grilled Cheese", "The Salad Bar", "Ice Cream Sandwiches", "Tents", "Sleeping Bags", "Flashlights",
+    "Marshmallow Sticks", "Bug Spray", "Coolers", "Camp Chairs", "Lanterns", "Camping Boots", "Compasses",
+    "Carnival Cotton Candy", "Carnival Ferris Wheels", "Ring Toss", "Funnel Cake", "Fortune Tellers", "Photo Booths",
+    "Balloon Animals", "Face Painting", "Carousel Horses", "Prize Booths", "Snowboarding", "Ice Hockey",
+    "Winter Sledding", "Snowshoeing", "Curling", "Bobsledding", "Swimming Pools", "Backyard BBQs", "Fireworks",
+    "Water Balloon Fights", "Lemonade Stands", "Catching Fireflies", "Running Through Sprinklers", "Popsicles",
+    "Outdoor Movies", "Summer Bike Rides", "A Pocket Knife", "A Lighter", "A Water Filter", "A First Aid Kit",
+    "A Journal", "Sunscreen", "A Fishing Rod", "A Tarp", "A Radio", "A Deck of Cards", "Aries", "Taurus", "Gemini",
+    "Cancer", "Leo", "Virgo", "Libra", "Scorpio", "Sagittarius", "Capricorn", "Aquarius", "Pisces", "Cheddar",
+    "Mozzarella", "Swiss Cheese", "Brie", "Gouda", "Parmesan", "Blue Cheese", "Feta", "Provolone", "Pepper Jack",
+    "Almonds", "Cashews", "Peanuts", "Walnuts", "Pistachios", "Pecans", "Macadamia Nuts", "Hazelnuts", "Green Tea",
+    "Black Tea", "Chamomile Tea", "Peppermint Tea", "Earl Grey", "Herbal Tea", "Chai", "Swings", "Slides",
+    "Monkey Bars", "See-Saws", "Sandboxes", "Merry-Go-Rounds", "Climbing Walls", "Jungle Gyms", "Feeling Sick",
+    "A Snow Day", "A Dentist Appointment", "Sleeping Through Your Alarm", "A Family Trip", "A Broken Alarm",
+    "Just Not Feeling It", "A Ghost Costume", "A Vampire Costume", "A Witch Costume", "A Superhero Costume",
+    "A Pirate Costume", "A Zombie Costume", "A Princess Costume", "A Dinosaur Costume", "A Ninja Costume",
+    "A Mummy Costume", "Jigsaw Puzzles", "Crossword Puzzles", "Sudoku", "Word Searches", "Rubik's Cubes", "Riddles",
+    "Brain Teasers", "Escape Rooms", "A Picnic Blanket", "Sandwiches", "Napkins", "A Frisbee", "Paper Plates",
+    "Chips", "A Cooler", "Baseball Caps", "Beanies", "Sun Hats", "Top Hats", "Cowboy Hats", "Berets", "Fedoras",
+    "Bucket Hats", "Party Hats", "Bike Helmets", "Textbooks", "A School Water Bottle", "A Pencil Case",
+    "A Lunch Box", "Headphones", "A Notebook", "A Calculator", "A Spare Jacket", "Backpack Snacks", "A Laptop",
+    "White Bread", "Whole Wheat Bread", "Sourdough", "Rye Bread", "A Baguette", "Cornbread", "Banana Bread",
+    "Focaccia", "Pita Bread", "Fresh Bagels", "Chicken Noodle Soup", "Tomato Soup", "Minestrone", "Clam Chowder",
+    "Vegetable Soup", "French Onion Soup", "Chili", "Butternut Squash Soup", "Caesar Salad", "Garden Salad",
+    "Fruit Salad", "Potato Salad", "Cobb Salad", "Greek Salad", "Pasta Salad", "Coleslaw", "Fried Eggs",
+    "Poached Eggs", "Boiled Eggs", "Eggs Over Easy", "An Omelette", "Deviled Eggs", "Egg Salad", "A Hammer",
+    "A Screwdriver", "A Wrench", "Nails", "Duct Tape", "A Tape Measure", "Pliers", "A Level", "A Small Flashlight",
+    "Sandpaper", "Reading a Good Book", "Watching Movies", "Baking Cookies", "Doing a Puzzle", "Playing Board Games",
+    "Taking a Nap", "Drawing", "Building a Blanket Fort", "Sleeping In", "A Trip to the Park", "Watching Cartoons",
+    "Playing Video Games", "Visiting Friends", "A Bike Ride", "Baking Something", "Going Shopping",
+    "A Movie Marathon", "Doing Absolutely Nothing", "Charades", "Musical Chairs", "Pin the Tail on the Donkey",
+    "Freeze Dance", "Hot Potato", "Twister", "Truth or Dare", "Scavenger Hunts", "Balloon Pop", "Limbo",
+    "Watching Movies All Night", "Making Popcorn", "Telling Ghost Stories", "Staying Up Too Late", "Pillow Fights",
+    "Karaoke", "Face Masks", "Cornhole", "Horseshoes", "Croquet", "Badminton", "Backyard Frisbee",
+    "A Water Balloon Toss", "Tag", "Hide and Seek", "A Pizza Place", "A Diner", "A Food Truck", "A Buffet",
+    "A Sushi Bar", "A Steakhouse", "A Bakery", "An Ice Cream Shop"
+  ];
 
 function $(id) { return document.getElementById(id); }
+
+
 function showScreen(id) {
-  document.querySelectorAll(".screen").forEach(function (s) { s.classList.remove("active"); });
-  $(id).classList.add("active");
-}
-function pickRandom(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
+    document.querySelectorAll(".screen").forEach(function (s) { s.classList.remove("active"); });
+    $(id).classList.add("active");
+  }
+
 function shuffled(arr) {
-  var a = arr.slice();
-  for (var i = a.length - 1; i > 0; i--) {
-    var j = Math.floor(Math.random() * (i + 1));
-    var tmp = a[i]; a[i] = a[j]; a[j] = tmp;
+    var a = arr.slice();
+    for (var i = a.length - 1; i > 0; i--) {
+      var j = Math.floor(Math.random() * (i + 1));
+      var tmp = a[i]; a[i] = a[j]; a[j] = tmp;
+    }
+    return a;
   }
-  return a;
-}
 
-// Shared scoring/reveal math used by both local and multiplayer modes.
-function computeReveal(items, playerNames, rankingsByName) {
-  var avgRank = {};
-  items.forEach(function (item) { avgRank[item] = 0; });
-  playerNames.forEach(function (name) {
-    rankingsByName[name].forEach(function (item, i) { avgRank[item] += (i + 1); });
-  });
-  items.forEach(function (item) { avgRank[item] = avgRank[item] / playerNames.length; });
-
-  var groupOrder = items.slice().sort(function (a, b) { return avgRank[a] - avgRank[b]; });
-  var groupIndex = {};
-  groupOrder.forEach(function (item, i) { groupIndex[item] = i; });
-
-  var distances = {};
-  playerNames.forEach(function (name) {
-    var playerIndex = {};
-    rankingsByName[name].forEach(function (item, i) { playerIndex[item] = i; });
-    var d = 0;
-    items.forEach(function (item) { d += Math.abs(playerIndex[item] - groupIndex[item]); });
-    distances[name] = d;
-  });
-
-  var uniqueDistances = [];
-  playerNames.forEach(function (name) {
-    if (uniqueDistances.indexOf(distances[name]) === -1) uniqueDistances.push(distances[name]);
-  });
-  uniqueDistances.sort(function (a, b) { return a - b; });
-
-  var roundPoints = {};
-  playerNames.forEach(function (name) {
-    var rank = uniqueDistances.indexOf(distances[name]) + 1;
-    roundPoints[name] = Math.max(1, playerNames.length - rank + 1);
-  });
-
-  return { groupOrder: groupOrder, distances: distances, roundPoints: roundPoints };
-}
-
-function renderOrderRevealList(el, groupOrder) {
-  el.innerHTML = "";
-  groupOrder.forEach(function (item, i) {
-    var row = document.createElement("div");
-    row.className = "order-reveal-row";
-    var num = document.createElement("div");
-    num.className = "rank-num";
-    num.textContent = i + 1;
-    row.appendChild(num);
-    var nameEl = document.createElement("div");
-    nameEl.style.flex = "1";
-    nameEl.textContent = item;
-    row.appendChild(nameEl);
-    el.appendChild(row);
-  });
-}
-
-function renderStandingsList(el, calloutEl, playerNames, distances, roundPoints) {
-  var sortedPlayers = playerNames.slice().sort(function (a, b) { return distances[a] - distances[b]; });
-  el.innerHTML = "";
-  sortedPlayers.forEach(function (name) {
-    var row = document.createElement("div");
-    row.className = "standings-row";
-    row.innerHTML = "<span class=\"pname\">" + name + "</span>" +
-      "<span class=\"pdist\">off by " + distances[name] + "</span>" +
-      "<span class=\"ppts\">+" + roundPoints[name] + "</span>";
-    el.appendChild(row);
-  });
-  if (sortedPlayers.length > 1) {
-    var best = sortedPlayers[0], worst = sortedPlayers[sortedPlayers.length - 1];
-    calloutEl.textContent = (distances[best] === distances[worst])
-      ? "Everyone landed equally close (or far) this round."
-      : best + " read the room best. " + worst + " is on their own wavelength.";
-  } else {
-    calloutEl.textContent = "";
+function correctSpots(guessOrder, trueOrder) {
+    var count = 0;
+    for (var i = 0; i < trueOrder.length; i++) {
+      if (guessOrder[i] === trueOrder[i]) count++;
+    }
+    return count;
   }
-}
-
-function renderScoreboardInto(el, scores) {
-  el.innerHTML = "";
-  var entries = Object.keys(scores).map(function (name) { return { name: name, score: scores[name] }; });
-  entries.sort(function (a, b) { return b.score - a.score; });
-  entries.forEach(function (e) {
-    var row = document.createElement("div");
-    row.className = "score-row";
-    row.innerHTML = "<span>" + e.name + "</span><strong>" + e.score + "</strong>";
-    el.appendChild(row);
-  });
-}
 
 // =========================================================================
 // MULTIPLAYER MODE
 // =========================================================================
 
-var state = {
+var CODE_CHARS = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+var MP_GUESS_MODES = [
+  { id: "separate", label: "Separately", hint: "Guessers rank on their own device, in private — nobody sees anyone else's guess." },
+  { id: "together", label: "Together", hint: "One guesser (the coordinator) drags the shared order live while everyone else watches on their own screen and calls out suggestions out loud or by call/text." }
+];
+
+var mp = {
   uid: null,
   name: "",
   roomCode: null,
@@ -537,13 +651,103 @@ function generateRoomCode() {
   return out;
 }
 
+// ---------- Reusable drag-to-reorder list (multiplayer only; local mode has its own) ----------
+function makeDragRanker(listElId, onLocalChange) {
+  var order = [];
+  var drag = { active: false, item: null, pointerId: null, startY: 0, startIndex: 0, rowHeight: 44 };
+  var readOnly = false;
+
+  function render() {
+    var wrap = $(listElId);
+    wrap.innerHTML = "";
+    var n = order.length;
+    order.forEach(function (item, i) {
+      var row = document.createElement("div");
+      row.className = "rank-row" + (drag.active && drag.item === item ? " dragging" : "");
+
+      var handle = document.createElement("div");
+      handle.className = "drag-handle";
+      handle.textContent = readOnly ? "" : "⠿";
+      if (!readOnly) {
+        handle.addEventListener("pointerdown", function (e) { startDrag(e, item, i, row); });
+      }
+      row.appendChild(handle);
+
+      var numWrap = document.createElement("div");
+      numWrap.className = "rank-num-wrap";
+      var num = document.createElement("div");
+      num.className = "rank-num";
+      num.textContent = i + 1;
+      numWrap.appendChild(num);
+      if (i === 0 || i === n - 1) {
+        var tag = document.createElement("div");
+        tag.className = "rank-num-tag";
+        tag.textContent = i === 0 ? "Best" : "Worst";
+        numWrap.appendChild(tag);
+      }
+      row.appendChild(numWrap);
+
+      var nameEl = document.createElement("div");
+      nameEl.className = "rank-item-name";
+      nameEl.textContent = item;
+      row.appendChild(nameEl);
+
+      wrap.appendChild(row);
+    });
+  }
+
+  function startDrag(e, item, index, rowEl) {
+    if (e.button !== undefined && e.button !== 0) return;
+    e.preventDefault();
+    drag.active = true;
+    drag.item = item;
+    drag.pointerId = e.pointerId;
+    drag.startY = e.clientY;
+    drag.startIndex = index;
+    drag.rowHeight = rowEl.offsetHeight + 6;
+    document.addEventListener("pointermove", onMove);
+    document.addEventListener("pointerup", onEnd);
+    document.addEventListener("pointercancel", onEnd);
+    render();
+  }
+  function onMove(e) {
+    if (!drag.active || e.pointerId !== drag.pointerId) return;
+    var deltaY = e.clientY - drag.startY;
+    var deltaIndex = Math.round(deltaY / drag.rowHeight);
+    var n = order.length;
+    var newIndex = Math.max(0, Math.min(n - 1, drag.startIndex + deltaIndex));
+    var curIndex = order.indexOf(drag.item);
+    if (newIndex !== curIndex) {
+      order.splice(curIndex, 1);
+      order.splice(newIndex, 0, drag.item);
+      render();
+      if (onLocalChange) onLocalChange(order.slice());
+    }
+  }
+  function onEnd(e) {
+    if (e && e.pointerId !== drag.pointerId) return;
+    drag.active = false;
+    drag.item = null;
+    document.removeEventListener("pointermove", onMove);
+    document.removeEventListener("pointerup", onEnd);
+    document.removeEventListener("pointercancel", onEnd);
+    render();
+  }
+
+  return {
+    setOrder: function (o) { order = o.slice(); render(); },
+    getOrder: function () { return order.slice(); },
+    setReadOnly: function (v) { readOnly = v; render(); }
+  };
+}
+
 signInAnonymously(auth).catch(function (err) {
   $("home-status").textContent = "Couldn't connect: " + err.message;
 });
 
 onAuthStateChanged(auth, function (user) {
   if (!user) return;
-  state.uid = user.uid;
+  mp.uid = user.uid;
   tryAutoRejoin();
 });
 
@@ -555,10 +759,10 @@ function tryAutoRejoin() {
   get(roomRef(saved.code)).then(function (snap) {
     if (!snap.exists()) { localStorage.removeItem("f2w_room"); return; }
     var roomVal = snap.val();
-    if (roomVal.players && roomVal.players[state.uid]) {
-      state.roomCode = saved.code;
-      state.name = saved.name;
-      state.isHost = roomVal.hostUid === state.uid;
+    if (roomVal.players && roomVal.players[mp.uid]) {
+      mp.roomCode = saved.code;
+      mp.name = saved.name;
+      mp.isHost = roomVal.hostUid === mp.uid;
       subscribeRoom(saved.code);
     }
   });
@@ -567,7 +771,7 @@ function tryAutoRejoin() {
 $("btn-create-room").addEventListener("click", function () {
   var name = $("input-name").value.trim();
   if (!name) { $("home-status").textContent = "Enter your name first."; return; }
-  if (!state.uid) { $("home-status").textContent = "Still connecting, try again in a moment."; return; }
+  if (!mp.uid) { $("home-status").textContent = "Still connecting, try again in a moment."; return; }
   createRoomFlow(name);
 });
 
@@ -576,7 +780,7 @@ $("btn-join-room").addEventListener("click", function () {
   var code = $("input-join-code").value.trim().toUpperCase();
   if (!name) { $("home-status").textContent = "Enter your name first."; return; }
   if (!code) { $("home-status").textContent = "Enter a room code."; return; }
-  if (!state.uid) { $("home-status").textContent = "Still connecting, try again in a moment."; return; }
+  if (!mp.uid) { $("home-status").textContent = "Still connecting, try again in a moment."; return; }
   joinRoomFlow(code, name);
 });
 
@@ -584,19 +788,20 @@ async function createRoomFlow(name) {
   $("home-status").textContent = "Creating room…";
   var code;
   do { code = generateRoomCode(); } while ((await get(roomRef(code))).exists());
-  var uid = state.uid;
+  var uid = mp.uid;
   await set(roomRef(code), {
     createdAt: Date.now(),
     hostUid: uid,
     phase: "lobby",
-    settings: { categories: Object.keys(CATEGORIES), targetScore: 15 },
-    usedCategories: [],
+    settings: { guessMode: "separate", targetScore: 15 },
+    rankerIndex: -1,
+    usedItems: [],
     players: { [uid]: { name: name, joinedAt: Date.now() } },
     scores: { [uid]: 0 }
   });
-  state.roomCode = code;
-  state.name = name;
-  state.isHost = true;
+  mp.roomCode = code;
+  mp.name = name;
+  mp.isHost = true;
   localStorage.setItem("f2w_room", JSON.stringify({ code: code, name: name }));
   subscribeRoom(code);
 }
@@ -605,15 +810,15 @@ async function joinRoomFlow(code, name) {
   $("home-status").textContent = "Joining…";
   var snap = await get(roomRef(code));
   if (!snap.exists()) { $("home-status").textContent = "Room not found."; return; }
-  var uid = state.uid;
+  var uid = mp.uid;
   var val = snap.val();
   await update(ref(db, "rooms/" + code + "/players/" + uid), { name: name, joinedAt: Date.now() });
   if (!val.scores || val.scores[uid] === undefined) {
     await update(ref(db, "rooms/" + code + "/scores"), (function () { var o = {}; o[uid] = 0; return o; })());
   }
-  state.roomCode = code;
-  state.name = name;
-  state.isHost = val.hostUid === uid;
+  mp.roomCode = code;
+  mp.name = name;
+  mp.isHost = val.hostUid === uid;
   localStorage.setItem("f2w_room", JSON.stringify({ code: code, name: name }));
   subscribeRoom(code);
 }
@@ -626,46 +831,42 @@ $("btn-leave-room").addEventListener("click", function () {
 
 function subscribeRoom(code) {
   onValue(roomRef(code), function (snap) {
-    state.room = snap.val();
-    if (!state.room) {
+    mp.room = snap.val();
+    if (!mp.room) {
       localStorage.removeItem("f2w_room");
       showScreen("screen-home");
       $("home-status").textContent = "Room closed.";
       return;
     }
-    state.isHost = state.room.hostUid === state.uid;
+    mp.isHost = mp.room.hostUid === mp.uid;
     render();
   });
 }
 
 function render() {
-  var room = state.room;
+  var room = mp.room;
   if (!room) return;
   if (room.phase === "lobby") renderLobby();
-  else if (room.phase === "round-intro") renderRoundIntro();
-  else if (room.phase === "rank") renderRank();
+  else if (room.phase === "rank") renderRankPhase();
   else if (room.phase === "reveal") renderRevealScreen();
   else if (room.phase === "scores") renderScoresScreen();
   else if (room.phase === "game-won") renderGameWonScreen();
 }
 
-function playerName(uid) {
-  return state.room.players && state.room.players[uid] ? state.room.players[uid].name : "?";
-}
-function playerUids() { return state.room.players ? Object.keys(state.room.players) : []; }
-function playerNames() { return playerUids().map(playerName); }
+function mpPlayerName(uid) { return mp.room.players && mp.room.players[uid] ? mp.room.players[uid].name : "?"; }
+function mpPlayerUids() { return mp.room.players ? Object.keys(mp.room.players) : []; }
 
 // ---------- Lobby ----------
 function renderLobby() {
-  var room = state.room;
-  $("lobby-code").textContent = state.roomCode;
+  var room = mp.room;
+  $("lobby-code").textContent = mp.roomCode;
 
   var list = $("lobby-players");
   list.innerHTML = "";
-  playerUids().forEach(function (uid) {
+  mpPlayerUids().forEach(function (uid) {
     var chip = document.createElement("div");
     chip.className = "player-chip";
-    chip.textContent = playerName(uid);
+    chip.textContent = mpPlayerName(uid);
     if (uid === room.hostUid) {
       var badge = document.createElement("span");
       badge.className = "host-badge";
@@ -675,48 +876,41 @@ function renderLobby() {
     list.appendChild(chip);
   });
 
-  var catWrap = $("category-chips");
-  catWrap.innerHTML = "";
-  var selected = room.settings.categories || [];
-  Object.keys(CATEGORIES).forEach(function (cat) {
+  var modeWrap = $("guess-mode-chips");
+  modeWrap.innerHTML = "";
+  MP_GUESS_MODES.forEach(function (mode) {
     var chip = document.createElement("div");
-    chip.className = "chip" + (selected.indexOf(cat) !== -1 ? " selected" : "") + (state.isHost ? "" : " static");
-    chip.textContent = cat;
-    if (state.isHost) {
+    chip.className = "chip" + (room.settings.guessMode === mode.id ? " selected" : "") + (mp.isHost ? "" : " static");
+    chip.textContent = mode.label;
+    if (mp.isHost) {
       chip.addEventListener("click", function () {
-        var idx = selected.indexOf(cat);
-        var next = selected.slice();
-        if (idx !== -1) {
-          if (next.length === 1) return;
-          next.splice(idx, 1);
-        } else {
-          next.push(cat);
-        }
-        update(ref(db, "rooms/" + state.roomCode + "/settings"), { categories: next });
+        update(ref(db, "rooms/" + mp.roomCode + "/settings"), { guessMode: mode.id });
       });
     }
-    catWrap.appendChild(chip);
+    modeWrap.appendChild(chip);
   });
+  var activeMode = MP_GUESS_MODES.filter(function (m) { return m.id === room.settings.guessMode; })[0];
+  $("guess-mode-hint").textContent = activeMode ? activeMode.hint : "";
 
   var targetInput = $("target-score-input");
   targetInput.value = room.settings.targetScore;
-  targetInput.disabled = !state.isHost;
+  targetInput.disabled = !mp.isHost;
   var setTarget = function (v) {
     v = Math.max(1, Math.min(99, v));
-    update(ref(db, "rooms/" + state.roomCode + "/settings"), { targetScore: v });
+    update(ref(db, "rooms/" + mp.roomCode + "/settings"), { targetScore: v });
   };
   targetInput.onchange = function () { setTarget(parseInt(targetInput.value, 10) || 1); };
   $("btn-target-down").onclick = function () { setTarget((room.settings.targetScore || 1) - 1); };
   $("btn-target-up").onclick = function () { setTarget((room.settings.targetScore || 1) + 1); };
-  $("btn-target-down").disabled = !state.isHost;
-  $("btn-target-up").disabled = !state.isHost;
+  $("btn-target-down").disabled = !mp.isHost;
+  $("btn-target-up").disabled = !mp.isHost;
 
   var startBtn = $("btn-start-game");
   var waiting = $("lobby-waiting");
-  if (state.isHost) {
+  if (mp.isHost) {
     startBtn.style.display = "";
     waiting.style.display = "none";
-    startBtn.disabled = playerUids().length < 1;
+    startBtn.disabled = mpPlayerUids().length < 2;
   } else {
     startBtn.style.display = "none";
     waiting.style.display = "";
@@ -726,163 +920,309 @@ function renderLobby() {
 }
 
 $("btn-start-game").addEventListener("click", function () {
-  if (!state.isHost) return;
-  startRound();
+  if (!mp.isHost) return;
+  startMpRound();
 });
 
-async function startRound() {
-  var room = state.room;
-  var used = room.usedCategories || [];
-  var available = (room.settings.categories || []).filter(function (c) { return used.indexOf(c) === -1; });
-  if (available.length === 0) {
-    used = [];
-    available = (room.settings.categories || []).slice();
+async function startMpRound() {
+  var room = mp.room;
+  var uids = mpPlayerUids();
+  var available = ITEMS.filter(function (it) { return (room.usedItems || []).indexOf(it) === -1; });
+  var usedItems = room.usedItems || [];
+  if (available.length < ITEMS_PER_ROUND) {
+    usedItems = [];
+    available = ITEMS.slice();
   }
-  var cat = pickRandom(available);
-  used = used.concat([cat]);
+  var picks = shuffled(available).slice(0, ITEMS_PER_ROUND);
+  usedItems = usedItems.concat(picks);
 
-  await update(roomRef(state.roomCode), {
-    phase: "round-intro",
-    usedCategories: used,
-    round: { category: cat, items: CATEGORIES[cat], rankings: {} }
-  });
-}
+  var rankerIndex = ((room.rankerIndex || -1) + 1) % uids.length;
+  var rankerUid = uids[rankerIndex];
 
-// ---------- Round intro ----------
-function renderRoundIntro() {
-  var round = state.room.round;
-  $("ri-category").textContent = round.category;
-  var wrap = $("ri-items");
-  wrap.innerHTML = "";
-  round.items.forEach(function (item) {
-    var el = document.createElement("div");
-    el.className = "item-preview";
-    el.textContent = item;
-    wrap.appendChild(el);
-  });
-  showScreen("screen-round-intro");
-}
-
-var myRankOrder = [];
-
-$("btn-start-ranking").addEventListener("click", function () {
-  var round = state.room.round;
-  myRankOrder = shuffled(round.items);
-  $("rank-category").textContent = round.category;
-  renderMyRankList();
-  $("rank-waiting").style.display = "none";
-  $("btn-submit-rank").style.display = "";
-  update(roomRef(state.roomCode), { phase: "rank" });
-});
-
-// ---------- Ranking ----------
-function renderRank() {
-  var round = state.room.round;
-  var myVoted = round.rankings && round.rankings[state.uid];
-  $("rank-category").textContent = round.category;
-  if (!myVoted && myRankOrder.length === 0) {
-    myRankOrder = shuffled(round.items);
-  }
-  if (myVoted) {
-    $("btn-submit-rank").style.display = "none";
-    $("rank-waiting").style.display = "";
-    $("rank-list").innerHTML = "";
-  } else {
-    $("btn-submit-rank").style.display = "";
-    $("rank-waiting").style.display = "none";
-    renderMyRankList();
-  }
-  showScreen("screen-rank");
-
-  if (state.isHost) {
-    var uids = playerUids();
-    var count = round.rankings ? Object.keys(round.rankings).length : 0;
-    if (count >= uids.length && uids.length > 0) {
-      finishRanking();
+  await update(roomRef(mp.roomCode), {
+    phase: "rank",
+    usedItems: usedItems,
+    rankerIndex: rankerIndex,
+    round: {
+      items: picks,
+      rankerUid: rankerUid,
+      rankerOrder: null,
+      guesses: {},
+      sharedGuessDraft: null,
+      sharedGuessLocked: false,
+      settled: false
     }
+  });
+}
+
+// ---------- Ranking phase ----------
+var mpRanker = null; // lazily-created drag controller for whichever role I'm playing this round
+var mpRankerRoundKey = null;
+
+function mpRoundKey(round) { return round.items.join("|") + "::" + round.rankerUid; }
+
+function guesserCoordinatorUid(room, round) {
+  var guessers = mpPlayerUids().filter(function (uid) { return uid !== round.rankerUid; });
+  return guessers.sort()[0];
+}
+
+function renderRankPhase() {
+  var room = mp.room;
+  var round = room.round;
+  var key = mpRoundKey(round);
+  var iAmRanker = round.rankerUid === mp.uid;
+
+  if (iAmRanker) {
+    if (round.rankerOrder) {
+      showScreen("screen-ranker-waiting");
+      return;
+    }
+    $("rank-instructions").textContent = "Arrange these YOUR way, best to worst — this is what everyone else will try to guess.";
+    $("btn-submit-rank").textContent = "Lock In My Real Ranking";
+    $("btn-submit-rank").style.display = "";
+    if (mpRankerRoundKey !== key) {
+      mpRankerRoundKey = key;
+      mpRanker = makeDragRanker("rank-list");
+      mpRanker.setOrder(shuffled(round.items));
+    }
+    $("btn-submit-rank").onclick = function () {
+      update(ref(db, "rooms/" + mp.roomCode + "/round"), { rankerOrder: mpRanker.getOrder() });
+    };
+    showScreen("screen-rank");
+    return;
+  }
+
+  if (!round.rankerOrder) {
+    $("guesser-waiting-ranker-name").textContent = mpPlayerName(round.rankerUid);
+    showScreen("screen-guesser-waiting-ranker");
+    return;
+  }
+
+  if (room.settings.guessMode === "together") {
+    renderTogetherGuess(room, round, key);
+  } else {
+    renderSeparateGuess(room, round, key);
+  }
+
+  if (mp.isHost) checkGuessingDone();
+}
+
+function renderSeparateGuess(room, round, key) {
+  var myGuess = round.guesses ? round.guesses[mp.uid] : undefined;
+  if (myGuess) {
+    showScreen("screen-guess-waiting");
+    return;
+  }
+  $("rank-instructions").textContent = "Guess how " + mpPlayerName(round.rankerUid) + " secretly ranked these, best to worst.";
+  $("btn-submit-rank").textContent = "Lock In My Guess";
+  $("btn-submit-rank").style.display = "";
+  if (mpRankerRoundKey !== key) {
+    mpRankerRoundKey = key;
+    mpRanker = makeDragRanker("rank-list");
+    mpRanker.setOrder(shuffled(round.items));
+  }
+  $("btn-submit-rank").onclick = function () {
+    update(ref(db, "rooms/" + mp.roomCode + "/round/guesses"), (function () { var o = {}; o[mp.uid] = mpRanker.getOrder(); return o; })());
+  };
+  showScreen("screen-rank");
+}
+
+function renderTogetherGuess(room, round, key) {
+  var coordinatorUid = guesserCoordinatorUid(room, round);
+  var iAmCoordinator = coordinatorUid === mp.uid;
+
+  if (round.sharedGuessLocked) {
+    showScreen("screen-guess-waiting");
+    return;
+  }
+
+  $("rank-instructions").textContent = iAmCoordinator
+    ? "You're the coordinator — drag to arrange the group's guess. Talk it out loud with everyone else, who are watching on their own screens."
+    : "Watching " + mpPlayerName(coordinatorUid) + " arrange the group's guess — call out your suggestions out loud or by call/text.";
+  $("btn-submit-rank").textContent = "Lock In Our Guess";
+  $("btn-submit-rank").style.display = "";
+
+  if (mpRankerRoundKey !== key) {
+    mpRankerRoundKey = key;
+    mpRanker = makeDragRanker("rank-list", iAmCoordinator ? function (order) {
+      update(ref(db, "rooms/" + mp.roomCode + "/round"), { sharedGuessDraft: order });
+    } : null);
+    mpRanker.setOrder(round.sharedGuessDraft || shuffled(round.items));
+    mpRanker.setReadOnly(!iAmCoordinator);
+    if (iAmCoordinator && !round.sharedGuessDraft) {
+      update(ref(db, "rooms/" + mp.roomCode + "/round"), { sharedGuessDraft: mpRanker.getOrder() });
+    }
+  } else if (!iAmCoordinator && round.sharedGuessDraft) {
+    mpRanker.setOrder(round.sharedGuessDraft);
+    mpRanker.setReadOnly(true);
+  }
+
+  $("btn-submit-rank").onclick = function () {
+    update(ref(db, "rooms/" + mp.roomCode + "/round"), { sharedGuess: mpRanker.getOrder(), sharedGuessLocked: true });
+  };
+  showScreen("screen-rank");
+}
+
+function checkGuessingDone() {
+  var room = mp.room;
+  var round = room.round;
+  if (!round.rankerOrder) return;
+  if (room.settings.guessMode === "together") {
+    if (round.sharedGuessLocked) finishMpRound();
+  } else {
+    var guesserUids = mpPlayerUids().filter(function (uid) { return uid !== round.rankerUid; });
+    var count = round.guesses ? Object.keys(round.guesses).length : 0;
+    if (count >= guesserUids.length && guesserUids.length > 0) finishMpRound();
   }
 }
 
-function renderMyRankList() {
-  var wrap = $("rank-list");
-  wrap.innerHTML = "";
-  var n = myRankOrder.length;
-  myRankOrder.forEach(function (item, i) {
+async function finishMpRound() {
+  var room = mp.room;
+  var round = room.round;
+  var trueOrder = round.rankerOrder;
+  var guesserUids = mpPlayerUids().filter(function (uid) { return uid !== round.rankerUid; });
+  var scoreUpdates = Object.assign({}, room.scores);
+  var anyPerfect = false;
+
+  if (room.settings.guessMode === "together") {
+    var sharedPts = correctSpots(round.sharedGuess, trueOrder);
+    guesserUids.forEach(function (uid) { scoreUpdates[uid] = (scoreUpdates[uid] || 0) + sharedPts; });
+    anyPerfect = sharedPts === round.items.length;
+  } else {
+    guesserUids.forEach(function (uid) {
+      var pts = correctSpots(round.guesses[uid], trueOrder);
+      scoreUpdates[uid] = (scoreUpdates[uid] || 0) + pts;
+      if (pts === round.items.length) anyPerfect = true;
+    });
+  }
+  scoreUpdates[round.rankerUid] = (scoreUpdates[round.rankerUid] || 0) + (anyPerfect ? round.items.length : 0);
+
+  await update(roomRef(mp.roomCode), {
+    phase: "reveal",
+    scores: scoreUpdates,
+    round: Object.assign({}, round, { settled: true })
+  });
+}
+
+// ---------- Reveal ----------
+function renderGuessBreakdownInto(container, label, guessOrder, trueOrder) {
+  var lbl = document.createElement("div");
+  lbl.className = "guess-block-label";
+  lbl.textContent = label;
+  container.appendChild(lbl);
+
+  var list = document.createElement("div");
+  list.className = "order-reveal-list";
+  guessOrder.forEach(function (item, i) {
+    var correct = item === trueOrder[i];
     var row = document.createElement("div");
-    row.className = "rank-row";
+    row.className = "order-reveal-row " + (correct ? "correct" : "wrong");
     var num = document.createElement("div");
     num.className = "rank-num";
     num.textContent = i + 1;
     row.appendChild(num);
     var nameEl = document.createElement("div");
-    nameEl.className = "rank-item-name";
+    nameEl.style.flex = "1";
     nameEl.textContent = item;
     row.appendChild(nameEl);
-
-    var moves = document.createElement("div");
-    moves.className = "rank-moves";
-    var up = document.createElement("button");
-    up.className = "rank-move-btn";
-    up.type = "button";
-    up.textContent = "▲";
-    up.disabled = i === 0;
-    up.addEventListener("click", function () {
-      var tmp = myRankOrder[i - 1]; myRankOrder[i - 1] = myRankOrder[i]; myRankOrder[i] = tmp;
-      renderMyRankList();
-    });
-    moves.appendChild(up);
-    var down = document.createElement("button");
-    down.className = "rank-move-btn";
-    down.type = "button";
-    down.textContent = "▼";
-    down.disabled = i === n - 1;
-    down.addEventListener("click", function () {
-      var tmp = myRankOrder[i + 1]; myRankOrder[i + 1] = myRankOrder[i]; myRankOrder[i] = tmp;
-      renderMyRankList();
-    });
-    moves.appendChild(down);
-    row.appendChild(moves);
-    wrap.appendChild(row);
+    var mark = document.createElement("div");
+    mark.className = "guess-mark";
+    mark.textContent = correct ? "✓" : "✗";
+    row.appendChild(mark);
+    list.appendChild(row);
   });
+  container.appendChild(list);
 }
 
-$("btn-submit-rank").addEventListener("click", function () {
-  update(ref(db, "rooms/" + state.roomCode + "/round/rankings"), (function () { var o = {}; o[state.uid] = myRankOrder; return o; })());
-});
-
-async function finishRanking() {
-  var room = state.room;
-  var round = room.round;
-  var names = playerNames();
-  var rankingsByName = {};
-  playerUids().forEach(function (uid) { rankingsByName[playerName(uid)] = round.rankings[uid]; });
-  var result = computeReveal(round.items, names, rankingsByName);
-
-  var scoreUpdates = {};
-  playerUids().forEach(function (uid) {
-    var name = playerName(uid);
-    scoreUpdates[uid] = (room.scores[uid] || 0) + result.roundPoints[name];
-  });
-
-  await update(roomRef(state.roomCode), {
-    phase: "reveal",
-    scores: scoreUpdates,
-    round: Object.assign({}, round, { groupOrder: result.groupOrder, distances: result.distances, roundPoints: result.roundPoints })
-  });
-}
-
-// ---------- Reveal ----------
 function renderRevealScreen() {
-  var round = state.room.round;
-  renderOrderRevealList($("order-reveal-list"), round.groupOrder);
+  var room = mp.room;
+  var round = room.round;
+  var rankerName = mpPlayerName(round.rankerUid);
+  var trueOrder = round.rankerOrder;
 
-  var namesByDistanceKey = {};
-  playerUids().forEach(function (uid) { namesByDistanceKey[playerName(uid)] = true; });
-  renderStandingsList($("standings-list"), $("round-callout"), Object.keys(namesByDistanceKey), round.distances, round.roundPoints);
+  $("reveal-order-label").textContent = rankerName + "'s real order";
+  var orderList = $("order-reveal-list");
+  orderList.innerHTML = "";
+  trueOrder.forEach(function (item, i) {
+    var row = document.createElement("div");
+    row.className = "order-reveal-row";
+    var num = document.createElement("div");
+    num.className = "rank-num";
+    num.textContent = i + 1;
+    row.appendChild(num);
+    var nameEl = document.createElement("div");
+    nameEl.style.flex = "1";
+    nameEl.textContent = item;
+    row.appendChild(nameEl);
+    orderList.appendChild(row);
+  });
+
+  var guesserUids = mpPlayerUids().filter(function (uid) { return uid !== round.rankerUid; });
+  var breakdown = $("guess-breakdown");
+  breakdown.innerHTML = "";
+  var standings = $("standings-list");
+  standings.innerHTML = "";
+  var callout = $("round-callout");
+  var anyPerfect, perfectCount;
+
+  if (room.settings.guessMode === "together") {
+    var sharedPts = correctSpots(round.sharedGuess, trueOrder);
+    anyPerfect = sharedPts === round.items.length;
+    perfectCount = anyPerfect ? 1 : 0;
+
+    renderGuessBreakdownInto(breakdown, "Everyone Else (together)", round.sharedGuess, trueOrder);
+
+    var groupRow = document.createElement("div");
+    groupRow.className = "standings-row";
+    groupRow.innerHTML = "<span class=\"pname\">Everyone Else (together)</span>" +
+      "<span class=\"pdist\">" + sharedPts + " of " + round.items.length + " correct</span>" +
+      "<span class=\"ppts\">+" + sharedPts + " each</span>";
+    standings.appendChild(groupRow);
+
+    callout.textContent = anyPerfect
+      ? "The group guessed " + rankerName + "'s exact order!"
+      : "The group's shared guess got " + sharedPts + " of " + round.items.length + " spots right.";
+  } else {
+    var roundPoints = {};
+    guesserUids.forEach(function (uid) {
+      roundPoints[uid] = correctSpots(round.guesses[uid], trueOrder);
+      renderGuessBreakdownInto(breakdown, mpPlayerName(uid), round.guesses[uid], trueOrder);
+    });
+    perfectCount = guesserUids.filter(function (uid) { return roundPoints[uid] === round.items.length; }).length;
+    anyPerfect = perfectCount > 0;
+
+    var sortedUids = guesserUids.slice().sort(function (a, b) { return roundPoints[b] - roundPoints[a]; });
+    sortedUids.forEach(function (uid) {
+      var row = document.createElement("div");
+      row.className = "standings-row";
+      row.innerHTML = "<span class=\"pname\">" + mpPlayerName(uid) + "</span>" +
+        "<span class=\"pdist\">" + roundPoints[uid] + " of " + round.items.length + " correct</span>" +
+        "<span class=\"ppts\">+" + roundPoints[uid] + "</span>";
+      standings.appendChild(row);
+    });
+    if (sortedUids.length > 0) {
+      var bestUid = sortedUids[0];
+      callout.textContent = roundPoints[bestUid] === round.items.length
+        ? mpPlayerName(bestUid) + " guessed " + rankerName + "'s exact order!"
+        : mpPlayerName(bestUid) + " got the most spots right (" + roundPoints[bestUid] + " of " + round.items.length + ").";
+    } else {
+      callout.textContent = "";
+    }
+  }
+
+  var rankerDist = anyPerfect
+    ? perfectCount + " of " + guesserUids.length + " nailed it (capped at +" + round.items.length + ")"
+    : "nobody nailed it";
+  var rankerRow = document.createElement("div");
+  rankerRow.className = "standings-row";
+  rankerRow.innerHTML = "<span class=\"pname\">" + rankerName + " (Ranker)</span>" +
+    "<span class=\"pdist\">" + rankerDist + "</span>" +
+    "<span class=\"ppts\">+" + (anyPerfect ? round.items.length : 0) + "</span>";
+  standings.appendChild(rankerRow);
 
   var hostNav = $("reveal-host-nav");
   var waiting = $("reveal-waiting");
-  if (state.isHost) {
+  if (mp.isHost) {
     hostNav.style.display = "flex";
     waiting.style.display = "none";
   } else {
@@ -893,28 +1233,33 @@ function renderRevealScreen() {
 }
 
 $("btn-next-round").addEventListener("click", function () {
-  if (!state.isHost) return;
-  var room = state.room;
-  var winnerUid = playerUids().filter(function (uid) { return room.scores[uid] >= room.settings.targetScore; })
-    .sort(function (a, b) { return room.scores[b] - room.scores[a]; })[0];
+  if (!mp.isHost) return;
+  var room = mp.room;
+  var sorted = mpPlayerUids().slice().sort(function (a, b) { return (room.scores[b] || 0) - (room.scores[a] || 0); });
+  var topScore = room.scores[sorted[0]] || 0;
+  var winnerUid = null;
+  if (topScore >= room.settings.targetScore) {
+    var top = sorted.filter(function (uid) { return (room.scores[uid] || 0) === topScore; });
+    if (top.length === 1) winnerUid = top[0];
+  }
   if (winnerUid) {
-    update(roomRef(state.roomCode), { phase: "game-won", winnerUid: winnerUid });
+    update(roomRef(mp.roomCode), { phase: "game-won", winnerUid: winnerUid });
   } else {
-    update(roomRef(state.roomCode), { phase: "scores" });
+    update(roomRef(mp.roomCode), { phase: "scores" });
   }
 });
 
 // ---------- Scoreboard ----------
 function renderScoresScreen() {
-  var room = state.room;
+  var room = mp.room;
   var scoresByName = {};
-  playerUids().forEach(function (uid) { scoresByName[playerName(uid)] = room.scores[uid] || 0; });
+  mpPlayerUids().forEach(function (uid) { scoresByName[mpPlayerName(uid)] = room.scores[uid] || 0; });
   renderScoreboardInto($("scoreboard"), scoresByName);
   $("scoreboard-target").textContent = room.settings.targetScore;
 
   var hostNav = $("scores-host-nav");
   var waiting = $("scores-waiting");
-  if (state.isHost) {
+  if (mp.isHost) {
     hostNav.style.display = "flex";
     waiting.style.display = "none";
   } else {
@@ -923,28 +1268,27 @@ function renderScoresScreen() {
   }
   showScreen("screen-scores");
 }
-
 $("btn-back-to-round").addEventListener("click", function () {
-  if (!state.isHost) return;
-  startRound();
+  if (!mp.isHost) return;
+  startMpRound();
 });
 $("btn-end-game").addEventListener("click", function () {
-  if (!state.isHost) return;
+  if (!mp.isHost) return;
   if (!confirm("End the game and return everyone to the lobby?")) return;
-  update(roomRef(state.roomCode), { phase: "lobby", round: null });
+  update(roomRef(mp.roomCode), { phase: "lobby", round: null });
 });
 
 // ---------- Game won ----------
 function renderGameWonScreen() {
-  var room = state.room;
-  $("winner-name").textContent = playerName(room.winnerUid);
+  var room = mp.room;
+  $("winner-name").textContent = mpPlayerName(room.winnerUid);
   var scoresByName = {};
-  playerUids().forEach(function (uid) { scoresByName[playerName(uid)] = room.scores[uid] || 0; });
+  mpPlayerUids().forEach(function (uid) { scoresByName[mpPlayerName(uid)] = room.scores[uid] || 0; });
   renderScoreboardInto($("winner-scoreboard"), scoresByName);
 
   var hostNav = $("won-host-nav");
   var waiting = $("won-waiting");
-  if (state.isHost) {
+  if (mp.isHost) {
     hostNav.style.display = "flex";
     waiting.style.display = "none";
   } else {
@@ -953,263 +1297,728 @@ function renderGameWonScreen() {
   }
   showScreen("screen-game-won");
 }
-
 $("btn-new-game").addEventListener("click", function () {
-  if (!state.isHost) return;
-  update(roomRef(state.roomCode), { phase: "lobby", round: null, usedCategories: [] });
+  if (!mp.isHost) return;
+  update(roomRef(mp.roomCode), { phase: "lobby", round: null, usedItems: [] });
 });
 
-// =========================================================================
-// LOCAL PASS-AND-PLAY MODE (single device, no Firebase)
-// =========================================================================
-
-var localState = {
-  players: ["", ""],
-  selectedCategories: Object.keys(CATEGORIES),
-  targetScore: 15,
-  scores: {},
-  usedCategories: [],
-  round: null,
-  turnOrder: [],
-  turnIndex: 0,
-  currentRankOrder: [],
-  rankings: {}
-};
+function renderScoreboardInto(el, scores) {
+  el.innerHTML = "";
+  var entries = Object.keys(scores).map(function (name) { return { name: name, score: scores[name] }; });
+  entries.sort(function (a, b) { return b.score - a.score; });
+  entries.forEach(function (e) {
+    var row = document.createElement("div");
+    row.className = "score-row";
+    row.innerHTML = "<span>" + e.name + "</span><strong>" + e.score + "</strong>";
+    el.appendChild(row);
+  });
+}
 
 $("btn-local-mode").addEventListener("click", function () {
-  renderLocalPlayerList();
-  renderLocalCategoryChips();
-  showScreen("screen-local-setup");
+  localRenderPlayerList();
+  localRenderGuessModeChips();
+  showScreen("local-screen-setup");
 });
 $("local-btn-back-home").addEventListener("click", function () { showScreen("screen-home"); });
 
-function renderLocalPlayerList() {
-  var wrap = $("local-player-list");
-  wrap.innerHTML = "";
-  localState.players.forEach(function (name, i) {
-    var row = document.createElement("div");
-    row.className = "player-row";
-    var input = document.createElement("input");
-    input.type = "text";
-    input.placeholder = "Player " + (i + 1);
-    input.value = name;
-    input.maxLength = 20;
-    input.addEventListener("input", function () { localState.players[i] = input.value; });
-    row.appendChild(input);
-    if (localState.players.length > 2) {
-      var rm = document.createElement("button");
-      rm.className = "icon-btn";
-      rm.type = "button";
-      rm.textContent = "✕";
-      rm.addEventListener("click", function () {
-        localState.players.splice(i, 1);
-        renderLocalPlayerList();
-      });
-      row.appendChild(rm);
-    }
-    wrap.appendChild(row);
-  });
-}
 
-$("local-btn-add-player").addEventListener("click", function () {
-  if (localState.players.length >= 10) return;
-  localState.players.push("");
-  renderLocalPlayerList();
-});
 
-function renderLocalCategoryChips() {
-  var wrap = $("local-category-chips");
-  wrap.innerHTML = "";
-  Object.keys(CATEGORIES).forEach(function (cat) {
-    var chip = document.createElement("div");
-    chip.className = "chip" + (localState.selectedCategories.indexOf(cat) !== -1 ? " selected" : "");
-    chip.textContent = cat;
-    chip.addEventListener("click", function () {
-      var idx = localState.selectedCategories.indexOf(cat);
-      if (idx !== -1) {
-        if (localState.selectedCategories.length === 1) return;
-        localState.selectedCategories.splice(idx, 1);
-      } else {
-        localState.selectedCategories.push(cat);
+  // One flat, category-free pool -- every round draws a totally random
+  // handful from across all of it, so the mix itself is part of the fun.
+  
+
+  var localState = {
+    players: ["", ""],
+    targetScore: 15,
+    guessMode: "separate",
+    lastWinningScore: 0,
+    // scores/guesses are keyed by player INDEX, never by name -- two
+    // players can share a display name, and a name-keyed map would let
+    // one player's score/guess silently overwrite another's.
+    scores: [],
+    usedItems: [],
+    rankerIndex: -1,
+    round: null,
+    rankerOrder: null,
+    guesses: {},
+    sharedGuess: null,
+    turnQueue: [],
+    turnPos: 0,
+    currentRankOrder: [],
+    canResume: false
+  };
+
+  var LOCAL_GUESS_MODES = [
+    { id: "separate", label: "Separately", hint: "Guessers take the device one at a time, in private — nobody sees anyone else's guess." },
+    { id: "together", label: "Together", hint: "Everyone but the Ranker gathers around one device, talks it out loud, and agrees on a single shared guess." }
+  ];
+
+    
+  
+
+  // ---------- Setup screen ----------
+  function localRenderPlayerList() {
+    var wrap = $("local-player-list");
+    wrap.innerHTML = "";
+    localState.players.forEach(function (name, i) {
+      var row = document.createElement("div");
+      row.className = "player-row";
+      var input = document.createElement("input");
+      input.type = "text";
+      input.placeholder = "Player " + (i + 1);
+      input.value = name;
+      input.maxLength = 20;
+      input.addEventListener("input", function () { localState.players[i] = input.value; });
+      row.appendChild(input);
+      if (localState.players.length > 2) {
+        var rm = document.createElement("button");
+        rm.className = "icon-btn";
+        rm.type = "button";
+        rm.textContent = "✕";
+        rm.addEventListener("click", function () {
+          localState.players.splice(i, 1);
+          localRenderPlayerList();
+        });
+        row.appendChild(rm);
       }
-      renderLocalCategoryChips();
+      wrap.appendChild(row);
     });
-    wrap.appendChild(chip);
-  });
-}
-
-function localClampTarget() {
-  var v = parseInt($("local-target-score-input").value, 10);
-  if (isNaN(v) || v < 1) v = 1;
-  if (v > 99) v = 99;
-  $("local-target-score-input").value = v;
-  localState.targetScore = v;
-}
-$("local-target-score-input").addEventListener("change", localClampTarget);
-$("local-btn-target-down").addEventListener("click", function () {
-  $("local-target-score-input").value = Math.max(1, (parseInt($("local-target-score-input").value, 10) || 1) - 1);
-  localClampTarget();
-});
-$("local-btn-target-up").addEventListener("click", function () {
-  $("local-target-score-input").value = Math.min(99, (parseInt($("local-target-score-input").value, 10) || 1) + 1);
-  localClampTarget();
-});
-
-$("local-btn-start-game").addEventListener("click", function () {
-  var names = localState.players.map(function (n) { return n.trim(); }).filter(function (n) { return n.length > 0; });
-  if (names.length < 2) { alert("Need at least 2 players — you're ranked against each other."); return; }
-  localClampTarget();
-  localState.players = names;
-  localState.scores = {};
-  names.forEach(function (n) { localState.scores[n] = 0; });
-  localState.usedCategories = [];
-  localNextRound();
-});
-
-function localNextRound() {
-  var available = localState.selectedCategories.filter(function (c) { return localState.usedCategories.indexOf(c) === -1; });
-  if (available.length === 0) {
-    localState.usedCategories = [];
-    available = localState.selectedCategories.slice();
   }
-  var cat = pickRandom(available);
-  localState.usedCategories.push(cat);
 
-  localState.round = { category: cat, items: CATEGORIES[cat] };
-  localState.turnOrder = shuffled(localState.players.map(function (_, i) { return i; }));
-  localState.turnIndex = 0;
-  localState.rankings = {};
-
-  $("local-ri-category").textContent = cat;
-  var itemsWrap = $("local-ri-items");
-  itemsWrap.innerHTML = "";
-  localState.round.items.forEach(function (item) {
-    var el = document.createElement("div");
-    el.className = "item-preview";
-    el.textContent = item;
-    itemsWrap.appendChild(el);
+  $("local-btn-add-player").addEventListener("click", function () {
+    if (localState.players.length >= 10) return;
+    localState.players.push("");
+    localRenderPlayerList();
   });
-  showScreen("screen-local-round-intro");
-}
 
-$("local-btn-start-ranking").addEventListener("click", localGoToPassTurn);
-
-function localGoToPassTurn() {
-  if (localState.turnIndex >= localState.turnOrder.length) {
-    showScreen("screen-local-ready-reveal");
-    return;
+  function localRenderGuessModeChips() {
+    var wrap = $("local-guess-mode-chips");
+    wrap.innerHTML = "";
+    LOCAL_GUESS_MODES.forEach(function (mode) {
+      var chip = document.createElement("div");
+      chip.className = "chip" + (localState.guessMode === mode.id ? " selected" : "");
+      chip.textContent = mode.label;
+      chip.addEventListener("click", function () {
+        localState.guessMode = mode.id;
+        localRenderGuessModeChips();
+      });
+      wrap.appendChild(chip);
+    });
+    var active = LOCAL_GUESS_MODES.filter(function (m) { return m.id === localState.guessMode; })[0];
+    $("local-guess-mode-hint").textContent = active ? active.hint : "";
   }
-  var name = localState.players[localState.turnOrder[localState.turnIndex]];
-  $("local-pass-name").textContent = name;
-  $("local-pass-name-2").textContent = name;
-  showScreen("screen-local-pass-turn");
-}
 
-$("local-btn-ready-to-rank").addEventListener("click", function () {
-  $("local-rank-category").textContent = localState.round.category;
-  localState.currentRankOrder = shuffled(localState.round.items);
-  renderLocalRankList();
-  showScreen("screen-local-rank");
-});
-
-function renderLocalRankList() {
-  var wrap = $("local-rank-list");
-  wrap.innerHTML = "";
-  var n = localState.currentRankOrder.length;
-  localState.currentRankOrder.forEach(function (item, i) {
-    var row = document.createElement("div");
-    row.className = "rank-row";
-    var num = document.createElement("div");
-    num.className = "rank-num";
-    num.textContent = i + 1;
-    row.appendChild(num);
-    var nameEl = document.createElement("div");
-    nameEl.className = "rank-item-name";
-    nameEl.textContent = item;
-    row.appendChild(nameEl);
-
-    var moves = document.createElement("div");
-    moves.className = "rank-moves";
-    var up = document.createElement("button");
-    up.className = "rank-move-btn";
-    up.type = "button";
-    up.textContent = "▲";
-    up.disabled = i === 0;
-    up.addEventListener("click", function () {
-      var arr = localState.currentRankOrder;
-      var tmp = arr[i - 1]; arr[i - 1] = arr[i]; arr[i] = tmp;
-      renderLocalRankList();
-    });
-    moves.appendChild(up);
-    var down = document.createElement("button");
-    down.className = "rank-move-btn";
-    down.type = "button";
-    down.textContent = "▼";
-    down.disabled = i === n - 1;
-    down.addEventListener("click", function () {
-      var arr = localState.currentRankOrder;
-      var tmp = arr[i + 1]; arr[i + 1] = arr[i]; arr[i] = tmp;
-      renderLocalRankList();
-    });
-    moves.appendChild(down);
-    row.appendChild(moves);
-    wrap.appendChild(row);
+  function localClampTarget() {
+    var v = parseInt($("local-target-score-input").value, 10);
+    if (isNaN(v) || v < 1) v = 1;
+    if (v > 99) v = 99;
+    $("local-target-score-input").value = v;
+    localState.targetScore = v;
+  }
+  $("local-target-score-input").addEventListener("change", localClampTarget);
+  $("local-btn-target-down").addEventListener("click", function () {
+    $("local-target-score-input").value = Math.max(1, (parseInt($("local-target-score-input").value, 10) || 1) - 1);
+    localClampTarget();
   });
-}
+  $("local-btn-target-up").addEventListener("click", function () {
+    $("local-target-score-input").value = Math.min(99, (parseInt($("local-target-score-input").value, 10) || 1) + 1);
+    localClampTarget();
+  });
 
-$("local-btn-submit-rank").addEventListener("click", function () {
-  var name = localState.players[localState.turnOrder[localState.turnIndex]];
-  localState.rankings[name] = localState.currentRankOrder.slice();
-  localState.turnIndex++;
-  localGoToPassTurn();
-});
+  $("local-btn-start-game").addEventListener("click", function () {
+    var names = localState.players.map(function (n) { return n.trim(); }).filter(function (n) { return n.length > 0; });
+    if (names.length < 2) { alert("Need at least 2 players — one ranks, everyone else guesses."); return; }
+    localClampTarget();
+    localState.players = names;
+    localState.scores = names.map(function () { return 0; });
+    localState.usedItems = [];
+    localState.rankerIndex = -1;
+    localState.lastWinningScore = 0;
+    localState.canResume = false;
+    $("local-resume-banner").style.display = "none";
+    localPendingResume = null;
+    $("local-refresh-resume-banner").style.display = "none";
+    localNextRound();
+  });
 
-$("local-btn-show-reveal").addEventListener("click", localRenderReveal);
+  // ---------- Round setup ----------
+  function localBuildTurnQueue() {
+    var queue = [{ role: "ranker", idx: localState.rankerIndex }];
+    if (localState.guessMode === "together") {
+      queue.push({ role: "guess-together" });
+      return queue;
+    }
+    var others = [];
+    localState.players.forEach(function (_, i) { if (i !== localState.rankerIndex) others.push(i); });
+    shuffled(others).forEach(function (idx) { queue.push({ role: "guess", idx: idx }); });
+    return queue;
+  }
 
-function localRenderReveal() {
-  var result = computeReveal(localState.round.items, localState.players, localState.rankings);
-  renderOrderRevealList($("local-order-reveal-list"), result.groupOrder);
-  renderStandingsList($("local-standings-list"), $("local-round-callout"), localState.players, result.distances, result.roundPoints);
-  localState.players.forEach(function (name) { localState.scores[name] += result.roundPoints[name]; });
-  showScreen("screen-local-reveal");
-}
+  function localRenderItemPreview(items) {
+    var itemsWrap = $("local-pass-items");
+    itemsWrap.innerHTML = "";
+    items.forEach(function (item) {
+      var el = document.createElement("div");
+      el.className = "item-preview";
+      el.textContent = item;
+      itemsWrap.appendChild(el);
+    });
+  }
 
-$("local-btn-next-round").addEventListener("click", function () {
-  var winner = localState.players.filter(function (n) { return localState.scores[n] >= localState.targetScore; })
-    .sort(function (a, b) { return localState.scores[b] - localState.scores[a]; })[0];
-  if (winner) {
-    localShowGameWon(winner);
+  function localNextRound() {
+    var available = ITEMS.filter(function (it) { return localState.usedItems.indexOf(it) === -1; });
+    if (available.length < ITEMS_PER_ROUND) {
+      localState.usedItems = [];
+      available = ITEMS.slice();
+    }
+    var picks = shuffled(available).slice(0, ITEMS_PER_ROUND);
+    picks.forEach(function (it) { localState.usedItems.push(it); });
+
+    localState.round = { items: picks };
+    localState.rankerIndex = (localState.rankerIndex + 1) % localState.players.length;
+    localState.rankerOrder = null;
+    localState.guesses = {};
+    localState.sharedGuess = null;
+    localState.turnQueue = localBuildTurnQueue();
+    localState.turnPos = 0;
+
+    localGoToPassTurn();
+    localSaveCheckpoint("local-screen-pass-turn");
+  }
+
+  // ---------- Pass-and-rank loop ----------
+  function localCurrentTurn() { return localState.turnQueue[localState.turnPos]; }
+
+  function localGoToPassTurn() {
+    if (localState.turnPos >= localState.turnQueue.length) {
+      showScreen("local-screen-ready-reveal");
+      return;
+    }
+    var turn = localCurrentTurn();
+    var rankerName = localState.players[localState.rankerIndex];
+    // Only the very first turn of a round (the Ranker's) shows the item
+    // list -- that's the one moment everyone sees the 5 things together,
+    // before the device starts getting passed privately.
+    var showItems = turn.role === "ranker";
+    $("local-pass-items-label").style.display = showItems ? "" : "none";
+    $("local-pass-items").style.display = showItems ? "" : "none";
+    if (showItems) localRenderItemPreview(localState.round.items);
+
+    if (turn.role === "guess-together") {
+      $("local-pass-icon").textContent = "👥";
+      $("local-pass-lead").textContent = "Everyone except " + rankerName + " —";
+      $("local-pass-name").textContent = "gather around together";
+      $("local-pass-hint").textContent = "Talk it out loud and agree on one guess. Just don't let " + rankerName + " weigh in or peek.";
+      showScreen("local-screen-pass-turn");
+      return;
+    }
+
+    var name = localState.players[turn.idx];
+    $("local-pass-icon").textContent = "📱";
+    $("local-pass-lead").textContent = "Pass the device to";
+    $("local-pass-name").textContent = name;
+    $("local-pass-hint").innerHTML = turn.role === "ranker"
+      ? "Only <span id=\"pass-name-2\">" + name + "</span> should look &mdash; you're making the real ranking everyone else has to guess."
+      : "Only <span id=\"pass-name-2\">" + name + "</span> should look &mdash; no peeking or comparing notes.";
+    showScreen("local-screen-pass-turn");
+  }
+
+  $("local-btn-ready-to-rank").addEventListener("click", function () {
+    var turn = localCurrentTurn();
+    localState.currentRankOrder = shuffled(localState.round.items);
+    if (turn.role === "ranker") {
+      $("local-rank-instructions").textContent = "Arrange these YOUR way, best to worst — this is what everyone else will try to guess.";
+      $("local-btn-submit-rank").textContent = "Lock In My Real Ranking";
+    } else if (turn.role === "guess-together") {
+      $("local-rank-instructions").textContent = "As a group, guess how " + localState.players[localState.rankerIndex] + " secretly ranked these, best to worst.";
+      $("local-btn-submit-rank").textContent = "Lock In Our Guess";
+    } else {
+      $("local-rank-instructions").textContent = "Guess how " + localState.players[localState.rankerIndex] + " secretly ranked these, best to worst.";
+      $("local-btn-submit-rank").textContent = "Lock In My Guess";
+    }
+    localRenderRankList();
+    showScreen("local-screen-rank");
+  });
+
+  // Drag-to-reorder localState. Re-rendering mid-drag replaces the DOM node the
+  // drag started on, and pointer capture is released the instant its
+  // element leaves the DOM -- so the move/up listeners live on `document`
+  // (which is never removed) instead of the row itself, and this closure
+  // localState (not any DOM reference) is what tracks the drag across re-renders.
+  var localDragState = { active: false, item: null, pointerId: null, startY: 0, startIndex: 0, rowHeight: 44 };
+
+  function localStartDrag(e, item, index, rowEl) {
+    if (e.button !== undefined && e.button !== 0) return;
+    e.preventDefault();
+    localDragState.active = true;
+    localDragState.item = item;
+    localDragState.pointerId = e.pointerId;
+    localDragState.startY = e.clientY;
+    localDragState.startIndex = index;
+    localDragState.rowHeight = rowEl.offsetHeight + 6; // + .rank-list gap
+    document.addEventListener("pointermove", localOnDragMove);
+    document.addEventListener("pointerup", localOnDragEnd);
+    document.addEventListener("pointercancel", localOnDragEnd);
+    localRenderRankList();
+  }
+
+  function localOnDragMove(e) {
+    if (!localDragState.active || e.pointerId !== localDragState.pointerId) return;
+    var deltaY = e.clientY - localDragState.startY;
+    var deltaIndex = Math.round(deltaY / localDragState.rowHeight);
+    var n = localState.currentRankOrder.length;
+    var newIndex = Math.max(0, Math.min(n - 1, localDragState.startIndex + deltaIndex));
+    var curIndex = localState.currentRankOrder.indexOf(localDragState.item);
+    if (newIndex !== curIndex) {
+      localState.currentRankOrder.splice(curIndex, 1);
+      localState.currentRankOrder.splice(newIndex, 0, localDragState.item);
+      localRenderRankList();
+    }
+  }
+
+  function localOnDragEnd(e) {
+    if (e && e.pointerId !== localDragState.pointerId) return;
+    localDragState.active = false;
+    localDragState.item = null;
+    document.removeEventListener("pointermove", localOnDragMove);
+    document.removeEventListener("pointerup", localOnDragEnd);
+    document.removeEventListener("pointercancel", localOnDragEnd);
+    localRenderRankList();
+  }
+
+  function localRenderRankList() {
+    var wrap = $("local-rank-list");
+    wrap.innerHTML = "";
+    var n = localState.currentRankOrder.length;
+    localState.currentRankOrder.forEach(function (item, i) {
+      var row = document.createElement("div");
+      row.className = "rank-row" + (localDragState.active && localDragState.item === item ? " dragging" : "");
+
+      var handle = document.createElement("div");
+      handle.className = "drag-handle";
+      handle.textContent = "⠿";
+      handle.addEventListener("pointerdown", function (e) { localStartDrag(e, item, i, row); });
+      row.appendChild(handle);
+
+      var numWrap = document.createElement("div");
+      numWrap.className = "rank-num-wrap";
+      var num = document.createElement("div");
+      num.className = "rank-num";
+      num.textContent = i + 1;
+      numWrap.appendChild(num);
+      if (i === 0 || i === n - 1) {
+        var tag = document.createElement("div");
+        tag.className = "rank-num-tag";
+        tag.textContent = i === 0 ? "Best" : "Worst";
+        numWrap.appendChild(tag);
+      }
+      row.appendChild(numWrap);
+
+      var nameEl = document.createElement("div");
+      nameEl.className = "rank-item-name";
+      nameEl.textContent = item;
+      row.appendChild(nameEl);
+
+      wrap.appendChild(row);
+    });
+  }
+
+  $("local-btn-submit-rank").addEventListener("click", function () {
+    var turn = localCurrentTurn();
+    if (turn.role === "ranker") {
+      localState.rankerOrder = localState.currentRankOrder.slice();
+    } else if (turn.role === "guess-together") {
+      localState.sharedGuess = localState.currentRankOrder.slice();
+    } else {
+      localState.guesses[turn.idx] = localState.currentRankOrder.slice();
+    }
+    localState.turnPos++;
+    localGoToPassTurn();
+  });
+
+  $("local-btn-show-reveal").addEventListener("click", localRenderReveal);
+
+  // ---------- Reveal + scoring ----------
+  // A guess earns one point per item that landed in its exact correct
+  // spot -- simple to read off at a glance, and it maxes out at
+  // ITEMS_PER_ROUND regardless of how many people are guessing.
+  
+
+  // Renders one player's (or the group's) guessed order as a list of rows,
+  // each colored green when that spot matches the ranker's real order and
+  // red when it doesn't -- so the whole table can see exactly where every
+  // guess landed, not just the final tally.
+  function localRenderGuessBreakdown(container, label, guessOrder, trueOrder) {
+    var lbl = document.createElement("div");
+    lbl.className = "guess-block-label";
+    lbl.textContent = label;
+    container.appendChild(lbl);
+
+    var list = document.createElement("div");
+    list.className = "local-order-reveal-list";
+    guessOrder.forEach(function (item, i) {
+      var correct = item === trueOrder[i];
+      var row = document.createElement("div");
+      row.className = "order-reveal-row " + (correct ? "correct" : "wrong");
+      var num = document.createElement("div");
+      num.className = "rank-num";
+      num.textContent = i + 1;
+      row.appendChild(num);
+      var nameEl = document.createElement("div");
+      nameEl.style.flex = "1";
+      nameEl.textContent = item;
+      row.appendChild(nameEl);
+      var mark = document.createElement("div");
+      mark.className = "guess-mark";
+      mark.textContent = correct ? "✓" : "✗";
+      row.appendChild(mark);
+      list.appendChild(row);
+    });
+    container.appendChild(list);
+  }
+
+  function localRenderReveal() {
+    var items = localState.round.items;
+    var rankerIdx = localState.rankerIndex;
+    var rankerName = localState.players[rankerIdx];
+    var trueOrder = localState.rankerOrder;
+
+    $("local-reveal-order-label").textContent = rankerName + "'s real order";
+    var orderList = $("local-order-reveal-list");
+    orderList.innerHTML = "";
+    trueOrder.forEach(function (item, i) {
+      var row = document.createElement("div");
+      row.className = "order-reveal-row";
+      var num = document.createElement("div");
+      num.className = "rank-num";
+      num.textContent = i + 1;
+      row.appendChild(num);
+      var nameEl = document.createElement("div");
+      nameEl.style.flex = "1";
+      nameEl.textContent = item;
+      row.appendChild(nameEl);
+      orderList.appendChild(row);
+    });
+
+    // Guessers are tracked by INDEX, not name, so two players sharing a
+    // display name never collide in scores/guesses.
+    var guesserIndices = [];
+    localState.players.forEach(function (name, i) { if (i !== rankerIdx) guesserIndices.push(i); });
+
+    var breakdown = $("local-guess-breakdown");
+    breakdown.innerHTML = "";
+    var standings = $("local-standings-list");
+    standings.innerHTML = "";
+    var callout = $("local-round-callout");
+    var anyPerfect, perfectCount;
+
+    if (localState.guessMode === "together") {
+      var sharedPts = correctSpots(localState.sharedGuess, trueOrder);
+      guesserIndices.forEach(function (idx) {
+        localState.scores[idx] = (localState.scores[idx] || 0) + sharedPts;
+      });
+      anyPerfect = sharedPts === items.length;
+      perfectCount = anyPerfect ? 1 : 0; // one shared guess, so it's either the whole group or nobody
+      localState.scores[rankerIdx] = (localState.scores[rankerIdx] || 0) + (anyPerfect ? items.length : 0);
+
+      localRenderGuessBreakdown(breakdown, "Everyone Else (together)", localState.sharedGuess, trueOrder);
+
+      var groupRow = document.createElement("div");
+      groupRow.className = "standings-row";
+      groupRow.innerHTML = "<span class=\"pname\">Everyone Else (together)</span>" +
+        "<span class=\"pdist\">" + sharedPts + " of " + items.length + " correct</span>" +
+        "<span class=\"ppts\">+" + sharedPts + " each</span>";
+      standings.appendChild(groupRow);
+
+      callout.textContent = anyPerfect
+        ? "The group guessed " + rankerName + "'s exact order!"
+        : "The group's shared guess got " + sharedPts + " of " + items.length + " spots right.";
+    } else {
+      var roundPoints = {};
+      guesserIndices.forEach(function (idx) {
+        roundPoints[idx] = correctSpots(localState.guesses[idx], trueOrder);
+        localState.scores[idx] = (localState.scores[idx] || 0) + roundPoints[idx];
+        localRenderGuessBreakdown(breakdown, localState.players[idx], localState.guesses[idx], trueOrder);
+      });
+
+      perfectCount = guesserIndices.filter(function (idx) { return roundPoints[idx] === items.length; }).length;
+      anyPerfect = perfectCount > 0;
+      localState.scores[rankerIdx] = (localState.scores[rankerIdx] || 0) + (anyPerfect ? items.length : 0);
+
+      var sortedIdx = guesserIndices.slice().sort(function (a, b) { return roundPoints[b] - roundPoints[a]; });
+      sortedIdx.forEach(function (idx) {
+        var name = localState.players[idx];
+        var row = document.createElement("div");
+        row.className = "standings-row";
+        row.innerHTML = "<span class=\"pname\">" + name + "</span>" +
+          "<span class=\"pdist\">" + roundPoints[idx] + " of " + items.length + " correct</span>" +
+          "<span class=\"ppts\">+" + roundPoints[idx] + "</span>";
+        standings.appendChild(row);
+      });
+
+      if (sortedIdx.length > 0) {
+        var bestIdx = sortedIdx[0];
+        var bestName = localState.players[bestIdx];
+        callout.textContent = roundPoints[bestIdx] === items.length
+          ? bestName + " guessed " + rankerName + "'s exact order!"
+          : bestName + " got the most spots right (" + roundPoints[bestIdx] + " of " + items.length + ").";
+      } else {
+        callout.textContent = "";
+      }
+    }
+
+    // The ranker's bonus is a flat, capped +5 for the round -- it does not
+    // add up per guesser, even when several (or everyone) nail it exactly.
+    var rankerDist = anyPerfect
+      ? perfectCount + " of " + guesserIndices.length + " nailed it (capped at +" + items.length + ")"
+      : "nobody nailed it";
+    var rankerRow = document.createElement("div");
+    rankerRow.className = "standings-row";
+    rankerRow.innerHTML = "<span class=\"pname\">" + rankerName + " (Ranker)</span>" +
+      "<span class=\"pdist\">" + rankerDist + "</span>" +
+      "<span class=\"ppts\">+" + (anyPerfect ? items.length : 0) + "</span>";
+    standings.appendChild(rankerRow);
+
+    showScreen("local-screen-reveal");
+  }
+
+  // ---------- Scoreboard & win condition ----------
+  function localSortedIndicesByScore() {
+    return localState.players.map(function (_, i) { return i; })
+      .sort(function (a, b) { return (localState.scores[b] || 0) - (localState.scores[a] || 0); });
+  }
+
+  function localRenderScoreboardInto(elId) {
+    var board = $(elId);
+    board.innerHTML = "";
+    localSortedIndicesByScore().forEach(function (idx) {
+      var row = document.createElement("div");
+      row.className = "score-row";
+      row.innerHTML = "<span>" + localState.players[idx] + "</span><strong>" + (localState.scores[idx] || 0) + "</strong>";
+      board.appendChild(row);
+    });
+  }
+
+  function localComputeWinner() {
+    var sorted = localSortedIndicesByScore();
+    var topScore = localState.scores[sorted[0]] || 0;
+    if (topScore < localState.targetScore) return null;
+    var topIndices = sorted.filter(function (idx) { return (localState.scores[idx] || 0) === topScore; });
+    if (topIndices.length === 1) return topIndices[0];
+    return null; // tied at/above target -- keep playing until someone pulls ahead alone
+  }
+
+  $("local-btn-next-round").addEventListener("click", function () {
+    var winnerIdx = localComputeWinner();
+    if (winnerIdx !== null) {
+      localState.lastWinningScore = localState.scores[winnerIdx];
+      $("local-winner-name").textContent = localState.players[winnerIdx];
+      localRenderScoreboardInto("local-winner-scoreboard");
+      $("local-extend-game-form").style.display = "none";
+      showScreen("local-screen-game-won");
+      localSaveCheckpoint("local-screen-game-won");
+    } else {
+      localRenderScoreboardInto("local-scoreboard");
+      $("local-scoreboard-target").textContent = localState.targetScore;
+      $("local-end-game-confirm").style.display = "none";
+      showScreen("local-screen-scores");
+      localSaveCheckpoint("local-screen-scores");
+    }
+  });
+
+  $("local-btn-back-to-round").addEventListener("click", function () {
+    localNextRound();
+  });
+
+  // ---------- Extend game ----------
+  $("local-btn-extend-game").addEventListener("click", function () {
+    var floor = localState.lastWinningScore + 1;
+    $("local-extend-target-input").min = floor;
+    $("local-extend-target-input").value = localState.lastWinningScore + 5;
+    $("local-extend-game-form").style.display = "";
+  });
+  $("local-btn-extend-down").addEventListener("click", function () {
+    var floor = localState.lastWinningScore + 1;
+    $("local-extend-target-input").value = Math.max(floor, (parseInt($("local-extend-target-input").value, 10) || floor) - 1);
+  });
+  $("local-btn-extend-up").addEventListener("click", function () {
+    $("local-extend-target-input").value = Math.min(99, (parseInt($("local-extend-target-input").value, 10) || 1) + 1);
+  });
+  $("local-btn-confirm-extend").addEventListener("click", function () {
+    var floor = localState.lastWinningScore + 1;
+    var newTarget = parseInt($("local-extend-target-input").value, 10);
+    if (!(newTarget >= floor)) newTarget = localState.lastWinningScore + 5;
+    localState.targetScore = newTarget;
+    localNextRound();
+  });
+
+  // ---------- End game (with undo) ----------
+  $("local-btn-end-game").addEventListener("click", function () {
+    $("local-end-game-confirm").style.display = "";
+  });
+  $("local-btn-cancel-end-game").addEventListener("click", function () {
+    $("local-end-game-confirm").style.display = "none";
+  });
+  $("local-btn-confirm-end-game").addEventListener("click", function () {
+    $("local-end-game-confirm").style.display = "none";
+    localState.canResume = true;
+    $("local-resume-banner").style.display = "";
+    showScreen("local-screen-setup");
+  });
+  $("local-btn-resume-game").addEventListener("click", function () {
+    if (!localState.canResume) return;
+    localRenderScoreboardInto("local-scoreboard");
+    $("local-scoreboard-target").textContent = localState.targetScore;
+    showScreen("local-screen-scores");
+  });
+
+  $("local-btn-new-game").addEventListener("click", function () {
+    localState.canResume = false;
+    $("local-resume-banner").style.display = "none";
+    localClearSavedGame();
+    showScreen("local-screen-setup");
+  });
+
+  // ---------- Refresh-resume persistence ----------
+  // Saved only at points where nothing unsafe-to-redo has happened yet:
+  // the start of a round (before the ranker or any guesser has locked
+  // anything in) or right after a round's scores are already committed
+  // (screen-scores / screen-game-won). Never mid-round, since replaying
+  // that would double-apply scoring.
+  var LOCAL_SAVE_KEY = "firstToWorstSave";
+
+  function localSaveCheckpoint(screenId) {
+    try {
+      var snapshot = {
+        screen: screenId,
+        localState: {
+          players: localState.players,
+          targetScore: localState.targetScore,
+          guessMode: localState.guessMode,
+          lastWinningScore: localState.lastWinningScore,
+          scores: localState.scores,
+          usedItems: localState.usedItems,
+          rankerIndex: localState.rankerIndex,
+          round: localState.round
+        }
+      };
+      localStorage.setItem(LOCAL_SAVE_KEY, JSON.stringify(snapshot));
+    } catch (e) { /* private browsing or storage disabled -- resume just won't be offered */ }
+  }
+
+  function localClearSavedGame() {
+    try { localStorage.removeItem(LOCAL_SAVE_KEY); } catch (e) {}
+  }
+
+  function localLoadSavedGame() {
+    try {
+      var raw = localStorage.getItem(LOCAL_SAVE_KEY);
+      return raw ? JSON.parse(raw) : null;
+    } catch (e) { return null; }
+  }
+
+  var localPendingResume = localLoadSavedGame();
+  if (localPendingResume && localPendingResume.localState && localPendingResume.localState.players && localPendingResume.localState.players.length >= 2) {
+    $("local-refresh-resume-banner").style.display = "";
   } else {
-    renderLocalScoreboard();
-    showScreen("screen-local-scores");
+    localPendingResume = null;
   }
-});
 
-function renderLocalScoreboard() {
-  renderScoreboardInto($("local-scoreboard"), localState.scores);
-  $("local-scoreboard-target").textContent = localState.targetScore;
-}
+  $("local-btn-refresh-startnew").addEventListener("click", function () {
+    localClearSavedGame();
+    localPendingResume = null;
+    $("local-refresh-resume-banner").style.display = "none";
+  });
 
-$("local-btn-back-to-round").addEventListener("click", function () {
-  $("local-end-game-confirm").style.display = "none";
-  localNextRound();
-});
-$("local-btn-end-game").addEventListener("click", function () { $("local-end-game-confirm").style.display = ""; });
-$("local-btn-cancel-end-game").addEventListener("click", function () { $("local-end-game-confirm").style.display = "none"; });
-$("local-btn-confirm-end-game").addEventListener("click", function () {
-  $("local-end-game-confirm").style.display = "none";
-  showScreen("screen-local-setup");
-});
+  $("local-btn-refresh-continue").addEventListener("click", function () {
+    if (!localPendingResume) return;
+    var saved = localPendingResume.localState;
+    localState.players = saved.players;
+    localRenderPlayerList();
+    localState.targetScore = saved.targetScore;
+    $("local-target-score-input").value = saved.targetScore;
+    localState.guessMode = saved.guessMode || "separate";
+    localRenderGuessModeChips();
+    localState.lastWinningScore = saved.lastWinningScore || 0;
+    localState.scores = saved.scores;
+    localState.usedItems = saved.usedItems || [];
+    localState.rankerIndex = saved.rankerIndex;
+    localState.round = saved.round;
+    $("local-refresh-resume-banner").style.display = "none";
 
-function localShowGameWon(winner) {
-  $("local-winner-name").textContent = winner;
-  renderScoreboardInto($("local-winner-scoreboard"), localState.scores);
-  showScreen("screen-local-game-won");
-}
+    if (localPendingResume.screen === "local-screen-scores") {
+      localRenderScoreboardInto("local-scoreboard");
+      $("local-scoreboard-target").textContent = localState.targetScore;
+      showScreen("local-screen-scores");
+    } else if (localPendingResume.screen === "local-screen-game-won") {
+      var winnerIdx = localComputeWinner();
+      $("local-winner-name").textContent = winnerIdx !== null ? localState.players[winnerIdx] : "";
+      localRenderScoreboardInto("local-winner-scoreboard");
+      $("local-extend-game-form").style.display = "none";
+      showScreen("local-screen-game-won");
+    } else {
+      // start of the in-progress round -- the safest resumable point, since
+      // nobody's turn for it has happened yet
+      localState.rankerOrder = null;
+      localState.guesses = {};
+      localState.sharedGuess = null;
+      localState.turnQueue = localBuildTurnQueue();
+      localState.turnPos = 0;
+      localGoToPassTurn();
+      localSaveCheckpoint("local-screen-pass-turn");
+    }
+    localPendingResume = null;
+  });
 
-$("local-btn-new-game").addEventListener("click", function () {
-  showScreen("screen-local-setup");
-});
+  // ---------- Enter key advances the current screen ----------
+  // Maps each screen to its main forward action, so pressing Enter anywhere
+  // on that screen (a text field, a number field, or nothing focused at all)
+  // behaves like tapping that screen's primary button.
+  var LOCAL_SCREEN_ENTER_TARGETS = {
+    "local-screen-setup": "local-btn-start-game",
+    "local-screen-pass-turn": "local-btn-ready-to-rank",
+    "local-screen-rank": "local-btn-submit-rank",
+    "local-screen-ready-reveal": "local-btn-show-reveal",
+    "local-screen-reveal": "local-btn-next-round",
+    "local-screen-scores": "local-btn-back-to-round",
+    "local-screen-game-won": "local-btn-new-game"
+  };
+
+  document.addEventListener("keydown", function (e) {
+    if (e.key !== "Enter") return;
+
+    var activeScreen = document.querySelector(".screen.active");
+    if (!activeScreen) return;
+    var screenId = activeScreen.id;
+
+    // never let Enter reach for a destructive confirmation on its own
+    if (screenId === "local-screen-scores" && $("local-end-game-confirm").style.display !== "none") return;
+
+    var targetId = (screenId === "local-screen-game-won" && $("local-extend-game-form").style.display !== "none")
+      ? "local-btn-confirm-extend"
+      : LOCAL_SCREEN_ENTER_TARGETS[screenId];
+    if (!targetId) return;
+
+    var btn = $(targetId);
+    if (!btn || btn.disabled || btn.offsetParent === null) return;
+
+    // that exact button is already focused -- its own native Enter-activation
+    // will fire, so don't also click it here and cause a double-submit
+    if (document.activeElement === btn) return;
+
+    e.preventDefault();
+    btn.click();
+  });
+
+  // ---------- Init ----------
+  localRenderPlayerList();
+  localRenderGuessModeChips();
+  var localFirstPlayerInput = $("local-player-list").querySelector("input[type=text]");
+  if (localFirstPlayerInput) {
+    localFirstPlayerInput.setAttribute("autofocus", "autofocus");
+    localFirstPlayerInput.focus();
+  }
+
 </script>
 </body>
 </html>
