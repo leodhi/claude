@@ -167,8 +167,7 @@
     <div class="card center">
       <span class="category-label" id="ri-category"></span>
       <div class="question-text" id="ri-text"></div>
-      <div class="timer-display" id="ri-timer">0:30</div>
-      <small class="hint">The device will be passed to each player one at a time to type their own answer in private — no calling it out!</small>
+      <small class="hint">The device will be passed to each player one at a time to type their own answer in private — no calling it out! Each player gets 30 seconds once it's their turn.</small>
     </div>
     <button class="primary" id="btn-start-answering" type="button">Start Answering</button>
   </div>
@@ -777,12 +776,11 @@
 
     $("ri-category").textContent = pick.cat + " · " + pick.diff;
     $("ri-text").textContent = pick.q;
-    startTimer(["ri-timer"]);
     showScreen("screen-round-intro");
   }
 
-  // ---------- Timer (shared across round-intro + pass + input screens) ----------
-  function startTimer(displayIds) {
+  // ---------- Timer (restarted fresh for each player's turn) ----------
+  function startTimer(displayIds, onExpire) {
     clearInterval(state.timerHandle);
     state.timerRemaining = ROUND_TIME;
     state.timerDisplayIds = displayIds;
@@ -792,7 +790,7 @@
       updateTimerDisplay();
       if (state.timerRemaining <= 0) {
         clearInterval(state.timerHandle);
-        goToReveal();
+        onExpire();
       }
     }, 1000);
   }
@@ -841,8 +839,7 @@
       $("input-choice-card").style.display = "none";
     }
 
-    state.timerDisplayIds = ["input-timer"];
-    updateTimerDisplay();
+    startTimer(["input-timer"], submitCurrentTurn);
     showScreen("screen-answer-input");
   }
 
@@ -866,12 +863,14 @@
     return $("input-answer-field").value.trim();
   }
 
-  $("btn-submit-answer").addEventListener("click", function () {
+  function submitCurrentTurn() {
     var name = state.players[state.turnOrder[state.turnIndex]];
     state.givenAnswers[name] = currentTurnAnswer();
     state.turnIndex++;
     goToNextTurn();
-  });
+  }
+
+  $("btn-submit-answer").addEventListener("click", submitCurrentTurn);
 
 
   $("btn-show-answer").addEventListener("click", function () {
