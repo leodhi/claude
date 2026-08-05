@@ -135,6 +135,11 @@
       <small class="hint">Pick specific categories, or leave them all selected for the full mix.</small>
     </div>
     <div class="card">
+      <label>Guessing Mode</label>
+      <div class="chip-group" id="guess-mode-chips"></div>
+      <small class="hint">Type the Answer: everyone types what they think it is. Multiple Choice: players pick from a list of options — easier for younger or non-reading-fluent players. Random Mix: each player's turn randomly gets one or the other.</small>
+    </div>
+    <div class="card">
       <label>Points to Win</label>
       <div class="target-score-row">
         <button class="stepper-btn" id="btn-target-down" type="button" aria-label="Decrease">&minus;</button>
@@ -180,8 +185,14 @@
     <div class="card">
       <span class="category-label" id="input-category"></span>
       <div class="question-text" id="input-question"></div>
-      <label>Your answer</label>
-      <input type="text" id="input-answer-field" placeholder="Type what you think it is..." maxlength="60">
+      <div id="input-type-card">
+        <label>Your answer</label>
+        <input type="text" id="input-answer-field" placeholder="Type what you think it is..." maxlength="60">
+      </div>
+      <div id="input-choice-card" style="display:none;">
+        <label>Pick your answer</label>
+        <div class="chip-group" id="input-choice-options"></div>
+      </div>
     </div>
     <button class="primary" id="btn-submit-answer" type="button">Lock In Answer</button>
     <button class="secondary" id="btn-reveal-now-input" type="button">Everyone agrees — reveal answers now</button>
@@ -309,6 +320,7 @@
   var state = {
     players: ["", "", ""],
     selectedCategories: Object.keys(CATEGORIES),
+    guessMode: "type",
     targetScore: 10,
     scores: {},
     usedQuestions: {},
@@ -317,6 +329,9 @@
     turnIndex: 0,
     givenAnswers: {},
     judgedCorrect: {},
+    currentTurnMode: "type",
+    currentChoiceOptions: [],
+    currentChoiceSelected: null,
     timerHandle: null,
     timerRemaining: 0
   };
@@ -383,6 +398,27 @@
     });
   }
 
+  var GUESS_MODES = [
+    { id: "type", label: "Type the Answer" },
+    { id: "choice", label: "Multiple Choice" },
+    { id: "mix", label: "Random Mix" }
+  ];
+
+  function renderGuessModeChips() {
+    var wrap = $("guess-mode-chips");
+    wrap.innerHTML = "";
+    GUESS_MODES.forEach(function (mode) {
+      var chip = document.createElement("div");
+      chip.className = "chip" + (state.guessMode === mode.id ? " selected" : "");
+      chip.textContent = mode.label;
+      chip.addEventListener("click", function () {
+        state.guessMode = mode.id;
+        renderGuessModeChips();
+      });
+      wrap.appendChild(chip);
+    });
+  }
+
   function clampTarget() {
     var v = parseInt($("target-score-input").value, 10);
     if (isNaN(v) || v < 1) v = 1;
@@ -413,6 +449,30 @@
 
   // ---------- Round setup ----------
   function pickRandom(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
+
+  function allAnswers() {
+    var all = [];
+    Object.keys(CATEGORIES).forEach(function (cat) {
+      CATEGORIES[cat].forEach(function (q) { all.push(q[1]); });
+    });
+    return all;
+  }
+
+  function buildChoiceOptions(correctAnswer) {
+    var pool = allAnswers().filter(function (a) { return a !== correctAnswer; });
+    var unique = pool.filter(function (v, i) { return pool.indexOf(v) === i; });
+    var distractors = [];
+    while (distractors.length < 3 && unique.length) {
+      var idx = Math.floor(Math.random() * unique.length);
+      distractors.push(unique.splice(idx, 1)[0]);
+    }
+    var options = distractors.concat([correctAnswer]);
+    for (var i = options.length - 1; i > 0; i--) {
+      var j = Math.floor(Math.random() * (i + 1));
+      var tmp = options[i]; options[i] = options[j]; options[j] = tmp;
+    }
+    return options;
+  }
 
   function nextRound() {
     var pool = [];
@@ -496,12 +556,48 @@
     showScreen("screen-pass-turn");
   }
 
+  function renderChoiceOptions() {
+    var wrap = $("input-choice-options");
+    wrap.innerHTML = "";
+    state.currentChoiceOptions.forEach(function (opt) {
+      var chip = document.createElement("div");
+      chip.className = "chip" + (opt === state.currentChoiceSelected ? " selected" : "");
+      chip.textContent = opt;
+      chip.addEventListener("click", function () {
+        state.currentChoiceSelected = opt;
+        renderChoiceOptions();
+      });
+      wrap.appendChild(chip);
+    });
+  }
+
+  function currentTurnAnswer() {
+    if (state.currentTurnMode === "choice") return state.currentChoiceSelected || "";
+    return $("input-answer-field").value.trim();
+  }
+
   $("btn-ready-to-answer").addEventListener("click", function () {
     var name = state.players[state.turnOrder[state.turnIndex]];
     $("input-name").textContent = name;
     $("input-category").textContent = state.currentQuestion.cat;
     $("input-question").textContent = state.currentQuestion.q;
     $("input-answer-field").value = "";
+
+    state.currentTurnMode = state.guessMode === "mix"
+      ? (Math.random() < 0.5 ? "type" : "choice")
+      : state.guessMode;
+
+    if (state.currentTurnMode === "choice") {
+      state.currentChoiceOptions = buildChoiceOptions(state.currentQuestion.a);
+      state.currentChoiceSelected = null;
+      renderChoiceOptions();
+      $("input-type-card").style.display = "none";
+      $("input-choice-card").style.display = "";
+    } else {
+      $("input-type-card").style.display = "";
+      $("input-choice-card").style.display = "none";
+    }
+
     state.timerDisplayIds = ["input-timer"];
     updateTimerDisplay();
     showScreen("screen-answer-input");
@@ -509,7 +605,7 @@
 
   $("btn-submit-answer").addEventListener("click", function () {
     var name = state.players[state.turnOrder[state.turnIndex]];
-    state.givenAnswers[name] = $("input-answer-field").value.trim();
+    state.givenAnswers[name] = currentTurnAnswer();
     state.turnIndex++;
     goToPassTurn();
   });
@@ -517,7 +613,7 @@
   $("btn-reveal-now-pass").addEventListener("click", goToReveal);
   $("btn-reveal-now-input").addEventListener("click", function () {
     var name = state.players[state.turnOrder[state.turnIndex]];
-    state.givenAnswers[name] = $("input-answer-field").value.trim();
+    state.givenAnswers[name] = currentTurnAnswer();
     goToReveal();
   });
 
@@ -608,6 +704,7 @@
   // ---------- Init ----------
   renderPlayerList();
   renderCategoryChips();
+  renderGuessModeChips();
 })();
 </script>
 </body>
