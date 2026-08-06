@@ -936,7 +936,8 @@ async function startMpRound() {
   var picks = shuffled(available).slice(0, ITEMS_PER_ROUND);
   usedItems = usedItems.concat(picks);
 
-  var rankerIndex = ((room.rankerIndex || -1) + 1) % uids.length;
+  var prevRankerIndex = (typeof room.rankerIndex === "number") ? room.rankerIndex : -1;
+  var rankerIndex = (prevRankerIndex + 1) % uids.length;
   var rankerUid = uids[rankerIndex];
 
   await update(roomRef(mp.roomCode), {
