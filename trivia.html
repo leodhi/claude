@@ -1775,6 +1775,7 @@ $("local-btn-back-home").addEventListener("click", function () { showScreen("scr
 
 var localState = {
     players: ["", ""],
+    bots: [null, null],
     selectedCategories: Object.keys(CATEGORIES),
     selectedDifficulties: DIFFICULTIES.slice(),
     guessMode: "type",
@@ -1813,6 +1814,17 @@ var localState = {
       input.maxLength = 20;
       input.addEventListener("input", function () { localState.players[i] = input.value; });
       row.appendChild(input);
+      var botBtn = document.createElement("button");
+      botBtn.type = "button";
+      botBtn.className = "chip" + (localState.bots[i] ? " selected" : "");
+      botBtn.style.cssText = "flex-shrink:0;white-space:nowrap;";
+      botBtn.textContent = localBotLabel(localState.bots[i]);
+      botBtn.addEventListener("click", function () {
+        var idx = LOCAL_BOT_CYCLE.indexOf(localState.bots[i]);
+        localState.bots[i] = LOCAL_BOT_CYCLE[(idx + 1) % LOCAL_BOT_CYCLE.length];
+        localRenderPlayerList();
+      });
+      row.appendChild(botBtn);
       if (localState.players.length > 1) {
         var rm = document.createElement("button");
         rm.className = "icon-btn";
@@ -1820,6 +1832,7 @@ var localState = {
         rm.textContent = "✕";
         rm.addEventListener("click", function () {
           localState.players.splice(i, 1);
+          localState.bots.splice(i, 1);
           localRenderPlayerList();
         });
         row.appendChild(rm);
@@ -1828,9 +1841,15 @@ var localState = {
     });
   }
 
+  var LOCAL_BOT_CYCLE = [null, "easy", "medium", "hard"];
+  function localBotLabel(difficulty) {
+    return difficulty ? ("🤖 AI · " + difficulty.charAt(0).toUpperCase() + difficulty.slice(1)) : "🤖 AI: Off";
+  }
+
   $("local-btn-add-player").addEventListener("click", function () {
     if (localState.players.length >= 10) return;
     localState.players.push("");
+    localState.bots.push(null);
     localRenderPlayerList();
   });
 
@@ -1915,10 +1934,16 @@ var localState = {
   });
 
   $("local-btn-start-game").addEventListener("click", function () {
-    var names = localState.players.map(function (n) { return n.trim(); }).filter(function (n) { return n.length > 0; });
+    var keptBots = [];
+    var names = localState.players.map(function (n, i) {
+      var trimmed = n.trim();
+      if (trimmed.length > 0) keptBots.push(localState.bots[i]);
+      return trimmed;
+    }).filter(function (n) { return n.length > 0; });
     if (names.length < 1) { alert("Enter at least one player name."); return; }
     localClampTarget();
     localState.players = names;
+    localState.bots = keptBots;
     localState.scores = {};
     localState.wrongStreaks = {};
     names.forEach(function (n) { localState.scores[n] = 0; localState.wrongStreaks[n] = 0; });
@@ -1968,6 +1993,7 @@ var localState = {
         screen: screenId,
         localState: {
           players: localState.players,
+          bots: localState.bots,
           selectedCategories: localState.selectedCategories,
           selectedDifficulties: localState.selectedDifficulties,
           guessMode: localState.guessMode,
@@ -2085,7 +2111,24 @@ var localState = {
     localGoToPassTurn();
   });
 
+  function localBotAnswer(difficulty) {
+    var round = localState.currentQuestion;
+    if (localState.roundGuessMode === "choice") {
+      if (botSucceeds(difficulty)) return round.a;
+      var wrongOptions = (localState.roundChoiceOptions || []).filter(function (o) { return o !== round.a; });
+      return wrongOptions.length ? wrongOptions[Math.floor(Math.random() * wrongOptions.length)] : round.a;
+    }
+    return botSucceeds(difficulty) ? round.a : "not sure";
+  }
+
   function localGoToPassTurn() {
+    while (localState.turnIndex < localState.turnOrder.length) {
+      var idx = localState.turnOrder[localState.turnIndex];
+      if (!localState.bots[idx]) break;
+      var botName = localState.players[idx];
+      localState.givenAnswers[botName] = localBotAnswer(localState.bots[idx]);
+      localState.turnIndex++;
+    }
     if (localState.turnIndex >= localState.turnOrder.length) {
       clearInterval(localState.timerHandle);
       showScreen("local-screen-ready-reveal");
@@ -2338,6 +2381,7 @@ var localState = {
     if (!localPendingResume) return;
     var saved = localPendingResume.localState;
     localState.players = saved.players;
+    localState.bots = saved.bots || saved.players.map(function () { return null; });
     localState.selectedCategories = saved.selectedCategories;
     localState.selectedDifficulties = saved.selectedDifficulties;
     localState.guessMode = saved.guessMode || "type";

@@ -2927,6 +2927,7 @@ $("local-btn-back-home").addEventListener("click", function () { showScreen("scr
 
   var localState = {
     players: ["", ""],
+    bots: [null, null],
     playerDots: [false, false],
     playerDifficulty: [["Easy"], ["Easy"]],
     selectedCategories: ["All"],
@@ -2957,6 +2958,7 @@ $("local-btn-back-home").addEventListener("click", function () { showScreen("scr
         screen: screenId,
         localState: {
           players: localState.players,
+          bots: localState.bots,
           playerDots: localState.playerDots,
           playerDifficulty: localState.playerDifficulty,
           selectedCategories: localState.selectedCategories,
@@ -3029,6 +3031,41 @@ $("local-btn-back-home").addEventListener("click", function () { showScreen("scr
       input.addEventListener("input", function () { localState.players[i] = input.value; });
       row.appendChild(input);
 
+      var botBtn = document.createElement("button");
+      botBtn.type = "button";
+      botBtn.className = "chip" + (localState.bots[i] ? " selected" : "");
+      botBtn.style.cssText = "flex-shrink:0;white-space:nowrap;";
+      botBtn.textContent = localBotLabel(localState.bots[i]);
+      botBtn.addEventListener("click", function () {
+        var idx = LOCAL_BOT_CYCLE.indexOf(localState.bots[i]);
+        localState.bots[i] = LOCAL_BOT_CYCLE[(idx + 1) % LOCAL_BOT_CYCLE.length];
+        localRenderPlayerList();
+      });
+      row.appendChild(botBtn);
+
+      if (localState.bots[i]) {
+        var botNote = document.createElement("small");
+        botNote.className = "hint";
+        botNote.textContent = "AI draws traceable shapes when it's the artist, and guesses on its own.";
+        row.appendChild(botNote);
+        if (localState.players.length > 2) {
+          var rmBot = document.createElement("button");
+          rmBot.className = "icon-btn";
+          rmBot.type = "button";
+          rmBot.textContent = "✕";
+          rmBot.addEventListener("click", function () {
+            localState.players.splice(i, 1);
+            localState.bots.splice(i, 1);
+            localState.playerDots.splice(i, 1);
+            localState.playerDifficulty.splice(i, 1);
+            localRenderPlayerList();
+          });
+          row.appendChild(rmBot);
+        }
+        wrap.appendChild(row);
+        return;
+      }
+
       if (!localState.playerDifficulty[i] || !localState.playerDifficulty[i].length) localState.playerDifficulty[i] = ["Easy"];
       var traceOn = !!localState.playerDots[i];
       // when tracing is on, only difficulties that actually have traceable words make sense —
@@ -3084,6 +3121,7 @@ $("local-btn-back-home").addEventListener("click", function () { showScreen("scr
         rm.textContent = "✕";
         rm.addEventListener("click", function () {
           localState.players.splice(i, 1);
+          localState.bots.splice(i, 1);
           localState.playerDots.splice(i, 1);
           localState.playerDifficulty.splice(i, 1);
           localRenderPlayerList();
@@ -3095,9 +3133,15 @@ $("local-btn-back-home").addEventListener("click", function () { showScreen("scr
     $("local-two-player-notice").style.display = (localState.players.length === 2) ? "" : "none";
   }
 
+  var LOCAL_BOT_CYCLE = [null, "easy", "medium", "hard"];
+  function localBotLabel(difficulty) {
+    return difficulty ? ("🤖 AI · " + difficulty.charAt(0).toUpperCase() + difficulty.slice(1)) : "🤖 AI: Off";
+  }
+
   $("local-btn-add-player").addEventListener("click", function () {
     if (localState.players.length >= 10) return;
     localState.players.push("");
+    localState.bots.push(null);
     localState.playerDots.push(false);
     localState.playerDifficulty.push(["Easy"]);
     localRenderPlayerList();
@@ -3193,8 +3237,11 @@ $("local-btn-back-home").addEventListener("click", function () { showScreen("scr
 
   function localStartRound() {
     var artistIdx = localState.revealIndex % localState.players.length;
-    var wantsTrace = !!localState.playerDots[artistIdx];
-    var difficulties = (localState.playerDifficulty[artistIdx] && localState.playerDifficulty[artistIdx].length) ? localState.playerDifficulty[artistIdx] : ["Easy"];
+    var artistIsBot = !!localState.bots[artistIdx];
+    var wantsTrace = artistIsBot ? true : !!localState.playerDots[artistIdx];
+    var difficulties = artistIsBot
+      ? TRACEABLE_DIFFICULTIES.slice()
+      : ((localState.playerDifficulty[artistIdx] && localState.playerDifficulty[artistIdx].length) ? localState.playerDifficulty[artistIdx] : ["Easy"]);
     var chosen = pickWord(difficulties, wantsTrace, null, localState.selectedCategories);
     localState.round = {
       difficulty: chosen.difficulty,
@@ -3209,11 +3256,32 @@ $("local-btn-back-home").addEventListener("click", function () { showScreen("scr
   }
 
   function localGoToReveal() {
+    if (localState.bots[localState.round.artistIdx]) {
+      localFinishBotDrawing();
+      return;
+    }
     var name = localState.players[localState.round.artistIdx];
     $("local-reveal-name").textContent = name;
     $("local-reveal-name-2").textContent = name;
     showScreen("local-screen-reveal");
     localSaveCheckpoint("local-screen-reveal");
+  }
+
+  function localFinishBotDrawing() {
+    localState.round.image = botDrawImageForWord(localState.round.word);
+    localState.round.guesses = {};
+    localState.round.hintUsed = {};
+    localState.round.resolvedGuessMode = (localState.guessMode === "random")
+      ? ((Math.random() < 0.5) ? "type" : "choice")
+      : localState.guessMode;
+    localState.round.guessOrder = shuffle(localState.players
+      .map(function (_, idx) { return idx; })
+      .filter(function (idx) { return idx !== localState.round.artistIdx; }));
+    localState.round.guessPos = 0;
+    if (localState.round.resolvedGuessMode === "choice") {
+      localState.round.choiceOptions = buildChoiceOptions(localState.round.word);
+    }
+    localGoToPassGuess();
   }
 
   $("local-btn-show-word").addEventListener("click", function () {
@@ -3433,7 +3501,23 @@ $("local-btn-back-home").addEventListener("click", function () { showScreen("scr
 
   $("local-btn-done-drawing").addEventListener("click", localFinishDrawing);
 
+  function localBotGuess(difficulty) {
+    var round = localState.round;
+    if (botSucceeds(difficulty)) return round.word;
+    if (round.resolvedGuessMode === "choice" && round.choiceOptions) {
+      var wrong = round.choiceOptions.filter(function (o) { return o !== round.word; });
+      return wrong.length ? wrong[Math.floor(Math.random() * wrong.length)] : round.word;
+    }
+    return "not sure";
+  }
+
   function localGoToPassGuess() {
+    while (localState.round.guessPos < localState.round.guessOrder.length) {
+      var idx = localState.round.guessOrder[localState.round.guessPos];
+      if (!localState.bots[idx]) break;
+      localState.round.guesses[idx] = localBotGuess(localState.bots[idx]);
+      localState.round.guessPos++;
+    }
     if (localState.round.guessPos >= localState.round.guessOrder.length) {
       showScreen("local-screen-ready-reveal");
       return;
@@ -3756,6 +3840,7 @@ $("local-btn-back-home").addEventListener("click", function () { showScreen("scr
     if (!localPendingResume) return;
     var saved = localPendingResume.localState;
     localState.players = saved.players;
+    localState.bots = saved.bots || saved.players.map(function () { return null; });
     localState.playerDots = saved.playerDots;
     localState.playerDifficulty = saved.playerDifficulty;
     localState.selectedCategories = saved.selectedCategories;
