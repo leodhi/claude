@@ -973,6 +973,11 @@ function renderRankPhase() {
   var key = mpRoundKey(round);
   var iAmRanker = round.rankerUid === mp.uid;
 
+  // Must run before any early return below — otherwise a host who is also
+  // the ranker (or whose screen returns early) never checks whether every
+  // guess is already in, and the round gets stuck on "waiting" forever.
+  if (mp.isHost) checkGuessingDone();
+
   if (iAmRanker) {
     if (round.rankerOrder) {
       showScreen("screen-ranker-waiting");
@@ -1004,8 +1009,6 @@ function renderRankPhase() {
   } else {
     renderSeparateGuess(room, round, key);
   }
-
-  if (mp.isHost) checkGuessingDone();
 }
 
 function renderSeparateGuess(room, round, key) {
