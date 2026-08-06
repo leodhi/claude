@@ -143,6 +143,12 @@
     display: none; align-items: center; justify-content: center;
   }
   #chat-toggle:active { transform: scale(0.94); }
+  @keyframes chat-bounce {
+    0%, 100% { transform: translateY(0); }
+    25% { transform: translateY(-7px); }
+    50% { transform: translateY(0); }
+  }
+  #chat-toggle.has-unread { background: var(--accent-2); animation: chat-bounce 0.6s ease-in-out infinite; }
   #chat-badge {
     position: absolute; top: -2px; right: -2px;
     background: var(--accent-2); color: #fff;
@@ -249,6 +255,15 @@
     <div class="card">
       <label>Players</label>
       <div class="player-chip-list" id="lobby-players"></div>
+    </div>
+    <div class="card" id="lobby-bot-card" style="display:none">
+      <label>Add an AI Player</label>
+      <div class="chip-group" id="bot-difficulty-chips">
+        <div class="chip" data-diff="easy">Easy</div>
+        <div class="chip selected" data-diff="medium">Medium</div>
+        <div class="chip" data-diff="hard">Hard</div>
+      </div>
+      <button class="secondary" id="btn-add-bot" type="button" style="margin-top:10px">+ Add AI Player</button>
     </div>
     <div class="card" id="lobby-settings-card">
       <label>Categories</label>
@@ -1199,6 +1214,7 @@ function subscribeChat(code) {
         var badge = $("chat-badge");
         badge.textContent = chatUnread > 9 ? "9+" : String(chatUnread);
         badge.style.display = "block";
+        $("chat-toggle").classList.add("has-unread");
       }
     }
     chatSeenCount = messages.length;
@@ -1209,6 +1225,7 @@ $("chat-toggle").addEventListener("click", function () {
   $("chat-panel").classList.add("open");
   chatUnread = 0;
   $("chat-badge").style.display = "none";
+  $("chat-toggle").classList.remove("has-unread");
   $("chat-input").focus();
 });
 $("chat-close").addEventListener("click", function () {
@@ -1247,6 +1264,29 @@ function mpPlayerName(uid) {
 }
 function mpPlayerUids() { return mp.room.players ? Object.keys(mp.room.players) : []; }
 
+// ---------- AI players ----------
+// No server exists here, so the host's own browser tab quietly answers on
+// a bot's behalf. There's no real reasoning — difficulty is just how often
+// the bot is handed the correct answer.
+var BOT_ACCURACY = { easy: 0.3, medium: 0.6, hard: 0.9 };
+var botActionsScheduled = {};
+
+function isBotUid(uid) {
+  var p = mp.room.players && mp.room.players[uid];
+  return !!(p && p.isBot);
+}
+function botSucceeds(difficulty) {
+  return Math.random() < (BOT_ACCURACY[difficulty] || BOT_ACCURACY.medium);
+}
+function scheduleBotAction(key, fn, minDelay, maxDelay) {
+  if (botActionsScheduled[key]) return;
+  botActionsScheduled[key] = true;
+  setTimeout(fn, minDelay + Math.random() * (maxDelay - minDelay));
+}
+function generateBotUid() {
+  return "bot-" + Math.random().toString(36).slice(2, 10);
+}
+
 // ---------- Lobby ----------
 function renderLobby() {
   var room = mp.room;
@@ -1255,17 +1295,32 @@ function renderLobby() {
   var list = $("lobby-players");
   list.innerHTML = "";
   mpPlayerUids().forEach(function (uid) {
+    var p = room.players[uid];
     var chip = document.createElement("div");
     chip.className = "player-chip";
-    chip.textContent = mpPlayerName(uid);
+    chip.textContent = (p.isBot ? "🤖 " : "") + mpPlayerName(uid) + (p.isBot ? " (" + p.difficulty + ")" : "");
     if (uid === room.hostUid) {
       var badge = document.createElement("span");
       badge.className = "host-badge";
       badge.textContent = "HOST";
       chip.appendChild(badge);
     }
+    if (p.isBot && mp.isHost) {
+      var rm = document.createElement("span");
+      rm.textContent = " ✕";
+      rm.style.cursor = "pointer";
+      rm.style.marginLeft = "4px";
+      rm.addEventListener("click", function () {
+        set(ref(db, "rooms/" + mp.roomCode + "/players/" + uid), null);
+        set(ref(db, "rooms/" + mp.roomCode + "/scores/" + uid), null);
+      });
+      chip.appendChild(rm);
+    }
     list.appendChild(chip);
   });
+
+  var botCard = $("lobby-bot-card");
+  botCard.style.display = mp.isHost ? "" : "none";
 
   var catWrap = $("category-chips");
   catWrap.innerHTML = "";
@@ -1354,6 +1409,25 @@ function renderLobby() {
   showScreen("screen-lobby");
 }
 
+var selectedBotDifficulty = "medium";
+Array.prototype.forEach.call($("bot-difficulty-chips").children, function (chip) {
+  chip.addEventListener("click", function () {
+    selectedBotDifficulty = chip.dataset.diff;
+    Array.prototype.forEach.call($("bot-difficulty-chips").children, function (c) { c.classList.remove("selected"); });
+    chip.classList.add("selected");
+  });
+});
+
+$("btn-add-bot").addEventListener("click", function () {
+  if (!mp.isHost) return;
+  var botUid = generateBotUid();
+  var botNumber = mpPlayerUids().filter(isBotUid).length + 1;
+  update(ref(db, "rooms/" + mp.roomCode + "/players/" + botUid), {
+    name: "CPU " + botNumber, isBot: true, difficulty: selectedBotDifficulty, joinedAt: Date.now()
+  });
+  update(ref(db, "rooms/" + mp.roomCode + "/scores"), (function () { var o = {}; o[botUid] = 0; return o; })());
+});
+
 $("btn-start-game").addEventListener("click", function () {
   if (!mp.isHost) return;
   startMpRound();
@@ -1403,12 +1477,39 @@ async function startMpRound() {
   });
 }
 
+function runBotAnswers(room, round) {
+  mpPlayerUids().forEach(function (uid) {
+    if (!isBotUid(uid)) return;
+    if (round.answers && round.answers[uid] !== undefined) return;
+    var key = "answer:" + uid + ":" + roundKey(round);
+    scheduleBotAction(key, function () {
+      if (!mp.room || mp.room.phase !== "round") return;
+      if (mp.room.round.answers && mp.room.round.answers[uid] !== undefined) return;
+      var difficulty = mp.room.players[uid].difficulty;
+      var answer;
+      if (round.roundGuessMode === "choice") {
+        if (botSucceeds(difficulty)) {
+          answer = round.a;
+        } else {
+          var wrongOptions = (round.roundChoiceOptions || []).filter(function (o) { return o !== round.a; });
+          answer = wrongOptions.length ? wrongOptions[Math.floor(Math.random() * wrongOptions.length)] : round.a;
+        }
+      } else {
+        answer = botSucceeds(difficulty) ? round.a : "not sure";
+      }
+      update(ref(db, "rooms/" + mp.roomCode + "/round/answers"), (function () { var o = {}; o[uid] = answer; return o; })());
+    }, 2000, 6000);
+  });
+}
+
 // ---------- Round (answering) ----------
 function renderRound() {
   var room = mp.room;
   var round = room.round;
   var key = roundKey(round);
   var myAnswer = round.answers ? round.answers[mp.uid] : undefined;
+
+  if (mp.isHost) runBotAnswers(room, round);
 
   $("input-category").textContent = round.cat + " · " + round.diff;
   $("input-question").textContent = round.q;

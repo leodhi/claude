@@ -326,6 +326,12 @@
     display: none; align-items: center; justify-content: center;
   }
   #chat-toggle:active { transform: scale(0.94); }
+  @keyframes chat-bounce {
+    0%, 100% { transform: translateY(0); }
+    25% { transform: translateY(-7px); }
+    50% { transform: translateY(0); }
+  }
+  #chat-toggle.has-unread { background: var(--accent-2); animation: chat-bounce 0.6s ease-in-out infinite; }
   #chat-badge {
     position: absolute; top: -2px; right: -2px;
     background: var(--accent-2); color: #fff;
@@ -431,6 +437,16 @@
       <small class="hint">Everyone opens this page on their own device and enters this code to join. Each player picks their own difficulty and trace preference below — those apply whenever it's that player's turn to draw.</small>
     </div>
     <div id="lobby-players"></div>
+    <div class="card" id="lobby-bot-card" style="display:none">
+      <label>Add an AI Player</label>
+      <div class="chip-group" id="bot-difficulty-chips">
+        <div class="chip" data-diff="easy">Easy</div>
+        <div class="chip selected" data-diff="medium">Medium</div>
+        <div class="chip" data-diff="hard">Hard</div>
+      </div>
+      <button class="secondary" id="btn-add-bot" type="button" style="margin-top:10px">+ Add AI Player</button>
+      <small class="hint">The AI can't actually see a drawing, so it draws simple traceable shapes when it's the artist and "reads" the answer with a difficulty-based hit rate when it's guessing.</small>
+    </div>
     <div class="card" id="lobby-settings-card">
       <label>Categories</label>
       <div class="chip-group" id="category-chips"></div>
@@ -1988,6 +2004,7 @@ function subscribeChat(code) {
         var badge = $("chat-badge");
         badge.textContent = chatUnread > 9 ? "9+" : String(chatUnread);
         badge.style.display = "block";
+        $("chat-toggle").classList.add("has-unread");
       }
     }
     chatSeenCount = messages.length;
@@ -1998,6 +2015,7 @@ $("chat-toggle").addEventListener("click", function () {
   $("chat-panel").classList.add("open");
   chatUnread = 0;
   $("chat-badge").style.display = "none";
+  $("chat-toggle").classList.remove("has-unread");
   $("chat-input").focus();
 });
 $("chat-close").addEventListener("click", function () {
@@ -2035,6 +2053,31 @@ function render() {
 function mpPlayerName(uid) { return mp.room.players && mp.room.players[uid] ? mp.room.players[uid].name : "?"; }
 function mpPlayerUids() { return mp.room.players ? Object.keys(mp.room.players) : []; }
 
+// ---------- AI players ----------
+// No server exists here, so the host's own browser tab quietly acts on a
+// bot's behalf. It can't actually see a drawing, so as a guesser its
+// "answer" is just a difficulty-scaled coin flip on the real word; as an
+// artist, it always draws a real traceable Easy word by replaying that
+// word's trace-guide shape as ink strokes on an offscreen canvas.
+var BOT_ACCURACY = { easy: 0.25, medium: 0.55, hard: 0.85 };
+var botActionsScheduled = {};
+
+function isBotUid(uid) {
+  var p = mp.room.players && mp.room.players[uid];
+  return !!(p && p.isBot);
+}
+function botSucceeds(difficulty) {
+  return Math.random() < (BOT_ACCURACY[difficulty] || BOT_ACCURACY.medium);
+}
+function scheduleBotAction(key, fn, minDelay, maxDelay) {
+  if (botActionsScheduled[key]) return;
+  botActionsScheduled[key] = true;
+  setTimeout(fn, minDelay + Math.random() * (maxDelay - minDelay));
+}
+function generateBotUid() {
+  return "bot-" + Math.random().toString(36).slice(2, 10);
+}
+
 // ---------- Lobby ----------
 function renderLobby() {
   var room = mp.room;
@@ -2054,7 +2097,7 @@ function renderLobby() {
     nameRow.style.justifyContent = "space-between";
     nameRow.style.marginBottom = "6px";
     var nameEl = document.createElement("strong");
-    nameEl.textContent = p.name;
+    nameEl.textContent = (p.isBot ? "🤖 " : "") + p.name + (p.isBot ? " (" + p.difficulty + ")" : "");
     nameRow.appendChild(nameEl);
     if (uid === room.hostUid) {
       var badge = document.createElement("span");
@@ -2062,7 +2105,26 @@ function renderLobby() {
       badge.textContent = "HOST";
       nameRow.appendChild(badge);
     }
+    if (p.isBot && mp.isHost) {
+      var rm = document.createElement("span");
+      rm.textContent = " ✕";
+      rm.style.cursor = "pointer";
+      rm.style.marginLeft = "4px";
+      rm.addEventListener("click", function () {
+        set(ref(db, "rooms/" + mp.roomCode + "/players/" + uid), null);
+        set(ref(db, "rooms/" + mp.roomCode + "/scores/" + uid), null);
+      });
+      nameRow.appendChild(rm);
+    }
     row.appendChild(nameRow);
+    if (p.isBot) {
+      var botNote = document.createElement("small");
+      botNote.className = "hint";
+      botNote.textContent = "Always draws a traceable Easy word when it's the artist; guesses on its own the rest of the time.";
+      row.appendChild(botNote);
+      list.appendChild(row);
+      return;
+    }
 
     var isMe = uid === mp.uid;
     var traceOn = !!p.dots;
@@ -2124,6 +2186,9 @@ function renderLobby() {
 
     list.appendChild(row);
   });
+
+  var botCard = $("lobby-bot-card");
+  botCard.style.display = mp.isHost ? "" : "none";
 
   var catWrap = $("category-chips");
   catWrap.innerHTML = "";
@@ -2196,6 +2261,25 @@ function renderLobby() {
   showScreen("screen-lobby");
 }
 
+var selectedBotDifficulty = "medium";
+Array.prototype.forEach.call($("bot-difficulty-chips").children, function (chip) {
+  chip.addEventListener("click", function () {
+    selectedBotDifficulty = chip.dataset.diff;
+    Array.prototype.forEach.call($("bot-difficulty-chips").children, function (c) { c.classList.remove("selected"); });
+    chip.classList.add("selected");
+  });
+});
+
+$("btn-add-bot").addEventListener("click", function () {
+  if (!mp.isHost) return;
+  var botUid = generateBotUid();
+  var botNumber = mpPlayerUids().filter(isBotUid).length + 1;
+  update(ref(db, "rooms/" + mp.roomCode + "/players/" + botUid), {
+    name: "CPU " + botNumber, isBot: true, difficulty: selectedBotDifficulty, dots: false, joinedAt: Date.now()
+  });
+  update(ref(db, "rooms/" + mp.roomCode + "/scores"), (function () { var o = {}; o[botUid] = 0; return o; })());
+});
+
 $("btn-start-game").addEventListener("click", function () {
   if (!mp.isHost) return;
   update(roomRef(mp.roomCode), { artistIndex: 0 }).then(startMpRound);
@@ -2206,8 +2290,12 @@ async function startMpRound() {
   var uids = mpPlayerUids();
   var artistUid = uids[room.artistIndex % uids.length];
   var artist = room.players[artistUid];
-  var wantsTrace = !!artist.dots;
-  var difficulties = (artist.difficulty && artist.difficulty.length) ? artist.difficulty : ["Easy"];
+  // a bot artist can't freehand draw anything meaningful, so it's always
+  // forced onto a real traceable Easy word it can replay as ink strokes
+  var artistIsBot = isBotUid(artistUid);
+  var wantsTrace = artistIsBot ? true : !!artist.dots;
+  var difficulties = artistIsBot ? TRACEABLE_DIFFICULTIES.slice()
+    : ((artist.difficulty && artist.difficulty.length) ? artist.difficulty : ["Easy"]);
   var chosen = pickWord(difficulties, wantsTrace, null, room.settings.categories || ["All"]);
 
   await update(roomRef(mp.roomCode), {
@@ -2236,6 +2324,55 @@ var mpLastDrawRoundKey = null;
 var mpDrawRoundKey = null;
 var mpDrawingStarted = false;
 
+// Replays a traceable word's guide shape as real ink strokes on an
+// offscreen canvas, so a bot artist can produce an actual recognizable
+// image instead of a blank drawing.
+function botDrawImageForWord(word) {
+  var canvas = document.createElement("canvas");
+  canvas.width = 600; canvas.height = 450;
+  var ctx = canvas.getContext("2d");
+  ctx.fillStyle = "#ffffff";
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  var shapeKey = TRACE_SHAPES[word];
+  var gen = shapeKey && SHAPES[shapeKey];
+  if (gen) {
+    ctx.strokeStyle = COLORS[Math.floor(Math.random() * COLORS.length)];
+    ctx.lineWidth = 9;
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
+    gen().forEach(function (seg) {
+      var pts = seg.points;
+      if (!pts || !pts.length) return;
+      ctx.beginPath();
+      ctx.moveTo(pts[0][0], pts[0][1]);
+      for (var i = 1; i < pts.length; i++) ctx.lineTo(pts[i][0], pts[i][1]);
+      if (seg.closed) ctx.closePath();
+      ctx.stroke();
+    });
+  }
+  return canvas.toDataURL("image/png");
+}
+
+function runBotArtist(round) {
+  if (round.image || !isBotUid(round.artistUid)) return;
+  var key = "draw:" + round.artistUid + ":" + round.word;
+  scheduleBotAction(key, function () {
+    if (!mp.room || mp.room.phase !== "draw" || mp.room.round.image) return;
+    var image = botDrawImageForWord(round.word);
+    var resolvedGuessMode = mp.room.settings.guessMode === "random"
+      ? ((Math.random() < 0.5) ? "type" : "choice")
+      : mp.room.settings.guessMode;
+    var choiceOptions = resolvedGuessMode === "choice" ? buildChoiceOptions(round.word) : null;
+    update(roomRef(mp.roomCode), {
+      phase: "guess",
+      round: Object.assign({}, round, {
+        image: image, resolvedGuessMode: resolvedGuessMode, choiceOptions: choiceOptions,
+        guesses: {}, hintUsed: {}
+      })
+    });
+  }, 3000, 6000);
+}
+
 function renderDrawPhase() {
   var room = mp.room;
   var round = room.round;
@@ -2246,6 +2383,8 @@ function renderDrawPhase() {
     mpDrawRoundKey = key;
     mpDrawingStarted = false;
   }
+
+  if (mp.isHost) runBotArtist(round);
 
   if (!iAmArtist) {
     showScreen("screen-artist-waiting");
@@ -2473,11 +2612,36 @@ function finishMpDrawing() {
 }
 $("mp-btn-done-drawing").addEventListener("click", finishMpDrawing);
 
+function runBotGuessers(room, round) {
+  mpPlayerUids().forEach(function (uid) {
+    if (uid === round.artistUid || !isBotUid(uid)) return;
+    if (round.guesses && round.guesses[uid] !== undefined) return;
+    var key = "guess:" + uid + ":" + round.artistUid + ":" + round.word;
+    scheduleBotAction(key, function () {
+      if (!mp.room || mp.room.phase !== "guess") return;
+      if (mp.room.round.guesses && mp.room.round.guesses[uid] !== undefined) return;
+      var difficulty = mp.room.players[uid].difficulty;
+      var guess;
+      if (botSucceeds(difficulty)) {
+        guess = round.word;
+      } else if (round.resolvedGuessMode === "choice" && round.choiceOptions) {
+        var wrong = round.choiceOptions.filter(function (o) { return o !== round.word; });
+        guess = wrong.length ? wrong[Math.floor(Math.random() * wrong.length)] : round.word;
+      } else {
+        guess = "not sure";
+      }
+      update(ref(db, "rooms/" + mp.roomCode + "/round/guesses"), (function () { var o = {}; o[uid] = guess; return o; })());
+    }, 2000, 6000);
+  });
+}
+
 // ---------- Guess phase (everyone but the artist, simultaneously) ----------
 function renderGuessPhase() {
   var room = mp.room;
   var round = room.round;
   var iAmArtist = round.artistUid === mp.uid;
+
+  if (mp.isHost) runBotGuessers(room, round);
 
   if (iAmArtist) {
     showScreen("screen-artist-waiting-guesses");
