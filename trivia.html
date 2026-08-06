@@ -65,8 +65,8 @@
     color: var(--accent); font-size: 1.8rem; font-weight: 700; border-radius: 10px; cursor: pointer; line-height: 1;
   }
   .stepper-btn:active { transform: scale(0.96); }
-  .player-row { display: flex; gap: 8px; margin-bottom: 8px; align-items: center; }
-  .player-row input[type="text"] { flex: 1; }
+  .player-row { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 8px; align-items: center; }
+  .player-row input[type="text"] { flex: 1; min-width: 90px; }
   .icon-btn {
     background: var(--panel-2); border: 1px solid var(--border); color: var(--text-dim);
     border-radius: 10px; width: 44px; height: 44px; font-size: 1.1rem; cursor: pointer; flex: none;
