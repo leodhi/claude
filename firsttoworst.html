@@ -337,6 +337,10 @@
       <div>Ranking locked in!</div>
       <small class="hint">Everyone else is now guessing your order — results appear here once they're done.</small>
     </div>
+    <div class="card">
+      <label>Waiting On</label>
+      <div id="ranker-waiting-list"></div>
+    </div>
   </div>
 
   <!-- MULTIPLAYER: ranking / guessing (shared drag-list screen) -->
@@ -355,6 +359,10 @@
       <div class="pass-icon">🙌</div>
       <div>Guess locked in!</div>
       <small class="hint">Waiting for everyone else to finish guessing…</small>
+    </div>
+    <div class="card">
+      <label>Waiting On</label>
+      <div id="guess-waiting-list"></div>
     </div>
   </div>
 
@@ -1200,6 +1208,31 @@ function guesserCoordinatorUid(room, round) {
   return (humans.length ? humans : guessers)[0];
 }
 
+function renderWaitingOnList(containerId, room, round) {
+  var container = $(containerId);
+  if (!container) return;
+  container.innerHTML = "";
+  var guesserUids = mpPlayerUids().filter(function (uid) { return uid !== round.rankerUid; });
+
+  if (room.settings.guessMode === "together") {
+    var coordinatorUid = guesserCoordinatorUid(room, round);
+    var done = !!round.sharedGuessLocked;
+    var row = document.createElement("div");
+    row.className = "score-row";
+    row.innerHTML = "<span>" + (done ? "✅" : "⏳") + " Everyone (" + mpPlayerName(coordinatorUid) + " is arranging)</span>";
+    container.appendChild(row);
+    return;
+  }
+
+  guesserUids.forEach(function (uid) {
+    var done = !!(round.guesses && round.guesses[uid] !== undefined);
+    var row = document.createElement("div");
+    row.className = "score-row";
+    row.innerHTML = "<span>" + (done ? "✅" : "⏳") + " " + mpPlayerName(uid) + "</span>";
+    container.appendChild(row);
+  });
+}
+
 function renderRankPhase() {
   var room = mp.room;
   var round = room.round;
@@ -1214,6 +1247,7 @@ function renderRankPhase() {
 
   if (iAmRanker) {
     if (round.rankerOrder) {
+      renderWaitingOnList("ranker-waiting-list", room, round);
       showScreen("screen-ranker-waiting");
       return;
     }
@@ -1286,6 +1320,7 @@ function runBotActionsForRound(room, round) {
 function renderSeparateGuess(room, round, key) {
   var myGuess = round.guesses ? round.guesses[mp.uid] : undefined;
   if (myGuess) {
+    renderWaitingOnList("guess-waiting-list", room, round);
     showScreen("screen-guess-waiting");
     return;
   }
@@ -1308,6 +1343,7 @@ function renderTogetherGuess(room, round, key) {
   var iAmCoordinator = coordinatorUid === mp.uid;
 
   if (round.sharedGuessLocked) {
+    renderWaitingOnList("guess-waiting-list", room, round);
     showScreen("screen-guess-waiting");
     return;
   }

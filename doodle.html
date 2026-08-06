@@ -518,6 +518,10 @@
       <div>Everyone's guessing your drawing now…</div>
       <small class="hint">Hang tight — results appear here once everyone's locked in a guess.</small>
     </div>
+    <div class="card">
+      <label>Who's Guessed</label>
+      <div id="artist-waiting-status-list"></div>
+    </div>
   </div>
 
   <!-- MULTIPLAYER: guess input -->
@@ -548,6 +552,10 @@
       <div class="pass-icon">🙌</div>
       <div>Guess locked in!</div>
       <small class="hint">Waiting for everyone else to finish guessing…</small>
+    </div>
+    <div class="card">
+      <label>Who's Guessed</label>
+      <div id="guess-waiting-status-list"></div>
     </div>
   </div>
 
@@ -2636,6 +2644,19 @@ function runBotGuessers(room, round) {
 }
 
 // ---------- Guess phase (everyone but the artist, simultaneously) ----------
+function renderGuessStatusList(containerId, round) {
+  var container = $(containerId);
+  if (!container) return;
+  container.innerHTML = "";
+  mpPlayerUids().filter(function (uid) { return uid !== round.artistUid; }).forEach(function (uid) {
+    var guessed = round.guesses && round.guesses[uid] !== undefined;
+    var row = document.createElement("div");
+    row.className = "score-row";
+    row.innerHTML = "<span>" + (guessed ? "✅" : "⏳") + " " + mpPlayerName(uid) + "</span>";
+    container.appendChild(row);
+  });
+}
+
 function renderGuessPhase() {
   var room = mp.room;
   var round = room.round;
@@ -2644,6 +2665,7 @@ function renderGuessPhase() {
   if (mp.isHost) runBotGuessers(room, round);
 
   if (iAmArtist) {
+    renderGuessStatusList("artist-waiting-status-list", round);
     showScreen("screen-artist-waiting-guesses");
     if (mp.isHost) checkAllGuessesIn();
     return;
@@ -2653,6 +2675,7 @@ function renderGuessPhase() {
   var myGuess = round.guesses ? round.guesses[mp.uid] : undefined;
 
   if (myGuess !== undefined) {
+    renderGuessStatusList("guess-waiting-status-list", round);
     showScreen("screen-guess-waiting");
     stopMpTimer();
   } else {
