@@ -394,6 +394,7 @@
     <div class="card">
       <label>Say-a-clue-word order</label>
       <div class="order-list" id="local-order-list"></div>
+      <small class="hint" id="local-ai-clue-hint" style="display:none;"></small>
     </div>
     <div class="card center" id="local-timer-card">
       <div class="timer" id="local-timer-display">--:--</div>
@@ -1286,6 +1287,7 @@ $("btn-end-game").addEventListener("click", function () {
 
 var localState = {
   players: ["", "", ""],
+  bots: [null, null, null],
   selectedCategories: Object.keys(CATEGORIES),
   timerSeconds: 90,
   scores: {},
@@ -1297,6 +1299,11 @@ var localState = {
   timerRemaining: 0,
   timerRunning: false
 };
+
+var LOCAL_BOT_CYCLE = [null, "easy", "medium", "hard"];
+function localBotLabel(difficulty) {
+  return difficulty ? ("🤖 AI · " + difficulty.charAt(0).toUpperCase() + difficulty.slice(1)) : "🤖 AI: Off";
+}
 
 $("btn-local-mode").addEventListener("click", function () {
   renderLocalPlayerList();
@@ -1325,6 +1332,17 @@ function renderLocalPlayerList() {
     input.style.flex = "1";
     input.addEventListener("input", function () { localState.players[i] = input.value; });
     row.appendChild(input);
+    var botBtn = document.createElement("button");
+    botBtn.type = "button";
+    botBtn.className = "chip" + (localState.bots[i] ? " selected" : "");
+    botBtn.style.cssText = "flex-shrink:0;white-space:nowrap;";
+    botBtn.textContent = localBotLabel(localState.bots[i]);
+    botBtn.addEventListener("click", function () {
+      var idx = LOCAL_BOT_CYCLE.indexOf(localState.bots[i]);
+      localState.bots[i] = LOCAL_BOT_CYCLE[(idx + 1) % LOCAL_BOT_CYCLE.length];
+      renderLocalPlayerList();
+    });
+    row.appendChild(botBtn);
     if (localState.players.length > 3) {
       var rm = document.createElement("button");
       rm.className = "icon-btn";
@@ -1333,6 +1351,7 @@ function renderLocalPlayerList() {
       rm.style.cssText = "background:var(--panel-2);border:1px solid var(--border);color:var(--text-dim);border-radius:10px;width:44px;height:44px;font-size:1.1rem;cursor:pointer;";
       rm.addEventListener("click", function () {
         localState.players.splice(i, 1);
+        localState.bots.splice(i, 1);
         renderLocalPlayerList();
       });
       row.appendChild(rm);
@@ -1344,6 +1363,7 @@ function renderLocalPlayerList() {
 $("local-btn-add-player").addEventListener("click", function () {
   if (localState.players.length >= 12) return;
   localState.players.push("");
+  localState.bots.push(null);
   renderLocalPlayerList();
 });
 
@@ -1401,6 +1421,9 @@ function startLocalRound() {
 }
 
 function goToLocalReveal() {
+  while (localState.revealIndex < localState.players.length && localState.bots[localState.revealIndex]) {
+    localState.revealIndex++;
+  }
   if (localState.revealIndex >= localState.players.length) {
     goToLocalDiscuss();
     return;
@@ -1461,6 +1484,15 @@ function goToLocalDiscuss() {
     list.appendChild(item);
   });
 
+  var aiNames = localState.players.filter(function (_, i) { return localState.bots[i]; });
+  var aiHint = $("local-ai-clue-hint");
+  if (aiNames.length) {
+    aiHint.style.display = "";
+    aiHint.textContent = "AI players (" + aiNames.join(", ") + ") can't speak — have someone say a quick clue on their behalf when it's their turn.";
+  } else {
+    aiHint.style.display = "none";
+  }
+
   if (localState.timerSeconds > 0) {
     $("local-timer-card").style.display = "";
     resetLocalTimer();
@@ -1518,7 +1550,24 @@ $("local-btn-go-vote").addEventListener("click", function () {
   goToLocalVote();
 });
 
+function localBotRandomOther(idx) {
+  var candidates = localState.players.map(function (_, i) { return i; }).filter(function (i) { return i !== idx; });
+  return candidates[Math.floor(Math.random() * candidates.length)];
+}
+
+function localBotChooseVote(idx) {
+  var round = localState.round;
+  var difficulty = localState.bots[idx] || "medium";
+  var isBotChameleon = idx === round.chameleonIdx;
+  if (!isBotChameleon && botSucceeds(difficulty)) return round.chameleonIdx;
+  return localBotRandomOther(idx);
+}
+
 function goToLocalVote() {
+  while (localState.voteIndex < localState.players.length && localState.bots[localState.voteIndex]) {
+    localState.votes[localState.voteIndex] = localBotChooseVote(localState.voteIndex);
+    localState.voteIndex++;
+  }
   if (localState.voteIndex >= localState.players.length) {
     showLocalResults();
     return;
@@ -1591,26 +1640,34 @@ function showLocalResults() {
   nextBtn.style.display = "none";
   $("local-guess-input").value = "";
 
+  function localResolveGuess(correct) {
+    guessBox.style.display = "none";
+    banner.style.display = "";
+    if (correct) {
+      banner.className = "result-banner result-win";
+      banner.textContent = "Chameleon guessed \"" + round.secretWord + "\" correctly! Chameleon wins the round.";
+      localState.scores[localState.players[round.chameleonIdx]] += 2;
+    } else {
+      banner.className = "result-banner result-lose";
+      banner.textContent = "Wrong guess (word was \"" + round.secretWord + "\"). Everyone else wins the round!";
+      localState.players.forEach(function (name, idx) {
+        if (idx !== round.chameleonIdx) localState.scores[name] += 1;
+      });
+    }
+    nextBtn.style.display = "";
+  }
+
   if (chameleonCaught) {
-    guessBox.style.display = "";
-    $("local-btn-submit-guess").onclick = function () {
-      var guess = $("local-guess-input").value.trim().toLowerCase();
-      var correct = guess === round.secretWord.toLowerCase();
+    if (localState.bots[round.chameleonIdx]) {
       guessBox.style.display = "none";
-      banner.style.display = "";
-      if (correct) {
-        banner.className = "result-banner result-win";
-        banner.textContent = "Chameleon guessed \"" + round.secretWord + "\" correctly! Chameleon wins the round.";
-        localState.scores[localState.players[round.chameleonIdx]] += 2;
-      } else {
-        banner.className = "result-banner result-lose";
-        banner.textContent = "Wrong guess (word was \"" + round.secretWord + "\"). Everyone else wins the round!";
-        localState.players.forEach(function (name, idx) {
-          if (idx !== round.chameleonIdx) localState.scores[name] += 1;
-        });
-      }
-      nextBtn.style.display = "";
-    };
+      localResolveGuess(botSucceeds(localState.bots[round.chameleonIdx]));
+    } else {
+      guessBox.style.display = "";
+      $("local-btn-submit-guess").onclick = function () {
+        var guess = $("local-guess-input").value.trim().toLowerCase();
+        localResolveGuess(guess === round.secretWord.toLowerCase());
+      };
+    }
   } else {
     guessBox.style.display = "none";
     banner.style.display = "";
