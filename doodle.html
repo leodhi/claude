@@ -2233,16 +2233,31 @@ var MP_UNDO_LIMIT = 25;
 var mpCanvasSetUp = false;
 var mpLastDrawRoundKey = null;
 
+var mpDrawRoundKey = null;
+var mpDrawingStarted = false;
+
 function renderDrawPhase() {
   var room = mp.room;
   var round = room.round;
   var iAmArtist = round.artistUid === mp.uid;
+  var key = round.artistUid + "::" + round.word;
+
+  if (mpDrawRoundKey !== key) {
+    mpDrawRoundKey = key;
+    mpDrawingStarted = false;
+  }
 
   if (!iAmArtist) {
     showScreen("screen-artist-waiting");
     $("artist-waiting-name").textContent = mpPlayerName(round.artistUid);
     return;
   }
+
+  // Any room change (even something unrelated, like a chat message) fires
+  // another render — once the artist has moved past word-reveal into the
+  // actual canvas, a stray re-render here must not yank them back to the
+  // word screen and reset their drawing timer.
+  if (mpDrawingStarted) return;
 
   showScreen("screen-mp-word");
   $("mp-word-difficulty-label").textContent = round.difficulty + " word";
@@ -2261,6 +2276,7 @@ $("mp-btn-skip-word").addEventListener("click", function () {
 });
 
 $("mp-btn-start-drawing").addEventListener("click", function () {
+  mpDrawingStarted = true;
   showScreen("screen-mp-draw");
   setupMpCanvasIfNeeded();
   mpClearCanvas();
