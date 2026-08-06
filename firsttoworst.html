@@ -175,6 +175,54 @@
   .top-link { color: var(--text-dim); font-size: 0.8rem; text-decoration: none; }
   .top-link:hover { color: var(--accent); }
 
+
+  #chat-toggle {
+    position: fixed; right: 16px; bottom: 16px; z-index: 40;
+    width: 52px; height: 52px; border-radius: 50%;
+    background: var(--accent); color: #08130d; border: none;
+    font-size: 1.4rem; cursor: pointer;
+    box-shadow: 0 4px 14px rgba(0,0,0,0.35);
+    display: none; align-items: center; justify-content: center;
+  }
+  #chat-toggle:active { transform: scale(0.94); }
+  #chat-badge {
+    position: absolute; top: -2px; right: -2px;
+    background: var(--accent-2); color: #fff;
+    border-radius: 999px; min-width: 18px; height: 18px;
+    font-size: 0.68rem; font-weight: 800; line-height: 18px;
+    text-align: center; padding: 0 4px; display: none;
+  }
+  #chat-panel {
+    position: fixed; right: 16px; bottom: 78px; z-index: 40;
+    width: min(320px, calc(100vw - 32px)); max-height: min(440px, calc(100vh - 140px));
+    background: var(--panel); border: 1px solid var(--border); border-radius: 16px;
+    display: none; flex-direction: column; overflow: hidden;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.45);
+  }
+  #chat-panel.open { display: flex; }
+  #chat-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 10px 12px; border-bottom: 1px solid var(--border);
+    font-size: 0.85rem; font-weight: 700; color: var(--text-dim);
+    text-transform: uppercase; letter-spacing: 0.06em;
+  }
+  #chat-close {
+    background: none; border: none; color: var(--text-dim);
+    font-size: 1rem; cursor: pointer; padding: 2px 6px;
+  }
+  #chat-messages { flex: 1; overflow-y: auto; padding: 10px 12px; display: flex; flex-direction: column; gap: 8px; }
+  .chat-msg { font-size: 0.85rem; line-height: 1.35; }
+  .chat-msg .chat-name { font-weight: 700; color: var(--accent); }
+  .chat-msg.chat-mine .chat-name { color: var(--accent-2); }
+  #chat-input-row { display: flex; gap: 6px; padding: 10px; border-top: 1px solid var(--border); }
+  #chat-input {
+    flex: 1; background: var(--panel-2); border: 1px solid var(--border);
+    color: var(--text); padding: 9px 10px; border-radius: 10px; font-size: 0.9rem;
+  }
+  #chat-send {
+    background: var(--accent); color: #08130d; border: none;
+    border-radius: 10px; padding: 0 14px; font-weight: 700; cursor: pointer; font-size: 0.85rem;
+  }
   #home-toggle {
     position: fixed; left: 16px; bottom: 16px; z-index: 40;
     width: 52px; height: 52px; border-radius: 50%;
@@ -191,6 +239,20 @@
   <h1>First to <span>Worst</span></h1>
   <div class="subtitle">Pass-and-play: one player secretly ranks 5 things, everyone else guesses the order &middot; <a class="top-link" href="index.html">&larr; all games</a></div>
 
+    <button id="chat-toggle" type="button" aria-label="Room chat">
+    💬<span id="chat-badge"></span>
+  </button>
+  <div id="chat-panel">
+    <div id="chat-header">
+      <span>Room Chat</span>
+      <button id="chat-close" type="button" aria-label="Close chat">✕</button>
+    </div>
+    <div id="chat-messages"></div>
+    <div id="chat-input-row">
+      <input type="text" id="chat-input" placeholder="Message..." maxlength="200">
+      <button id="chat-send" type="button">Send</button>
+    </div>
+  </div>
   <button id="home-toggle" type="button" aria-label="Back to start screen">🏠</button>
 
   <!-- HOME: play locally, or create/join a room -->
@@ -487,7 +549,7 @@
 import { firebaseConfig } from "./firebase-config.js";
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-import { getDatabase, ref, set, get, update, onValue } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
+import { getDatabase, ref, set, get, update, onValue, push } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
 
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
@@ -856,12 +918,79 @@ function subscribeRoom(code) {
       localStorage.removeItem("f2w_room");
       showScreen("screen-home");
       $("home-status").textContent = "Room closed.";
+      $("chat-toggle").style.display = "none";
+      $("chat-panel").classList.remove("open");
       return;
     }
     mp.isHost = mp.room.hostUid === mp.uid;
     render();
   });
+  subscribeChat(code);
+  $("chat-toggle").style.display = "flex";
 }
+
+// ---------- Room chat ----------
+var chatSeenCount = 0;
+var chatUnread = 0;
+
+function subscribeChat(code) {
+  onValue(ref(db, "rooms/" + code + "/chat"), function (snap) {
+    var val = snap.val() || {};
+    var messages = Object.keys(val).map(function (key) { return val[key]; })
+      .sort(function (a, b) { return a.ts - b.ts; });
+
+    var wrap = $("chat-messages");
+    wrap.innerHTML = "";
+    messages.forEach(function (m) {
+      var row = document.createElement("div");
+      row.className = "chat-msg" + (m.uid === mp.uid ? " chat-mine" : "");
+      var nameSpan = document.createElement("span");
+      nameSpan.className = "chat-name";
+      nameSpan.textContent = (m.uid === mp.uid ? "You" : m.name) + ": ";
+      row.appendChild(nameSpan);
+      row.appendChild(document.createTextNode(m.text));
+      wrap.appendChild(row);
+    });
+    wrap.scrollTop = wrap.scrollHeight;
+
+    if (messages.length > chatSeenCount) {
+      if (!$("chat-panel").classList.contains("open")) {
+        chatUnread += messages.length - chatSeenCount;
+        var badge = $("chat-badge");
+        badge.textContent = chatUnread > 9 ? "9+" : String(chatUnread);
+        badge.style.display = "block";
+      }
+    }
+    chatSeenCount = messages.length;
+  });
+}
+
+$("chat-toggle").addEventListener("click", function () {
+  $("chat-panel").classList.add("open");
+  chatUnread = 0;
+  $("chat-badge").style.display = "none";
+  $("chat-input").focus();
+});
+$("chat-close").addEventListener("click", function () {
+  $("chat-panel").classList.remove("open");
+});
+
+function sendChatMessage() {
+  var text = $("chat-input").value.trim();
+  if (!text || !mp.roomCode) return;
+  push(ref(db, "rooms/" + mp.roomCode + "/chat"), {
+    uid: mp.uid,
+    name: mp.name,
+    text: text.slice(0, 200),
+    ts: Date.now()
+  });
+  $("chat-input").value = "";
+}
+$("chat-send").addEventListener("click", sendChatMessage);
+$("chat-input").addEventListener("keydown", function (e) {
+  if (e.key === "Enter") { e.preventDefault(); sendChatMessage(); }
+});
+
 
 function render() {
   var room = mp.room;
