@@ -240,6 +240,12 @@
     display: none; align-items: center; justify-content: center;
   }
   #chat-toggle:active { transform: scale(0.94); }
+  @keyframes chat-bounce {
+    0%, 100% { transform: translateY(0); }
+    25% { transform: translateY(-7px); }
+    50% { transform: translateY(0); }
+  }
+  #chat-toggle.has-unread { background: var(--accent-2); animation: chat-bounce 0.6s ease-in-out infinite; }
   #chat-badge {
     position: absolute; top: -2px; right: -2px;
     background: var(--accent-2); color: #fff;
@@ -732,6 +738,7 @@ function subscribeChat(code) {
         var badge = $("chat-badge");
         badge.textContent = chatUnread > 9 ? "9+" : String(chatUnread);
         badge.style.display = "block";
+        $("chat-toggle").classList.add("has-unread");
       }
     }
     chatSeenCount = messages.length;
@@ -742,6 +749,7 @@ $("chat-toggle").addEventListener("click", function () {
   $("chat-panel").classList.add("open");
   chatUnread = 0;
   $("chat-badge").style.display = "none";
+  $("chat-toggle").classList.remove("has-unread");
   $("chat-input").focus();
 });
 $("chat-close").addEventListener("click", function () {
