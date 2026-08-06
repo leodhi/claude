@@ -446,6 +446,16 @@
       <label>Players</label>
       <div class="player-chip-list" id="lobby-players"></div>
     </div>
+    <div class="card" id="lobby-bot-card" style="display:none">
+      <label>Add an AI Player</label>
+      <div class="chip-group" id="bot-difficulty-chips">
+        <div class="chip" data-diff="easy">Easy</div>
+        <div class="chip selected" data-diff="medium">Medium</div>
+        <div class="chip" data-diff="hard">Hard</div>
+      </div>
+      <button class="secondary" id="btn-add-bot" type="button" style="margin-top:10px">+ Add AI Player</button>
+      <small class="hint">The AI votes and (if it's the Chameleon) guesses the word on its own — someone at the table still has to say its clue out loud for it.</small>
+    </div>
     <div class="card" id="lobby-settings-card">
       <label>Categories</label>
       <div class="chip-group" id="category-chips"></div>
@@ -771,6 +781,29 @@ function playerUids() {
   return state.room.players ? Object.keys(state.room.players) : [];
 }
 
+// ---------- AI players ----------
+// There's no server here, so a bot has no device of its own — the host's
+// browser tab quietly acts on its behalf. A bot can't actually reason about
+// the game, so "difficulty" is just how often it's handed the right answer.
+var BOT_ACCURACY = { easy: 0.2, medium: 0.5, hard: 0.85 };
+var botActionsScheduled = {};
+
+function isBotUid(uid) {
+  var p = state.room.players && state.room.players[uid];
+  return !!(p && p.isBot);
+}
+function botSucceeds(difficulty) {
+  return Math.random() < (BOT_ACCURACY[difficulty] || BOT_ACCURACY.medium);
+}
+function scheduleBotAction(key, fn, minDelay, maxDelay) {
+  if (botActionsScheduled[key]) return;
+  botActionsScheduled[key] = true;
+  setTimeout(fn, minDelay + Math.random() * (maxDelay - minDelay));
+}
+function generateBotUid() {
+  return "bot-" + Math.random().toString(36).slice(2, 10);
+}
+
 // ---------- Lobby ----------
 function renderLobby() {
   var room = state.room;
@@ -779,17 +812,32 @@ function renderLobby() {
   var list = $("lobby-players");
   list.innerHTML = "";
   playerUids().forEach(function (uid) {
+    var p = room.players[uid];
     var chip = document.createElement("div");
     chip.className = "player-chip";
-    chip.textContent = playerName(uid) + (uid === room.hostUid ? "" : "");
+    chip.textContent = (p.isBot ? "🤖 " : "") + playerName(uid) + (p.isBot ? " (" + p.difficulty + ")" : "");
     if (uid === room.hostUid) {
       var badge = document.createElement("span");
       badge.className = "host-badge";
       badge.textContent = "HOST";
       chip.appendChild(badge);
     }
+    if (p.isBot && state.isHost) {
+      var rm = document.createElement("span");
+      rm.textContent = " ✕";
+      rm.style.cursor = "pointer";
+      rm.style.marginLeft = "4px";
+      rm.addEventListener("click", function () {
+        set(ref(db, "rooms/" + state.roomCode + "/players/" + uid), null);
+        set(ref(db, "rooms/" + state.roomCode + "/scores/" + uid), null);
+      });
+      chip.appendChild(rm);
+    }
     list.appendChild(chip);
   });
+
+  var botCard = $("lobby-bot-card");
+  botCard.style.display = state.isHost ? "" : "none";
 
   var catWrap = $("category-chips");
   catWrap.innerHTML = "";
@@ -835,6 +883,25 @@ function renderLobby() {
   showScreen("screen-lobby");
 }
 
+var selectedBotDifficulty = "medium";
+Array.prototype.forEach.call($("bot-difficulty-chips").children, function (chip) {
+  chip.addEventListener("click", function () {
+    selectedBotDifficulty = chip.dataset.diff;
+    Array.prototype.forEach.call($("bot-difficulty-chips").children, function (c) { c.classList.remove("selected"); });
+    chip.classList.add("selected");
+  });
+});
+
+$("btn-add-bot").addEventListener("click", function () {
+  if (!state.isHost) return;
+  var botUid = generateBotUid();
+  var botNumber = playerUids().filter(isBotUid).length + 1;
+  update(ref(db, "rooms/" + state.roomCode + "/players/" + botUid), {
+    name: "CPU " + botNumber, isBot: true, difficulty: selectedBotDifficulty, joinedAt: Date.now()
+  });
+  update(ref(db, "rooms/" + state.roomCode + "/scores"), (function () { var o = {}; o[botUid] = 0; return o; })());
+});
+
 $("btn-start-game").addEventListener("click", function () {
   if (!state.isHost) return;
   startRound();
@@ -848,6 +915,9 @@ async function startRound() {
   var secretWord = pickRandom(words);
   var chameleonUid = uids[Math.floor(Math.random() * uids.length)];
   var order = shuffle(uids.slice());
+  // bots have no screen to tap "I'm ready" on, so mark them ready up front
+  var readyUids = {};
+  uids.filter(isBotUid).forEach(function (uid) { readyUids[uid] = true; });
   await update(roomRef(state.roomCode), {
     phase: "reveal",
     round: {
@@ -856,7 +926,7 @@ async function startRound() {
       secretWord: secretWord,
       chameleonUid: chameleonUid,
       order: order,
-      readyUids: {},
+      readyUids: readyUids,
       guess: null
     },
     votes: {},
@@ -1019,12 +1089,39 @@ function renderVote() {
   showScreen("screen-vote");
 
   if (state.isHost) {
+    runBotVotes();
     var uids = playerUids();
     var voteCount = room.votes ? Object.keys(room.votes).length : 0;
     if (voteCount >= uids.length) {
       update(roomRef(state.roomCode), { phase: "results" });
     }
   }
+}
+
+function runBotVotes() {
+  var room = state.room;
+  var round = room.round;
+  var votes = room.votes || {};
+  playerUids().forEach(function (uid) {
+    if (!isBotUid(uid) || votes[uid] !== undefined) return;
+    var key = "vote:" + round.chameleonUid + ":" + round.secretWord + ":" + uid;
+    scheduleBotAction(key, function () {
+      if (!state.room || state.room.phase !== "vote") return;
+      var difficulty = state.room.players[uid].difficulty;
+      var others = playerUids().filter(function (u) { return u !== uid; });
+      var target;
+      if (uid === round.chameleonUid) {
+        // the bot IS the chameleon — vote for someone else to blend in
+        target = others[Math.floor(Math.random() * others.length)];
+      } else if (botSucceeds(difficulty)) {
+        target = round.chameleonUid;
+      } else {
+        var wrong = others.filter(function (u) { return u !== round.chameleonUid; });
+        target = (wrong.length ? wrong : others)[Math.floor(Math.random() * (wrong.length ? wrong.length : others.length))];
+      }
+      update(ref(db, "rooms/" + state.roomCode + "/votes"), (function () { var o = {}; o[uid] = target; return o; })());
+    }, 1500, 4000);
+  });
 }
 
 // ---------- Results ----------
@@ -1078,6 +1175,7 @@ function renderResults() {
     banner.style.display = "none";
     scoreboardCard.style.display = "none";
     hostNav.style.display = "none";
+    if (state.isHost && isBotUid(round.chameleonUid)) runBotChameleonGuess(round);
   } else {
     guessBox.style.display = "none";
     banner.style.display = "";
@@ -1135,6 +1233,16 @@ async function settleRound(chameleonWon, guess) {
     });
   }
   await update(ref(db, "rooms/" + state.roomCode + "/scores"), scoreUpdates);
+}
+
+function runBotChameleonGuess(round) {
+  var key = "guess:" + round.chameleonUid + ":" + round.secretWord;
+  scheduleBotAction(key, function () {
+    if (!state.room || state.room.phase !== "results" || state.room.round.settled) return;
+    var difficulty = state.room.players[round.chameleonUid].difficulty;
+    var correct = botSucceeds(difficulty);
+    settleRound(correct, correct ? round.secretWord : "(a wrong guess)");
+  }, 1500, 3500);
 }
 
 function renderScoreboard() {
