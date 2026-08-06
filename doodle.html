@@ -3349,7 +3349,7 @@ $("local-btn-back-home").addEventListener("click", function () { showScreen("scr
     if (localCanvas) return;
     localCanvas = $("local-draw-canvas");
     localCtx = localCanvas.getContext("2d");
-    localInkCanvas = document.createElement("localCanvas");
+    localInkCanvas = document.createElement("canvas");
     localInkCanvas.width = localCanvas.width;
     localInkCanvas.height = localCanvas.height;
     localInkCtx = localInkCanvas.getContext("2d");
