@@ -2065,14 +2065,29 @@ function renderLobby() {
     row.appendChild(nameRow);
 
     var isMe = uid === mp.uid;
+    var traceOn = !!p.dots;
+    // when tracing is on, only difficulties that actually have traceable words make sense --
+    // otherwise showing all three is misleading, since the game silently ignores the others
+    var onlyTraceable = traceOn && TRACEABLE_DIFFICULTIES.length < DIFFICULTIES.length;
+    var currentDiff = (p.difficulty && p.difficulty.length) ? p.difficulty : ["Easy"];
+    if (isMe && onlyTraceable) {
+      var kept = currentDiff.filter(function (d) { return TRACEABLE_DIFFICULTIES.indexOf(d) !== -1; });
+      if (!kept.length) kept = TRACEABLE_DIFFICULTIES.slice();
+      if (kept.join(",") !== currentDiff.join(",")) {
+        update(ref(db, "rooms/" + mp.roomCode + "/players/" + mp.uid), { difficulty: kept });
+        currentDiff = kept;
+      }
+    }
+
     var diffGroup = document.createElement("div");
     diffGroup.className = "diff-chip-group";
     DIFFICULTIES.forEach(function (d) {
+      var enabled = isMe && (!onlyTraceable || TRACEABLE_DIFFICULTIES.indexOf(d) !== -1);
       var chip = document.createElement("div");
-      chip.className = "diff-chip" + ((p.difficulty || []).indexOf(d) !== -1 ? " selected" : "") + (isMe ? "" : " disabled");
+      chip.className = "diff-chip" + (currentDiff.indexOf(d) !== -1 ? " selected" : "") + (enabled ? "" : " disabled");
       chip.textContent = d[0];
-      chip.title = d;
-      if (isMe) {
+      chip.title = enabled || !isMe ? d : d + " (no traceable words — turn off trace to use this)";
+      if (enabled) {
         chip.addEventListener("click", function () {
           var current = (room.players[mp.uid].difficulty || []).slice();
           var idx = current.indexOf(d);
