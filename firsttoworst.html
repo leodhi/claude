@@ -174,12 +174,24 @@
   .footer-nav button { flex: 1; }
   .top-link { color: var(--text-dim); font-size: 0.8rem; text-decoration: none; }
   .top-link:hover { color: var(--accent); }
+
+  #home-toggle {
+    position: fixed; left: 16px; bottom: 16px; z-index: 40;
+    width: 52px; height: 52px; border-radius: 50%;
+    background: var(--panel-2); color: var(--text); border: 1px solid var(--border);
+    font-size: 1.3rem; cursor: pointer;
+    box-shadow: 0 4px 14px rgba(0,0,0,0.35);
+    display: none; align-items: center; justify-content: center;
+  }
+  #home-toggle:active { transform: scale(0.94); }
 </style>
 </head>
 <body>
 <div id="app">
   <h1>First to <span>Worst</span></h1>
   <div class="subtitle">Pass-and-play: one player secretly ranks 5 things, everyone else guesses the order &middot; <a class="top-link" href="index.html">&larr; all games</a></div>
+
+  <button id="home-toggle" type="button" aria-label="Back to start screen">🏠</button>
 
   <!-- HOME: play locally, or create/join a room -->
   <div class="screen active" id="screen-home">
@@ -607,7 +619,15 @@ function $(id) { return document.getElementById(id); }
 function showScreen(id) {
     document.querySelectorAll(".screen").forEach(function (s) { s.classList.remove("active"); });
     $(id).classList.add("active");
+    var homeBtn = $("home-toggle");
+    if (homeBtn) homeBtn.style.display = (id === "screen-home") ? "none" : "flex";
   }
+
+$("home-toggle").addEventListener("click", function () {
+  if (!confirm("Back to the start screen? This leaves your current game.")) return;
+  localStorage.removeItem("f2w_room");
+  location.reload();
+});
 
 function shuffled(arr) {
     var a = arr.slice();
