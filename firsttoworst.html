@@ -185,6 +185,12 @@
     display: none; align-items: center; justify-content: center;
   }
   #chat-toggle:active { transform: scale(0.94); }
+  @keyframes chat-bounce {
+    0%, 100% { transform: translateY(0); }
+    25% { transform: translateY(-7px); }
+    50% { transform: translateY(0); }
+  }
+  #chat-toggle.has-unread { background: var(--accent-2); animation: chat-bounce 0.6s ease-in-out infinite; }
   #chat-badge {
     position: absolute; top: -2px; right: -2px;
     background: var(--accent-2); color: #fff;
@@ -287,6 +293,15 @@
     <div class="card">
       <label>Players</label>
       <div class="player-chip-list" id="lobby-players"></div>
+    </div>
+    <div class="card" id="lobby-bot-card" style="display:none">
+      <label>Add an AI Player</label>
+      <div class="chip-group" id="bot-difficulty-chips">
+        <div class="chip" data-diff="easy">Easy</div>
+        <div class="chip selected" data-diff="medium">Medium</div>
+        <div class="chip" data-diff="hard">Hard</div>
+      </div>
+      <button class="secondary" id="btn-add-bot" type="button" style="margin-top:10px">+ Add AI Player</button>
     </div>
     <div class="card">
       <label>How Do Guessers Play?</label>
@@ -959,6 +974,7 @@ function subscribeChat(code) {
         var badge = $("chat-badge");
         badge.textContent = chatUnread > 9 ? "9+" : String(chatUnread);
         badge.style.display = "block";
+        $("chat-toggle").classList.add("has-unread");
       }
     }
     chatSeenCount = messages.length;
@@ -969,6 +985,7 @@ $("chat-toggle").addEventListener("click", function () {
   $("chat-panel").classList.add("open");
   chatUnread = 0;
   $("chat-badge").style.display = "none";
+  $("chat-toggle").classList.remove("has-unread");
   $("chat-input").focus();
 });
 $("chat-close").addEventListener("click", function () {
@@ -1005,6 +1022,38 @@ function render() {
 function mpPlayerName(uid) { return mp.room.players && mp.room.players[uid] ? mp.room.players[uid].name : "?"; }
 function mpPlayerUids() { return mp.room.players ? Object.keys(mp.room.players) : []; }
 
+// ---------- AI players ----------
+// No server exists here, so the host's own browser tab quietly acts on a
+// bot's behalf. A bot can't really reason about the ranking, so its guess
+// starts from the true order and gets scrambled by a few random swaps —
+// fewer swaps (closer to the truth) at higher difficulty.
+var BOT_ACCURACY = { easy: 0.15, medium: 0.45, hard: 0.8 };
+var botActionsScheduled = {};
+
+function isBotUid(uid) {
+  var p = mp.room.players && mp.room.players[uid];
+  return !!(p && p.isBot);
+}
+function scheduleBotAction(key, fn, minDelay, maxDelay) {
+  if (botActionsScheduled[key]) return;
+  botActionsScheduled[key] = true;
+  setTimeout(fn, minDelay + Math.random() * (maxDelay - minDelay));
+}
+function generateBotUid() {
+  return "bot-" + Math.random().toString(36).slice(2, 10);
+}
+function botGuessOrder(trueOrder, difficulty) {
+  var order = trueOrder.slice();
+  var accuracy = BOT_ACCURACY[difficulty] || BOT_ACCURACY.medium;
+  var swaps = Math.round((1 - accuracy) * order.length);
+  for (var i = 0; i < swaps; i++) {
+    var a = Math.floor(Math.random() * order.length);
+    var b = Math.floor(Math.random() * order.length);
+    var tmp = order[a]; order[a] = order[b]; order[b] = tmp;
+  }
+  return order;
+}
+
 // ---------- Lobby ----------
 function renderLobby() {
   var room = mp.room;
@@ -1013,17 +1062,32 @@ function renderLobby() {
   var list = $("lobby-players");
   list.innerHTML = "";
   mpPlayerUids().forEach(function (uid) {
+    var p = room.players[uid];
     var chip = document.createElement("div");
     chip.className = "player-chip";
-    chip.textContent = mpPlayerName(uid);
+    chip.textContent = (p.isBot ? "🤖 " : "") + mpPlayerName(uid) + (p.isBot ? " (" + p.difficulty + ")" : "");
     if (uid === room.hostUid) {
       var badge = document.createElement("span");
       badge.className = "host-badge";
       badge.textContent = "HOST";
       chip.appendChild(badge);
     }
+    if (p.isBot && mp.isHost) {
+      var rm = document.createElement("span");
+      rm.textContent = " ✕";
+      rm.style.cursor = "pointer";
+      rm.style.marginLeft = "4px";
+      rm.addEventListener("click", function () {
+        set(ref(db, "rooms/" + mp.roomCode + "/players/" + uid), null);
+        set(ref(db, "rooms/" + mp.roomCode + "/scores/" + uid), null);
+      });
+      chip.appendChild(rm);
+    }
     list.appendChild(chip);
   });
+
+  var botCard = $("lobby-bot-card");
+  botCard.style.display = mp.isHost ? "" : "none";
 
   var modeWrap = $("guess-mode-chips");
   modeWrap.innerHTML = "";
@@ -1067,6 +1131,25 @@ function renderLobby() {
 
   showScreen("screen-lobby");
 }
+
+var selectedBotDifficulty = "medium";
+Array.prototype.forEach.call($("bot-difficulty-chips").children, function (chip) {
+  chip.addEventListener("click", function () {
+    selectedBotDifficulty = chip.dataset.diff;
+    Array.prototype.forEach.call($("bot-difficulty-chips").children, function (c) { c.classList.remove("selected"); });
+    chip.classList.add("selected");
+  });
+});
+
+$("btn-add-bot").addEventListener("click", function () {
+  if (!mp.isHost) return;
+  var botUid = generateBotUid();
+  var botNumber = mpPlayerUids().filter(isBotUid).length + 1;
+  update(ref(db, "rooms/" + mp.roomCode + "/players/" + botUid), {
+    name: "CPU " + botNumber, isBot: true, difficulty: selectedBotDifficulty, joinedAt: Date.now()
+  });
+  update(ref(db, "rooms/" + mp.roomCode + "/scores"), (function () { var o = {}; o[botUid] = 0; return o; })());
+});
 
 $("btn-start-game").addEventListener("click", function () {
   if (!mp.isHost) return;
@@ -1112,8 +1195,12 @@ var mpRankerRoundKey = null;
 function mpRoundKey(round) { return round.items.join("|") + "::" + round.rankerUid; }
 
 function guesserCoordinatorUid(room, round) {
-  var guessers = mpPlayerUids().filter(function (uid) { return uid !== round.rankerUid; });
-  return guessers.sort()[0];
+  var guessers = mpPlayerUids().filter(function (uid) { return uid !== round.rankerUid; }).sort();
+  // a bot has no device to hold the shared draft on — prefer a human
+  // coordinator whenever one exists, falling back to a bot only if every
+  // guesser this round happens to be a bot
+  var humans = guessers.filter(function (uid) { return !isBotUid(uid); });
+  return (humans.length ? humans : guessers)[0];
 }
 
 function renderRankPhase() {
@@ -1126,6 +1213,7 @@ function renderRankPhase() {
   // the ranker (or whose screen returns early) never checks whether every
   // guess is already in, and the round gets stuck on "waiting" forever.
   if (mp.isHost) checkGuessingDone();
+  if (mp.isHost) runBotActionsForRound(room, round);
 
   if (iAmRanker) {
     if (round.rankerOrder) {
@@ -1157,6 +1245,44 @@ function renderRankPhase() {
     renderTogetherGuess(room, round, key);
   } else {
     renderSeparateGuess(room, round, key);
+  }
+}
+
+function runBotActionsForRound(room, round) {
+  if (isBotUid(round.rankerUid) && !round.rankerOrder) {
+    var rankKey = "rank:" + round.rankerUid + ":" + round.items.join("|");
+    scheduleBotAction(rankKey, function () {
+      if (!mp.room || mp.room.phase !== "rank" || mp.room.round.rankerOrder) return;
+      update(ref(db, "rooms/" + mp.roomCode + "/round"), { rankerOrder: shuffled(round.items) });
+    }, 1500, 3500);
+  }
+
+  if (!round.rankerOrder) return;
+
+  if (room.settings.guessMode === "together") {
+    var coordinatorUid = guesserCoordinatorUid(room, round);
+    if (coordinatorUid && isBotUid(coordinatorUid) && !round.sharedGuessLocked) {
+      var sharedKey = "shared:" + round.rankerUid + ":" + round.items.join("|");
+      scheduleBotAction(sharedKey, function () {
+        if (!mp.room || mp.room.phase !== "rank" || mp.room.round.sharedGuessLocked) return;
+        var difficulty = mp.room.players[coordinatorUid].difficulty;
+        var guess = botGuessOrder(round.rankerOrder, difficulty);
+        update(ref(db, "rooms/" + mp.roomCode + "/round"), { sharedGuess: guess, sharedGuessLocked: true });
+      }, 2000, 4500);
+    }
+  } else {
+    mpPlayerUids().filter(function (uid) { return uid !== round.rankerUid; }).forEach(function (uid) {
+      if (!isBotUid(uid)) return;
+      if (round.guesses && round.guesses[uid] !== undefined) return;
+      var guessKey = "guess:" + uid + ":" + round.rankerUid + ":" + round.items.join("|");
+      scheduleBotAction(guessKey, function () {
+        if (!mp.room || mp.room.phase !== "rank") return;
+        if (mp.room.round.guesses && mp.room.round.guesses[uid] !== undefined) return;
+        var difficulty = mp.room.players[uid].difficulty;
+        var guess = botGuessOrder(round.rankerOrder, difficulty);
+        update(ref(db, "rooms/" + mp.roomCode + "/round/guesses"), (function () { var o = {}; o[uid] = guess; return o; })());
+      }, 1500, 4000);
+    });
   }
 }
 
