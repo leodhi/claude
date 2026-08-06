@@ -305,6 +305,10 @@
     </div>
     <button class="primary" id="btn-submit-answer" type="button">Lock In Answer</button>
     <div class="waiting-text" id="round-waiting" style="display:none">Waiting for other players…</div>
+    <div class="card">
+      <label>Who's Answered</label>
+      <div id="round-status-list"></div>
+    </div>
   </div>
 
   <!-- MULTIPLAYER: REVEAL + JUDGE -->
@@ -1540,6 +1544,16 @@ function renderRound() {
       startMpTimer();
     }
   }
+
+  var statusList = $("round-status-list");
+  statusList.innerHTML = "";
+  mpPlayerUids().forEach(function (uid) {
+    var answered = round.answers && round.answers[uid] !== undefined;
+    var row = document.createElement("div");
+    row.className = "score-row";
+    row.innerHTML = "<span>" + (answered ? "✅" : "⏳") + " " + mpPlayerName(uid) + "</span>";
+    statusList.appendChild(row);
+  });
 
   showScreen("screen-answer-input");
 

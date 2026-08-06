@@ -516,6 +516,10 @@
     </div>
     <div class="vote-list" id="vote-list"></div>
     <div class="waiting-text" id="vote-waiting" style="display:none">Waiting for other players to vote…</div>
+    <div class="card">
+      <label>Who's Voted</label>
+      <div id="vote-status-list"></div>
+    </div>
   </div>
 
   <!-- RESULTS -->
@@ -1094,6 +1098,17 @@ function renderVote() {
   });
 
   $("vote-waiting").style.display = myVote !== undefined ? "" : "none";
+
+  var statusList = $("vote-status-list");
+  statusList.innerHTML = "";
+  var votes = room.votes || {};
+  playerUids().forEach(function (uid) {
+    var voted = votes[uid] !== undefined;
+    var row = document.createElement("div");
+    row.className = "score-row";
+    row.innerHTML = "<span>" + (voted ? "✅" : "⏳") + " " + playerName(uid) + "</span>";
+    statusList.appendChild(row);
+  });
 
   showScreen("screen-vote");
 
