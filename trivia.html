@@ -133,6 +133,15 @@
   .waiting-text { color: var(--text-dim); text-align: center; padding: 16px 0; }
   .footer-nav { display: flex; gap: 8px; margin-top: auto; padding-top: 10px; }
   .footer-nav button { flex: 1; }
+  #home-toggle {
+    position: fixed; left: 16px; bottom: 16px; z-index: 40;
+    width: 52px; height: 52px; border-radius: 50%;
+    background: var(--panel-2); color: var(--text); border: 1px solid var(--border);
+    font-size: 1.3rem; cursor: pointer;
+    box-shadow: 0 4px 14px rgba(0,0,0,0.35);
+    display: none; align-items: center; justify-content: center;
+  }
+  #home-toggle:active { transform: scale(0.94); }
 </style>
 </head>
 <body>
@@ -141,6 +150,8 @@
     <h1 style="margin:0;">🧠 Trivia <span>Party</span></h1>
   </div>
   <div class="subtitle">Pass-and-play trivia — everyone answers in private &middot; <a class="top-link" href="index.html">&larr; all games</a></div>
+
+  <button id="home-toggle" type="button" aria-label="Back to start screen">🏠</button>
 
   <!-- SETUP -->
   
@@ -826,7 +837,15 @@ function $(id) { return document.getElementById(id); }
 function showScreen(id) {
     document.querySelectorAll(".screen").forEach(function (s) { s.classList.remove("active"); });
     $(id).classList.add("active");
+    var homeBtn = $("home-toggle");
+    if (homeBtn) homeBtn.style.display = (id === "screen-home") ? "none" : "flex";
   }
+
+$("home-toggle").addEventListener("click", function () {
+  if (!confirm("Back to the start screen? This leaves your current game.")) return;
+  localStorage.removeItem("trivia_room");
+  location.reload();
+});
 
 function pickRandom(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
 
