@@ -1322,6 +1322,7 @@ function renderLocalPlayerList() {
     var row = document.createElement("div");
     row.className = "player-row";
     row.style.display = "flex";
+    row.style.flexWrap = "wrap";
     row.style.gap = "8px";
     row.style.marginBottom = "8px";
     var input = document.createElement("input");
@@ -1330,6 +1331,7 @@ function renderLocalPlayerList() {
     input.value = name;
     input.maxLength = 20;
     input.style.flex = "1";
+    input.style.minWidth = "90px";
     input.addEventListener("input", function () { localState.players[i] = input.value; });
     row.appendChild(input);
     var botBtn = document.createElement("button");
