@@ -1549,7 +1549,6 @@ $("local-btn-back-home").addEventListener("click", function () { showScreen("scr
 
   var localState = {
     players: ["", ""],
-    bots: [null, null],
     targetScore: 15,
     guessMode: "separate",
     lastWinningScore: 0,
@@ -1568,11 +1567,6 @@ $("local-btn-back-home").addEventListener("click", function () { showScreen("scr
     currentRankOrder: [],
     canResume: false
   };
-
-  var LOCAL_BOT_CYCLE = [null, "easy", "medium", "hard"];
-  function localBotLabel(difficulty) {
-    return difficulty ? ("🤖 AI · " + difficulty.charAt(0).toUpperCase() + difficulty.slice(1)) : "🤖 AI: Off";
-  }
 
   var LOCAL_GUESS_MODES = [
     { id: "separate", label: "Separately", hint: "Guessers take the device one at a time, in private — nobody sees anyone else's guess." },
@@ -1596,17 +1590,6 @@ $("local-btn-back-home").addEventListener("click", function () { showScreen("scr
       input.maxLength = 20;
       input.addEventListener("input", function () { localState.players[i] = input.value; });
       row.appendChild(input);
-      var botBtn = document.createElement("button");
-      botBtn.type = "button";
-      botBtn.className = "chip" + (localState.bots[i] ? " selected" : "");
-      botBtn.style.cssText = "flex-shrink:0;white-space:nowrap;";
-      botBtn.textContent = localBotLabel(localState.bots[i]);
-      botBtn.addEventListener("click", function () {
-        var idx = LOCAL_BOT_CYCLE.indexOf(localState.bots[i]);
-        localState.bots[i] = LOCAL_BOT_CYCLE[(idx + 1) % LOCAL_BOT_CYCLE.length];
-        localRenderPlayerList();
-      });
-      row.appendChild(botBtn);
       if (localState.players.length > 2) {
         var rm = document.createElement("button");
         rm.className = "icon-btn";
@@ -1614,7 +1597,6 @@ $("local-btn-back-home").addEventListener("click", function () { showScreen("scr
         rm.textContent = "✕";
         rm.addEventListener("click", function () {
           localState.players.splice(i, 1);
-          localState.bots.splice(i, 1);
           localRenderPlayerList();
         });
         row.appendChild(rm);
@@ -1626,7 +1608,6 @@ $("local-btn-back-home").addEventListener("click", function () { showScreen("scr
   $("local-btn-add-player").addEventListener("click", function () {
     if (localState.players.length >= 10) return;
     localState.players.push("");
-    localState.bots.push(null);
     localRenderPlayerList();
   });
 
@@ -1665,16 +1646,10 @@ $("local-btn-back-home").addEventListener("click", function () { showScreen("scr
   });
 
   $("local-btn-start-game").addEventListener("click", function () {
-    var keptBots = [];
-    var names = localState.players.map(function (n, i) {
-      var trimmed = n.trim();
-      if (trimmed.length > 0) keptBots.push(localState.bots[i]);
-      return trimmed;
-    }).filter(function (n) { return n.length > 0; });
+    var names = localState.players.map(function (n) { return n.trim(); }).filter(function (n) { return n.length > 0; });
     if (names.length < 2) { alert("Need at least 2 players — one ranks, everyone else guesses."); return; }
     localClampTarget();
     localState.players = names;
-    localState.bots = keptBots;
     localState.scores = names.map(function () { return 0; });
     localState.usedItems = [];
     localState.rankerIndex = -1;
@@ -1734,22 +1709,7 @@ $("local-btn-back-home").addEventListener("click", function () { showScreen("scr
   // ---------- Pass-and-rank loop ----------
   function localCurrentTurn() { return localState.turnQueue[localState.turnPos]; }
 
-  function localBotSubmitForTurn(turn) {
-    var difficulty = localState.bots[turn.idx] || "medium";
-    if (turn.role === "ranker") {
-      localState.rankerOrder = shuffled(localState.round.items);
-    } else {
-      localState.guesses[turn.idx] = botGuessOrder(localState.rankerOrder, difficulty);
-    }
-  }
-
   function localGoToPassTurn() {
-    while (localState.turnPos < localState.turnQueue.length) {
-      var pending = localCurrentTurn();
-      if (pending.role === "guess-together" || !localState.bots[pending.idx]) break;
-      localBotSubmitForTurn(pending);
-      localState.turnPos++;
-    }
     if (localState.turnPos >= localState.turnQueue.length) {
       showScreen("local-screen-ready-reveal");
       return;
@@ -2153,7 +2113,6 @@ $("local-btn-back-home").addEventListener("click", function () { showScreen("scr
         screen: screenId,
         localState: {
           players: localState.players,
-          bots: localState.bots,
           targetScore: localState.targetScore,
           guessMode: localState.guessMode,
           lastWinningScore: localState.lastWinningScore,
@@ -2195,7 +2154,6 @@ $("local-btn-back-home").addEventListener("click", function () { showScreen("scr
     if (!localPendingResume) return;
     var saved = localPendingResume.localState;
     localState.players = saved.players;
-    localState.bots = saved.bots || saved.players.map(function () { return null; });
     localRenderPlayerList();
     localState.targetScore = saved.targetScore;
     $("local-target-score-input").value = saved.targetScore;
