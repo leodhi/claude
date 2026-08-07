@@ -423,10 +423,21 @@
     </div>
     <div class="card">
       <label>Join a room</label>
-      <input type="text" id="input-join-code" maxlength="4" placeholder="Room code">
+      <input type="text" id="input-join-name" maxlength="20" placeholder="Your name">
       <button class="secondary" id="btn-join-room" type="button" style="margin-top:10px">Join Room</button>
     </div>
     <div class="center" id="home-status" style="color:var(--text-dim);font-size:0.85rem;"></div>
+  </div>
+
+  <!-- JOIN: room code, entered after the name on the previous screen -->
+  <div class="screen" id="screen-join-code">
+    <div class="card">
+      <label>Room code</label>
+      <input type="text" id="input-join-code" maxlength="4" placeholder="4-letter room code">
+      <button class="primary" id="btn-join-code-submit" type="button" style="margin-top:10px">Join Room</button>
+    </div>
+    <div class="center" id="join-code-status" style="color:var(--text-dim);font-size:0.85rem;"></div>
+    <button class="link" id="btn-join-code-back" type="button">Back</button>
   </div>
 
   <!-- MULTIPLAYER LOBBY -->
@@ -1911,13 +1922,24 @@ $("btn-create-room").addEventListener("click", function () {
   createRoomFlow(name);
 });
 
+var pendingJoinName = "";
+
 $("btn-join-room").addEventListener("click", function () {
-  var name = $("input-name").value.trim();
-  var code = $("input-join-code").value.trim().toUpperCase();
+  var name = $("input-join-name").value.trim();
   if (!name) { $("home-status").textContent = "Enter your name first."; return; }
-  if (!code) { $("home-status").textContent = "Enter a room code."; return; }
   if (!mp.uid) { $("home-status").textContent = "Still connecting, try again in a moment."; return; }
-  joinRoomFlow(code, name);
+  pendingJoinName = name;
+  $("input-join-code").value = "";
+  $("join-code-status").textContent = "";
+  showScreen("screen-join-code");
+});
+
+$("btn-join-code-back").addEventListener("click", function () { showScreen("screen-home"); });
+
+$("btn-join-code-submit").addEventListener("click", function () {
+  var code = $("input-join-code").value.trim().toUpperCase();
+  if (!code) { $("join-code-status").textContent = "Enter a room code."; return; }
+  joinRoomFlow(code, pendingJoinName);
 });
 
 async function createRoomFlow(name) {
@@ -1942,9 +1964,9 @@ async function createRoomFlow(name) {
 }
 
 async function joinRoomFlow(code, name) {
-  $("home-status").textContent = "Joining…";
+  $("join-code-status").textContent = "Joining…";
   var snap = await get(roomRef(code));
-  if (!snap.exists()) { $("home-status").textContent = "Room not found."; return; }
+  if (!snap.exists()) { $("join-code-status").textContent = "Room not found."; return; }
   var uid = mp.uid;
   var val = snap.val();
   await update(ref(db, "rooms/" + code + "/players/" + uid), { name: name, dots: false, difficulty: ["Easy"], joinedAt: Date.now() });
