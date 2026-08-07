@@ -613,7 +613,18 @@
       <label>Final Scores</label>
       <div class="scoreboard" id="winner-scoreboard"></div>
     </div>
+    <div class="card center" id="mp-extend-game-form" style="display:none;">
+      <label>New points to win</label>
+      <div class="target-score-row">
+        <button class="stepper-btn" id="btn-mp-extend-down" type="button" aria-label="Decrease">&minus;</button>
+        <input type="number" id="mp-extend-target-input" class="target-score-field" min="1" max="99">
+        <button class="stepper-btn" id="btn-mp-extend-up" type="button" aria-label="Increase">+</button>
+      </div>
+      <small class="hint">Only continue if everyone agrees to keep playing!</small>
+      <button class="secondary" id="btn-mp-confirm-extend" type="button" style="margin-top:10px;">Everyone Agrees — Keep Playing</button>
+    </div>
     <div class="footer-nav" id="won-host-nav" style="display:none">
+      <button class="secondary" id="btn-mp-extend-game" type="button">Extend the Game</button>
       <button class="primary" id="btn-new-game" type="button">New Game</button>
     </div>
     <div class="waiting-text" id="won-waiting" style="display:none">Waiting for host…</div>
@@ -2909,6 +2920,7 @@ function renderGameWonScreen() {
 
   var hostNav = $("won-host-nav");
   var waiting = $("won-waiting");
+  $("mp-extend-game-form").style.display = "none";
   if (mp.isHost) {
     hostNav.style.display = "flex";
     waiting.style.display = "none";
@@ -2918,6 +2930,32 @@ function renderGameWonScreen() {
   }
   showScreen("screen-game-won");
 }
+
+// ---------- Extend game (multiplayer) ----------
+$("btn-mp-extend-game").addEventListener("click", function () {
+  if (!mp.isHost) return;
+  var floor = (mp.room.scores[mp.room.winnerUid] || 0) + 1;
+  $("mp-extend-target-input").min = floor;
+  $("mp-extend-target-input").value = floor + 4;
+  $("mp-extend-game-form").style.display = "";
+});
+$("btn-mp-extend-down").addEventListener("click", function () {
+  var floor = (mp.room.scores[mp.room.winnerUid] || 0) + 1;
+  $("mp-extend-target-input").value = Math.max(floor, (parseInt($("mp-extend-target-input").value, 10) || floor) - 1);
+});
+$("btn-mp-extend-up").addEventListener("click", function () {
+  $("mp-extend-target-input").value = Math.min(99, (parseInt($("mp-extend-target-input").value, 10) || 1) + 1);
+});
+$("btn-mp-confirm-extend").addEventListener("click", async function () {
+  if (!mp.isHost) return;
+  var floor = (mp.room.scores[mp.room.winnerUid] || 0) + 1;
+  var newTarget = parseInt($("mp-extend-target-input").value, 10);
+  if (!(newTarget >= floor)) newTarget = floor + 4;
+  await update(ref(db, "rooms/" + mp.roomCode + "/settings"), { targetScore: newTarget });
+  $("mp-extend-game-form").style.display = "none";
+  startMpRound();
+});
+
 $("btn-new-game").addEventListener("click", function () {
   if (!mp.isHost) return;
   update(roomRef(mp.roomCode), { phase: "lobby", round: null });
