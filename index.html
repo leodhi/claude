@@ -230,6 +230,18 @@
   .footer-nav { display: flex; gap: 8px; margin-top: auto; padding-top: 10px; }
   .footer-nav button { flex: 1; }
   small.hint { color: var(--text-dim); display: block; margin-top: 4px; font-size: 0.78rem; }
+  .target-score-row { display: flex; align-items: stretch; gap: 8px; }
+  input.target-score-field {
+    flex: 1; font-size: 2rem; font-weight: 800; text-align: center; padding: 16px; color: var(--accent);
+    -moz-appearance: textfield;
+  }
+  input.target-score-field::-webkit-outer-spin-button,
+  input.target-score-field::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+  .stepper-btn {
+    flex: none; width: 56px; background: var(--panel-2); border: 1px solid var(--border);
+    color: var(--accent); font-size: 1.8rem; font-weight: 700; border-radius: 10px; cursor: pointer; line-height: 1;
+  }
+  .stepper-btn:active { transform: scale(0.96); }
 
   #chat-toggle {
     position: fixed; right: 16px; bottom: 16px; z-index: 40;
@@ -360,6 +372,14 @@
         <option value="180">180</option>
       </select>
     </div>
+    <div class="card">
+      <label>Points to Win</label>
+      <div class="target-score-row">
+        <button class="stepper-btn" id="local-btn-target-down" type="button" aria-label="Decrease">&minus;</button>
+        <input type="number" id="local-target-score-input" class="target-score-field" min="1" max="99" value="10">
+        <button class="stepper-btn" id="local-btn-target-up" type="button" aria-label="Increase">+</button>
+      </div>
+    </div>
     <button class="primary" id="local-btn-start-game" type="button">Start Game</button>
     <button class="link" id="local-btn-back-home" type="button">Back to home</button>
   </div>
@@ -442,6 +462,31 @@
     </div>
   </div>
 
+  <!-- LOCAL: game won -->
+  <div class="screen" id="screen-local-game-won">
+    <div class="card center">
+      <div style="font-size:3rem;margin:10px 0;">🏆</div>
+      <div class="big-name" id="local-winner-name"></div>
+      <div>wins the game!</div>
+    </div>
+    <div class="card">
+      <label>Final Scores</label>
+      <div class="scoreboard" id="local-winner-scoreboard"></div>
+    </div>
+    <div class="card center" id="local-extend-game-form" style="display:none;">
+      <label>New points to win</label>
+      <div class="target-score-row">
+        <button class="stepper-btn" id="local-btn-extend-down" type="button" aria-label="Decrease">&minus;</button>
+        <input type="number" id="local-extend-target-input" class="target-score-field" min="1" max="99">
+        <button class="stepper-btn" id="local-btn-extend-up" type="button" aria-label="Increase">+</button>
+      </div>
+      <small class="hint">Only continue if everyone agrees to keep playing!</small>
+      <button class="secondary" id="local-btn-confirm-extend" type="button" style="margin-top:10px;">Everyone Agrees — Keep Playing</button>
+    </div>
+    <button class="secondary" id="local-btn-extend-game" type="button">Extend the Game</button>
+    <button class="primary" id="local-btn-new-game" type="button">New Game</button>
+  </div>
+
   <!-- LOBBY -->
   <div class="screen" id="screen-lobby">
     <div class="card center">
@@ -474,6 +519,12 @@
         <option value="120">120</option>
         <option value="180">180</option>
       </select>
+      <label style="margin-top:12px">Points to Win</label>
+      <div class="target-score-row">
+        <button class="stepper-btn" id="btn-target-down" type="button" aria-label="Decrease">&minus;</button>
+        <input type="number" id="target-score-input" class="target-score-field" min="1" max="99" value="10">
+        <button class="stepper-btn" id="btn-target-up" type="button" aria-label="Increase">+</button>
+      </div>
     </div>
     <button class="primary" id="btn-start-game" type="button">Start Game</button>
     <div class="waiting-text" id="lobby-waiting" style="display:none">Waiting for the host to start the game…</div>
@@ -544,6 +595,34 @@
       <button class="danger" id="btn-end-game" type="button">End Game</button>
     </div>
     <div class="waiting-text" id="results-waiting" style="display:none">Waiting for host…</div>
+  </div>
+
+  <!-- GAME WON -->
+  <div class="screen" id="screen-game-won">
+    <div class="card center">
+      <div style="font-size:3rem;margin:10px 0;">🏆</div>
+      <div class="big-name" id="winner-name"></div>
+      <div>wins the game!</div>
+    </div>
+    <div class="card">
+      <label>Final Scores</label>
+      <div class="scoreboard" id="winner-scoreboard"></div>
+    </div>
+    <div class="card center" id="mp-extend-game-form" style="display:none;">
+      <label>New points to win</label>
+      <div class="target-score-row">
+        <button class="stepper-btn" id="btn-mp-extend-down" type="button" aria-label="Decrease">&minus;</button>
+        <input type="number" id="mp-extend-target-input" class="target-score-field" min="1" max="99">
+        <button class="stepper-btn" id="btn-mp-extend-up" type="button" aria-label="Increase">+</button>
+      </div>
+      <small class="hint">Only continue if everyone agrees to keep playing!</small>
+      <button class="secondary" id="btn-mp-confirm-extend" type="button" style="margin-top:10px;">Everyone Agrees — Keep Playing</button>
+    </div>
+    <div class="footer-nav" id="won-host-nav" style="display:none">
+      <button class="secondary" id="btn-mp-extend-game" type="button">Extend the Game</button>
+      <button class="primary" id="btn-new-game" type="button">New Game</button>
+    </div>
+    <div class="waiting-text" id="won-waiting" style="display:none">Waiting for host…</div>
   </div>
 </div>
 
@@ -660,7 +739,7 @@ async function createRoomFlow(name) {
     createdAt: Date.now(),
     hostUid: uid,
     phase: "lobby",
-    settings: { categories: Object.keys(CATEGORIES), timerSeconds: 90 },
+    settings: { categories: Object.keys(CATEGORIES), timerSeconds: 90, targetScore: 10 },
     players: { [uid]: { name: name, joinedAt: Date.now() } },
     scores: { [uid]: 0 }
   });
@@ -785,6 +864,7 @@ function render() {
   else if (room.phase === "discuss") renderDiscuss();
   else if (room.phase === "vote") renderVote();
   else if (room.phase === "results") renderResults();
+  else if (room.phase === "game-won") renderGameWonScreen();
 }
 
 function playerName(uid) {
@@ -881,6 +961,19 @@ function renderLobby() {
   timerSelect.onchange = function (e) {
     update(ref(db, "rooms/" + state.roomCode + "/settings"), { timerSeconds: parseInt(e.target.value, 10) });
   };
+
+  var targetInput = $("target-score-input");
+  targetInput.value = room.settings.targetScore || 10;
+  targetInput.disabled = !state.isHost;
+  var setTarget = function (v) {
+    v = Math.max(1, Math.min(99, v));
+    update(ref(db, "rooms/" + state.roomCode + "/settings"), { targetScore: v });
+  };
+  targetInput.onchange = function () { setTarget(parseInt(targetInput.value, 10) || 1); };
+  $("btn-target-down").onclick = function () { setTarget((room.settings.targetScore || 1) - 1); };
+  $("btn-target-up").onclick = function () { setTarget((room.settings.targetScore || 1) + 1); };
+  $("btn-target-down").disabled = !state.isHost;
+  $("btn-target-up").disabled = !state.isHost;
 
   var startBtn = $("btn-start-game");
   var waiting = $("lobby-waiting");
@@ -1257,6 +1350,18 @@ async function settleRound(chameleonWon, guess) {
     });
   }
   await update(ref(db, "rooms/" + state.roomCode + "/scores"), scoreUpdates);
+
+  var merged = Object.assign({}, current, scoreUpdates);
+  var target = state.room.settings.targetScore || 10;
+  var topScore = -1, topUids = [];
+  playerUids().forEach(function (uid) {
+    var s = merged[uid] || 0;
+    if (s > topScore) { topScore = s; topUids = [uid]; }
+    else if (s === topScore) { topUids.push(uid); }
+  });
+  if (topScore >= target && topUids.length === 1) {
+    await update(roomRef(state.roomCode), { phase: "game-won", winnerUid: topUids[0] });
+  }
 }
 
 function runBotChameleonGuess(round) {
@@ -1296,6 +1401,66 @@ $("btn-end-game").addEventListener("click", function () {
   update(roomRef(state.roomCode), { phase: "lobby", round: null, votes: {} });
 });
 
+// ---------- Game won ----------
+function renderGameWonScreen() {
+  var room = state.room;
+  $("winner-name").textContent = playerName(room.winnerUid);
+  var scoresByName = {};
+  playerUids().forEach(function (uid) { scoresByName[playerName(uid)] = room.scores[uid] || 0; });
+  var board = $("winner-scoreboard");
+  board.innerHTML = "";
+  var entries = Object.keys(scoresByName).map(function (name) { return { name: name, score: scoresByName[name] }; });
+  entries.sort(function (a, b) { return b.score - a.score; });
+  entries.forEach(function (e) {
+    var row = document.createElement("div");
+    row.className = "score-row";
+    row.innerHTML = "<span>" + e.name + "</span><strong>" + e.score + "</strong>";
+    board.appendChild(row);
+  });
+
+  var hostNav = $("won-host-nav");
+  var waiting = $("won-waiting");
+  $("mp-extend-game-form").style.display = "none";
+  if (state.isHost) {
+    hostNav.style.display = "flex";
+    waiting.style.display = "none";
+  } else {
+    hostNav.style.display = "none";
+    waiting.style.display = "";
+  }
+  showScreen("screen-game-won");
+}
+
+$("btn-new-game").addEventListener("click", function () {
+  if (!state.isHost) return;
+  update(roomRef(state.roomCode), { phase: "lobby", round: null, votes: {} });
+});
+
+// ---------- Extend game (multiplayer) ----------
+$("btn-mp-extend-game").addEventListener("click", function () {
+  if (!state.isHost) return;
+  var floor = (state.room.scores[state.room.winnerUid] || 0) + 1;
+  $("mp-extend-target-input").min = floor;
+  $("mp-extend-target-input").value = floor + 4;
+  $("mp-extend-game-form").style.display = "";
+});
+$("btn-mp-extend-down").addEventListener("click", function () {
+  var floor = (state.room.scores[state.room.winnerUid] || 0) + 1;
+  $("mp-extend-target-input").value = Math.max(floor, (parseInt($("mp-extend-target-input").value, 10) || floor) - 1);
+});
+$("btn-mp-extend-up").addEventListener("click", function () {
+  $("mp-extend-target-input").value = Math.min(99, (parseInt($("mp-extend-target-input").value, 10) || 1) + 1);
+});
+$("btn-mp-confirm-extend").addEventListener("click", async function () {
+  if (!state.isHost) return;
+  var floor = (state.room.scores[state.room.winnerUid] || 0) + 1;
+  var newTarget = parseInt($("mp-extend-target-input").value, 10);
+  if (!(newTarget >= floor)) newTarget = floor + 4;
+  await update(ref(db, "rooms/" + state.roomCode + "/settings"), { targetScore: newTarget });
+  $("mp-extend-game-form").style.display = "none";
+  startRound();
+});
+
 // =========================================================================
 // LOCAL PASS-AND-PLAY MODE (single device, no Firebase)
 // =========================================================================
@@ -1305,6 +1470,8 @@ var localState = {
   bots: [null, null, null],
   selectedCategories: Object.keys(CATEGORIES),
   timerSeconds: 90,
+  targetScore: 10,
+  lastWinningScore: 0,
   scores: {},
   round: null,
   revealIndex: 0,
@@ -1409,9 +1576,27 @@ $("local-timer-select").addEventListener("change", function (e) {
   localState.timerSeconds = parseInt(e.target.value, 10);
 });
 
+function localClampTarget() {
+  var v = parseInt($("local-target-score-input").value, 10);
+  if (isNaN(v) || v < 1) v = 1;
+  if (v > 99) v = 99;
+  $("local-target-score-input").value = v;
+  localState.targetScore = v;
+}
+$("local-target-score-input").addEventListener("change", localClampTarget);
+$("local-btn-target-down").addEventListener("click", function () {
+  $("local-target-score-input").value = Math.max(1, (parseInt($("local-target-score-input").value, 10) || 1) - 1);
+  localClampTarget();
+});
+$("local-btn-target-up").addEventListener("click", function () {
+  $("local-target-score-input").value = Math.min(99, (parseInt($("local-target-score-input").value, 10) || 1) + 1);
+  localClampTarget();
+});
+
 $("local-btn-start-game").addEventListener("click", function () {
   var names = localState.players.map(function (n, i) { return n.trim() || ("Player " + (i + 1)); });
   if (names.length < 3) { alert("Need at least 3 players."); return; }
+  localClampTarget();
   localState.players = names;
   localState.scores = {};
   names.forEach(function (n) { localState.scores[n] = 0; });
@@ -1697,13 +1882,17 @@ function showLocalResults() {
   showScreen("screen-local-results");
 }
 
-$("local-btn-next-round").addEventListener("click", function () {
-  renderLocalScoreboard();
-  showScreen("screen-local-scores");
-});
+function localComputeWinner() {
+  var names = Object.keys(localState.scores);
+  var topScore = Math.max.apply(null, names.map(function (n) { return localState.scores[n] || 0; }));
+  if (topScore < localState.targetScore) return null;
+  var topNames = names.filter(function (n) { return (localState.scores[n] || 0) === topScore; });
+  if (topNames.length === 1) return topNames[0];
+  return null; // tied at/above target -- keep playing until someone pulls ahead alone
+}
 
-function renderLocalScoreboard() {
-  var board = $("local-scoreboard");
+function renderLocalScoreboardInto(elId) {
+  var board = $(elId);
   board.innerHTML = "";
   var entries = Object.keys(localState.scores).map(function (name) {
     return { name: name, score: localState.scores[name] };
@@ -1717,12 +1906,52 @@ function renderLocalScoreboard() {
   });
 }
 
+$("local-btn-next-round").addEventListener("click", function () {
+  var winner = localComputeWinner();
+  if (winner !== null) {
+    localState.lastWinningScore = localState.scores[winner];
+    $("local-winner-name").textContent = winner;
+    renderLocalScoreboardInto("local-winner-scoreboard");
+    $("local-extend-game-form").style.display = "none";
+    showScreen("screen-local-game-won");
+  } else {
+    renderLocalScoreboardInto("local-scoreboard");
+    showScreen("screen-local-scores");
+  }
+});
+
 $("local-btn-back-to-round").addEventListener("click", function () {
   startLocalRound();
 });
 
 $("local-btn-end-game").addEventListener("click", function () {
   if (!confirm("End the game and return to setup?")) return;
+  showScreen("screen-local-setup");
+});
+
+// ---------- Extend game (local) ----------
+$("local-btn-extend-game").addEventListener("click", function () {
+  var floor = localState.lastWinningScore + 1;
+  $("local-extend-target-input").min = floor;
+  $("local-extend-target-input").value = floor + 4;
+  $("local-extend-game-form").style.display = "";
+});
+$("local-btn-extend-down").addEventListener("click", function () {
+  var floor = localState.lastWinningScore + 1;
+  $("local-extend-target-input").value = Math.max(floor, (parseInt($("local-extend-target-input").value, 10) || floor) - 1);
+});
+$("local-btn-extend-up").addEventListener("click", function () {
+  $("local-extend-target-input").value = Math.min(99, (parseInt($("local-extend-target-input").value, 10) || 1) + 1);
+});
+$("local-btn-confirm-extend").addEventListener("click", function () {
+  var floor = localState.lastWinningScore + 1;
+  var newTarget = parseInt($("local-extend-target-input").value, 10);
+  if (!(newTarget >= floor)) newTarget = floor + 4;
+  localState.targetScore = newTarget;
+  startLocalRound();
+});
+
+$("local-btn-new-game").addEventListener("click", function () {
   showScreen("screen-local-setup");
 });
 </script>
