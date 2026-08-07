@@ -1155,31 +1155,6 @@ function renderWaitingOnList(containerId, room, round) {
   });
 }
 
-function renderWaitingOnList(containerId, room, round) {
-  var container = $(containerId);
-  if (!container) return;
-  container.innerHTML = "";
-  var guesserUids = mpPlayerUids().filter(function (uid) { return uid !== round.rankerUid; });
-
-  if (room.settings.guessMode === "together") {
-    var coordinatorUid = guesserCoordinatorUid(room, round);
-    var done = !!round.sharedGuessLocked;
-    var row = document.createElement("div");
-    row.className = "score-row";
-    row.innerHTML = "<span>" + (done ? "✅" : "⏳") + " Everyone (" + mpPlayerName(coordinatorUid) + " is arranging)</span>";
-    container.appendChild(row);
-    return;
-  }
-
-  guesserUids.forEach(function (uid) {
-    var done = !!(round.guesses && round.guesses[uid] !== undefined);
-    var row = document.createElement("div");
-    row.className = "score-row";
-    row.innerHTML = "<span>" + (done ? "✅" : "⏳") + " " + mpPlayerName(uid) + "</span>";
-    container.appendChild(row);
-  });
-}
-
 function renderRankPhase() {
   var room = mp.room;
   var round = room.round;
