@@ -238,7 +238,7 @@
     aspect-ratio: 4 / 3;
     margin: 0 auto;
   }
-  #draw-canvas {
+  #mp-draw-canvas, #local-draw-canvas {
     display: block;
     width: 100%;
     height: 100%;
@@ -1704,15 +1704,15 @@ function drawShapeDots(targetCtx, shapeKey) {
 
     orderByProximity(allDots).forEach(function (p, i) {
       var nextNumber = i + 1;
-      localCtx.fillStyle = "#b9c3da";
-      localCtx.beginPath();
-      localCtx.arc(p[0], p[1], 12, 0, Math.PI * 2);
-      localCtx.fill();
-      localCtx.fillStyle = "#4a5675";
-      localCtx.font = "bold 14px -apple-system, BlinkMacSystemFont, sans-serif";
-      localCtx.textAlign = "center";
-      localCtx.textBaseline = "middle";
-      localCtx.fillText(String(nextNumber), p[0], p[1] + 0.5);
+      targetCtx.fillStyle = "#b9c3da";
+      targetCtx.beginPath();
+      targetCtx.arc(p[0], p[1], 12, 0, Math.PI * 2);
+      targetCtx.fill();
+      targetCtx.fillStyle = "#4a5675";
+      targetCtx.font = "bold 14px -apple-system, BlinkMacSystemFont, sans-serif";
+      targetCtx.textAlign = "center";
+      targetCtx.textBaseline = "middle";
+      targetCtx.fillText(String(nextNumber), p[0], p[1] + 0.5);
     });
   }
 
