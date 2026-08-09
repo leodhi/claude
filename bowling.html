@@ -1,0 +1,1239 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>Bowling</title>
+<link rel="apple-touch-icon" href="icon-bowling.png">
+<style>
+  :root {
+    --bg: #0f1420;
+    --panel: #171f30;
+    --panel-2: #212c42;
+    --accent: #ffd23f;
+    --accent-2: #ff6b4a;
+    --text: #eef2f9;
+    --text-dim: #93a0b8;
+    --border: #2c3a55;
+  }
+  * { box-sizing: border-box; }
+  html { font-size: 16px; }
+  html, body {
+    margin: 0; padding: 0; height: 100%;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    -webkit-tap-highlight-color: transparent;
+  }
+  #app {
+    max-width: 560px;
+    margin: 0 auto;
+    min-height: 100vh;
+    min-height: 100dvh;
+    display: flex;
+    flex-direction: column;
+    padding: 20px 16px 40px;
+  }
+  @media (min-width: 700px) {
+    html { font-size: 18px; }
+    #app { max-width: 760px; padding: 32px 24px 56px; }
+  }
+  @media (min-width: 1000px) {
+    html { font-size: 20px; }
+    #app { max-width: 900px; padding: 40px 32px 64px; }
+  }
+  h1 { font-size: 1.6rem; margin: 4px 0 2px; letter-spacing: 0.3px; }
+  h1 span { color: var(--accent); }
+  .subtitle { color: var(--text-dim); font-size: 0.85rem; margin-bottom: 18px; }
+  .screen { display: none; flex-direction: column; gap: 14px; flex: 1; }
+  .screen.active { display: flex; }
+  .card { background: var(--panel); border: 1px solid var(--border); border-radius: 14px; padding: 16px; }
+  label { display: block; font-size: 0.8rem; color: var(--text-dim); margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.06em; }
+  input[type="text"], select {
+    width: 100%; background: var(--panel-2); border: 1px solid var(--border);
+    color: var(--text); padding: 12px; border-radius: 10px; font-size: 1rem;
+  }
+  input:focus, select:focus { outline: 2px solid var(--accent); }
+  .row { display: flex; gap: 8px; }
+  .row > * { flex: 1; }
+  button.primary {
+    background: var(--accent); color: #221a00; border: none; padding: 15px; border-radius: 12px;
+    font-size: 1.05rem; font-weight: 700; cursor: pointer; width: 100%;
+  }
+  button.primary:active { transform: scale(0.98); }
+  button.secondary {
+    background: transparent; color: var(--text); border: 1px solid var(--border);
+    padding: 13px; border-radius: 12px; font-size: 0.95rem; cursor: pointer; width: 100%;
+  }
+  button.danger { background: var(--accent-2); color: #2a0a02; }
+  button.link {
+    background: none; border: none; color: var(--text-dim); text-decoration: underline;
+    font-size: 0.8rem; cursor: pointer; padding: 6px;
+  }
+  button:disabled { opacity: 0.4; cursor: not-allowed; }
+  .chip-group { display: flex; flex-wrap: wrap; gap: 8px; }
+  .chip {
+    padding: 8px 14px; border-radius: 999px; border: 1px solid var(--border);
+    background: var(--panel-2); color: var(--text-dim); font-size: 0.85rem; cursor: pointer; user-select: none;
+  }
+  .chip.selected { background: var(--accent); color: #221a00; border-color: var(--accent); font-weight: 700; }
+  .chip.static { cursor: default; }
+  .center { text-align: center; }
+  .big-name { font-size: 1.8rem; font-weight: 800; margin: 6px 0; }
+  .pass-icon { font-size: 3rem; margin: 10px 0; }
+  small.hint { color: var(--text-dim); display: block; margin-top: 4px; font-size: 0.78rem; }
+  .top-link { color: var(--text-dim); font-size: 0.8rem; text-decoration: none; }
+  .top-link:hover { color: var(--accent); }
+  .footer-nav { display: flex; gap: 8px; margin-top: auto; padding-top: 10px; }
+  .footer-nav button { flex: 1; }
+  .waiting-text { color: var(--text-dim); text-align: center; padding: 16px 0; }
+  .room-code { font-size: 2.6rem; font-weight: 800; letter-spacing: 0.2em; text-align: center; color: var(--accent); margin: 8px 0; }
+  .player-chip-list { display: flex; flex-wrap: wrap; gap: 8px; }
+  .player-chip { background: var(--panel-2); border: 1px solid var(--border); border-radius: 999px; padding: 7px 14px; font-size: 0.85rem; }
+  .host-badge { color: var(--accent); font-size: 0.7rem; margin-left: 4px; }
+
+  /* Setup: player rows with optional AI toggle */
+  .player-row { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 8px; align-items: center; }
+  .player-row input[type="text"] { flex: 1; min-width: 90px; }
+  .icon-btn {
+    background: var(--panel-2); border: 1px solid var(--border); color: var(--text-dim);
+    border-radius: 10px; width: 44px; height: 44px; font-size: 1.1rem; cursor: pointer; flex: none;
+  }
+  .icon-btn:active { transform: scale(0.95); }
+  .icon-btn.active { color: var(--accent); border-color: var(--accent); }
+  .player-row select { width: auto; flex: none; padding: 10px; font-size: 0.85rem; }
+
+  /* Scorecard */
+  .scorecard-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .scorecard { border-collapse: collapse; width: 100%; min-width: 640px; }
+  .scorecard th { font-size: 0.65rem; color: var(--text-dim); text-transform: uppercase; padding: 4px 2px; text-align: center; }
+  .scorecard td { border: 1px solid var(--border); padding: 0; vertical-align: top; }
+  .player-name-cell {
+    padding: 6px 8px !important; font-weight: 700; font-size: 0.85rem; white-space: nowrap;
+    border: none !important; position: sticky; left: 0; background: var(--panel); z-index: 1;
+  }
+  .player-name-cell.turn { color: var(--accent); }
+  .player-name-cell .bot-tag { color: var(--text-dim); font-weight: 400; font-size: 0.7rem; }
+  .frame-cell { width: 54px; min-width: 54px; }
+  .frame-cell.tenth { width: 72px; min-width: 72px; }
+  .frame-cell.current-frame { background: rgba(255,210,63,0.08); }
+  .roll-marks { display: flex; border-bottom: 1px solid var(--border); }
+  .roll-box {
+    flex: 1; text-align: center; font-size: 0.72rem; font-weight: 700; padding: 3px 0;
+    border-left: 1px solid var(--border); color: var(--text);
+  }
+  .roll-box:first-child { border-left: none; }
+  .frame-score { text-align: center; font-size: 0.8rem; font-weight: 800; color: var(--accent); padding: 3px 0; min-height: 1.1em; }
+  .total-cell { text-align: center; font-weight: 800; font-size: 1rem; color: var(--accent); padding: 6px !important; border: none !important; }
+
+  /* Pin rack */
+  .lane-card { text-align: center; }
+  .turn-banner { font-size: 1.1rem; font-weight: 700; margin-bottom: 2px; }
+  .turn-banner .who { color: var(--accent); }
+  .frame-label { color: var(--text-dim); font-size: 0.85rem; margin-bottom: 12px; }
+  .pin-deck { display: flex; flex-direction: column; align-items: center; gap: 8px; margin: 10px 0 16px; }
+  .pin-row { display: flex; gap: 10px; justify-content: center; }
+  .pin {
+    width: 30px; height: 46px; border-radius: 50% 50% 40% 40% / 60% 60% 40% 40%;
+    background: linear-gradient(#fdfbf5, #e7e1d0); border: 1px solid var(--border);
+    position: relative; cursor: pointer; transition: transform 0.1s ease, opacity 0.15s ease;
+  }
+  .pin::after { content: ""; position: absolute; top: 9px; left: 3px; right: 3px; height: 5px; background: var(--accent-2); border-radius: 2px; }
+  .pin:active { transform: scale(0.92); }
+  .pin.down { opacity: 0.22; filter: grayscale(1); cursor: default; }
+  .pin.selected { background: linear-gradient(var(--accent), #d9a600); border-color: var(--accent); }
+  .pin.selected::after { background: #7a4b00; }
+  .pin.readonly { cursor: default; }
+  .roll-status { color: var(--text-dim); font-size: 0.9rem; margin-bottom: 10px; min-height: 1.3em; }
+  .roll-status strong { color: var(--accent); }
+  .pin-actions { display: flex; gap: 8px; }
+
+  .standings-row { display: flex; justify-content: space-between; align-items: baseline; padding: 9px 4px; border-bottom: 1px solid var(--border); }
+  .standings-row:last-child { border-bottom: none; }
+  .standings-row .pname { font-weight: 600; }
+  .standings-row .ppts { color: var(--accent); font-weight: 800; }
+  .standings-row.winner .pname::before { content: "🏆 "; }
+
+  #chat-toggle {
+    position: fixed; right: 16px; bottom: 16px; z-index: 40;
+    width: 52px; height: 52px; border-radius: 50%;
+    background: var(--accent); color: #221a00; border: none;
+    font-size: 1.4rem; cursor: pointer;
+    box-shadow: 0 4px 14px rgba(0,0,0,0.35);
+    display: none; align-items: center; justify-content: center;
+  }
+  #chat-toggle:active { transform: scale(0.94); }
+  @keyframes chat-bounce {
+    0%, 100% { transform: translateY(0); }
+    25% { transform: translateY(-7px); }
+    50% { transform: translateY(0); }
+  }
+  #chat-toggle.has-unread { background: var(--accent-2); animation: chat-bounce 0.6s ease-in-out infinite; }
+  #chat-badge {
+    position: absolute; top: -2px; right: -2px;
+    background: var(--accent-2); color: #fff;
+    border-radius: 999px; min-width: 18px; height: 18px;
+    font-size: 0.68rem; font-weight: 800; line-height: 18px;
+    text-align: center; padding: 0 4px; display: none;
+  }
+  #chat-panel {
+    position: fixed; right: 16px; bottom: 78px; z-index: 40;
+    width: min(320px, calc(100vw - 32px)); max-height: min(440px, calc(100vh - 140px));
+    background: var(--panel); border: 1px solid var(--border); border-radius: 16px;
+    display: none; flex-direction: column; overflow: hidden;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.45);
+  }
+  #chat-panel.open { display: flex; }
+  #chat-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 10px 12px; border-bottom: 1px solid var(--border);
+    font-size: 0.85rem; font-weight: 700; color: var(--text-dim);
+    text-transform: uppercase; letter-spacing: 0.06em;
+  }
+  #chat-close { background: none; border: none; color: var(--text-dim); font-size: 1rem; cursor: pointer; padding: 2px 6px; }
+  #chat-messages { flex: 1; overflow-y: auto; padding: 10px 12px; display: flex; flex-direction: column; gap: 8px; }
+  .chat-msg { font-size: 0.85rem; line-height: 1.35; }
+  .chat-msg .chat-name { font-weight: 700; color: var(--accent); }
+  .chat-msg.chat-mine .chat-name { color: var(--accent-2); }
+  #chat-input-row { display: flex; gap: 6px; padding: 10px; border-top: 1px solid var(--border); }
+  #chat-input { flex: 1; background: var(--panel-2); border: 1px solid var(--border); color: var(--text); padding: 9px 10px; border-radius: 10px; font-size: 0.9rem; }
+  #chat-send { background: var(--accent); color: #221a00; border: none; border-radius: 10px; padding: 0 14px; font-weight: 700; cursor: pointer; font-size: 0.85rem; }
+  #home-toggle {
+    position: fixed; left: 16px; bottom: 16px; z-index: 40;
+    width: 52px; height: 52px; border-radius: 50%;
+    background: var(--panel-2); color: var(--text); border: 1px solid var(--border);
+    font-size: 1.3rem; cursor: pointer;
+    box-shadow: 0 4px 14px rgba(0,0,0,0.35);
+    display: none; align-items: center; justify-content: center;
+  }
+  #home-toggle:active { transform: scale(0.94); }
+</style>
+</head>
+<body>
+<div id="app">
+  <h1>🎳 <span>Bowling</span></h1>
+  <div class="subtitle">Standard 10-pin scoring &middot; play pass-and-play on one device or across devices online &middot; <a class="top-link" href="index.html">&larr; all games</a></div>
+
+  <button id="home-toggle" type="button" aria-label="Back to start screen">🏠</button>
+  <button id="chat-toggle" type="button" aria-label="Room chat">
+    💬<span id="chat-badge"></span>
+  </button>
+  <div id="chat-panel">
+    <div id="chat-header">
+      <span>Room Chat</span>
+      <button id="chat-close" type="button" aria-label="Close chat">✕</button>
+    </div>
+    <div id="chat-messages"></div>
+    <div id="chat-input-row">
+      <input type="text" id="chat-input" placeholder="Message..." maxlength="200">
+      <button id="chat-send" type="button">Send</button>
+    </div>
+  </div>
+
+  <!-- HOME -->
+  <div class="screen active" id="screen-home">
+    <div class="card">
+      <button class="primary" id="btn-local-mode" type="button">Play on One Device</button>
+      <small class="hint">Pass-and-play, or add AI players &mdash; everyone bowls each frame in turn, in view of the whole table.</small>
+    </div>
+    <div class="center" style="color:var(--text-dim);font-size:0.8rem;">&mdash; or play across devices &mdash;</div>
+    <div class="card">
+      <label>Your name</label>
+      <input type="text" id="input-name" maxlength="20" placeholder="Enter your name">
+    </div>
+    <div class="card">
+      <button class="secondary" id="btn-create-room" type="button">Create Room</button>
+    </div>
+    <div class="card">
+      <label>Join a room</label>
+      <input type="text" id="input-join-name" maxlength="20" placeholder="Your name">
+      <button class="secondary" id="btn-join-room" type="button" style="margin-top:10px">Join Room</button>
+    </div>
+    <div class="center" id="home-status" style="color:var(--text-dim);font-size:0.85rem;"></div>
+  </div>
+
+  <!-- JOIN CODE -->
+  <div class="screen" id="screen-join-code">
+    <div class="card">
+      <label>Room code</label>
+      <input type="text" id="input-join-code" maxlength="4" placeholder="4-letter room code">
+      <button class="primary" id="btn-join-code-submit" type="button" style="margin-top:10px">Join Room</button>
+    </div>
+    <div class="center" id="join-code-status" style="color:var(--text-dim);font-size:0.85rem;"></div>
+    <button class="link" id="btn-join-code-back" type="button">Back</button>
+  </div>
+
+  <!-- MULTIPLAYER LOBBY -->
+  <div class="screen" id="screen-lobby">
+    <div class="card center">
+      <label>Room code &mdash; share with players</label>
+      <div class="room-code" id="lobby-code"></div>
+      <small class="hint">Everyone opens this page on their own device and enters this code to join. Turns go in the order players joined, one full frame at a time.</small>
+    </div>
+    <div class="card">
+      <label>Players</label>
+      <div class="player-chip-list" id="lobby-players"></div>
+    </div>
+    <div class="card" id="lobby-bot-card" style="display:none">
+      <label>Add an AI Player</label>
+      <div class="chip-group" id="bot-difficulty-chips">
+        <div class="chip" data-diff="easy">Easy</div>
+        <div class="chip selected" data-diff="medium">Medium</div>
+        <div class="chip" data-diff="hard">Hard</div>
+      </div>
+      <button class="secondary" id="btn-add-bot" type="button" style="margin-top:10px">+ Add AI Player</button>
+    </div>
+    <button class="primary" id="btn-start-game" type="button">Start Game</button>
+    <div class="waiting-text" id="lobby-waiting" style="display:none">Waiting for the host to start the game&hellip;</div>
+    <button class="link" id="btn-leave-room" type="button">Leave room</button>
+  </div>
+
+  <!-- MULTIPLAYER GAME -->
+  <div class="screen" id="screen-mp-game">
+    <div class="card">
+      <div class="scorecard-wrap"><table class="scorecard" id="mp-scorecard"></table></div>
+    </div>
+    <div class="card lane-card" id="mp-lane-card"></div>
+  </div>
+
+  <!-- MULTIPLAYER FINISHED -->
+  <div class="screen" id="screen-mp-finished">
+    <div class="card center">
+      <div class="pass-icon">🏆</div>
+      <div class="big-name" id="mp-winner-name"></div>
+      <div>wins the game!</div>
+    </div>
+    <div class="card">
+      <label>Final Scores</label>
+      <div id="mp-final-standings"></div>
+    </div>
+    <div class="footer-nav" id="mp-finished-host-nav" style="display:none">
+      <button class="primary" id="btn-mp-new-game" type="button">New Game</button>
+    </div>
+    <div class="waiting-text" id="mp-finished-waiting" style="display:none">Waiting for host to start a new game&hellip;</div>
+  </div>
+
+<div id="local-app">
+  <!-- LOCAL SETUP -->
+  <div class="screen" id="local-screen-setup">
+    <div class="card" id="local-resume-banner" style="display:none;">
+      <div class="row" style="align-items:center; gap:10px;">
+        <div style="flex:1;">You have a game in progress. Want to keep going?</div>
+      </div>
+      <div class="row" style="margin-top:10px;">
+        <button class="secondary" id="local-btn-discard-resume" type="button">Start New</button>
+        <button class="primary" id="local-btn-resume-game" type="button">Continue Game</button>
+      </div>
+    </div>
+    <div class="card">
+      <label>Players (1&ndash;6)</label>
+      <div id="local-player-list"></div>
+      <button class="secondary" id="local-btn-add-player" type="button">+ Add player</button>
+      <small class="hint">Toggle 🤖 to make a player AI-controlled, then pick its difficulty.</small>
+    </div>
+    <button class="primary" id="local-btn-start-game" type="button">Start Game</button>
+    <button class="link" id="local-btn-back-home" type="button">Back to home</button>
+  </div>
+
+  <!-- LOCAL GAME -->
+  <div class="screen" id="local-screen-game">
+    <div class="card">
+      <div class="scorecard-wrap"><table class="scorecard" id="local-scorecard"></table></div>
+    </div>
+    <div class="card lane-card" id="local-lane-card"></div>
+    <button class="link" id="local-btn-end-game" type="button">End game early</button>
+  </div>
+
+  <!-- LOCAL FINISHED -->
+  <div class="screen" id="local-screen-finished">
+    <div class="card center">
+      <div class="pass-icon">🏆</div>
+      <div class="big-name" id="local-winner-name"></div>
+      <div>wins the game!</div>
+    </div>
+    <div class="card">
+      <label>Final Scores</label>
+      <div id="local-final-standings"></div>
+    </div>
+    <button class="primary" id="local-btn-new-game" type="button">New Game</button>
+  </div>
+</div>
+</div>
+
+<script type="module">
+import { firebaseConfig } from "./firebase-config.js";
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+import { getDatabase, ref, set, get, update, onValue, push } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
+
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getDatabase(app);
+
+function $(id) { return document.getElementById(id); }
+function showScreen(id) {
+  document.querySelectorAll(".screen").forEach(function (s) { s.classList.remove("active"); });
+  $(id).classList.add("active");
+  var homeBtn = $("home-toggle");
+  if (homeBtn) homeBtn.style.display = (id === "screen-home") ? "none" : "flex";
+}
+
+// =========================================================================
+// BOWLING ENGINE -- shared scoring/turn logic for local + online modes
+// =========================================================================
+
+var TOTAL_FRAMES = 10;
+var PIN_ORDER = [7, 8, 9, 10, 4, 5, 6, 2, 3, 1]; // "knocked down" priority for the pin-deck display
+
+function emptyFrames() {
+  var f = [];
+  for (var i = 0; i < TOTAL_FRAMES; i++) f.push([]);
+  return f;
+}
+function framesFromDb(obj) {
+  var f = emptyFrames();
+  if (obj) {
+    Object.keys(obj).forEach(function (k) {
+      var idx = parseInt(k, 10);
+      if (idx >= 0 && idx < TOTAL_FRAMES && obj[k]) f[idx] = Object.keys(obj[k]).sort(function(a,b){return a-b;}).map(function(rk){ return obj[k][rk]; });
+    });
+  }
+  return f;
+}
+function standingBefore(frame, frameIndex, rollNum) {
+  if (frameIndex < TOTAL_FRAMES - 1) {
+    return rollNum === 0 ? 10 : (10 - frame[0]);
+  }
+  if (rollNum === 0) return 10;
+  if (rollNum === 1) return frame[0] === 10 ? 10 : (10 - frame[0]);
+  var r0 = frame[0], r1 = frame[1];
+  if (r0 === 10) return r1 === 10 ? 10 : (10 - r1);
+  return 10; // spare on balls 1-2 resets the rack for the bonus ball
+}
+function frameNeedsMoreRolls(frame, frameIndex) {
+  if (frameIndex < TOTAL_FRAMES - 1) {
+    if (frame.length === 0) return true;
+    if (frame.length === 1) return frame[0] !== 10;
+    return false;
+  }
+  if (frame.length < 2) return true;
+  var r0 = frame[0], r1 = frame[1];
+  var bonus = (r0 === 10) || (r0 + r1 === 10);
+  if (!bonus) return false;
+  return frame.length < 3;
+}
+function isFrameComplete(frame, frameIndex) { return frame.length > 0 && !frameNeedsMoreRolls(frame, frameIndex); }
+function rollMark(frame, frameIndex, rollNum) {
+  if (rollNum >= frame.length) return "";
+  var val = frame[rollNum];
+  var standing = standingBefore(frame, frameIndex, rollNum);
+  if (val === 0) return "-";
+  if (val === standing) return standing === 10 ? "X" : "/";
+  return String(val);
+}
+function scoreGame(framesArr) {
+  var flat = [];
+  framesArr.forEach(function (f) { f.forEach(function (r) { flat.push(r); }); });
+  var frameScores = [], running = [], rollIdx = 0, total = 0, lastKnown = 0;
+  for (var i = 0; i < TOTAL_FRAMES; i++) {
+    var frame = framesArr[i];
+    if (frame.length === 0) { frameScores.push(null); running.push(null); continue; }
+    if (i < TOTAL_FRAMES - 1) {
+      if (frame[0] === 10) {
+        if (flat.length >= rollIdx + 3) {
+          var s = 10 + flat[rollIdx + 1] + flat[rollIdx + 2];
+          total += s; lastKnown = total; frameScores.push(s); running.push(total);
+        } else { frameScores.push(null); running.push(null); }
+        rollIdx += 1;
+      } else if (frame.length === 2 && frame[0] + frame[1] === 10) {
+        if (flat.length >= rollIdx + 3) {
+          var s2 = 10 + flat[rollIdx + 2];
+          total += s2; lastKnown = total; frameScores.push(s2); running.push(total);
+        } else { frameScores.push(null); running.push(null); }
+        rollIdx += 2;
+      } else if (frame.length === 2) {
+        var s3 = frame[0] + frame[1];
+        total += s3; lastKnown = total; frameScores.push(s3); running.push(total);
+        rollIdx += 2;
+      } else {
+        frameScores.push(null); running.push(null);
+        rollIdx += 1;
+      }
+    } else {
+      if (isFrameComplete(frame, i)) {
+        var s4 = frame.reduce(function (a, b) { return a + b; }, 0);
+        total += s4; lastKnown = total; frameScores.push(s4); running.push(total);
+      } else { frameScores.push(null); running.push(null); }
+      rollIdx += frame.length;
+    }
+  }
+  return { frameScores: frameScores, running: running, total: lastKnown, complete: frameScores[TOTAL_FRAMES - 1] !== null };
+}
+function pinsDownMap(standingCount) {
+  var totalDown = 10 - standingCount;
+  var down = {};
+  for (var i = 0; i < totalDown; i++) down[PIN_ORDER[i]] = true;
+  return down;
+}
+// Advances { playerIndex, frame } to the next turn given the roll just taken.
+function advanceTurn(turn, order, framesByUid) {
+  var uid = order[turn.playerIndex];
+  var frame = (framesByUid[uid] || emptyFrames())[turn.frame];
+  if (!isFrameComplete(frame, turn.frame)) return turn; // same player rolls again
+  var nextPlayerIndex = turn.playerIndex + 1;
+  var nextFrame = turn.frame;
+  if (nextPlayerIndex >= order.length) { nextPlayerIndex = 0; nextFrame += 1; }
+  if (nextFrame >= TOTAL_FRAMES) return null; // game over
+  return { playerIndex: nextPlayerIndex, frame: nextFrame };
+}
+var BOT_PROFILES = {
+  easy: { strikeChance: 0.14, avgFraction: 0.5 },
+  medium: { strikeChance: 0.32, avgFraction: 0.7 },
+  hard: { strikeChance: 0.55, avgFraction: 0.88 }
+};
+function botRoll(standing, difficulty) {
+  var profile = BOT_PROFILES[difficulty] || BOT_PROFILES.medium;
+  if (Math.random() < profile.strikeChance) return standing;
+  if (standing <= 1) return standing;
+  var maxKnock = standing - 1;
+  var pins = Math.round(maxKnock * profile.avgFraction * (0.5 + Math.random()));
+  return Math.max(0, Math.min(maxKnock, pins));
+}
+
+// =========================================================================
+// SHARED: scorecard + pin-deck rendering
+// =========================================================================
+
+// Renders the full multi-player scorecard table into `tableEl`.
+// `players` = [{ uid, name, isBot }], `framesByUid` = { uid: framesArr }
+// `activeUid` highlights whose turn it is (or null).
+function renderScorecard(tableEl, players, framesByUid, activeUid) {
+  tableEl.innerHTML = "";
+  var thead = document.createElement("thead");
+  var headRow = document.createElement("tr");
+  headRow.appendChild(document.createElement("th"));
+  for (var f = 0; f < TOTAL_FRAMES; f++) {
+    var th = document.createElement("th");
+    th.textContent = f + 1;
+    headRow.appendChild(th);
+  }
+  thead.appendChild(headRow);
+  tableEl.appendChild(thead);
+
+  var tbody = document.createElement("tbody");
+  players.forEach(function (p) {
+    var framesArr = framesByUid[p.uid] || emptyFrames();
+    var scored = scoreGame(framesArr);
+    var tr = document.createElement("tr");
+
+    var nameTd = document.createElement("td");
+    nameTd.className = "player-name-cell" + (p.uid === activeUid ? " turn" : "");
+    nameTd.textContent = p.name + (p.isBot ? " " : "");
+    if (p.isBot) {
+      var tag = document.createElement("span");
+      tag.className = "bot-tag";
+      tag.textContent = "🤖";
+      nameTd.appendChild(tag);
+    }
+    tr.appendChild(nameTd);
+
+    for (var i = 0; i < TOTAL_FRAMES; i++) {
+      var frame = framesArr[i];
+      var td = document.createElement("td");
+      td.className = "frame-cell" + (i === TOTAL_FRAMES - 1 ? " tenth" : "") + (p.uid === activeUid && frameIsCurrent(framesByUid, p.uid, i) ? " current-frame" : "");
+
+      var rollsWrap = document.createElement("div");
+      rollsWrap.className = "roll-marks";
+      var boxCount = i === TOTAL_FRAMES - 1 ? 3 : 2;
+      for (var r = 0; r < boxCount; r++) {
+        var box = document.createElement("div");
+        box.className = "roll-box";
+        if (i < TOTAL_FRAMES - 1 && r === 1 && frame.length >= 1 && frame[0] === 10) {
+          box.textContent = ""; // strike: second box stays blank
+        } else {
+          box.textContent = rollMark(frame, i, r);
+        }
+        rollsWrap.appendChild(box);
+      }
+      td.appendChild(rollsWrap);
+
+      var scoreEl = document.createElement("div");
+      scoreEl.className = "frame-score";
+      scoreEl.textContent = scored.running[i] !== null ? scored.running[i] : "";
+      td.appendChild(scoreEl);
+
+      tr.appendChild(td);
+    }
+
+    var totalTd = document.createElement("td");
+    totalTd.className = "total-cell";
+    totalTd.textContent = scored.total;
+    tr.appendChild(totalTd);
+
+    tbody.appendChild(tr);
+  });
+  tableEl.appendChild(tbody);
+}
+function frameIsCurrent(framesByUid, uid, frameIndex) {
+  var frames = framesByUid[uid] || emptyFrames();
+  for (var i = 0; i < TOTAL_FRAMES; i++) {
+    if (!isFrameComplete(frames[i], i)) return i === frameIndex;
+  }
+  return false;
+}
+
+// Renders the interactive (or read-only) pin deck + confirm/clear controls
+// into `containerEl`. `onConfirm(pinCount)` fires when the player locks in a roll.
+function renderPinDeck(containerEl, standing, selectedSet, readOnly, onToggle, onConfirm, onClear) {
+  containerEl.innerHTML = "";
+  var down = pinsDownMap(standing);
+  var rows = [[7, 8, 9, 10], [4, 5, 6], [2, 3], [1]];
+  var deck = document.createElement("div");
+  deck.className = "pin-deck";
+  rows.forEach(function (rowPins) {
+    var rowEl = document.createElement("div");
+    rowEl.className = "pin-row";
+    rowPins.forEach(function (pinNum) {
+      var pin = document.createElement("div");
+      var isDown = !!down[pinNum];
+      var isSelected = !!selectedSet[pinNum];
+      pin.className = "pin" + (isDown ? " down" : "") + (isSelected ? " selected" : "") + (readOnly ? " readonly" : "");
+      if (!isDown && !readOnly) {
+        pin.addEventListener("click", function () { onToggle(pinNum); });
+      }
+      rowEl.appendChild(pin);
+    });
+    deck.appendChild(rowEl);
+  });
+  containerEl.appendChild(deck);
+
+  if (!readOnly) {
+    var selectedCount = Object.keys(selectedSet).length;
+    var status = document.createElement("div");
+    status.className = "roll-status";
+    status.innerHTML = "Tap the pins you knocked down &mdash; <strong>" + selectedCount + "</strong> selected of " + standing + " standing.";
+    containerEl.appendChild(status);
+
+    var actions = document.createElement("div");
+    actions.className = "pin-actions";
+    var clearBtn = document.createElement("button");
+    clearBtn.className = "secondary";
+    clearBtn.type = "button";
+    clearBtn.textContent = "Clear";
+    clearBtn.addEventListener("click", onClear);
+    actions.appendChild(clearBtn);
+    var confirmBtn = document.createElement("button");
+    confirmBtn.className = "primary";
+    confirmBtn.type = "button";
+    confirmBtn.textContent = selectedCount === standing && standing === 10 ? "Confirm Strike!" : (selectedCount === standing ? "Confirm (clears the rack)" : "Confirm Roll");
+    confirmBtn.addEventListener("click", function () { onConfirm(selectedCount); });
+    actions.appendChild(confirmBtn);
+    containerEl.appendChild(actions);
+  }
+}
+
+function renderFinalStandings(containerEl, players, framesByUid) {
+  containerEl.innerHTML = "";
+  var rows = players.map(function (p) { return { p: p, total: scoreGame(framesByUid[p.uid] || emptyFrames()).total }; });
+  rows.sort(function (a, b) { return b.total - a.total; });
+  var topScore = rows.length ? rows[0].total : 0;
+  rows.forEach(function (r) {
+    var row = document.createElement("div");
+    row.className = "standings-row" + (r.total === topScore ? " winner" : "");
+    row.innerHTML = "<span class=\"pname\">" + r.p.name + (r.p.isBot ? " 🤖" : "") + "</span><span class=\"ppts\">" + r.total + "</span>";
+    containerEl.appendChild(row);
+  });
+}
+
+// =========================================================================
+// LOCAL PASS-AND-PLAY MODE
+// =========================================================================
+
+var LOCAL_SAVE_KEY = "bowlingLocalSave";
+
+var localState = {
+  players: [{ name: "", isBot: false, difficulty: "medium" }, { name: "", isBot: false, difficulty: "medium" }],
+  order: [],           // ["p0","p1",...] synthetic uids by index
+  frames: {},          // { "p0": framesArr, ... }
+  turn: null,          // { playerIndex, frame }
+  selected: {},         // pin selection for the current human roll
+  botTimer: null
+};
+
+function localSyntheticUid(i) { return "p" + i; }
+
+function localRenderPlayerList() {
+  var wrap = $("local-player-list");
+  wrap.innerHTML = "";
+  localState.players.forEach(function (pl, i) {
+    var row = document.createElement("div");
+    row.className = "player-row";
+
+    var input = document.createElement("input");
+    input.type = "text";
+    input.placeholder = "Player " + (i + 1);
+    input.value = pl.name;
+    input.maxLength = 20;
+    input.addEventListener("input", function () { pl.name = input.value; });
+    row.appendChild(input);
+
+    var botBtn = document.createElement("button");
+    botBtn.type = "button";
+    botBtn.className = "icon-btn" + (pl.isBot ? " active" : "");
+    botBtn.title = "Toggle AI player";
+    botBtn.textContent = "🤖";
+    botBtn.addEventListener("click", function () { pl.isBot = !pl.isBot; localRenderPlayerList(); });
+    row.appendChild(botBtn);
+
+    if (pl.isBot) {
+      var sel = document.createElement("select");
+      ["easy", "medium", "hard"].forEach(function (d) {
+        var opt = document.createElement("option");
+        opt.value = d; opt.textContent = d.charAt(0).toUpperCase() + d.slice(1);
+        if (pl.difficulty === d) opt.selected = true;
+        sel.appendChild(opt);
+      });
+      sel.addEventListener("change", function () { pl.difficulty = sel.value; });
+      row.appendChild(sel);
+    }
+
+    if (localState.players.length > 1) {
+      var rm = document.createElement("button");
+      rm.className = "icon-btn";
+      rm.type = "button";
+      rm.textContent = "✕";
+      rm.addEventListener("click", function () { localState.players.splice(i, 1); localRenderPlayerList(); });
+      row.appendChild(rm);
+    }
+    wrap.appendChild(row);
+  });
+}
+
+$("btn-local-mode").addEventListener("click", function () {
+  localRenderPlayerList();
+  showScreen("local-screen-setup");
+});
+$("local-btn-back-home").addEventListener("click", function () { showScreen("screen-home"); });
+$("local-btn-add-player").addEventListener("click", function () {
+  if (localState.players.length >= 6) return;
+  localState.players.push({ name: "", isBot: false, difficulty: "medium" });
+  localRenderPlayerList();
+});
+
+$("local-btn-start-game").addEventListener("click", function () {
+  var cleaned = localState.players.map(function (pl, i) {
+    var name = pl.name.trim() || (pl.isBot ? "CPU " + (i + 1) : "Player " + (i + 1));
+    return { name: name, isBot: pl.isBot, difficulty: pl.difficulty };
+  });
+  if (cleaned.length < 1) { alert("Add at least one player."); return; }
+  localState.players = cleaned;
+  localState.order = cleaned.map(function (_, i) { return localSyntheticUid(i); });
+  localState.frames = {};
+  localState.order.forEach(function (uid) { localState.frames[uid] = emptyFrames(); });
+  localState.turn = { playerIndex: 0, frame: 0 };
+  localState.selected = {};
+  localSaveGame();
+  localGoToGameScreen();
+});
+
+function localPlayers() {
+  return localState.order.map(function (uid, i) {
+    var pl = localState.players[i];
+    return { uid: uid, name: pl.name, isBot: pl.isBot, difficulty: pl.difficulty };
+  });
+}
+function localCurrentUid() { return localState.turn ? localState.order[localState.turn.playerIndex] : null; }
+function localCurrentPlayer() {
+  var idx = localState.turn ? localState.turn.playerIndex : -1;
+  return idx >= 0 ? localState.players[idx] : null;
+}
+
+function localGoToGameScreen() {
+  showScreen("local-screen-game");
+  localRender();
+}
+
+function localRender() {
+  if (!localState.turn) { localFinishGame(); return; }
+  renderScorecard($("local-scorecard"), localPlayers(), localState.frames, localCurrentUid());
+
+  var laneCard = $("local-lane-card");
+  laneCard.innerHTML = "";
+  var uid = localCurrentUid();
+  var player = localCurrentPlayer();
+  var frameIndex = localState.turn.frame;
+  var frame = localState.frames[uid][frameIndex];
+  var rollNum = frame.length;
+  var standing = standingBefore(frame, frameIndex, rollNum);
+
+  var banner = document.createElement("div");
+  banner.className = "turn-banner";
+  banner.innerHTML = "<span class=\"who\">" + player.name + "</span>'s turn" + (player.isBot ? " (AI is rolling…)" : "");
+  laneCard.appendChild(banner);
+
+  var frameLabel = document.createElement("div");
+  frameLabel.className = "frame-label";
+  frameLabel.innerHTML = "Frame " + (frameIndex + 1) + " of " + TOTAL_FRAMES + " &middot; Ball " + (rollNum + 1);
+  laneCard.appendChild(frameLabel);
+
+  var pinArea = document.createElement("div");
+  laneCard.appendChild(pinArea);
+
+  if (player.isBot) {
+    renderPinDeck(pinArea, standing, {}, true, null, null, null);
+    localScheduleBotRoll(uid, frameIndex, rollNum, standing, player.difficulty);
+  } else {
+    renderPinDeck(
+      pinArea, standing, localState.selected, false,
+      function (pinNum) {
+        if (localState.selected[pinNum]) delete localState.selected[pinNum];
+        else localState.selected[pinNum] = true;
+        localRender();
+      },
+      function (pinCount) { localSubmitRoll(pinCount); },
+      function () { localState.selected = {}; localRender(); }
+    );
+  }
+}
+
+function localScheduleBotRoll(uid, frameIndex, rollNum, standing, difficulty) {
+  if (localState.botTimer) return;
+  localState.botTimer = setTimeout(function () {
+    localState.botTimer = null;
+    // Bail out if the game moved on for any reason (e.g. end-game-early).
+    if (!localState.turn || localCurrentUid() !== uid || localState.turn.frame !== frameIndex) return;
+    var pins = botRoll(standing, difficulty);
+    localSubmitRoll(pins);
+  }, 600 + Math.random() * 700);
+}
+
+function localSubmitRoll(pinCount) {
+  var uid = localCurrentUid();
+  var frameIndex = localState.turn.frame;
+  localState.frames[uid][frameIndex].push(pinCount);
+  localState.selected = {};
+  localState.turn = advanceTurn(localState.turn, localState.order, localState.frames);
+  localSaveGame();
+  if (!localState.turn) { localFinishGame(); return; }
+  localRender();
+}
+
+function localFinishGame() {
+  if (localState.botTimer) { clearTimeout(localState.botTimer); localState.botTimer = null; }
+  renderFinalStandings($("local-final-standings"), localPlayers(), localState.frames);
+  var rows = localPlayers().map(function (p) { return { name: p.name, total: scoreGame(localState.frames[p.uid]).total }; })
+    .sort(function (a, b) { return b.total - a.total; });
+  $("local-winner-name").textContent = rows.length ? rows[0].name : "";
+  localClearSavedGame();
+  showScreen("local-screen-finished");
+}
+
+$("local-btn-end-game").addEventListener("click", function () {
+  if (!confirm("End this game early? Final scores will be based on frames bowled so far.")) return;
+  if (localState.botTimer) { clearTimeout(localState.botTimer); localState.botTimer = null; }
+  renderFinalStandings($("local-final-standings"), localPlayers(), localState.frames);
+  var rows = localPlayers().map(function (p) { return { name: p.name, total: scoreGame(localState.frames[p.uid]).total }; })
+    .sort(function (a, b) { return b.total - a.total; });
+  $("local-winner-name").textContent = rows.length ? rows[0].name + " (so far)" : "";
+  localClearSavedGame();
+  showScreen("local-screen-finished");
+});
+
+$("local-btn-new-game").addEventListener("click", function () {
+  localRenderPlayerList();
+  showScreen("local-screen-setup");
+});
+
+// ---------- Resume after refresh ----------
+function localSaveGame() {
+  try {
+    localStorage.setItem(LOCAL_SAVE_KEY, JSON.stringify({
+      players: localState.players, order: localState.order, frames: localState.frames, turn: localState.turn
+    }));
+  } catch (e) { /* private browsing or storage disabled -- resume just won't be offered */ }
+}
+function localClearSavedGame() {
+  try { localStorage.removeItem(LOCAL_SAVE_KEY); } catch (e) {}
+}
+function localLoadSavedGame() {
+  try { var raw = localStorage.getItem(LOCAL_SAVE_KEY); return raw ? JSON.parse(raw) : null; } catch (e) { return null; }
+}
+var localPendingResume = localLoadSavedGame();
+if (localPendingResume && localPendingResume.order && localPendingResume.order.length && localPendingResume.turn) {
+  $("local-resume-banner").style.display = "";
+} else {
+  localPendingResume = null;
+}
+
+$("local-btn-resume-game").addEventListener("click", function () {
+  if (!localPendingResume) return;
+  localState.players = localPendingResume.players;
+  localState.order = localPendingResume.order;
+  localState.frames = localPendingResume.frames;
+  localState.turn = localPendingResume.turn;
+  localState.selected = {};
+  $("local-resume-banner").style.display = "none";
+  localPendingResume = null;
+  localGoToGameScreen();
+});
+$("local-btn-discard-resume").addEventListener("click", function () {
+  localClearSavedGame();
+  localPendingResume = null;
+  $("local-resume-banner").style.display = "none";
+});
+
+$("home-toggle").addEventListener("click", function () {
+  if (!confirm("Back to the start screen? This leaves your current game.")) return;
+  if (localState.botTimer) { clearTimeout(localState.botTimer); localState.botTimer = null; }
+  localStorage.removeItem("bowling_room");
+  location.reload();
+});
+
+// =========================================================================
+// MULTIPLAYER (ONLINE ROOMS)
+// =========================================================================
+
+var CODE_CHARS = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+var mp = { uid: null, name: "", roomCode: null, isHost: false, room: null };
+var mpSelected = {};
+var mpBotScheduled = {};
+
+function roomRef(code) { return ref(db, "rooms/" + code); }
+function generateRoomCode() {
+  var out = "";
+  for (var i = 0; i < 4; i++) out += CODE_CHARS[Math.floor(Math.random() * CODE_CHARS.length)];
+  return out;
+}
+function isBotUid(uid) { var p = mp.room.players && mp.room.players[uid]; return !!(p && p.isBot); }
+function generateBotUid() { return "bot-" + Math.random().toString(36).slice(2, 10); }
+
+signInAnonymously(auth).catch(function (err) { $("home-status").textContent = "Couldn't connect: " + err.message; });
+onAuthStateChanged(auth, function (user) { if (!user) return; mp.uid = user.uid; tryAutoRejoin(); });
+
+function tryAutoRejoin() {
+  var saved = null;
+  try { saved = JSON.parse(localStorage.getItem("bowling_room") || "null"); } catch (e) {}
+  if (!saved || !saved.code || !saved.name) return;
+  $("input-name").value = saved.name;
+  get(roomRef(saved.code)).then(function (snap) {
+    if (!snap.exists()) { localStorage.removeItem("bowling_room"); return; }
+    var roomVal = snap.val();
+    if (roomVal.players && roomVal.players[mp.uid]) {
+      mp.roomCode = saved.code; mp.name = saved.name; mp.isHost = roomVal.hostUid === mp.uid;
+      subscribeRoom(saved.code);
+    }
+  });
+}
+
+$("btn-create-room").addEventListener("click", function () {
+  var name = $("input-name").value.trim();
+  if (!name) { $("home-status").textContent = "Enter your name first."; return; }
+  if (!mp.uid) { $("home-status").textContent = "Still connecting, try again in a moment."; return; }
+  createRoomFlow(name);
+});
+var pendingJoinName = "";
+$("btn-join-room").addEventListener("click", function () {
+  var name = $("input-join-name").value.trim();
+  if (!name) { $("home-status").textContent = "Enter your name first."; return; }
+  if (!mp.uid) { $("home-status").textContent = "Still connecting, try again in a moment."; return; }
+  pendingJoinName = name;
+  $("input-join-code").value = ""; $("join-code-status").textContent = "";
+  showScreen("screen-join-code");
+});
+$("btn-join-code-back").addEventListener("click", function () { showScreen("screen-home"); });
+$("btn-join-code-submit").addEventListener("click", function () {
+  var code = $("input-join-code").value.trim().toUpperCase();
+  if (!code) { $("join-code-status").textContent = "Enter a room code."; return; }
+  joinRoomFlow(code, pendingJoinName);
+});
+
+async function createRoomFlow(name) {
+  $("home-status").textContent = "Creating room…";
+  var code;
+  do { code = generateRoomCode(); } while ((await get(roomRef(code))).exists());
+  var uid = mp.uid;
+  await set(roomRef(code), {
+    createdAt: Date.now(), hostUid: uid, phase: "lobby",
+    players: { [uid]: { name: name, joinedAt: Date.now() } }
+  });
+  mp.roomCode = code; mp.name = name; mp.isHost = true;
+  localStorage.setItem("bowling_room", JSON.stringify({ code: code, name: name }));
+  subscribeRoom(code);
+}
+async function joinRoomFlow(code, name) {
+  $("join-code-status").textContent = "Joining…";
+  var snap = await get(roomRef(code));
+  if (!snap.exists()) { $("join-code-status").textContent = "Room not found."; return; }
+  var val = snap.val();
+  if (val.phase !== "lobby") { $("join-code-status").textContent = "That game has already started."; return; }
+  var uid = mp.uid;
+  await update(ref(db, "rooms/" + code + "/players/" + uid), { name: name, joinedAt: Date.now() });
+  mp.roomCode = code; mp.name = name; mp.isHost = val.hostUid === uid;
+  localStorage.setItem("bowling_room", JSON.stringify({ code: code, name: name }));
+  subscribeRoom(code);
+}
+$("btn-leave-room").addEventListener("click", function () {
+  if (!confirm("Leave this room?")) return;
+  localStorage.removeItem("bowling_room");
+  location.reload();
+});
+
+function subscribeRoom(code) {
+  onValue(roomRef(code), function (snap) {
+    mp.room = snap.val();
+    if (!mp.room) {
+      localStorage.removeItem("bowling_room");
+      showScreen("screen-home");
+      $("home-status").textContent = "Room closed.";
+      $("chat-toggle").style.display = "none";
+      $("chat-panel").classList.remove("open");
+      return;
+    }
+    mp.isHost = mp.room.hostUid === mp.uid;
+    mpRender();
+  });
+  subscribeChat(code);
+  $("chat-toggle").style.display = "flex";
+}
+
+// ---------- Room chat ----------
+var chatSeenCount = 0, chatUnread = 0;
+function subscribeChat(code) {
+  onValue(ref(db, "rooms/" + code + "/chat"), function (snap) {
+    var val = snap.val() || {};
+    var messages = Object.keys(val).map(function (key) { return val[key]; }).sort(function (a, b) { return a.ts - b.ts; });
+    var wrap = $("chat-messages");
+    wrap.innerHTML = "";
+    messages.forEach(function (m) {
+      var row = document.createElement("div");
+      row.className = "chat-msg" + (m.uid === mp.uid ? " chat-mine" : "");
+      var nameSpan = document.createElement("span");
+      nameSpan.className = "chat-name";
+      nameSpan.textContent = (m.uid === mp.uid ? "You" : m.name) + ": ";
+      row.appendChild(nameSpan);
+      row.appendChild(document.createTextNode(m.text));
+      wrap.appendChild(row);
+    });
+    wrap.scrollTop = wrap.scrollHeight;
+    if (messages.length > chatSeenCount) {
+      if (!$("chat-panel").classList.contains("open")) {
+        chatUnread += messages.length - chatSeenCount;
+        var badge = $("chat-badge");
+        badge.textContent = chatUnread > 9 ? "9+" : String(chatUnread);
+        badge.style.display = "block";
+        $("chat-toggle").classList.add("has-unread");
+      }
+    }
+    chatSeenCount = messages.length;
+  });
+}
+$("chat-toggle").addEventListener("click", function () {
+  $("chat-panel").classList.add("open");
+  chatUnread = 0; $("chat-badge").style.display = "none"; $("chat-toggle").classList.remove("has-unread");
+  $("chat-input").focus();
+});
+$("chat-close").addEventListener("click", function () { $("chat-panel").classList.remove("open"); });
+function sendChatMessage() {
+  var text = $("chat-input").value.trim();
+  if (!text || !mp.roomCode) return;
+  push(ref(db, "rooms/" + mp.roomCode + "/chat"), { uid: mp.uid, name: mp.name, text: text.slice(0, 200), ts: Date.now() });
+  $("chat-input").value = "";
+}
+$("chat-send").addEventListener("click", sendChatMessage);
+$("chat-input").addEventListener("keydown", function (e) { if (e.key === "Enter") { e.preventDefault(); sendChatMessage(); } });
+
+function mpRender() {
+  var room = mp.room;
+  if (!room) return;
+  if (room.phase === "lobby") mpRenderLobby();
+  else if (room.phase === "playing") mpRenderGame();
+  else if (room.phase === "finished") mpRenderFinished();
+}
+function mpPlayerName(uid) { return mp.room.players && mp.room.players[uid] ? mp.room.players[uid].name : "?"; }
+function mpPlayerUids() { return mp.room.players ? Object.keys(mp.room.players) : []; }
+
+// ---------- Lobby ----------
+function mpRenderLobby() {
+  var room = mp.room;
+  $("lobby-code").textContent = mp.roomCode;
+
+  var list = $("lobby-players");
+  list.innerHTML = "";
+  mpPlayerUids().forEach(function (uid) {
+    var p = room.players[uid];
+    var chip = document.createElement("div");
+    chip.className = "player-chip";
+    chip.textContent = (p.isBot ? "🤖 " : "") + mpPlayerName(uid) + (p.isBot ? " (" + p.difficulty + ")" : "");
+    if (uid === room.hostUid) {
+      var badge = document.createElement("span");
+      badge.className = "host-badge"; badge.textContent = "HOST";
+      chip.appendChild(badge);
+    }
+    if (p.isBot && mp.isHost) {
+      var rm = document.createElement("span");
+      rm.textContent = " ✕"; rm.style.cursor = "pointer"; rm.style.marginLeft = "4px";
+      rm.addEventListener("click", function () { set(ref(db, "rooms/" + mp.roomCode + "/players/" + uid), null); });
+      chip.appendChild(rm);
+    }
+    list.appendChild(chip);
+  });
+
+  $("lobby-bot-card").style.display = mp.isHost ? "" : "none";
+
+  var startBtn = $("btn-start-game");
+  var waiting = $("lobby-waiting");
+  if (mp.isHost) {
+    startBtn.style.display = ""; waiting.style.display = "none";
+    startBtn.disabled = mpPlayerUids().length < 1;
+  } else {
+    startBtn.style.display = "none"; waiting.style.display = "";
+  }
+  showScreen("screen-lobby");
+}
+
+var selectedBotDifficulty = "medium";
+Array.prototype.forEach.call($("bot-difficulty-chips").children, function (chip) {
+  chip.addEventListener("click", function () {
+    selectedBotDifficulty = chip.dataset.diff;
+    Array.prototype.forEach.call($("bot-difficulty-chips").children, function (c) { c.classList.remove("selected"); });
+    chip.classList.add("selected");
+  });
+});
+$("btn-add-bot").addEventListener("click", function () {
+  if (!mp.isHost) return;
+  var botUid = generateBotUid();
+  var botNumber = mpPlayerUids().filter(isBotUid).length + 1;
+  update(ref(db, "rooms/" + mp.roomCode + "/players/" + botUid), {
+    name: "CPU " + botNumber, isBot: true, difficulty: selectedBotDifficulty, joinedAt: Date.now()
+  });
+});
+
+$("btn-start-game").addEventListener("click", function () {
+  if (!mp.isHost) return;
+  var order = mpPlayerUids();
+  if (order.length < 1) return;
+  var updates = { phase: "playing", order: order, turn: { playerIndex: 0, frame: 0 }, frames: {} };
+  order.forEach(function (uid) { updates.frames[uid] = {}; });
+  update(roomRef(mp.roomCode), updates);
+});
+
+// ---------- Game ----------
+function mpPlayersInOrder() {
+  return (mp.room.order || []).map(function (uid) {
+    var p = mp.room.players[uid] || { name: "?" };
+    return { uid: uid, name: p.name, isBot: !!p.isBot, difficulty: p.difficulty };
+  });
+}
+function mpFramesByUid() {
+  var out = {};
+  (mp.room.order || []).forEach(function (uid) { out[uid] = framesFromDb(mp.room.frames && mp.room.frames[uid]); });
+  return out;
+}
+function mpRenderGame() {
+  var room = mp.room;
+  var turn = room.turn;
+  var order = room.order || [];
+  var activeUid = turn ? order[turn.playerIndex] : null;
+  var framesByUid = mpFramesByUid();
+
+  renderScorecard($("mp-scorecard"), mpPlayersInOrder(), framesByUid, activeUid);
+
+  var laneCard = $("mp-lane-card");
+  laneCard.innerHTML = "";
+  if (!turn || !activeUid) { showScreen("screen-mp-game"); return; }
+
+  var activePlayer = room.players[activeUid] || { name: "?" };
+  var frameIndex = turn.frame;
+  var frame = framesByUid[activeUid][frameIndex];
+  var rollNum = frame.length;
+  var standing = standingBefore(frame, frameIndex, rollNum);
+
+  var banner = document.createElement("div");
+  banner.className = "turn-banner";
+  var isMe = activeUid === mp.uid;
+  banner.innerHTML = isMe ? "It's <span class=\"who\">your</span> turn!" : "<span class=\"who\">" + activePlayer.name + "</span>'s turn" + (activePlayer.isBot ? " (AI is rolling…)" : "");
+  laneCard.appendChild(banner);
+
+  var frameLabel = document.createElement("div");
+  frameLabel.className = "frame-label";
+  frameLabel.innerHTML = "Frame " + (frameIndex + 1) + " of " + TOTAL_FRAMES + " &middot; Ball " + (rollNum + 1);
+  laneCard.appendChild(frameLabel);
+
+  var pinArea = document.createElement("div");
+  laneCard.appendChild(pinArea);
+
+  if (isMe && !activePlayer.isBot) {
+    renderPinDeck(
+      pinArea, standing, mpSelected, false,
+      function (pinNum) { if (mpSelected[pinNum]) delete mpSelected[pinNum]; else mpSelected[pinNum] = true; mpRenderGame(); },
+      function (pinCount) { mpSubmitRoll(activeUid, frameIndex, pinCount); },
+      function () { mpSelected = {}; mpRenderGame(); }
+    );
+  } else {
+    renderPinDeck(pinArea, standing, {}, true, null, null, null);
+    if (!isMe) {
+      var waiting = document.createElement("div");
+      waiting.className = "waiting-text";
+      waiting.textContent = "Waiting for " + activePlayer.name + " to roll…";
+      laneCard.appendChild(waiting);
+    }
+  }
+
+  if (mp.isHost && activePlayer.isBot) mpRunBotRoll(activeUid, frameIndex, rollNum, standing, activePlayer.difficulty);
+
+  showScreen("screen-mp-game");
+}
+
+async function mpSubmitRoll(uid, frameIndex, pinCount) {
+  var snap = await get(roomRef(mp.roomCode));
+  var room = snap.val();
+  if (!room || room.phase !== "playing") return;
+  var turn = room.turn;
+  if (!turn || room.order[turn.playerIndex] !== uid || turn.frame !== frameIndex) return; // stale click
+  var framesByUid = {};
+  (room.order || []).forEach(function (u) { framesByUid[u] = framesFromDb(room.frames && room.frames[u]); });
+  framesByUid[uid][frameIndex].push(pinCount);
+  mpSelected = {};
+  var nextTurn = advanceTurn(turn, room.order, framesByUid);
+  var updates = {};
+  updates["frames/" + uid + "/" + frameIndex] = framesByUid[uid][frameIndex];
+  if (nextTurn) {
+    updates.turn = nextTurn;
+  } else {
+    updates.turn = null;
+    updates.phase = "finished";
+  }
+  await update(roomRef(mp.roomCode), updates);
+}
+
+function mpRunBotRoll(uid, frameIndex, rollNum, standing, difficulty) {
+  var key = uid + ":" + frameIndex + ":" + rollNum;
+  if (mpBotScheduled[key]) return;
+  mpBotScheduled[key] = true;
+  setTimeout(function () {
+    delete mpBotScheduled[key];
+    if (!mp.room || mp.room.phase !== "playing") return;
+    var turn = mp.room.turn;
+    if (!turn || mp.room.order[turn.playerIndex] !== uid || turn.frame !== frameIndex) return;
+    var pins = botRoll(standing, difficulty);
+    mpSubmitRoll(uid, frameIndex, pins);
+  }, 700 + Math.random() * 900);
+}
+
+function mpRenderFinished() {
+  var players = mpPlayersInOrder();
+  var framesByUid = mpFramesByUid();
+  renderFinalStandings($("mp-final-standings"), players, framesByUid);
+  var rows = players.map(function (p) { return { name: p.name, total: scoreGame(framesByUid[p.uid]).total }; }).sort(function (a, b) { return b.total - a.total; });
+  $("mp-winner-name").textContent = rows.length ? rows[0].name : "";
+  $("mp-finished-host-nav").style.display = mp.isHost ? "flex" : "none";
+  $("mp-finished-waiting").style.display = mp.isHost ? "none" : "";
+  showScreen("screen-mp-finished");
+}
+$("btn-mp-new-game").addEventListener("click", function () {
+  if (!mp.isHost) return;
+  update(roomRef(mp.roomCode), { phase: "lobby", order: null, turn: null, frames: null });
+});
+</script>
+</body>
+</html>
