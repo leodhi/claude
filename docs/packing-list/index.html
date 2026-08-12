@@ -91,7 +91,7 @@
       <div class="list-grid" id="list-grid"></div>
       <form class="add-form" id="add-form">
         <div><label for="ci-name">Item</label><input type="text" id="ci-name" placeholder="Add anything" required></div>
-        <div><label for="ci-cat">Category</label><select id="ci-cat"></select></div>
+        <div><label for="ci-cat">Category</label><input type="text" id="ci-cat" list="ci-cat-list" placeholder="Pick or type a new one" required><datalist id="ci-cat-list"></datalist></div>
         <button type="submit">Add</button>
       </form>
     </div>
@@ -253,11 +253,16 @@
   }
 
   const ciCat = document.getElementById("ci-cat");
-  CUSTOM_CATEGORIES.forEach(c => {
-    const opt = document.createElement("option");
-    opt.value = c; opt.textContent = c;
-    ciCat.appendChild(opt);
-  });
+  const ciCatList = document.getElementById("ci-cat-list");
+  function renderCatOptions(categories) {
+    ciCatList.innerHTML = "";
+    categories.forEach(c => {
+      const opt = document.createElement("option");
+      opt.value = c;
+      ciCatList.appendChild(opt);
+    });
+  }
+  renderCatOptions(CUSTOM_CATEGORIES);
 
   let currentItems = {};
 
@@ -275,7 +280,11 @@
       return (a.order ?? 0) - (b.order ?? 0);
     }));
 
-    CUSTOM_CATEGORIES.forEach(catName => {
+    const extraCats = Object.keys(byCat).filter(c => !CUSTOM_CATEGORIES.includes(c)).sort();
+    const categoryOrder = [...CUSTOM_CATEGORIES, ...extraCats];
+    renderCatOptions(categoryOrder);
+
+    categoryOrder.forEach(catName => {
       const items = byCat[catName];
       if (!items || items.length === 0) return;
       const block = document.createElement("div");
@@ -349,8 +358,8 @@
     e.preventDefault();
     const nameInput = document.getElementById("ci-name");
     const name = nameInput.value.trim();
-    const cat = ciCat.value;
-    if (!name) return;
+    const cat = ciCat.value.trim();
+    if (!name || !cat) return;
     const id = uid();
     const maxOrder = Math.max(0, ...Object.values(currentItems).map(it => it.order ?? 0));
     setStatus("syncing", "Saving…");
