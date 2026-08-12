@@ -58,7 +58,6 @@
   .list-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 0 32px; margin-top: 16px; }
   @media (max-width: 720px) { .list-grid { grid-template-columns: 1fr; } }
   .cat-block { margin-bottom: 18px; break-inside: avoid; }
-  .cat-title { font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--sun); font-weight: 700; margin-bottom: 8px; }
   .item-row { display: flex; align-items: center; gap: 10px; padding: 6px 4px; border-radius: 6px; }
   .item-row:hover { background: var(--surface-2); }
   .item-row input[type="checkbox"] { width: 17px; height: 17px; accent-color: var(--accent); flex: none; }
@@ -83,6 +82,65 @@
   .add-form button:hover { filter: brightness(1.08); }
 
   .empty { color: var(--ink-faint); font-size: 13px; }
+
+  .toolbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 16px; }
+  .search-wrap { flex: 1; min-width: 200px; }
+  #search-input {
+    width: 100%; background: var(--surface); border: 1px solid var(--border); border-radius: 8px;
+    padding: 9px 12px; color: var(--ink); font-size: 14px; font-family: inherit; box-shadow: var(--shadow);
+  }
+  #search-input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+  .viewers { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+  .viewer-chip {
+    display: inline-flex; align-items: center; gap: 5px; font-size: 12px; color: var(--ink-muted);
+    background: var(--surface); border: 1px solid var(--border); border-radius: 999px; padding: 4px 10px 4px 8px;
+  }
+  .viewer-chip .avatar {
+    width: 16px; height: 16px; border-radius: 50%; background: var(--accent); color: #fff;
+    font-size: 9px; font-weight: 700; display: flex; align-items: center; justify-content: center; flex: none;
+  }
+
+  .cat-title-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; cursor: pointer; user-select: none; }
+  .cat-title-row:hover .cat-title { color: var(--accent); }
+  .cat-title-row .chevron { font-size: 10px; color: var(--ink-faint); transition: transform 0.15s ease; flex: none; }
+  .cat-title-row.collapsed .chevron { transform: rotate(-90deg); }
+  .cat-title { font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--sun); font-weight: 700; margin: 0; flex: 1; }
+  .cat-icon { font-size: 13px; }
+  .cat-done-badge { font-size: 11px; color: var(--good); font-weight: 600; white-space: nowrap; }
+  .cat-block.collapsed .cat-items { display: none; }
+
+  .fab {
+    position: fixed; bottom: 24px; right: 24px; width: 56px; height: 56px; border-radius: 50%;
+    background: var(--accent); color: #fff; border: none; font-size: 28px; line-height: 1;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.2); cursor: pointer; z-index: 10;
+  }
+  .fab:hover { filter: brightness(1.08); }
+  .fab:focus-visible { outline: 2px solid var(--ink); outline-offset: 3px; }
+
+  .modal-backdrop {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.4); display: none;
+    align-items: center; justify-content: center; z-index: 20; padding: 20px;
+  }
+  .modal-backdrop.show { display: flex; }
+  .modal { background: var(--surface); border-radius: 12px; padding: 22px; max-width: 320px; width: 100%; box-shadow: var(--shadow); }
+  .modal h3 { margin: 0 0 4px; font-size: 17px; }
+  .modal p { margin: 0 0 14px; color: var(--ink-muted); font-size: 13px; }
+  .modal input {
+    width: 100%; background: var(--surface-2); border: 1px solid var(--border); border-radius: 6px;
+    padding: 8px 10px; color: var(--ink); font-size: 14px; font-family: inherit; margin-bottom: 12px;
+  }
+  .modal button {
+    width: 100%; font: inherit; cursor: pointer; border-radius: 6px; border: 1px solid var(--accent);
+    background: var(--accent); color: #fff; padding: 9px 14px; font-size: 14px; font-weight: 600;
+  }
+
+  @media (max-width: 560px) {
+    .item-row { padding: 9px 4px; }
+    .item-row input[type="checkbox"] { width: 21px; height: 21px; }
+    .item-row .rm, .item-row .edit { font-size: 18px; padding: 6px; }
+    .item-row label { font-size: 15px; }
+  }
 </style>
 </head>
 <body>
@@ -96,9 +154,17 @@
     <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
       <button type="button" id="undo-btn" class="undo-btn" disabled>Undo</button>
       <button type="button" id="redo-btn" class="undo-btn" disabled>Redo</button>
+      <button type="button" id="reset-btn" class="undo-btn">New trip</button>
       <span class="status" id="status"><span class="dot"></span><span id="status-text">Connecting…</span></span>
     </div>
   </header>
+
+  <div class="toolbar">
+    <div class="search-wrap">
+      <input type="text" id="search-input" placeholder="Search items…" aria-label="Search items">
+    </div>
+    <div class="viewers" id="viewers"></div>
+  </div>
 
   <div class="panel">
     <div class="panel-head"><h2>Checklist</h2></div>
@@ -118,10 +184,21 @@
   </div>
 </div>
 
+<button type="button" id="fab-add" class="fab" aria-label="Add an item">+</button>
+
+<div class="modal-backdrop" id="name-modal">
+  <div class="modal">
+    <h3>What's your name?</h3>
+    <p>Shown to others viewing this list right now.</p>
+    <input type="text" id="name-modal-input" placeholder="Your name" maxlength="24">
+    <button type="button" id="name-modal-save">Continue</button>
+  </div>
+</div>
+
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
   import {
-    getFirestore, doc, getDoc, setDoc, updateDoc, onSnapshot, deleteField
+    getFirestore, doc, getDoc, setDoc, updateDoc, onSnapshot, deleteField, collection, serverTimestamp
   } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
 
   const firebaseConfig = {
@@ -142,6 +219,14 @@
     "Clothing", "Toiletries & meds", "Judaica", "Food & snacks", "Kitchen & dining",
     "Kids", "Beach & pool", "Bags & practical"
   ];
+
+  const CAT_ICONS = {
+    "Before we leave": "🔔", "Questions to resolve": "❓", "Documents & border": "🛂",
+    "Electronics & chargers": "🔌", "Clothing": "👕", "Toiletries & meds": "🧴",
+    "Judaica": "🕎", "Food & snacks": "🍎", "Kitchen & dining": "🍽️",
+    "Kids": "🧸", "Beach & pool": "🏖️", "Bags & practical": "🎒"
+  };
+  function catIcon(name) { return CAT_ICONS[name] || "📦"; }
 
   const SEED = [
     ["Before we leave", "Feed the fish (Debbie)"],
@@ -302,6 +387,9 @@
   let currentItems = {};
   let editingId = null;
   let pendingRerender = false;
+  let searchQuery = "";
+  let collapsedCats = new Set(JSON.parse(localStorage.getItem("packing-collapsed-cats") || "[]"));
+  function saveCollapsed() { localStorage.setItem("packing-collapsed-cats", JSON.stringify([...collapsedCats])); }
 
   function render() {
     const grid = document.getElementById("list-grid");
@@ -324,15 +412,34 @@
     categoryOrder.forEach(catName => {
       const items = byCat[catName];
       if (!items || items.length === 0) return;
+      total += items.length;
+      checkedCount += items.filter(i => i.checked).length;
+
+      const visibleItems = searchQuery
+        ? items.filter(i => i.name.toLowerCase().includes(searchQuery))
+        : items;
+      if (visibleItems.length === 0) return;
+
+      const isCollapsed = collapsedCats.has(catName);
+      const allDone = items.every(i => i.checked);
+
       const block = document.createElement("div");
-      block.className = "cat-block";
-      const title = document.createElement("div");
-      title.className = "cat-title";
-      title.textContent = catName;
-      block.appendChild(title);
-      items.forEach(item => {
-        total++;
-        if (item.checked) checkedCount++;
+      block.className = "cat-block" + (isCollapsed ? " collapsed" : "");
+
+      const titleRow = document.createElement("div");
+      titleRow.className = "cat-title-row" + (isCollapsed ? " collapsed" : "");
+      titleRow.dataset.catToggle = catName;
+      titleRow.innerHTML = `
+        <span class="chevron">▾</span>
+        <span class="cat-icon">${catIcon(catName)}</span>
+        <span class="cat-title">${escapeHtml(catName)}</span>
+        ${allDone ? '<span class="cat-done-badge">✓ All packed</span>' : ""}`;
+      block.appendChild(titleRow);
+
+      const itemsWrap = document.createElement("div");
+      itemsWrap.className = "cat-items";
+
+      visibleItems.forEach(item => {
         const row = document.createElement("div");
         row.className = "item-row" + (item.checked ? " checked" : "");
         const rowId = "chk-" + item.id;
@@ -347,8 +454,9 @@
             <button class="edit" data-edit="${item.id}" aria-label="Edit ${escapeHtml(item.name)}">✎</button>
             <button class="rm" data-remove="${item.id}" aria-label="Remove ${escapeHtml(item.name)}">&times;</button>`;
         }
-        block.appendChild(row);
+        itemsWrap.appendChild(row);
       });
+      block.appendChild(itemsWrap);
       grid.appendChild(block);
     });
 
@@ -457,6 +565,15 @@
   }
 
   document.getElementById("list-grid").addEventListener("click", async e => {
+    const catToggle = e.target.closest("[data-cat-toggle]");
+    if (catToggle) {
+      const catName = catToggle.dataset.catToggle;
+      if (collapsedCats.has(catName)) collapsedCats.delete(catName); else collapsedCats.add(catName);
+      saveCollapsed();
+      render();
+      return;
+    }
+
     const editBtn = e.target.closest("[data-edit]");
     if (editBtn) { startEdit(editBtn.dataset.edit); return; }
 
@@ -537,6 +654,89 @@
       setStatus("error", "Couldn't redo");
     }
   });
+
+  // Search
+  document.getElementById("search-input").addEventListener("input", e => {
+    searchQuery = e.target.value.trim().toLowerCase();
+    render();
+  });
+
+  // Floating add button
+  document.getElementById("fab-add").addEventListener("click", () => {
+    const nameInput = document.getElementById("ci-name");
+    nameInput.scrollIntoView({ behavior: "smooth", block: "center" });
+    nameInput.focus();
+  });
+
+  // New trip: archive current state, then uncheck everything
+  document.getElementById("reset-btn").addEventListener("click", async () => {
+    const itemCount = Object.keys(currentItems).length;
+    if (itemCount === 0) return;
+    const ok = confirm("Start a new trip? This unchecks every item but keeps your list. The current state is saved as an archive first.");
+    if (!ok) return;
+    setStatus("syncing", "Archiving…");
+    try {
+      const archiveRef = doc(collection(db, "packingLists", "family", "archives"));
+      await setDoc(archiveRef, { items: currentItems, archivedAt: serverTimestamp() });
+      const resetUpdates = {};
+      Object.keys(currentItems).forEach(id => { resetUpdates[`items.${id}.checked`] = false; });
+      await updateDoc(listRef, resetUpdates);
+      undoStack = [];
+      redoStack = [];
+      updateUndoRedoButtons();
+      setStatus("synced", "Synced");
+    } catch (err) {
+      console.error(err);
+      setStatus("error", "Couldn't reset");
+    }
+  });
+
+  // Presence: who's currently viewing
+  const nameModal = document.getElementById("name-modal");
+  const nameModalInput = document.getElementById("name-modal-input");
+  const viewersEl = document.getElementById("viewers");
+
+  function getOrCreateDeviceId() {
+    let id = localStorage.getItem("packing-device-id");
+    if (!id) { id = uid() + uid(); localStorage.setItem("packing-device-id", id); }
+    return id;
+  }
+
+  function startPresence(viewerName) {
+    const deviceId = getOrCreateDeviceId();
+    const presenceRef = doc(db, "packingLists", "family", "presence", deviceId);
+    const heartbeat = () => setDoc(presenceRef, { name: viewerName, lastSeen: serverTimestamp() }, { merge: true }).catch(() => {});
+    heartbeat();
+    setInterval(heartbeat, 20000);
+
+    onSnapshot(collection(db, "packingLists", "family", "presence"), snap => {
+      const now = Date.now();
+      const active = [];
+      snap.forEach(d => {
+        const data = d.data();
+        const seenMs = data.lastSeen && data.lastSeen.toMillis ? data.lastSeen.toMillis() : now;
+        if (now - seenMs < 45000) active.push(data.name || "Someone");
+      });
+      viewersEl.innerHTML = active.map(n => `
+        <span class="viewer-chip"><span class="avatar">${escapeHtml(n.slice(0, 1).toUpperCase())}</span>${escapeHtml(n)}</span>`).join("");
+    });
+  }
+
+  const savedName = localStorage.getItem("packing-viewer-name");
+  if (savedName) {
+    startPresence(savedName);
+  } else {
+    nameModal.classList.add("show");
+    nameModalInput.focus();
+  }
+  function saveViewerName() {
+    const name = nameModalInput.value.trim() || "Someone";
+    localStorage.setItem("packing-viewer-name", name);
+    nameModal.classList.remove("show");
+    startPresence(name);
+  }
+  document.getElementById("name-modal-save").addEventListener("click", saveViewerName);
+  nameModalInput.addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); saveViewerName(); } });
 </script>
 </body>
 </html>
