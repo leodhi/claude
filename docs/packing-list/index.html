@@ -173,8 +173,8 @@
   .fab:focus-visible { outline: 2px solid var(--ink); outline-offset: 3px; }
 
   .chat-toggle {
-    position: fixed; bottom: 92px; right: 24px; width: 48px; height: 48px; border-radius: 50%;
-    background: var(--surface); color: var(--ink); border: 1px solid var(--border); font-size: 20px;
+    position: fixed; bottom: 24px; left: 24px; width: 44px; height: 44px; border-radius: 50%;
+    background: var(--surface); color: var(--ink); border: 1px solid var(--border); font-size: 18px;
     box-shadow: 0 4px 16px rgba(0,0,0,0.18); cursor: pointer; z-index: 10;
     display: flex; align-items: center; justify-content: center;
   }
@@ -187,10 +187,10 @@
   }
 
   .chat-panel {
-    position: fixed; bottom: 0; right: 0; width: 340px; max-width: calc(100vw - 24px);
-    height: 460px; max-height: 70vh; background: var(--surface); border: 1px solid var(--border);
+    position: fixed; bottom: 0; left: 0; width: 260px; max-width: calc(100vw - 24px);
+    height: 340px; max-height: 55vh; background: var(--surface); border: 1px solid var(--border);
     border-radius: 12px 12px 0 0; box-shadow: 0 -4px 24px rgba(0,0,0,0.18);
-    display: none; flex-direction: column; z-index: 15; margin-right: 24px;
+    display: none; flex-direction: column; z-index: 15; margin-left: 24px;
   }
   .chat-panel.show { display: flex; }
   .chat-panel-head {
@@ -218,7 +218,7 @@
   }
   .chat-form button:hover { filter: brightness(1.08); }
   @media (max-width: 420px) {
-    .chat-panel { width: calc(100vw - 48px); max-width: 280px; margin-right: 12px; right: 0; height: 50vh; max-height: 420px; border-radius: 12px; }
+    .chat-panel { width: calc(100vw - 48px); max-width: 220px; margin-left: 12px; left: 0; height: 300px; max-height: 40vh; border-radius: 12px; }
   }
 
   .modal-backdrop {
