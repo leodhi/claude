@@ -173,8 +173,17 @@
     padding: 12px 14px; cursor: pointer; background: var(--surface-2);
   }
   .archive-row-head:hover { background: var(--accent-soft); }
+  .archive-row-head .left { display: flex; align-items: center; gap: 10px; min-width: 0; }
+  .archive-row-head .chevron { font-size: 14px; color: var(--ink-faint); flex: none; transition: transform 0.15s ease; }
+  .archive-row.open .archive-row-head .chevron { transform: rotate(90deg); }
   .archive-row-head .date { font-weight: 600; font-size: 14px; }
-  .archive-row-head .stats { font-size: 12.5px; color: var(--ink-muted); font-variant-numeric: tabular-nums; }
+  .archive-row-head .right { display: flex; align-items: center; gap: 10px; flex: none; }
+  .archive-row-head .stats { font-size: 12.5px; color: var(--ink-muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .archive-delete {
+    background: none; border: none; color: var(--ink-faint); cursor: pointer; font-size: 15px;
+    padding: 2px 4px; width: auto; line-height: 1;
+  }
+  .archive-delete:hover { color: var(--sun); }
   .archive-items { padding: 10px 14px; display: none; }
   .archive-row.open .archive-items { display: block; }
   .archive-cat { margin-bottom: 10px; }
@@ -260,7 +269,7 @@
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
   import {
-    getFirestore, doc, getDoc, getDocs, setDoc, updateDoc, onSnapshot, deleteField, collection, serverTimestamp
+    getFirestore, doc, getDoc, getDocs, setDoc, updateDoc, deleteDoc, onSnapshot, deleteField, collection, serverTimestamp
   } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
 
   const firebaseConfig = {
@@ -873,15 +882,31 @@
         row.className = "archive-row";
         const head = document.createElement("div");
         head.className = "archive-row-head";
-        head.innerHTML = `<span class="date">${escapeHtml(formatArchiveDate(archive.archivedAt))}</span><span class="stats">${checkedCount} / ${total} packed</span>`;
+        head.innerHTML = `
+          <span class="left"><span class="chevron">▸</span><span class="date">${escapeHtml(formatArchiveDate(archive.archivedAt))}</span></span>
+          <span class="right"><span class="stats">${checkedCount} / ${total} packed</span><button type="button" class="archive-delete" data-delete-archive="${escapeAttr(archive.id)}" aria-label="Delete this trip">&times;</button></span>`;
         const itemsEl = document.createElement("div");
         itemsEl.className = "archive-items";
-        head.addEventListener("click", () => {
+        head.querySelector(".left").addEventListener("click", () => {
           const opening = !row.classList.contains("open");
           row.classList.toggle("open", opening);
           if (opening && !itemsEl.dataset.rendered) {
             renderArchiveItems(itemsEl, items);
             itemsEl.dataset.rendered = "1";
+          }
+        });
+        head.querySelector("[data-delete-archive]").addEventListener("click", async e => {
+          e.stopPropagation();
+          if (!confirm("Delete this saved trip? This can't be undone.")) return;
+          try {
+            await deleteDoc(doc(db, "packingLists", "family", "archives", archive.id));
+            row.remove();
+            if (!document.getElementById("archives-list").children.length) {
+              document.getElementById("archives-list").innerHTML = '<p class="empty">No past trips saved yet — they\'re created automatically each time you use "New trip."</p>';
+            }
+          } catch (err) {
+            console.error(err);
+            alert("Couldn't delete this trip. Try again.");
           }
         });
         row.appendChild(head);
