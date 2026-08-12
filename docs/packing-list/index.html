@@ -100,6 +100,11 @@
     width: 16px; height: 16px; border-radius: 50%; background: var(--accent); color: #fff;
     font-size: 9px; font-weight: 700; display: flex; align-items: center; justify-content: center; flex: none;
   }
+  .link-btn {
+    font: inherit; cursor: pointer; border: none; background: none; color: var(--ink-faint);
+    font-size: 12px; text-decoration: underline; padding: 4px 2px;
+  }
+  .link-btn:hover { color: var(--accent); }
 
   .cat-title-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; cursor: pointer; user-select: none; }
   .cat-title-row:hover .cat-title { color: var(--accent); }
@@ -164,6 +169,7 @@
       <input type="text" id="search-input" placeholder="Search items…" aria-label="Search items">
     </div>
     <div class="viewers" id="viewers"></div>
+    <button type="button" id="change-name-btn" class="link-btn">Change name</button>
   </div>
 
   <div class="panel">
@@ -702,13 +708,21 @@
     return id;
   }
 
-  function startPresence(viewerName) {
-    const deviceId = getOrCreateDeviceId();
-    const presenceRef = doc(db, "packingLists", "family", "presence", deviceId);
-    const heartbeat = () => setDoc(presenceRef, { name: viewerName, lastSeen: serverTimestamp() }, { merge: true }).catch(() => {});
-    heartbeat();
-    setInterval(heartbeat, 20000);
+  let currentViewerName = null;
+  let presenceStarted = false;
+  const presenceRef = doc(db, "packingLists", "family", "presence", getOrCreateDeviceId());
 
+  function heartbeat() {
+    if (!currentViewerName) return;
+    setDoc(presenceRef, { name: currentViewerName, lastSeen: serverTimestamp() }, { merge: true }).catch(() => {});
+  }
+
+  function startPresence(viewerName) {
+    currentViewerName = viewerName;
+    heartbeat();
+    if (presenceStarted) return;
+    presenceStarted = true;
+    setInterval(heartbeat, 20000);
     onSnapshot(collection(db, "packingLists", "family", "presence"), snap => {
       const now = Date.now();
       const active = [];
@@ -737,6 +751,13 @@
   }
   document.getElementById("name-modal-save").addEventListener("click", saveViewerName);
   nameModalInput.addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); saveViewerName(); } });
+
+  document.getElementById("change-name-btn").addEventListener("click", () => {
+    nameModalInput.value = currentViewerName || "";
+    nameModal.classList.add("show");
+    nameModalInput.focus();
+    nameModalInput.select();
+  });
 </script>
 </body>
 </html>
