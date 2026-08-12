@@ -64,8 +64,14 @@
   .item-row input[type="checkbox"] { width: 17px; height: 17px; accent-color: var(--accent); flex: none; }
   .item-row label { flex: 1; font-size: 14px; cursor: pointer; }
   .item-row.checked label { color: var(--ink-faint); text-decoration: line-through; }
-  .item-row .rm { background: none; border: none; color: var(--ink-faint); cursor: pointer; font-size: 15px; padding: 2px 4px; flex: none; }
+  .item-row .rm, .item-row .edit { background: none; border: none; color: var(--ink-faint); cursor: pointer; font-size: 15px; padding: 2px 4px; flex: none; }
   .item-row .rm:hover { color: var(--sun); }
+  .item-row .edit:hover { color: var(--accent); }
+  .item-row .edit-input {
+    flex: 1; background: var(--surface); border: 1px solid var(--accent); border-radius: 5px;
+    padding: 3px 6px; color: var(--ink); font-size: 14px; font-family: inherit;
+  }
+  .item-row .edit-input:focus-visible { outline: none; }
 
   form.add-form { display: grid; grid-template-columns: 1fr 1fr auto; gap: 8px; align-items: end; margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--border); }
   @media (max-width: 560px) { form.add-form { grid-template-columns: 1fr; } }
@@ -89,6 +95,7 @@
     </div>
     <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
       <button type="button" id="undo-btn" class="undo-btn" disabled>Undo</button>
+      <button type="button" id="redo-btn" class="undo-btn" disabled>Redo</button>
       <span class="status" id="status"><span class="dot"></span><span id="status-text">Connecting…</span></span>
     </div>
   </header>
@@ -257,6 +264,7 @@
 
   function uid() { return Math.random().toString(36).slice(2, 10); }
   function escapeHtml(s) { return String(s).replace(/[&<>"]/g, c => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;" }[c])); }
+  function escapeAttr(s) { return String(s).replace(/"/g, "&quot;"); }
 
   const statusEl = document.getElementById("status");
   const statusText = document.getElementById("status-text");
@@ -292,6 +300,8 @@
   });
 
   let currentItems = {};
+  let editingId = null;
+  let pendingRerender = false;
 
   function render() {
     const grid = document.getElementById("list-grid");
@@ -326,10 +336,17 @@
         const row = document.createElement("div");
         row.className = "item-row" + (item.checked ? " checked" : "");
         const rowId = "chk-" + item.id;
-        row.innerHTML = `
-          <input type="checkbox" id="${rowId}" data-id="${item.id}" ${item.checked ? "checked" : ""}>
-          <label for="${rowId}">${escapeHtml(item.name)}</label>
-          <button class="rm" data-remove="${item.id}" aria-label="Remove ${escapeHtml(item.name)}">&times;</button>`;
+        if (item.id === editingId) {
+          row.innerHTML = `
+            <input type="checkbox" id="${rowId}" data-id="${item.id}" ${item.checked ? "checked" : ""}>
+            <input type="text" class="edit-input" data-edit-input="${item.id}" value="${escapeAttr(item.name)}">`;
+        } else {
+          row.innerHTML = `
+            <input type="checkbox" id="${rowId}" data-id="${item.id}" ${item.checked ? "checked" : ""}>
+            <label for="${rowId}">${escapeHtml(item.name)}</label>
+            <button class="edit" data-edit="${item.id}" aria-label="Edit ${escapeHtml(item.name)}">✎</button>
+            <button class="rm" data-remove="${item.id}" aria-label="Remove ${escapeHtml(item.name)}">&times;</button>`;
+        }
         block.appendChild(row);
       });
       grid.appendChild(block);
@@ -337,13 +354,18 @@
 
     document.getElementById("progress-fill").style.width = total ? (checkedCount / total * 100) + "%" : "0%";
     document.getElementById("progress-label").textContent = `${checkedCount} / ${total}`;
+
+    if (editingId) {
+      const input = grid.querySelector(`[data-edit-input="${editingId}"]`);
+      if (input) { input.focus(); input.select(); }
+    }
   }
 
   onSnapshot(listRef, snap => {
     if (!snap.exists()) return;
     currentItems = snap.data().items || {};
     setStatus("synced", "Synced");
-    render();
+    if (editingId) { pendingRerender = true; } else { render(); }
   }, err => {
     console.error(err);
     setStatus("error", "Connection error");
@@ -358,11 +380,41 @@
   })().catch(err => { console.error(err); setStatus("error", "Couldn't load list"); });
 
   const undoBtn = document.getElementById("undo-btn");
-  let lastAction = null;
+  const redoBtn = document.getElementById("redo-btn");
+  let undoStack = [];
+  let redoStack = [];
 
-  function setLastAction(action) {
-    lastAction = action;
-    undoBtn.disabled = !lastAction;
+  function pushAction(action) {
+    undoStack.push(action);
+    redoStack = [];
+    updateUndoRedoButtons();
+  }
+  function updateUndoRedoButtons() {
+    undoBtn.disabled = undoStack.length === 0;
+    redoBtn.disabled = redoStack.length === 0;
+  }
+
+  async function applyInverse(action) {
+    if (action.type === "toggle") {
+      await updateDoc(listRef, { [`items.${action.id}.checked`]: action.from });
+    } else if (action.type === "add") {
+      await updateDoc(listRef, { [`items.${action.id}`]: deleteField() });
+    } else if (action.type === "remove") {
+      await updateDoc(listRef, { [`items.${action.id}`]: action.item });
+    } else if (action.type === "edit") {
+      await updateDoc(listRef, { [`items.${action.id}.name`]: action.from });
+    }
+  }
+  async function applyForward(action) {
+    if (action.type === "toggle") {
+      await updateDoc(listRef, { [`items.${action.id}.checked`]: action.to });
+    } else if (action.type === "add") {
+      await updateDoc(listRef, { [`items.${action.id}`]: action.itemData });
+    } else if (action.type === "remove") {
+      await updateDoc(listRef, { [`items.${action.id}`]: deleteField() });
+    } else if (action.type === "edit") {
+      await updateDoc(listRef, { [`items.${action.id}.name`]: action.to });
+    }
   }
 
   document.getElementById("list-grid").addEventListener("change", async e => {
@@ -372,27 +424,69 @@
     setStatus("syncing", "Saving…");
     try {
       await updateDoc(listRef, { [`items.${id}.checked`]: newChecked });
-      setLastAction({ type: "toggle", id, prevChecked: !newChecked });
+      pushAction({ type: "toggle", id, from: !newChecked, to: newChecked });
     } catch (err) {
       console.error(err);
       setStatus("error", "Couldn't save");
     }
   });
 
-  document.getElementById("list-grid").addEventListener("click", async e => {
-    const btn = e.target.closest("[data-remove]");
-    if (!btn) return;
-    const id = btn.dataset.remove;
-    const removedItem = currentItems[id];
+  function startEdit(id) {
+    editingId = id;
+    render();
+  }
+  function endEdit() {
+    editingId = null;
+    if (pendingRerender) { pendingRerender = false; }
+    render();
+  }
+  async function commitEdit(id, input) {
+    const item = currentItems[id];
+    const newName = input.value.trim();
+    const oldName = item ? item.name : "";
+    endEdit();
+    if (!item || !newName || newName === oldName) return;
     setStatus("syncing", "Saving…");
     try {
-      await updateDoc(listRef, { [`items.${id}`]: deleteField() });
-      if (removedItem) setLastAction({ type: "remove", id, item: removedItem });
+      await updateDoc(listRef, { [`items.${id}.name`]: newName });
+      pushAction({ type: "edit", id, from: oldName, to: newName });
     } catch (err) {
       console.error(err);
       setStatus("error", "Couldn't save");
     }
+  }
+
+  document.getElementById("list-grid").addEventListener("click", async e => {
+    const editBtn = e.target.closest("[data-edit]");
+    if (editBtn) { startEdit(editBtn.dataset.edit); return; }
+
+    const rmBtn = e.target.closest("[data-remove]");
+    if (rmBtn) {
+      const id = rmBtn.dataset.remove;
+      const removedItem = currentItems[id];
+      setStatus("syncing", "Saving…");
+      try {
+        await updateDoc(listRef, { [`items.${id}`]: deleteField() });
+        if (removedItem) pushAction({ type: "remove", id, item: removedItem });
+      } catch (err) {
+        console.error(err);
+        setStatus("error", "Couldn't save");
+      }
+    }
   });
+
+  document.getElementById("list-grid").addEventListener("keydown", e => {
+    const input = e.target.closest("[data-edit-input]");
+    if (!input) return;
+    if (e.key === "Enter") { e.preventDefault(); commitEdit(input.dataset.editInput, input); }
+    else if (e.key === "Escape") { e.preventDefault(); input.dataset.cancelled = "1"; endEdit(); }
+  });
+  document.getElementById("list-grid").addEventListener("blur", e => {
+    const input = e.target.closest && e.target.closest("[data-edit-input]");
+    if (!input || input.dataset.cancelled) return;
+    if (editingId !== input.dataset.editInput) return;
+    commitEdit(input.dataset.editInput, input);
+  }, true);
 
   document.getElementById("add-form").addEventListener("submit", async e => {
     e.preventDefault();
@@ -402,10 +496,11 @@
     if (!name || !cat) return;
     const id = uid();
     const maxOrder = Math.max(0, ...Object.values(currentItems).map(it => it.order ?? 0));
+    const itemData = { cat, name, checked: false, order: maxOrder + 1 };
     setStatus("syncing", "Saving…");
     try {
-      await updateDoc(listRef, { [`items.${id}`]: { cat, name, checked: false, order: maxOrder + 1 } });
-      setLastAction({ type: "add", id });
+      await updateDoc(listRef, { [`items.${id}`]: itemData });
+      pushAction({ type: "add", id, itemData });
       nameInput.value = "";
       if (ciCat.value === NEW_CAT_VALUE) ciCatNew.value = "";
       nameInput.focus();
@@ -416,20 +511,30 @@
   });
 
   undoBtn.addEventListener("click", async () => {
-    if (!lastAction) return;
+    if (!undoStack.length) return;
+    const action = undoStack.pop();
     setStatus("syncing", "Undoing…");
     try {
-      if (lastAction.type === "toggle") {
-        await updateDoc(listRef, { [`items.${lastAction.id}.checked`]: lastAction.prevChecked });
-      } else if (lastAction.type === "remove") {
-        await updateDoc(listRef, { [`items.${lastAction.id}`]: lastAction.item });
-      } else if (lastAction.type === "add") {
-        await updateDoc(listRef, { [`items.${lastAction.id}`]: deleteField() });
-      }
-      setLastAction(null);
+      await applyInverse(action);
+      redoStack.push(action);
+      updateUndoRedoButtons();
     } catch (err) {
       console.error(err);
       setStatus("error", "Couldn't undo");
+    }
+  });
+
+  redoBtn.addEventListener("click", async () => {
+    if (!redoStack.length) return;
+    const action = redoStack.pop();
+    setStatus("syncing", "Redoing…");
+    try {
+      await applyForward(action);
+      undoStack.push(action);
+      updateUndoRedoButtons();
+    } catch (err) {
+      console.error(err);
+      setStatus("error", "Couldn't redo");
     }
   });
 </script>
