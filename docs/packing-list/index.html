@@ -66,11 +66,14 @@
   .item-row .rm, .item-row .edit { background: none; border: none; color: var(--ink-faint); cursor: pointer; font-size: 15px; padding: 2px 4px; flex: none; }
   .item-row .rm:hover { color: var(--sun); }
   .item-row .edit:hover { color: var(--accent); }
+  .item-row.editing { flex-wrap: wrap; row-gap: 6px; }
   .item-row .edit-input {
-    flex: 1; background: var(--surface); border: 1px solid var(--accent); border-radius: 5px;
-    padding: 3px 6px; color: var(--ink); font-size: 14px; font-family: inherit;
+    background: var(--surface); border: 1px solid var(--accent); border-radius: 5px;
+    padding: 5px 6px; color: var(--ink); font-size: 14px; font-family: inherit;
   }
   .item-row .edit-input:focus-visible { outline: none; }
+  .item-row .edit-input-name { flex: 1 1 140px; min-width: 100px; }
+  .item-row .edit-input-assignee { flex: 1 1 120px; min-width: 100px; margin-left: 27px; }
 
   form.add-form { display: grid; grid-template-columns: 1fr 1fr 1fr auto; gap: 8px; align-items: end; margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--border); }
   @media (max-width: 700px) { form.add-form { grid-template-columns: 1fr 1fr; } }
@@ -544,10 +547,11 @@
         row.className = "item-row" + (item.checked ? " checked" : "");
         const rowId = "chk-" + item.id;
         if (item.id === editingId) {
+          row.className += " editing";
           row.innerHTML = `
             <input type="checkbox" id="${rowId}" data-id="${item.id}" ${item.checked ? "checked" : ""}>
-            <input type="text" class="edit-input" data-edit-input="${item.id}" value="${escapeAttr(item.name)}">
-            <select class="edit-input" data-edit-assignee="${item.id}" style="flex:0 0 120px;">${basicAssigneeOptionsHtml(allAssignees, item.assignee || "")}</select>`;
+            <input type="text" class="edit-input edit-input-name" data-edit-input="${item.id}" value="${escapeAttr(item.name)}">
+            <select class="edit-input edit-input-assignee" data-edit-assignee="${item.id}">${basicAssigneeOptionsHtml(allAssignees, item.assignee || "")}</select>`;
         } else {
           row.innerHTML = `
             <input type="checkbox" id="${rowId}" data-id="${item.id}" ${item.checked ? "checked" : ""}>
