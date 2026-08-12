@@ -58,12 +58,16 @@
   .list-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 0 32px; margin-top: 16px; }
   @media (max-width: 720px) { .list-grid { grid-template-columns: 1fr; } }
   .cat-block { margin-bottom: 18px; break-inside: avoid; }
-  .item-row { display: flex; align-items: center; gap: 10px; padding: 6px 4px; border-radius: 6px; }
+  .item-row { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; padding: 8px 4px; border-radius: 6px; }
   .item-row:hover { background: var(--surface-2); }
   .item-row input[type="checkbox"] { width: 17px; height: 17px; accent-color: var(--accent); flex: none; }
-  .item-row label { flex: 1; font-size: 14px; cursor: pointer; }
+  .item-row label { flex: 1 1 auto; min-width: 60%; font-size: 14px; cursor: pointer; }
   .item-row.checked label { color: var(--ink-faint); text-decoration: line-through; }
   .item-row.na label { color: var(--ink-faint); font-style: italic; }
+  .item-controls {
+    flex: 1 0 100%; display: flex; align-items: center; justify-content: flex-end;
+    gap: 8px; padding-left: 27px;
+  }
 
   .na-toggle {
     display: inline-flex; align-items: center; gap: 3px; flex: none; cursor: pointer;
@@ -86,7 +90,7 @@
   }
   .item-row .edit-input:focus-visible { outline: none; }
   .item-row .edit-input-name { flex: 1 1 140px; min-width: 100px; }
-  .item-row .edit-input-assignee { flex: 1 1 120px; min-width: 100px; margin-left: 27px; }
+  .item-row .edit-input-assignee { flex: 1 1 120px; min-width: 100px; }
 
   form.add-form { display: grid; grid-template-columns: 1fr 1fr 1fr auto; gap: 8px; align-items: end; margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--border); }
   @media (max-width: 700px) { form.add-form { grid-template-columns: 1fr 1fr; } }
@@ -573,16 +577,20 @@
           row.innerHTML = `
             <input type="checkbox" id="${rowId}" data-id="${item.id}" ${item.checked ? "checked" : ""}>
             <input type="text" class="edit-input edit-input-name" data-edit-input="${item.id}" value="${escapeAttr(item.name)}">
-            <select class="edit-input edit-input-assignee" data-edit-assignee="${item.id}">${basicAssigneeOptionsHtml(allAssignees, item.assignee || "")}</select>
-            ${naToggle}`;
+            <div class="item-controls">
+              <select class="edit-input edit-input-assignee" data-edit-assignee="${item.id}">${basicAssigneeOptionsHtml(allAssignees, item.assignee || "")}</select>
+              ${naToggle}
+            </div>`;
         } else {
           row.innerHTML = `
             <input type="checkbox" id="${rowId}" data-id="${item.id}" ${item.checked ? "checked" : ""}>
             <label for="${rowId}">${escapeHtml(item.name)}</label>
-            <select class="item-tag-select${item.assignee ? " assigned" : ""}" data-item-assignee="${item.id}" aria-label="Assign ${escapeHtml(item.name)} to">${basicAssigneeOptionsHtml(allAssignees, item.assignee || "")}</select>
-            <button class="edit" data-edit="${item.id}" aria-label="Edit ${escapeHtml(item.name)}">✎</button>
-            <button class="rm" data-remove="${item.id}" aria-label="Remove ${escapeHtml(item.name)}">&times;</button>
-            ${naToggle}`;
+            <div class="item-controls">
+              <select class="item-tag-select${item.assignee ? " assigned" : ""}" data-item-assignee="${item.id}" aria-label="Assign ${escapeHtml(item.name)} to">${basicAssigneeOptionsHtml(allAssignees, item.assignee || "")}</select>
+              <button class="edit" data-edit="${item.id}" aria-label="Edit ${escapeHtml(item.name)}">✎</button>
+              <button class="rm" data-remove="${item.id}" aria-label="Remove ${escapeHtml(item.name)}">&times;</button>
+              ${naToggle}
+            </div>`;
         }
         itemsWrap.appendChild(row);
       });
