@@ -61,6 +61,7 @@
 
   form.add-form { display: grid; grid-template-columns: 1fr 1fr auto; gap: 8px; align-items: end; margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--border); }
   @media (max-width: 560px) { form.add-form { grid-template-columns: 1fr; } }
+  #ci-cat-new-wrap { grid-column: 1 / -1; }
   .add-form label { display: block; font-size: 11px; color: var(--ink-faint); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 4px; }
   .add-form input, .add-form select { width: 100%; background: var(--surface-2); border: 1px solid var(--border); border-radius: 6px; padding: 7px 9px; color: var(--ink); font-size: 14px; font-family: inherit; }
   .add-form input:focus-visible, .add-form select:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
@@ -91,7 +92,8 @@
       <div class="list-grid" id="list-grid"></div>
       <form class="add-form" id="add-form">
         <div><label for="ci-name">Item</label><input type="text" id="ci-name" placeholder="Add anything" required></div>
-        <div><label for="ci-cat">Category</label><input type="text" id="ci-cat" list="ci-cat-list" placeholder="Pick or type a new one" required><datalist id="ci-cat-list"></datalist></div>
+        <div><label for="ci-cat">Category</label><select id="ci-cat"></select></div>
+        <div id="ci-cat-new-wrap" style="display:none;"><label for="ci-cat-new">New category name</label><input type="text" id="ci-cat-new" placeholder="e.g. Beach house"></div>
         <button type="submit">Add</button>
       </form>
     </div>
@@ -253,16 +255,30 @@
   }
 
   const ciCat = document.getElementById("ci-cat");
-  const ciCatList = document.getElementById("ci-cat-list");
+  const ciCatNewWrap = document.getElementById("ci-cat-new-wrap");
+  const ciCatNew = document.getElementById("ci-cat-new");
+  const NEW_CAT_VALUE = "__new__";
   function renderCatOptions(categories) {
-    ciCatList.innerHTML = "";
+    const prevValue = ciCat.value;
+    ciCat.innerHTML = "";
     categories.forEach(c => {
       const opt = document.createElement("option");
-      opt.value = c;
-      ciCatList.appendChild(opt);
+      opt.value = c; opt.textContent = c;
+      ciCat.appendChild(opt);
     });
+    const newOpt = document.createElement("option");
+    newOpt.value = NEW_CAT_VALUE;
+    newOpt.textContent = "+ New category…";
+    ciCat.appendChild(newOpt);
+    if (categories.includes(prevValue) || prevValue === NEW_CAT_VALUE) ciCat.value = prevValue;
   }
   renderCatOptions(CUSTOM_CATEGORIES);
+  ciCat.addEventListener("change", () => {
+    const isNew = ciCat.value === NEW_CAT_VALUE;
+    ciCatNewWrap.style.display = isNew ? "" : "none";
+    ciCatNew.required = isNew;
+    if (isNew) ciCatNew.focus();
+  });
 
   let currentItems = {};
 
@@ -358,7 +374,7 @@
     e.preventDefault();
     const nameInput = document.getElementById("ci-name");
     const name = nameInput.value.trim();
-    const cat = ciCat.value.trim();
+    const cat = ciCat.value === NEW_CAT_VALUE ? ciCatNew.value.trim() : ciCat.value;
     if (!name || !cat) return;
     const id = uid();
     const maxOrder = Math.max(0, ...Object.values(currentItems).map(it => it.order ?? 0));
@@ -366,6 +382,7 @@
     try {
       await updateDoc(listRef, { [`items.${id}`]: { cat, name, checked: false, order: maxOrder + 1 } });
       nameInput.value = "";
+      if (ciCat.value === NEW_CAT_VALUE) ciCatNew.value = "";
       nameInput.focus();
     } catch (err) {
       console.error(err);
