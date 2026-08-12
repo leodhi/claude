@@ -1248,11 +1248,13 @@
       text,
       sentAt: serverTimestamp()
     }).catch(() => {});
-    fetch(`https://ntfy.sh/${NTFY_TOPIC}`, {
-      method: "POST",
-      body: text,
-      headers: { "Title": `${currentViewerName} (packing list)` }
-    }).catch(() => {});
+    if (currentViewerName.trim().toLowerCase() !== "dad") {
+      fetch(`https://ntfy.sh/${NTFY_TOPIC}`, {
+        method: "POST",
+        body: text,
+        headers: { "Title": `${currentViewerName} (packing list)` }
+      }).catch(() => {});
+    }
   });
 
   if (savedName) startChat();
