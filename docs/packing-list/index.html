@@ -58,7 +58,8 @@
   .list-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 0 32px; margin-top: 16px; }
   @media (max-width: 720px) { .list-grid { grid-template-columns: 1fr; } }
   .cat-block { margin-bottom: 18px; break-inside: avoid; }
-  .item-row { display: flex; align-items: center; gap: 10px; padding: 6px 4px; border-radius: 6px; }
+  .item-row { display: flex; align-items: center; gap: 5px; padding: 6px 4px; border-radius: 6px; }
+  .item-row > input[type="checkbox"] { margin-right: 5px; }
   .item-row:hover { background: var(--surface-2); }
   .item-row input[type="checkbox"] { width: 17px; height: 17px; accent-color: var(--accent); flex: none; }
   .item-row label { flex: 1; font-size: 14px; cursor: pointer; }
@@ -77,7 +78,7 @@
   .na-toggle input:checked { background: var(--sun); border-color: var(--sun); }
   .na-toggle span { font-size: 8px; font-weight: 700; letter-spacing: 0.02em; color: var(--ink-faint); }
   .na-toggle:has(input:checked) span { color: var(--sun); }
-  .item-row .rm, .item-row .edit { background: none; border: none; color: var(--ink-faint); cursor: pointer; font-size: 15px; padding: 2px 4px; flex: none; }
+  .item-row .rm, .item-row .edit { background: none; border: none; color: var(--ink-faint); cursor: pointer; font-size: 15px; padding: 2px; flex: none; }
   .item-row .rm:hover { color: var(--sun); }
   .item-row .edit:hover { color: var(--accent); }
   .item-row .edit-input {
