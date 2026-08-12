@@ -108,7 +108,10 @@
 
   .cat-title-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; cursor: pointer; user-select: none; }
   .cat-title-row:hover .cat-title { color: var(--accent); }
-  .cat-title-row .chevron { font-size: 15px; color: var(--ink-muted); font-weight: 700; transition: transform 0.15s ease; flex: none; }
+  .cat-title-row .chevron {
+    font-size: 20px; line-height: 1; color: var(--ink); font-weight: 700;
+    transition: transform 0.15s ease; flex: none; display: inline-block; width: 16px; text-align: center;
+  }
   .cat-title-row.collapsed .chevron { transform: rotate(-90deg); }
   .cat-title { font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--sun); font-weight: 700; margin: 0; flex: 1; }
   .cat-icon { font-size: 13px; }
