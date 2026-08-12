@@ -580,9 +580,9 @@
             <input type="checkbox" id="${rowId}" data-id="${item.id}" ${item.checked ? "checked" : ""}>
             <label for="${rowId}">${escapeHtml(item.name)}</label>
             <select class="item-tag-select${item.assignee ? " assigned" : ""}" data-item-assignee="${item.id}" aria-label="Assign ${escapeHtml(item.name)} to">${basicAssigneeOptionsHtml(allAssignees, item.assignee || "")}</select>
-            ${naToggle}
             <button class="edit" data-edit="${item.id}" aria-label="Edit ${escapeHtml(item.name)}">✎</button>
-            <button class="rm" data-remove="${item.id}" aria-label="Remove ${escapeHtml(item.name)}">&times;</button>`;
+            <button class="rm" data-remove="${item.id}" aria-label="Remove ${escapeHtml(item.name)}">&times;</button>
+            ${naToggle}`;
         }
         itemsWrap.appendChild(row);
       });
