@@ -172,6 +172,55 @@
   .fab:hover { filter: brightness(1.08); }
   .fab:focus-visible { outline: 2px solid var(--ink); outline-offset: 3px; }
 
+  .chat-toggle {
+    position: fixed; bottom: 92px; right: 24px; width: 48px; height: 48px; border-radius: 50%;
+    background: var(--surface); color: var(--ink); border: 1px solid var(--border); font-size: 20px;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.18); cursor: pointer; z-index: 10;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .chat-toggle:hover { border-color: var(--accent); }
+  .chat-toggle:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+  .chat-badge {
+    position: absolute; top: -2px; right: -2px; min-width: 16px; height: 16px; border-radius: 999px;
+    background: var(--sun); color: #fff; font-size: 10px; font-weight: 700; line-height: 16px;
+    text-align: center; padding: 0 3px;
+  }
+
+  .chat-panel {
+    position: fixed; bottom: 0; right: 0; width: 340px; max-width: calc(100vw - 24px);
+    height: 460px; max-height: 70vh; background: var(--surface); border: 1px solid var(--border);
+    border-radius: 12px 12px 0 0; box-shadow: 0 -4px 24px rgba(0,0,0,0.18);
+    display: none; flex-direction: column; z-index: 15; margin-right: 24px;
+  }
+  .chat-panel.show { display: flex; }
+  .chat-panel-head {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 12px 14px; border-bottom: 1px solid var(--border); flex: none;
+  }
+  .chat-panel-head h3 { margin: 0; font-size: 14px; }
+  .chat-messages { flex: 1; overflow-y: auto; padding: 12px 14px; display: flex; flex-direction: column; gap: 10px; }
+  .chat-msg { max-width: 85%; }
+  .chat-msg .who { font-size: 10.5px; font-weight: 700; color: var(--ink-faint); margin-bottom: 2px; }
+  .chat-msg .bubble { background: var(--surface-2); border: 1px solid var(--border); border-radius: 10px; padding: 6px 10px; font-size: 13.5px; word-break: break-word; }
+  .chat-msg.self { align-self: flex-end; }
+  .chat-msg.self .who { text-align: right; }
+  .chat-msg.self .bubble { background: var(--accent-soft); border-color: transparent; }
+  .chat-empty { color: var(--ink-faint); font-size: 13px; text-align: center; margin: auto; }
+  .chat-form { display: flex; gap: 8px; padding: 10px 14px; border-top: 1px solid var(--border); flex: none; }
+  .chat-form input {
+    flex: 1; background: var(--surface-2); border: 1px solid var(--border); border-radius: 999px;
+    padding: 8px 14px; color: var(--ink); font-size: 14px; font-family: inherit;
+  }
+  .chat-form input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+  .chat-form button {
+    width: 38px; height: 38px; border-radius: 50%; border: none; background: var(--accent);
+    color: #fff; font-size: 15px; cursor: pointer; flex: none;
+  }
+  .chat-form button:hover { filter: brightness(1.08); }
+  @media (max-width: 420px) {
+    .chat-panel { width: 100%; max-width: 100%; margin-right: 0; right: 0; height: 60vh; border-radius: 12px 12px 0 0; }
+  }
+
   .modal-backdrop {
     position: fixed; inset: 0; background: rgba(0,0,0,0.4); display: none;
     align-items: center; justify-content: center; z-index: 20; padding: 20px;
@@ -278,6 +327,22 @@
 
 <button type="button" id="fab-add" class="fab" aria-label="Add an item">+</button>
 
+<button type="button" id="chat-toggle" class="chat-toggle" aria-label="Open chat">
+  💬<span class="chat-badge" id="chat-badge" style="display:none;"></span>
+</button>
+
+<div class="chat-panel" id="chat-panel">
+  <div class="chat-panel-head">
+    <h3>Chat</h3>
+    <button type="button" id="chat-close" class="modal-close" aria-label="Close chat">&times;</button>
+  </div>
+  <div class="chat-messages" id="chat-messages"></div>
+  <form class="chat-form" id="chat-form">
+    <input type="text" id="chat-input" placeholder="Message…" maxlength="500" autocomplete="off">
+    <button type="submit" aria-label="Send">➤</button>
+  </form>
+</div>
+
 <div class="modal-backdrop" id="name-modal">
   <div class="modal">
     <h3>What's your name?</h3>
@@ -301,7 +366,8 @@
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
   import {
-    getFirestore, doc, getDoc, getDocs, setDoc, updateDoc, deleteDoc, onSnapshot, deleteField, collection, serverTimestamp
+    getFirestore, doc, getDoc, getDocs, setDoc, updateDoc, deleteDoc, onSnapshot, deleteField, collection,
+    serverTimestamp, addDoc, query, orderBy, limit
   } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
 
   const firebaseConfig = {
@@ -1071,6 +1137,7 @@
     localStorage.setItem("packing-viewer-name", name);
     nameModal.classList.remove("show");
     startPresence(name);
+    startChat();
   }
   document.getElementById("name-modal-save").addEventListener("click", saveViewerName);
   nameModalInput.addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); saveViewerName(); } });
@@ -1082,6 +1149,99 @@
     nameModalInput.focus();
     nameModalInput.select();
   });
+
+  // Chat
+  const chatToggle = document.getElementById("chat-toggle");
+  const chatClose = document.getElementById("chat-close");
+  const chatPanel = document.getElementById("chat-panel");
+  const chatMessagesEl = document.getElementById("chat-messages");
+  const chatForm = document.getElementById("chat-form");
+  const chatInput = document.getElementById("chat-input");
+  const chatBadge = document.getElementById("chat-badge");
+
+  let chatStarted = false;
+  let chatOpen = false;
+  let unreadCount = 0;
+  let lastRenderedMsgIds = new Set();
+
+  function renderUnreadBadge() {
+    if (unreadCount > 0) {
+      chatBadge.textContent = unreadCount > 9 ? "9+" : String(unreadCount);
+      chatBadge.style.display = "flex";
+    } else {
+      chatBadge.style.display = "none";
+    }
+  }
+
+  function renderChatMessages(msgs) {
+    const myDeviceId = getOrCreateDeviceId();
+    if (msgs.length === 0) {
+      chatMessagesEl.innerHTML = `<div class="chat-empty">No messages yet. Say hi!</div>`;
+      return;
+    }
+    chatMessagesEl.innerHTML = msgs.map(m => `
+      <div class="chat-msg${m.deviceId === myDeviceId ? " self" : ""}">
+        <div class="who">${escapeHtml(m.name || "Someone")}</div>
+        <div class="bubble">${escapeHtml(m.text || "")}</div>
+      </div>`).join("");
+    chatMessagesEl.scrollTop = chatMessagesEl.scrollHeight;
+  }
+
+  function startChat() {
+    if (chatStarted) return;
+    chatStarted = true;
+    const myDeviceId = getOrCreateDeviceId();
+    const chatQuery = query(collection(db, "packingLists", "family", "chat"), orderBy("sentAt"), limit(100));
+    let firstSnapshot = true;
+    onSnapshot(chatQuery, snap => {
+      const msgs = [];
+      snap.forEach(d => msgs.push({ id: d.id, ...d.data() }));
+      const newIds = new Set(msgs.map(m => m.id));
+      if (!firstSnapshot && !chatOpen) {
+        msgs.forEach(m => {
+          if (!lastRenderedMsgIds.has(m.id) && m.deviceId !== myDeviceId) {
+            unreadCount++;
+          }
+        });
+        renderUnreadBadge();
+      }
+      lastRenderedMsgIds = newIds;
+      firstSnapshot = false;
+      renderChatMessages(msgs);
+    });
+  }
+
+  function openChat() {
+    chatOpen = true;
+    chatPanel.classList.add("show");
+    unreadCount = 0;
+    renderUnreadBadge();
+    chatMessagesEl.scrollTop = chatMessagesEl.scrollHeight;
+    chatInput.focus();
+  }
+
+  function closeChat() {
+    chatOpen = false;
+    chatPanel.classList.remove("show");
+  }
+
+  chatToggle.addEventListener("click", () => { chatOpen ? closeChat() : openChat(); });
+  chatClose.addEventListener("click", closeChat);
+
+  chatForm.addEventListener("submit", e => {
+    e.preventDefault();
+    const text = chatInput.value.trim();
+    if (!text || !currentViewerName) return;
+    chatInput.value = "";
+    addDoc(collection(db, "packingLists", "family", "chat"), {
+      name: currentViewerName,
+      deviceId: getOrCreateDeviceId(),
+      text,
+      sentAt: serverTimestamp()
+    }).catch(() => {});
+  });
+
+  if (savedName) startChat();
 </script>
 </body>
 </html>
