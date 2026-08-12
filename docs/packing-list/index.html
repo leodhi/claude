@@ -100,8 +100,13 @@
 
   .empty { color: var(--ink-faint); font-size: 13px; }
 
-  .toolbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 16px; }
-  .search-wrap { flex: 1; min-width: 200px; }
+  .toolbar { margin-bottom: 12px; }
+  .search-wrap { width: 100%; }
+  .controls-row {
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 10px 20px; flex-wrap: wrap; margin-bottom: 16px;
+  }
+  .filters-group { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
   .open-only-toggle {
     display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--ink-muted);
     cursor: pointer; user-select: none; white-space: nowrap;
@@ -236,8 +241,13 @@
     <div class="search-wrap">
       <input type="text" id="search-input" placeholder="Search items…" aria-label="Search items">
     </div>
-    <label class="open-only-toggle"><input type="checkbox" id="open-only-toggle"> Hide completed</label>
-    <label class="open-only-toggle"><input type="checkbox" id="hide-na-toggle"> Hide N/A items</label>
+  </div>
+
+  <div class="controls-row">
+    <div class="filters-group">
+      <label class="open-only-toggle"><input type="checkbox" id="open-only-toggle"> Hide completed</label>
+      <label class="open-only-toggle"><input type="checkbox" id="hide-na-toggle"> Hide N/A items</label>
+    </div>
     <div class="viewers" id="viewers"></div>
   </div>
 
