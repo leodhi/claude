@@ -87,7 +87,7 @@
   .item-row .edit-input:focus-visible { outline: none; }
   .item-row.editing { flex-wrap: wrap; row-gap: 6px; }
   .item-row .edit-input-name { flex: 1 1 140px; min-width: 100px; }
-  .item-row .edit-input-assignee { flex: 1 1 120px; min-width: 100px; }
+  .item-row .edit-input-assignee { flex: 1 1 120px; min-width: 100px; margin-left: 27px; }
 
   form.add-form { display: grid; grid-template-columns: 1fr 1fr 1fr auto; gap: 8px; align-items: end; margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--border); }
   @media (max-width: 700px) { form.add-form { grid-template-columns: 1fr 1fr; } }
@@ -140,10 +140,10 @@
   .assignee-chip.active { background: var(--accent); border-color: var(--accent); color: #fff; }
 
   .item-tag-select {
-    font-size: 10px; font-weight: 600; color: var(--ink-faint); background: var(--surface-2);
-    border: 1px solid var(--border); border-radius: 999px; padding: 2px 3px; flex: none;
+    font-size: 11px; font-weight: 600; color: var(--ink-faint); background: var(--surface-2);
+    border: 1px solid var(--border); border-radius: 999px; padding: 3px 4px; flex: none;
     white-space: nowrap; font-family: inherit; cursor: pointer;
-    width: 46px; text-overflow: ellipsis; overflow: hidden;
+    width: 62px; text-overflow: ellipsis; overflow: hidden;
   }
   .item-tag-select.assigned { color: var(--accent); background: var(--accent-soft); border-color: transparent; }
   .item-tag-select:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
