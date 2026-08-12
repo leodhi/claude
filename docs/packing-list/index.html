@@ -75,7 +75,7 @@
   form.add-form { display: grid; grid-template-columns: 1fr 1fr 1fr auto; gap: 8px; align-items: end; margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--border); }
   @media (max-width: 700px) { form.add-form { grid-template-columns: 1fr 1fr; } }
   @media (max-width: 420px) { form.add-form { grid-template-columns: 1fr; } }
-  #ci-cat-new-wrap { grid-column: 1 / -1; }
+  #ci-cat-new-wrap, #ci-assignee-new-wrap { grid-column: 1 / -1; }
   .add-form label { display: block; font-size: 11px; color: var(--ink-faint); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 4px; }
   .add-form input, .add-form select { width: 100%; background: var(--surface-2); border: 1px solid var(--border); border-radius: 6px; padding: 7px 9px; color: var(--ink); font-size: 14px; font-family: inherit; }
   .add-form input:focus-visible, .add-form select:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
@@ -119,13 +119,6 @@
   }
   .assignee-chip:hover { border-color: var(--accent); color: var(--accent); }
   .assignee-chip.active { background: var(--accent); border-color: var(--accent); color: #fff; }
-
-  .quick-assignees { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 6px; }
-  .quick-assignees button {
-    font: inherit; cursor: pointer; border-radius: 999px; border: 1px solid var(--border);
-    background: var(--surface-2); color: var(--ink-muted); padding: 3px 10px; font-size: 12px;
-  }
-  .quick-assignees button:hover, .quick-assignees button.active { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }
 
   .item-tag {
     font-size: 11px; font-weight: 600; color: var(--accent); background: var(--accent-soft);
@@ -211,11 +204,10 @@
         <div><label for="ci-name">Item</label><input type="text" id="ci-name" placeholder="Add anything" required></div>
         <div><label for="ci-cat">Category</label><select id="ci-cat"></select></div>
         <div>
-          <label for="ci-assignee">Assign to <span style="text-transform:none; font-weight:400;">(optional)</span></label>
-          <input type="text" id="ci-assignee" list="assignee-list" placeholder="e.g. Elana">
-          <datalist id="assignee-list"></datalist>
-          <div class="quick-assignees" id="quick-assignees"></div>
+          <label for="ci-assignee">Assign to</label>
+          <select id="ci-assignee"></select>
         </div>
+        <div id="ci-assignee-new-wrap" style="display:none;"><label for="ci-assignee-new">Name</label><input type="text" id="ci-assignee-new" placeholder="e.g. Elana"></div>
         <div id="ci-cat-new-wrap" style="display:none;"><label for="ci-cat-new">New category name</label><input type="text" id="ci-cat-new" placeholder="e.g. Beach house"></div>
         <button type="submit">Add</button>
       </form>
@@ -434,29 +426,32 @@
   let collapsedCats = new Set(JSON.parse(localStorage.getItem("packing-collapsed-cats") || "[]"));
   function saveCollapsed() { localStorage.setItem("packing-collapsed-cats", JSON.stringify([...collapsedCats])); }
 
-  const assigneeListEl = document.getElementById("assignee-list");
-  function renderAssigneeOptions(names) {
-    assigneeListEl.innerHTML = "";
-    names.forEach(n => {
-      const opt = document.createElement("option");
-      opt.value = n;
-      assigneeListEl.appendChild(opt);
-    });
+  const ciAssignee = document.getElementById("ci-assignee");
+  const ciAssigneeNewWrap = document.getElementById("ci-assignee-new-wrap");
+  const ciAssigneeNew = document.getElementById("ci-assignee-new");
+  const NEW_ASSIGNEE_VALUE = "__new_assignee__";
+  function basicAssigneeOptionsHtml(names, selected) {
+    return `<option value="">Unassigned</option>` +
+      names.map(n => `<option value="${escapeAttr(n)}"${n === selected ? " selected" : ""}>${escapeHtml(n)}</option>`).join("");
   }
+  function assigneeSelectOptionsHtml(names) {
+    return basicAssigneeOptionsHtml(names) + `<option value="${NEW_ASSIGNEE_VALUE}">+ Someone else…</option>`;
+  }
+  function renderAssigneeOptions(names) {
+    const prevValue = ciAssignee.value;
+    ciAssignee.innerHTML = assigneeSelectOptionsHtml(names);
+    if (names.includes(prevValue) || prevValue === NEW_ASSIGNEE_VALUE || prevValue === "") ciAssignee.value = prevValue;
+  }
+  ciAssignee.addEventListener("change", () => {
+    const isNew = ciAssignee.value === NEW_ASSIGNEE_VALUE;
+    ciAssigneeNewWrap.style.display = isNew ? "" : "none";
+    if (isNew) ciAssigneeNew.focus();
+  });
 
   function renderAssigneeFilter(names) {
     const el = document.getElementById("assignee-filter");
     el.innerHTML = names.map(n => `
       <button type="button" class="assignee-chip${assigneeFilter === n ? " active" : ""}" data-assignee-filter="${escapeAttr(n)}">${escapeHtml(n)}</button>`).join("");
-  }
-
-  function renderQuickAssignees(names) {
-    const el = document.getElementById("quick-assignees");
-    const assigneeInput = document.getElementById("ci-assignee");
-    el.innerHTML = names.map(n => `<button type="button" data-quick-assignee="${escapeAttr(n)}">${escapeHtml(n)}</button>`).join("");
-    el.querySelectorAll("[data-quick-assignee]").forEach(btn => {
-      btn.classList.toggle("active", assigneeInput.value === btn.dataset.quickAssignee);
-    });
   }
 
   function render() {
@@ -481,7 +476,6 @@
     const allAssignees = [...new Set([...PRESET_ASSIGNEES, ...usedAssignees])];
     renderAssigneeOptions(allAssignees);
     renderAssigneeFilter(allAssignees);
-    renderQuickAssignees(PRESET_ASSIGNEES);
 
     categoryOrder.forEach(catName => {
       const items = byCat[catName];
@@ -522,7 +516,7 @@
           row.innerHTML = `
             <input type="checkbox" id="${rowId}" data-id="${item.id}" ${item.checked ? "checked" : ""}>
             <input type="text" class="edit-input" data-edit-input="${item.id}" value="${escapeAttr(item.name)}">
-            <input type="text" class="edit-input" data-edit-assignee="${item.id}" list="assignee-list" placeholder="Assign to…" style="flex:0 0 110px;" value="${escapeAttr(item.assignee || "")}">`;
+            <select class="edit-input" data-edit-assignee="${item.id}" style="flex:0 0 120px;">${basicAssigneeOptionsHtml(allAssignees, item.assignee || "")}</select>`;
         } else {
           row.innerHTML = `
             <input type="checkbox" id="${rowId}" data-id="${item.id}" ${item.checked ? "checked" : ""}>
@@ -699,9 +693,8 @@
   document.getElementById("add-form").addEventListener("submit", async e => {
     e.preventDefault();
     const nameInput = document.getElementById("ci-name");
-    const assigneeInput = document.getElementById("ci-assignee");
     const name = nameInput.value.trim();
-    const assignee = assigneeInput.value.trim();
+    const assignee = ciAssignee.value === NEW_ASSIGNEE_VALUE ? ciAssigneeNew.value.trim() : ciAssignee.value;
     const cat = ciCat.value === NEW_CAT_VALUE ? ciCatNew.value.trim() : ciCat.value;
     if (!name || !cat) return;
     const id = uid();
@@ -713,6 +706,7 @@
       pushAction({ type: "add", id, itemData });
       nameInput.value = "";
       if (ciCat.value === NEW_CAT_VALUE) ciCatNew.value = "";
+      if (ciAssignee.value === NEW_ASSIGNEE_VALUE) ciAssigneeNew.value = "";
       nameInput.focus();
     } catch (err) {
       console.error(err);
@@ -766,15 +760,6 @@
   document.getElementById("open-only-toggle").addEventListener("change", e => {
     openOnly = e.target.checked;
     render();
-  });
-
-  // Quick-pick assignee buttons on the add form
-  document.getElementById("quick-assignees").addEventListener("click", e => {
-    const btn = e.target.closest("[data-quick-assignee]");
-    if (!btn) return;
-    const assigneeInput = document.getElementById("ci-assignee");
-    assigneeInput.value = assigneeInput.value === btn.dataset.quickAssignee ? "" : btn.dataset.quickAssignee;
-    renderQuickAssignees(PRESET_ASSIGNEES);
   });
 
   // Floating add button
@@ -833,16 +818,17 @@
     if (presenceStarted) return;
     presenceStarted = true;
     setInterval(heartbeat, 20000);
+    const myDeviceId = getOrCreateDeviceId();
     onSnapshot(collection(db, "packingLists", "family", "presence"), snap => {
       const now = Date.now();
       const active = [];
       snap.forEach(d => {
         const data = d.data();
         const seenMs = data.lastSeen && data.lastSeen.toMillis ? data.lastSeen.toMillis() : now;
-        if (now - seenMs < 45000) active.push(data.name || "Someone");
+        if (now - seenMs < 45000) active.push({ name: data.name || "Someone", isSelf: d.id === myDeviceId });
       });
-      viewersEl.innerHTML = active.map(n => `
-        <span class="viewer-chip"><span class="avatar">${escapeHtml(n.slice(0, 1).toUpperCase())}</span>${escapeHtml(n)}</span>`).join("");
+      viewersEl.innerHTML = active.map(v => `
+        <span class="viewer-chip"><span class="avatar">${escapeHtml(v.name.slice(0, 1).toUpperCase())}</span>${escapeHtml(v.name)}${v.isSelf ? " (you)" : ""}</span>`).join("");
     });
   }
 
