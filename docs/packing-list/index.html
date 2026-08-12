@@ -123,11 +123,14 @@
   .assignee-chip:hover { border-color: var(--accent); color: var(--accent); }
   .assignee-chip.active { background: var(--accent); border-color: var(--accent); color: #fff; }
 
-  .item-tag {
-    font-size: 11px; font-weight: 600; color: var(--accent); background: var(--accent-soft);
-    border-radius: 999px; padding: 2px 8px; flex: none; white-space: nowrap;
+  .item-tag-select {
+    font-size: 11px; font-weight: 600; color: var(--ink-faint); background: var(--surface-2);
+    border: 1px solid var(--border); border-radius: 999px; padding: 3px 6px; flex: none;
+    white-space: nowrap; font-family: inherit; cursor: pointer; max-width: 90px;
   }
-  .item-row.checked .item-tag { opacity: 0.5; }
+  .item-tag-select.assigned { color: var(--accent); background: var(--accent-soft); border-color: transparent; }
+  .item-tag-select:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+  .item-row.checked .item-tag-select { opacity: 0.5; }
 
   .cat-title-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; cursor: pointer; user-select: none; }
   .cat-title-row:hover .cat-title { color: var(--accent); }
@@ -556,7 +559,7 @@
           row.innerHTML = `
             <input type="checkbox" id="${rowId}" data-id="${item.id}" ${item.checked ? "checked" : ""}>
             <label for="${rowId}">${escapeHtml(item.name)}</label>
-            ${item.assignee ? `<span class="item-tag">${escapeHtml(item.assignee)}</span>` : ""}
+            <select class="item-tag-select${item.assignee ? " assigned" : ""}" data-item-assignee="${item.id}" aria-label="Assign ${escapeHtml(item.name)} to">${basicAssigneeOptionsHtml(allAssignees, item.assignee || "")}</select>
             <button class="edit" data-edit="${item.id}" aria-label="Edit ${escapeHtml(item.name)}">✎</button>
             <button class="rm" data-remove="${item.id}" aria-label="Remove ${escapeHtml(item.name)}">&times;</button>`;
         }
@@ -621,6 +624,8 @@
       const updates = {};
       Object.entries(action.changes).forEach(([id, c]) => { updates[`items.${id}.assignee`] = c.from; });
       await updateDoc(listRef, updates);
+    } else if (action.type === "assign") {
+      await updateDoc(listRef, { [`items.${action.id}.assignee`]: action.from });
     }
   }
   async function applyForward(action) {
@@ -636,10 +641,27 @@
       const updates = {};
       Object.entries(action.changes).forEach(([id, c]) => { updates[`items.${id}.assignee`] = c.to; });
       await updateDoc(listRef, updates);
+    } else if (action.type === "assign") {
+      await updateDoc(listRef, { [`items.${action.id}.assignee`]: action.to });
     }
   }
 
   document.getElementById("list-grid").addEventListener("change", async e => {
+    if (e.target.matches("[data-item-assignee]")) {
+      const id = e.target.dataset.itemAssignee;
+      const newAssignee = e.target.value;
+      const oldAssignee = currentItems[id] ? (currentItems[id].assignee || "") : "";
+      e.target.classList.toggle("assigned", !!newAssignee);
+      setStatus("syncing", "Saving…");
+      try {
+        await updateDoc(listRef, { [`items.${id}.assignee`]: newAssignee });
+        pushAction({ type: "assign", id, from: oldAssignee, to: newAssignee });
+      } catch (err) {
+        console.error(err);
+        setStatus("error", "Couldn't save");
+      }
+      return;
+    }
     if (e.target.type !== "checkbox") return;
     const id = e.target.dataset.id;
     const newChecked = e.target.checked;
