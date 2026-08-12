@@ -573,16 +573,16 @@
           row.innerHTML = `
             <input type="checkbox" id="${rowId}" data-id="${item.id}" ${item.checked ? "checked" : ""}>
             <input type="text" class="edit-input edit-input-name" data-edit-input="${item.id}" value="${escapeAttr(item.name)}">
-            ${naToggle}
-            <select class="edit-input edit-input-assignee" data-edit-assignee="${item.id}">${basicAssigneeOptionsHtml(allAssignees, item.assignee || "")}</select>`;
+            <select class="edit-input edit-input-assignee" data-edit-assignee="${item.id}">${basicAssigneeOptionsHtml(allAssignees, item.assignee || "")}</select>
+            ${naToggle}`;
         } else {
           row.innerHTML = `
             <input type="checkbox" id="${rowId}" data-id="${item.id}" ${item.checked ? "checked" : ""}>
             <label class="item-name" for="${rowId}">${escapeHtml(item.name)}</label>
+            <select class="item-tag-select${item.assignee ? " assigned" : ""}" data-item-assignee="${item.id}" aria-label="Assign ${escapeHtml(item.name)} to">${basicAssigneeOptionsHtml(allAssignees, item.assignee || "")}</select>
             <button class="edit" data-edit="${item.id}" aria-label="Edit ${escapeHtml(item.name)}">✎</button>
-            <button class="rm" data-remove="${item.id}" aria-label="Remove ${escapeHtml(item.name)}">&times;</button>
             ${naToggle}
-            <select class="item-tag-select${item.assignee ? " assigned" : ""}" data-item-assignee="${item.id}" aria-label="Assign ${escapeHtml(item.name)} to">${basicAssigneeOptionsHtml(allAssignees, item.assignee || "")}</select>`;
+            <button class="rm" data-remove="${item.id}" aria-label="Remove ${escapeHtml(item.name)}">&times;</button>`;
         }
         itemsWrap.appendChild(row);
       });
