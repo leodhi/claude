@@ -168,6 +168,7 @@
     position: fixed; bottom: calc(24px + env(safe-area-inset-bottom)); right: 24px; width: 56px; height: 56px; border-radius: 50%;
     background: var(--accent); color: #fff; border: none; font-size: 28px; line-height: 1;
     box-shadow: 0 4px 16px rgba(0,0,0,0.2); cursor: pointer; z-index: 20;
+    -webkit-transform: translateZ(0); transform: translateZ(0); will-change: transform;
   }
   .fab:hover { filter: brightness(1.08); }
   .fab:focus-visible { outline: 2px solid var(--ink); outline-offset: 3px; }
@@ -177,6 +178,7 @@
     background: var(--surface); color: var(--ink); border: 1px solid var(--border); font-size: 18px;
     box-shadow: 0 4px 16px rgba(0,0,0,0.18); cursor: pointer; z-index: 20;
     display: flex; align-items: center; justify-content: center;
+    -webkit-transform: translateZ(0); transform: translateZ(0); will-change: transform;
   }
   .chat-toggle:hover { border-color: var(--accent); }
   .chat-toggle:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
