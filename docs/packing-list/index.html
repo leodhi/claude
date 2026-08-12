@@ -65,7 +65,6 @@
   .item-row label { flex: 1; font-size: 14px; cursor: pointer; }
   .item-row.checked label { color: var(--ink-faint); text-decoration: line-through; }
   .item-row.na label { color: var(--ink-faint); font-style: italic; }
-  .item-controls { display: contents; }
 
   .na-toggle {
     display: inline-flex; align-items: center; gap: 3px; flex: none; cursor: pointer;
@@ -575,20 +574,16 @@
           row.innerHTML = `
             <input type="checkbox" id="${rowId}" data-id="${item.id}" ${item.checked ? "checked" : ""}>
             <input type="text" class="edit-input edit-input-name" data-edit-input="${item.id}" value="${escapeAttr(item.name)}">
-            <div class="item-controls">
-              <select class="edit-input edit-input-assignee" data-edit-assignee="${item.id}">${basicAssigneeOptionsHtml(allAssignees, item.assignee || "")}</select>
-              ${naToggle}
-            </div>`;
+            <select class="edit-input edit-input-assignee" data-edit-assignee="${item.id}">${basicAssigneeOptionsHtml(allAssignees, item.assignee || "")}</select>
+            ${naToggle}`;
         } else {
           row.innerHTML = `
             <input type="checkbox" id="${rowId}" data-id="${item.id}" ${item.checked ? "checked" : ""}>
             <label for="${rowId}">${escapeHtml(item.name)}</label>
-            <div class="item-controls">
-              <select class="item-tag-select${item.assignee ? " assigned" : ""}" data-item-assignee="${item.id}" aria-label="Assign ${escapeHtml(item.name)} to">${basicAssigneeOptionsHtml(allAssignees, item.assignee || "")}</select>
-              <button class="edit" data-edit="${item.id}" aria-label="Edit ${escapeHtml(item.name)}">✎</button>
-              <button class="rm" data-remove="${item.id}" aria-label="Remove ${escapeHtml(item.name)}">&times;</button>
-              ${naToggle}
-            </div>`;
+            <select class="item-tag-select${item.assignee ? " assigned" : ""}" data-item-assignee="${item.id}" aria-label="Assign ${escapeHtml(item.name)} to">${basicAssigneeOptionsHtml(allAssignees, item.assignee || "")}</select>
+            <button class="edit" data-edit="${item.id}" aria-label="Edit ${escapeHtml(item.name)}">✎</button>
+            <button class="rm" data-remove="${item.id}" aria-label="Remove ${escapeHtml(item.name)}">&times;</button>
+            ${naToggle}`;
         }
         itemsWrap.appendChild(row);
       });
