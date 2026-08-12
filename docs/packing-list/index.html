@@ -55,8 +55,7 @@
   .progress-fill { height: 100%; background: var(--accent); transition: width 0.2s ease; }
   .progress-label { font-size: 13px; color: var(--ink-muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
 
-  .list-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 0 32px; margin-top: 16px; }
-  @media (max-width: 720px) { .list-grid { grid-template-columns: 1fr; } }
+  .list-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px 32px; margin-top: 16px; }
   .cat-block { margin-bottom: 18px; break-inside: avoid; }
   .item-row { display: flex; align-items: center; gap: 5px; padding: 6px 4px; border-radius: 6px; }
   .item-row > input[type="checkbox"] { margin-right: 5px; }
