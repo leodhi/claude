@@ -220,7 +220,7 @@
     color: #fff; font-size: 15px; cursor: pointer; flex: none;
   }
   .chat-form button:hover { filter: brightness(1.08); }
-  @media (max-width: 420px) {
+  @media (max-width: 480px) {
     .chat-panel { width: calc(100vw - 48px); max-width: 220px; margin-left: 12px; left: 0; height: 300px; max-height: 40vh; border-radius: 12px; }
   }
 
@@ -1219,6 +1219,7 @@
   function openChat() {
     chatOpen = true;
     chatPanel.classList.add("show");
+    chatToggle.style.display = "none";
     unreadCount = 0;
     renderUnreadBadge();
     chatMessagesEl.scrollTop = chatMessagesEl.scrollHeight;
@@ -1228,6 +1229,7 @@
   function closeChat() {
     chatOpen = false;
     chatPanel.classList.remove("show");
+    chatToggle.style.display = "flex";
   }
 
   chatToggle.addEventListener("click", () => { chatOpen ? closeChat() : openChat(); });
