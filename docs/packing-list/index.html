@@ -444,7 +444,7 @@
   let editingId = null;
   let pendingRerender = false;
   let searchQuery = "";
-  let assigneeFilter = null;
+  let assigneeFilters = new Set();
   let openOnly = false;
   let collapsedCats = new Set(JSON.parse(localStorage.getItem("packing-collapsed-cats") || "[]"));
   function saveCollapsed() { localStorage.setItem("packing-collapsed-cats", JSON.stringify([...collapsedCats])); }
@@ -474,7 +474,7 @@
   function renderAssigneeFilter(names) {
     const el = document.getElementById("assignee-filter");
     el.innerHTML = names.map(n => `
-      <button type="button" class="assignee-chip${assigneeFilter === n ? " active" : ""}" data-assignee-filter="${escapeAttr(n)}">${escapeHtml(n)}</button>`).join("");
+      <button type="button" class="assignee-chip${assigneeFilters.has(n) ? " active" : ""}" data-assignee-filter="${escapeAttr(n)}">${escapeHtml(n)}</button>`).join("");
   }
 
   function render() {
@@ -508,7 +508,7 @@
 
       let visibleItems = items;
       if (searchQuery) visibleItems = visibleItems.filter(i => i.name.toLowerCase().includes(searchQuery));
-      if (assigneeFilter) visibleItems = visibleItems.filter(i => i.assignee === assigneeFilter);
+      if (assigneeFilters.size > 0) visibleItems = visibleItems.filter(i => assigneeFilters.has(i.assignee));
       if (openOnly) visibleItems = visibleItems.filter(i => !i.checked);
       if (visibleItems.length === 0) return;
 
@@ -740,7 +740,7 @@
     const chip = e.target.closest("[data-assignee-filter]");
     if (!chip) return;
     const name = chip.dataset.assigneeFilter;
-    assigneeFilter = assigneeFilter === name ? null : name;
+    if (assigneeFilters.has(name)) assigneeFilters.delete(name); else assigneeFilters.add(name);
     render();
   });
 
