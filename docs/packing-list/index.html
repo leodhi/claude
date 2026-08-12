@@ -772,6 +772,8 @@
     if (rmBtn) {
       const id = rmBtn.dataset.remove;
       const removedItem = currentItems[id];
+      const itemName = removedItem ? removedItem.name : "this item";
+      if (!confirm(`Delete "${itemName}"? This can be undone with the Undo button.`)) return;
       setStatus("syncing", "Saving…");
       try {
         await updateDoc(listRef, { [`items.${id}`]: deleteField() });
