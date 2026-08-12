@@ -72,8 +72,9 @@
   }
   .item-row .edit-input:focus-visible { outline: none; }
 
-  form.add-form { display: grid; grid-template-columns: 1fr 1fr auto; gap: 8px; align-items: end; margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--border); }
-  @media (max-width: 560px) { form.add-form { grid-template-columns: 1fr; } }
+  form.add-form { display: grid; grid-template-columns: 1fr 1fr 1fr auto; gap: 8px; align-items: end; margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--border); }
+  @media (max-width: 700px) { form.add-form { grid-template-columns: 1fr 1fr; } }
+  @media (max-width: 420px) { form.add-form { grid-template-columns: 1fr; } }
   #ci-cat-new-wrap { grid-column: 1 / -1; }
   .add-form label { display: block; font-size: 11px; color: var(--ink-faint); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 4px; }
   .add-form input, .add-form select { width: 100%; background: var(--surface-2); border: 1px solid var(--border); border-radius: 6px; padding: 7px 9px; color: var(--ink); font-size: 14px; font-family: inherit; }
@@ -105,6 +106,20 @@
     font-size: 12px; text-decoration: underline; padding: 4px 2px;
   }
   .link-btn:hover { color: var(--accent); }
+
+  .assignee-filter { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-bottom: 16px; }
+  .assignee-chip {
+    font: inherit; cursor: pointer; border-radius: 999px; border: 1px solid var(--border);
+    background: var(--surface); color: var(--ink-muted); padding: 5px 12px; font-size: 12.5px; font-weight: 600;
+  }
+  .assignee-chip:hover { border-color: var(--accent); color: var(--accent); }
+  .assignee-chip.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+
+  .item-tag {
+    font-size: 11px; font-weight: 600; color: var(--accent); background: var(--accent-soft);
+    border-radius: 999px; padding: 2px 8px; flex: none; white-space: nowrap;
+  }
+  .item-row.checked .item-tag { opacity: 0.5; }
 
   .cat-title-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; cursor: pointer; user-select: none; }
   .cat-title-row:hover .cat-title { color: var(--accent); }
@@ -169,6 +184,8 @@
     <button type="button" id="change-name-btn" class="link-btn">Change name</button>
   </div>
 
+  <div class="assignee-filter" id="assignee-filter"></div>
+
   <div class="panel">
     <div class="panel-head"><h2>Checklist</h2></div>
     <div class="panel-body">
@@ -180,6 +197,7 @@
       <form class="add-form" id="add-form">
         <div><label for="ci-name">Item</label><input type="text" id="ci-name" placeholder="Add anything" required></div>
         <div><label for="ci-cat">Category</label><select id="ci-cat"></select></div>
+        <div><label for="ci-assignee">Assign to <span style="text-transform:none; font-weight:400;">(optional)</span></label><input type="text" id="ci-assignee" list="assignee-list" placeholder="e.g. Elana"><datalist id="assignee-list"></datalist></div>
         <div id="ci-cat-new-wrap" style="display:none;"><label for="ci-cat-new">New category name</label><input type="text" id="ci-cat-new" placeholder="e.g. Beach house"></div>
         <button type="submit">Add</button>
       </form>
@@ -391,8 +409,26 @@
   let editingId = null;
   let pendingRerender = false;
   let searchQuery = "";
+  let assigneeFilter = null;
   let collapsedCats = new Set(JSON.parse(localStorage.getItem("packing-collapsed-cats") || "[]"));
   function saveCollapsed() { localStorage.setItem("packing-collapsed-cats", JSON.stringify([...collapsedCats])); }
+
+  const assigneeListEl = document.getElementById("assignee-list");
+  function renderAssigneeOptions(names) {
+    assigneeListEl.innerHTML = "";
+    names.forEach(n => {
+      const opt = document.createElement("option");
+      opt.value = n;
+      assigneeListEl.appendChild(opt);
+    });
+  }
+
+  function renderAssigneeFilter(names) {
+    const el = document.getElementById("assignee-filter");
+    if (names.length === 0) { el.innerHTML = ""; return; }
+    el.innerHTML = names.map(n => `
+      <button type="button" class="assignee-chip${assigneeFilter === n ? " active" : ""}" data-assignee-filter="${escapeAttr(n)}">${escapeHtml(n)}</button>`).join("");
+  }
 
   function render() {
     const grid = document.getElementById("list-grid");
@@ -412,15 +448,19 @@
     const categoryOrder = [...CUSTOM_CATEGORIES, ...extraCats];
     renderCatOptions(categoryOrder);
 
+    const allAssignees = [...new Set(Object.values(currentItems).map(i => i.assignee).filter(Boolean))].sort();
+    renderAssigneeOptions(allAssignees);
+    renderAssigneeFilter(allAssignees);
+
     categoryOrder.forEach(catName => {
       const items = byCat[catName];
       if (!items || items.length === 0) return;
       total += items.length;
       checkedCount += items.filter(i => i.checked).length;
 
-      const visibleItems = searchQuery
-        ? items.filter(i => i.name.toLowerCase().includes(searchQuery))
-        : items;
+      let visibleItems = items;
+      if (searchQuery) visibleItems = visibleItems.filter(i => i.name.toLowerCase().includes(searchQuery));
+      if (assigneeFilter) visibleItems = visibleItems.filter(i => i.assignee === assigneeFilter);
       if (visibleItems.length === 0) return;
 
       const isCollapsed = collapsedCats.has(catName);
@@ -449,11 +489,13 @@
         if (item.id === editingId) {
           row.innerHTML = `
             <input type="checkbox" id="${rowId}" data-id="${item.id}" ${item.checked ? "checked" : ""}>
-            <input type="text" class="edit-input" data-edit-input="${item.id}" value="${escapeAttr(item.name)}">`;
+            <input type="text" class="edit-input" data-edit-input="${item.id}" value="${escapeAttr(item.name)}">
+            <input type="text" class="edit-input" data-edit-assignee="${item.id}" list="assignee-list" placeholder="Assign to…" style="flex:0 0 110px;" value="${escapeAttr(item.assignee || "")}">`;
         } else {
           row.innerHTML = `
             <input type="checkbox" id="${rowId}" data-id="${item.id}" ${item.checked ? "checked" : ""}>
             <label for="${rowId}">${escapeHtml(item.name)}</label>
+            ${item.assignee ? `<span class="item-tag">${escapeHtml(item.assignee)}</span>` : ""}
             <button class="edit" data-edit="${item.id}" aria-label="Edit ${escapeHtml(item.name)}">✎</button>
             <button class="rm" data-remove="${item.id}" aria-label="Remove ${escapeHtml(item.name)}">&times;</button>`;
         }
@@ -513,7 +555,7 @@
     } else if (action.type === "remove") {
       await updateDoc(listRef, { [`items.${action.id}`]: action.item });
     } else if (action.type === "edit") {
-      await updateDoc(listRef, { [`items.${action.id}.name`]: action.from });
+      await updateDoc(listRef, { [`items.${action.id}.name`]: action.from.name, [`items.${action.id}.assignee`]: action.from.assignee });
     }
   }
   async function applyForward(action) {
@@ -524,7 +566,7 @@
     } else if (action.type === "remove") {
       await updateDoc(listRef, { [`items.${action.id}`]: deleteField() });
     } else if (action.type === "edit") {
-      await updateDoc(listRef, { [`items.${action.id}.name`]: action.to });
+      await updateDoc(listRef, { [`items.${action.id}.name`]: action.to.name, [`items.${action.id}.assignee`]: action.to.assignee });
     }
   }
 
@@ -551,16 +593,21 @@
     if (pendingRerender) { pendingRerender = false; }
     render();
   }
-  async function commitEdit(id, input) {
+  async function commitEdit(id) {
     const item = currentItems[id];
-    const newName = input.value.trim();
+    const nameInputEl = document.querySelector(`[data-edit-input="${id}"]`);
+    const assigneeInputEl = document.querySelector(`[data-edit-assignee="${id}"]`);
+    const newName = nameInputEl ? nameInputEl.value.trim() : (item ? item.name : "");
+    const newAssignee = assigneeInputEl ? assigneeInputEl.value.trim() : (item ? (item.assignee || "") : "");
     const oldName = item ? item.name : "";
+    const oldAssignee = item ? (item.assignee || "") : "";
     endEdit();
-    if (!item || !newName || newName === oldName) return;
+    if (!item || !newName) return;
+    if (newName === oldName && newAssignee === oldAssignee) return;
     setStatus("syncing", "Saving…");
     try {
-      await updateDoc(listRef, { [`items.${id}.name`]: newName });
-      pushAction({ type: "edit", id, from: oldName, to: newName });
+      await updateDoc(listRef, { [`items.${id}.name`]: newName, [`items.${id}.assignee`]: newAssignee });
+      pushAction({ type: "edit", id, from: { name: oldName, assignee: oldAssignee }, to: { name: newName, assignee: newAssignee } });
     } catch (err) {
       console.error(err);
       setStatus("error", "Couldn't save");
@@ -595,28 +642,39 @@
     }
   });
 
+  function editInputId(el) { return el.dataset.editInput || el.dataset.editAssignee; }
+  function markEditRowCancelled(id) {
+    document.querySelectorAll(`[data-edit-input="${id}"], [data-edit-assignee="${id}"]`).forEach(el => { el.dataset.cancelled = "1"; });
+  }
+
   document.getElementById("list-grid").addEventListener("keydown", e => {
-    const input = e.target.closest("[data-edit-input]");
+    const input = e.target.closest("[data-edit-input], [data-edit-assignee]");
     if (!input) return;
-    if (e.key === "Enter") { e.preventDefault(); commitEdit(input.dataset.editInput, input); }
-    else if (e.key === "Escape") { e.preventDefault(); input.dataset.cancelled = "1"; endEdit(); }
+    const id = editInputId(input);
+    if (e.key === "Enter") { e.preventDefault(); commitEdit(id); }
+    else if (e.key === "Escape") { e.preventDefault(); markEditRowCancelled(id); endEdit(); }
   });
   document.getElementById("list-grid").addEventListener("blur", e => {
-    const input = e.target.closest && e.target.closest("[data-edit-input]");
+    const input = e.target.closest && e.target.closest("[data-edit-input], [data-edit-assignee]");
     if (!input || input.dataset.cancelled) return;
-    if (editingId !== input.dataset.editInput) return;
-    commitEdit(input.dataset.editInput, input);
+    const id = editInputId(input);
+    if (editingId !== id) return;
+    const next = e.relatedTarget;
+    if (next && next.closest && next.closest("[data-edit-input], [data-edit-assignee]") && editInputId(next.closest("[data-edit-input], [data-edit-assignee]")) === id) return;
+    commitEdit(id);
   }, true);
 
   document.getElementById("add-form").addEventListener("submit", async e => {
     e.preventDefault();
     const nameInput = document.getElementById("ci-name");
+    const assigneeInput = document.getElementById("ci-assignee");
     const name = nameInput.value.trim();
+    const assignee = assigneeInput.value.trim();
     const cat = ciCat.value === NEW_CAT_VALUE ? ciCatNew.value.trim() : ciCat.value;
     if (!name || !cat) return;
     const id = uid();
     const maxOrder = Math.max(0, ...Object.values(currentItems).map(it => it.order ?? 0));
-    const itemData = { cat, name, checked: false, order: maxOrder + 1 };
+    const itemData = { cat, name, assignee, checked: false, order: maxOrder + 1 };
     setStatus("syncing", "Saving…");
     try {
       await updateDoc(listRef, { [`items.${id}`]: itemData });
@@ -628,6 +686,14 @@
       console.error(err);
       setStatus("error", "Couldn't save");
     }
+  });
+
+  document.getElementById("assignee-filter").addEventListener("click", e => {
+    const chip = e.target.closest("[data-assignee-filter]");
+    if (!chip) return;
+    const name = chip.dataset.assigneeFilter;
+    assigneeFilter = assigneeFilter === name ? null : name;
+    render();
   });
 
   undoBtn.addEventListener("click", async () => {
