@@ -221,6 +221,8 @@
 
   <div class="assignee-filter" id="assignee-filter"></div>
 
+  <button type="button" id="auto-assign-btn" class="link-btn" style="margin-bottom:16px;">Assign unassigned items to me (Elana/Shmuel items go to them)</button>
+
   <div class="panel">
     <div class="panel-head"><h2>Checklist</h2></div>
     <div class="panel-body">
@@ -613,6 +615,10 @@
       await updateDoc(listRef, { [`items.${action.id}`]: action.item });
     } else if (action.type === "edit") {
       await updateDoc(listRef, { [`items.${action.id}.name`]: action.from.name, [`items.${action.id}.assignee`]: action.from.assignee });
+    } else if (action.type === "bulkAssign") {
+      const updates = {};
+      Object.entries(action.changes).forEach(([id, c]) => { updates[`items.${id}.assignee`] = c.from; });
+      await updateDoc(listRef, updates);
     }
   }
   async function applyForward(action) {
@@ -624,6 +630,10 @@
       await updateDoc(listRef, { [`items.${action.id}`]: deleteField() });
     } else if (action.type === "edit") {
       await updateDoc(listRef, { [`items.${action.id}.name`]: action.to.name, [`items.${action.id}.assignee`]: action.to.assignee });
+    } else if (action.type === "bulkAssign") {
+      const updates = {};
+      Object.entries(action.changes).forEach(([id, c]) => { updates[`items.${id}.assignee`] = c.to; });
+      await updateDoc(listRef, updates);
     }
   }
 
@@ -918,6 +928,33 @@
       listEl.innerHTML = '<p class="empty">Couldn\'t load past trips.</p>';
     }
   }
+
+  document.getElementById("auto-assign-btn").addEventListener("click", async () => {
+    const me = currentViewerName || "Me";
+    const changes = {};
+    Object.entries(currentItems).forEach(([id, it]) => {
+      if (it.assignee) return;
+      const lower = it.name.toLowerCase();
+      let target = me;
+      if (lower.includes("elana")) target = "Elana";
+      else if (lower.includes("shmuel")) target = "Shmuel";
+      changes[id] = { from: it.assignee || "", to: target };
+    });
+    if (Object.keys(changes).length === 0) { alert("Nothing to assign — every item already has someone."); return; }
+    const ok = confirm(`Assign ${Object.keys(changes).length} unassigned item(s) — items mentioning Elana or Shmuel go to them, everything else to "${me}"?`);
+    if (!ok) return;
+    setStatus("syncing", "Assigning…");
+    try {
+      const updates = {};
+      Object.entries(changes).forEach(([id, c]) => { updates[`items.${id}.assignee`] = c.to; });
+      await updateDoc(listRef, updates);
+      pushAction({ type: "bulkAssign", changes });
+      setStatus("synced", "Synced");
+    } catch (err) {
+      console.error(err);
+      setStatus("error", "Couldn't assign");
+    }
+  });
 
   document.getElementById("archives-btn").addEventListener("click", openArchivesModal);
   document.getElementById("archives-close").addEventListener("click", () => {
