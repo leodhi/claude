@@ -270,7 +270,10 @@
     Object.entries(currentItems).forEach(([id, it]) => {
       (byCat[it.cat] = byCat[it.cat] || []).push({ id, ...it });
     });
-    Object.values(byCat).forEach(arr => arr.sort((a, b) => (a.order ?? 0) - (b.order ?? 0)));
+    Object.values(byCat).forEach(arr => arr.sort((a, b) => {
+      if (a.checked !== b.checked) return a.checked ? 1 : -1;
+      return (a.order ?? 0) - (b.order ?? 0);
+    }));
 
     CUSTOM_CATEGORIES.forEach(catName => {
       const items = byCat[catName];
