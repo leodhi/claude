@@ -119,6 +119,8 @@
     width: 16px; height: 16px; border-radius: 50%; background: var(--accent); color: #fff;
     font-size: 9px; font-weight: 700; display: flex; align-items: center; justify-content: center; flex: none;
   }
+  .viewer-chip.self { cursor: pointer; }
+  .viewer-chip.self:hover { border-color: var(--accent); color: var(--accent); }
   .link-btn {
     font: inherit; cursor: pointer; border: none; background: none; color: var(--ink-faint);
     font-size: 12px; text-decoration: underline; padding: 4px 2px;
@@ -234,7 +236,6 @@
     <label class="open-only-toggle"><input type="checkbox" id="open-only-toggle"> Show only what's left</label>
     <label class="open-only-toggle"><input type="checkbox" id="hide-na-toggle"> Hide N/A items</label>
     <div class="viewers" id="viewers"></div>
-    <button type="button" id="change-name-btn" class="link-btn">Change name</button>
   </div>
 
   <div class="assignee-filter" id="assignee-filter"></div>
@@ -1037,7 +1038,7 @@
         if (now - seenMs < 45000) active.push({ name: data.name || "Someone", isSelf: d.id === myDeviceId });
       });
       viewersEl.innerHTML = active.map(v => `
-        <span class="viewer-chip"><span class="avatar">${escapeHtml(v.name.slice(0, 1).toUpperCase())}</span>${escapeHtml(v.name)}${v.isSelf ? " (you)" : ""}</span>`).join("");
+        <span class="viewer-chip${v.isSelf ? " self" : ""}"${v.isSelf ? ' data-change-name="1" title="Tap to change your name"' : ""}><span class="avatar">${escapeHtml(v.name.slice(0, 1).toUpperCase())}</span>${escapeHtml(v.name)}${v.isSelf ? " (you)" : ""}</span>`).join("");
     });
   }
 
@@ -1057,7 +1058,8 @@
   document.getElementById("name-modal-save").addEventListener("click", saveViewerName);
   nameModalInput.addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); saveViewerName(); } });
 
-  document.getElementById("change-name-btn").addEventListener("click", () => {
+  viewersEl.addEventListener("click", e => {
+    if (!e.target.closest("[data-change-name]")) return;
     nameModalInput.value = currentViewerName || "";
     nameModal.classList.add("show");
     nameModalInput.focus();
