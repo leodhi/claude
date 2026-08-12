@@ -1,0 +1,397 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Shared Packing List</title>
+<style>
+  :root {
+    --paper: #f4f1ea;
+    --surface: #ffffff;
+    --surface-2: #faf8f3;
+    --ink: #2a2620;
+    --ink-muted: #6c6558;
+    --ink-faint: #a29a89;
+    --border: #e3ddcf;
+    --accent: #2f6f6b;
+    --accent-soft: #dfeeec;
+    --sun: #c2803a;
+    --sun-soft: #f3e5d2;
+    --good: #3a7d5c;
+    --shadow: 0 1px 2px rgba(42,38,32,0.06), 0 8px 24px rgba(42,38,32,0.06);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --paper: #121715;
+      --surface: #191f1d;
+      --surface-2: #1e2523;
+      --ink: #e9e6de;
+      --ink-muted: #a2ab9f;
+      --ink-faint: #647069;
+      --border: #283029;
+      --accent: #66b3ac;
+      --accent-soft: rgba(102,179,172,0.14);
+      --sun: #e0a25f;
+      --sun-soft: rgba(224,162,95,0.12);
+      --good: #6cc190;
+      --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 8px 24px rgba(0,0,0,0.35);
+    }
+  }
+  :root[data-theme="dark"] {
+    --paper: #121715;
+    --surface: #191f1d;
+    --surface-2: #1e2523;
+    --ink: #e9e6de;
+    --ink-muted: #a2ab9f;
+    --ink-faint: #647069;
+    --border: #283029;
+    --accent: #66b3ac;
+    --accent-soft: rgba(102,179,172,0.14);
+    --sun: #e0a25f;
+    --sun-soft: rgba(224,162,95,0.12);
+    --good: #6cc190;
+    --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 8px 24px rgba(0,0,0,0.35);
+  }
+
+  * { box-sizing: border-box; }
+  html, body { background: var(--paper); }
+  body { margin: 0; color: var(--ink); font-family: -apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif; font-size: 15px; line-height: 1.5; }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 40px 24px 72px; }
+
+  header { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; flex-wrap: wrap; margin-bottom: 22px; }
+  header h1 { font-family: Georgia,"Iowan Old Style","Times New Roman",serif; font-weight: 400; font-size: clamp(26px,3.6vw,34px); margin: 0 0 4px; }
+  header p { margin: 0; color: var(--ink-muted); max-width: 55ch; }
+
+  .status { display: inline-flex; align-items: center; gap: 7px; font-size: 12.5px; color: var(--ink-muted); background: var(--surface); border: 1px solid var(--border); border-radius: 999px; padding: 6px 12px; white-space: nowrap; }
+  .status .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--ink-faint); flex: none; }
+  .status.synced .dot { background: var(--good); }
+  .status.syncing .dot { background: var(--sun); animation: pulse 1s ease-in-out infinite; }
+  .status.error .dot { background: #b23a3a; }
+  @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.35; } }
+
+  .panel { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; box-shadow: var(--shadow); }
+  .panel-head { display: flex; justify-content: space-between; align-items: center; padding: 16px 20px; border-bottom: 1px solid var(--border); }
+  .panel-head h2 { font-size: 13px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--ink-faint); font-weight: 600; margin: 0; }
+  .panel-body { padding: 18px 20px; }
+
+  .progress-wrap { display: flex; align-items: center; gap: 12px; margin-bottom: 4px; }
+  .progress-track { flex: 1; height: 8px; border-radius: 4px; background: var(--surface-2); border: 1px solid var(--border); overflow: hidden; }
+  .progress-fill { height: 100%; background: var(--accent); transition: width 0.2s ease; }
+  .progress-label { font-size: 13px; color: var(--ink-muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+  .list-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 0 32px; margin-top: 16px; }
+  @media (max-width: 720px) { .list-grid { grid-template-columns: 1fr; } }
+  .cat-block { margin-bottom: 18px; break-inside: avoid; }
+  .cat-title { font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--sun); font-weight: 700; margin-bottom: 8px; }
+  .item-row { display: flex; align-items: center; gap: 10px; padding: 6px 4px; border-radius: 6px; }
+  .item-row:hover { background: var(--surface-2); }
+  .item-row input[type="checkbox"] { width: 17px; height: 17px; accent-color: var(--accent); flex: none; }
+  .item-row label { flex: 1; font-size: 14px; cursor: pointer; }
+  .item-row.checked label { color: var(--ink-faint); text-decoration: line-through; }
+  .item-row .rm { background: none; border: none; color: var(--ink-faint); cursor: pointer; font-size: 15px; padding: 2px 4px; flex: none; }
+  .item-row .rm:hover { color: var(--sun); }
+
+  form.add-form { display: grid; grid-template-columns: 1fr 1fr auto; gap: 8px; align-items: end; margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--border); }
+  @media (max-width: 560px) { form.add-form { grid-template-columns: 1fr; } }
+  .add-form label { display: block; font-size: 11px; color: var(--ink-faint); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 4px; }
+  .add-form input, .add-form select { width: 100%; background: var(--surface-2); border: 1px solid var(--border); border-radius: 6px; padding: 7px 9px; color: var(--ink); font-size: 14px; font-family: inherit; }
+  .add-form input:focus-visible, .add-form select:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+  .add-form button { font: inherit; cursor: pointer; border-radius: 6px; border: 1px solid var(--accent); background: var(--accent); color: #fff; padding: 8px 14px; font-size: 13px; font-weight: 600; }
+  .add-form button:hover { filter: brightness(1.08); }
+
+  .empty { color: var(--ink-faint); font-size: 13px; }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header>
+    <div>
+      <h1>Shared Packing List</h1>
+      <p>Check off items and add or remove things — updates appear for everyone with this link, in real time.</p>
+    </div>
+    <span class="status" id="status"><span class="dot"></span><span id="status-text">Connecting…</span></span>
+  </header>
+
+  <div class="panel">
+    <div class="panel-head"><h2>Checklist</h2></div>
+    <div class="panel-body">
+      <div class="progress-wrap">
+        <div class="progress-track"><div class="progress-fill" id="progress-fill" style="width:0%"></div></div>
+        <div class="progress-label" id="progress-label">0 / 0</div>
+      </div>
+      <div class="list-grid" id="list-grid"></div>
+      <form class="add-form" id="add-form">
+        <div><label for="ci-name">Item</label><input type="text" id="ci-name" placeholder="Add anything" required></div>
+        <div><label for="ci-cat">Category</label><select id="ci-cat"></select></div>
+        <button type="submit">Add</button>
+      </form>
+    </div>
+  </div>
+</div>
+
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
+  import {
+    getFirestore, doc, getDoc, setDoc, updateDoc, onSnapshot, deleteField
+  } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyDFJ_4r2c5P2w4F3TJg4CRNHP-yiDsRiRQ",
+    authDomain: "packing-list-3c532.firebaseapp.com",
+    projectId: "packing-list-3c532",
+    storageBucket: "packing-list-3c532.firebasestorage.app",
+    messagingSenderId: "209304705485",
+    appId: "1:209304705485:web:20c59e9f08465822c58c84"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const db = getFirestore(app);
+  const listRef = doc(db, "packingLists", "family");
+
+  const CUSTOM_CATEGORIES = [
+    "Before we leave", "Questions to resolve", "Documents & border", "Electronics & chargers",
+    "Clothing", "Toiletries & meds", "Judaica", "Food & snacks", "Kitchen & dining",
+    "Kids", "Beach & pool", "Bags & practical"
+  ];
+
+  const SEED = [
+    ["Before we leave", "Feed the fish (Debbie)"],
+    ["Before we leave", "Turn off bedroom fan"],
+    ["Before we leave", "Turn off Nest front door schedule?"],
+    ["Before we leave", "Arm office and living room cameras"],
+    ["Before we leave", "Arm SimpliSafe"],
+    ["Before we leave", "Ask host for extra fridge"],
+    ["Before we leave", "Gas up the car"],
+    ["Before we leave", "Take in packages, mail and newspapers (Etengoff)"],
+    ["Before we leave", "Call cell companies for me, Elana and Ethan re: Canada"],
+    ["Before we leave", "Tell car rental company we're going into Canada, bring the card"],
+    ["Questions to resolve", "Sandals or Crocs?"],
+    ["Questions to resolve", "Which lithium battery packs are allowed on the flight?"],
+    ["Questions to resolve", "Can we bring meat or poultry across the border, either way?"],
+    ["Questions to resolve", "Bring iPads?"],
+    ["Questions to resolve", "Bring the carriage / stroller?"],
+    ["Documents & border", "Passports (everyone)"],
+    ["Documents & border", "Cash — 5s and 1s for tips"],
+    ["Electronics & chargers", "Travel extension cord"],
+    ["Electronics & chargers", "Extension cord (toaster plug)"],
+    ["Electronics & chargers", "Apple Watch mobile charger"],
+    ["Electronics & chargers", "Laptop and charger"],
+    ["Electronics & chargers", "Elana's phone charger"],
+    ["Electronics & chargers", "Phone charger"],
+    ["Electronics & chargers", "Battery backup"],
+    ["Electronics & chargers", "2 portable chargers"],
+    ["Electronics & chargers", "3-in-1 travel charger"],
+    ["Electronics & chargers", "iPad chargers (both iPads)"],
+    ["Electronics & chargers", "Charging adapter (for overseas)"],
+    ["Electronics & chargers", "Car iPad holder"],
+    ["Electronics & chargers", "AirTags (on suitcases)"],
+    ["Electronics & chargers", "Noise-cancelling earphones"],
+    ["Electronics & chargers", "Over-ear headphones"],
+    ["Clothing", "Belt"],
+    ["Clothing", "Shabbos clothes"],
+    ["Clothing", "Sneakers / shoes"],
+    ["Clothing", "Jeans / pants / comfortable long pants"],
+    ["Clothing", "Shorts"],
+    ["Clothing", "Pj t-shirts (3)"],
+    ["Clothing", "Pj shorts"],
+    ["Clothing", "Polo shirts"],
+    ["Clothing", "Undershirts"],
+    ["Clothing", "6 underwear"],
+    ["Clothing", "Socks"],
+    ["Clothing", "Slippers"],
+    ["Clothing", "Bathing suits"],
+    ["Clothing", "Raincoat"],
+    ["Clothing", "Cap"],
+    ["Clothing", "Sunglasses"],
+    ["Toiletries & meds", "Toothbrush + toothbrush covers"],
+    ["Toiletries & meds", "Toothpaste"],
+    ["Toiletries & meds", "Floss"],
+    ["Toiletries & meds", "Mouthwash"],
+    ["Toiletries & meds", "Small cups (for brushing teeth)"],
+    ["Toiletries & meds", "Deodorant"],
+    ["Toiletries & meds", "Refresh Plus eye drops"],
+    ["Toiletries & meds", "Contacts"],
+    ["Toiletries & meds", "Baby wipes"],
+    ["Toiletries & meds", "Pull-ups (both kids)"],
+    ["Toiletries & meds", "Swim diapers"],
+    ["Toiletries & meds", "Dairy pills"],
+    ["Toiletries & meds", "Melatonin"],
+    ["Toiletries & meds", "Magnesium"],
+    ["Toiletries & meds", "Zepbound"],
+    ["Toiletries & meds", "Tylenol"],
+    ["Toiletries & meds", "Kids' Tylenol?"],
+    ["Toiletries & meds", "Extra day of meds"],
+    ["Toiletries & meds", "Shmuel's meds"],
+    ["Toiletries & meds", "Elana's meds"],
+    ["Toiletries & meds", "Eye meds"],
+    ["Toiletries & meds", "Air freshener"],
+    ["Toiletries & meds", "Bandaids"],
+    ["Judaica", "Tefillin / Talis"],
+    ["Judaica", "Apple Watch + Shabbos watch"],
+    ["Judaica", "Clips for tichel"],
+    ["Food & snacks", "Snacks"],
+    ["Food & snacks", "Waters"],
+    ["Food & snacks", "Breakfast bars"],
+    ["Food & snacks", "Breakfast"],
+    ["Food & snacks", "Hot dogs"],
+    ["Food & snacks", "Iced coffee"],
+    ["Food & snacks", "Coffee"],
+    ["Food & snacks", "Weighless cookies"],
+    ["Food & snacks", "Betty Crocker (both?)"],
+    ["Food & snacks", "Noodle soups"],
+    ["Food & snacks", "Cooking spray"],
+    ["Food & snacks", "Gum"],
+    ["Kitchen & dining", "Small folding table"],
+    ["Kitchen & dining", "Plates"],
+    ["Kitchen & dining", "Cups"],
+    ["Kitchen & dining", "Bowls"],
+    ["Kitchen & dining", "Hot cups"],
+    ["Kitchen & dining", "Forks, spoons, knives"],
+    ["Kitchen & dining", "Napkins"],
+    ["Kitchen & dining", "Paper towels"],
+    ["Kitchen & dining", "Tin foil"],
+    ["Kitchen & dining", "Ziplock bags"],
+    ["Kitchen & dining", "Plastic bags"],
+    ["Kitchen & dining", "Garbage bags"],
+    ["Kitchen & dining", "Sponge to clean Betty Crocker"],
+    ["Kitchen & dining", "Soap to clean Betty Crocker"],
+    ["Kitchen & dining", "Cooler"],
+    ["Kitchen & dining", "Spatula"],
+    ["Kids", "Daniel's blanket"],
+    ["Kids", "Thumb-sucking thing"],
+    ["Beach & pool", "Goggles"],
+    ["Beach & pool", "Nose clips"],
+    ["Beach & pool", "Floatie"],
+    ["Beach & pool", "Phone holder (waterproof)"],
+    ["Bags & practical", "Knapsack"],
+    ["Bags & practical", "Luggage scale"],
+    ["Bags & practical", "Towels"],
+    ["Bags & practical", "Smaller wallets"],
+    ["Bags & practical", "Wallet"],
+    ["Bags & practical", "Ring"],
+    ["Bags & practical", "Toilet paper; Kleenex"],
+    ["Bags & practical", "Reading material"]
+  ];
+
+  function uid() { return Math.random().toString(36).slice(2, 10); }
+  function escapeHtml(s) { return String(s).replace(/[&<>"]/g, c => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;" }[c])); }
+
+  const statusEl = document.getElementById("status");
+  const statusText = document.getElementById("status-text");
+  function setStatus(kind, text) {
+    statusEl.className = "status " + kind;
+    statusText.textContent = text;
+  }
+
+  const ciCat = document.getElementById("ci-cat");
+  CUSTOM_CATEGORIES.forEach(c => {
+    const opt = document.createElement("option");
+    opt.value = c; opt.textContent = c;
+    ciCat.appendChild(opt);
+  });
+
+  let currentItems = {};
+
+  function render() {
+    const grid = document.getElementById("list-grid");
+    grid.innerHTML = "";
+    let total = 0, checkedCount = 0;
+
+    const byCat = {};
+    Object.entries(currentItems).forEach(([id, it]) => {
+      (byCat[it.cat] = byCat[it.cat] || []).push({ id, ...it });
+    });
+    Object.values(byCat).forEach(arr => arr.sort((a, b) => (a.order ?? 0) - (b.order ?? 0)));
+
+    CUSTOM_CATEGORIES.forEach(catName => {
+      const items = byCat[catName];
+      if (!items || items.length === 0) return;
+      const block = document.createElement("div");
+      block.className = "cat-block";
+      const title = document.createElement("div");
+      title.className = "cat-title";
+      title.textContent = catName;
+      block.appendChild(title);
+      items.forEach(item => {
+        total++;
+        if (item.checked) checkedCount++;
+        const row = document.createElement("div");
+        row.className = "item-row" + (item.checked ? " checked" : "");
+        const rowId = "chk-" + item.id;
+        row.innerHTML = `
+          <input type="checkbox" id="${rowId}" data-id="${item.id}" ${item.checked ? "checked" : ""}>
+          <label for="${rowId}">${escapeHtml(item.name)}</label>
+          <button class="rm" data-remove="${item.id}" aria-label="Remove ${escapeHtml(item.name)}">&times;</button>`;
+        block.appendChild(row);
+      });
+      grid.appendChild(block);
+    });
+
+    document.getElementById("progress-fill").style.width = total ? (checkedCount / total * 100) + "%" : "0%";
+    document.getElementById("progress-label").textContent = `${checkedCount} / ${total}`;
+  }
+
+  onSnapshot(listRef, snap => {
+    if (!snap.exists()) return;
+    currentItems = snap.data().items || {};
+    setStatus("synced", "Synced");
+    render();
+  }, err => {
+    console.error(err);
+    setStatus("error", "Connection error");
+  });
+
+  (async function ensureSeeded() {
+    const snap = await getDoc(listRef);
+    if (snap.exists()) return;
+    const items = {};
+    SEED.forEach(([cat, name], i) => { items[uid()] = { cat, name, checked: false, order: i }; });
+    await setDoc(listRef, { items });
+  })().catch(err => { console.error(err); setStatus("error", "Couldn't load list"); });
+
+  document.getElementById("list-grid").addEventListener("change", async e => {
+    if (e.target.type !== "checkbox") return;
+    const id = e.target.dataset.id;
+    setStatus("syncing", "Saving…");
+    try {
+      await updateDoc(listRef, { [`items.${id}.checked`]: e.target.checked });
+    } catch (err) {
+      console.error(err);
+      setStatus("error", "Couldn't save");
+    }
+  });
+
+  document.getElementById("list-grid").addEventListener("click", async e => {
+    const btn = e.target.closest("[data-remove]");
+    if (!btn) return;
+    setStatus("syncing", "Saving…");
+    try {
+      await updateDoc(listRef, { [`items.${btn.dataset.remove}`]: deleteField() });
+    } catch (err) {
+      console.error(err);
+      setStatus("error", "Couldn't save");
+    }
+  });
+
+  document.getElementById("add-form").addEventListener("submit", async e => {
+    e.preventDefault();
+    const nameInput = document.getElementById("ci-name");
+    const name = nameInput.value.trim();
+    const cat = ciCat.value;
+    if (!name) return;
+    const id = uid();
+    const maxOrder = Math.max(0, ...Object.values(currentItems).map(it => it.order ?? 0));
+    setStatus("syncing", "Saving…");
+    try {
+      await updateDoc(listRef, { [`items.${id}`]: { cat, name, checked: false, order: maxOrder + 1 } });
+      nameInput.value = "";
+      nameInput.focus();
+    } catch (err) {
+      console.error(err);
+      setStatus("error", "Couldn't save");
+    }
+  });
+</script>
+</body>
+</html>
