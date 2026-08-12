@@ -519,7 +519,9 @@
       (byCat[it.cat] = byCat[it.cat] || []).push({ id, ...it });
     });
     Object.values(byCat).forEach(arr => arr.sort((a, b) => {
-      if (a.checked !== b.checked) return a.checked ? 1 : -1;
+      const rank = it => it.checked ? 2 : (it.na ? 1 : 0);
+      const ra = rank(a), rb = rank(b);
+      if (ra !== rb) return ra - rb;
       return (a.order ?? 0) - (b.order ?? 0);
     }));
 
