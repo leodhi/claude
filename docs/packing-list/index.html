@@ -162,6 +162,26 @@
     background: var(--accent); color: #fff; padding: 9px 14px; font-size: 14px; font-weight: 600;
   }
 
+  .modal-wide { max-width: 560px; max-height: 80vh; overflow-y: auto; }
+  .modal-head { display: flex; align-items: center; justify-content: space-between; }
+  .modal-close { width: auto; background: none; border: none; color: var(--ink-faint); font-size: 22px; padding: 0 4px; line-height: 1; }
+  .modal-close:hover { color: var(--ink); }
+
+  .archive-row { border: 1px solid var(--border); border-radius: 8px; margin-bottom: 10px; overflow: hidden; }
+  .archive-row-head {
+    display: flex; justify-content: space-between; align-items: center; gap: 10px;
+    padding: 12px 14px; cursor: pointer; background: var(--surface-2);
+  }
+  .archive-row-head:hover { background: var(--accent-soft); }
+  .archive-row-head .date { font-weight: 600; font-size: 14px; }
+  .archive-row-head .stats { font-size: 12.5px; color: var(--ink-muted); font-variant-numeric: tabular-nums; }
+  .archive-items { padding: 10px 14px; display: none; }
+  .archive-row.open .archive-items { display: block; }
+  .archive-cat { margin-bottom: 10px; }
+  .archive-cat:last-child { margin-bottom: 0; }
+  .archive-cat-title { font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--sun); font-weight: 700; margin-bottom: 4px; }
+  .archive-item { font-size: 13.5px; padding: 3px 0; color: var(--ink-muted); }
+  .archive-item.was-checked { color: var(--ink-faint); text-decoration: line-through; }
 </style>
 </head>
 <body>
@@ -176,6 +196,7 @@
       <button type="button" id="undo-btn" class="undo-btn" disabled>Undo</button>
       <button type="button" id="redo-btn" class="undo-btn" disabled>Redo</button>
       <button type="button" id="reset-btn" class="undo-btn">New trip</button>
+      <button type="button" id="archives-btn" class="undo-btn">Archives</button>
       <span class="status" id="status"><span class="dot"></span><span id="status-text">Connecting…</span></span>
     </div>
   </header>
@@ -225,10 +246,21 @@
   </div>
 </div>
 
+<div class="modal-backdrop" id="archives-modal">
+  <div class="modal modal-wide">
+    <div class="modal-head">
+      <h3>Past trips</h3>
+      <button type="button" id="archives-close" class="modal-close" aria-label="Close">&times;</button>
+    </div>
+    <p>Saved automatically each time "New trip" is used.</p>
+    <div id="archives-list"></div>
+  </div>
+</div>
+
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
   import {
-    getFirestore, doc, getDoc, setDoc, updateDoc, onSnapshot, deleteField, collection, serverTimestamp
+    getFirestore, doc, getDoc, getDocs, setDoc, updateDoc, onSnapshot, deleteField, collection, serverTimestamp
   } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
 
   const firebaseConfig = {
@@ -780,6 +812,94 @@
       console.error(err);
       setStatus("error", "Couldn't reset");
     }
+  });
+
+  // Archives
+  function formatArchiveDate(ts) {
+    if (!ts || !ts.toDate) return "Unknown date";
+    const d = ts.toDate();
+    return d.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" }) +
+      " · " + d.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
+  }
+
+  function renderArchiveItems(container, items) {
+    const byCat = {};
+    Object.values(items).forEach(it => { (byCat[it.cat] = byCat[it.cat] || []).push(it); });
+    const extraCats = Object.keys(byCat).filter(c => !CUSTOM_CATEGORIES.includes(c)).sort();
+    const order = [...CUSTOM_CATEGORIES, ...extraCats];
+    container.innerHTML = "";
+    order.forEach(catName => {
+      const catItems = byCat[catName];
+      if (!catItems || catItems.length === 0) return;
+      const block = document.createElement("div");
+      block.className = "archive-cat";
+      const title = document.createElement("div");
+      title.className = "archive-cat-title";
+      title.textContent = catName;
+      block.appendChild(title);
+      [...catItems].sort((a, b) => (a.order ?? 0) - (b.order ?? 0)).forEach(it => {
+        const row = document.createElement("div");
+        row.className = "archive-item" + (it.checked ? " was-checked" : "");
+        row.textContent = it.name + (it.assignee ? " — " + it.assignee : "");
+        block.appendChild(row);
+      });
+      container.appendChild(block);
+    });
+  }
+
+  async function openArchivesModal() {
+    const listEl = document.getElementById("archives-list");
+    listEl.innerHTML = '<p class="empty">Loading…</p>';
+    document.getElementById("archives-modal").classList.add("show");
+    try {
+      const snap = await getDocs(collection(db, "packingLists", "family", "archives"));
+      const archives = [];
+      snap.forEach(d => archives.push({ id: d.id, ...d.data() }));
+      archives.sort((a, b) => {
+        const at = a.archivedAt && a.archivedAt.toMillis ? a.archivedAt.toMillis() : 0;
+        const bt = b.archivedAt && b.archivedAt.toMillis ? b.archivedAt.toMillis() : 0;
+        return bt - at;
+      });
+      if (archives.length === 0) {
+        listEl.innerHTML = '<p class="empty">No past trips saved yet — they\'re created automatically each time you use "New trip."</p>';
+        return;
+      }
+      listEl.innerHTML = "";
+      archives.forEach(archive => {
+        const items = archive.items || {};
+        const total = Object.keys(items).length;
+        const checkedCount = Object.values(items).filter(i => i.checked).length;
+        const row = document.createElement("div");
+        row.className = "archive-row";
+        const head = document.createElement("div");
+        head.className = "archive-row-head";
+        head.innerHTML = `<span class="date">${escapeHtml(formatArchiveDate(archive.archivedAt))}</span><span class="stats">${checkedCount} / ${total} packed</span>`;
+        const itemsEl = document.createElement("div");
+        itemsEl.className = "archive-items";
+        head.addEventListener("click", () => {
+          const opening = !row.classList.contains("open");
+          row.classList.toggle("open", opening);
+          if (opening && !itemsEl.dataset.rendered) {
+            renderArchiveItems(itemsEl, items);
+            itemsEl.dataset.rendered = "1";
+          }
+        });
+        row.appendChild(head);
+        row.appendChild(itemsEl);
+        listEl.appendChild(row);
+      });
+    } catch (err) {
+      console.error(err);
+      listEl.innerHTML = '<p class="empty">Couldn\'t load past trips.</p>';
+    }
+  }
+
+  document.getElementById("archives-btn").addEventListener("click", openArchivesModal);
+  document.getElementById("archives-close").addEventListener("click", () => {
+    document.getElementById("archives-modal").classList.remove("show");
+  });
+  document.getElementById("archives-modal").addEventListener("click", e => {
+    if (e.target.id === "archives-modal") e.currentTarget.classList.remove("show");
   });
 
   // Presence: who's currently viewing
