@@ -134,7 +134,6 @@
   }
   .cat-title-row.collapsed .chevron { transform: rotate(-90deg); }
   .cat-title { font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--sun); font-weight: 700; margin: 0; flex: 1; }
-  .cat-icon { font-size: 13px; }
   .cat-done-badge { font-size: 11px; color: var(--good); font-weight: 600; white-space: nowrap; }
   .cat-block.collapsed .cat-items { display: none; }
 
@@ -250,14 +249,6 @@
     "Clothing", "Toiletries & meds", "Judaica", "Food & snacks", "Kitchen & dining",
     "Kids", "Beach & pool", "Bags & practical"
   ];
-
-  const CAT_ICONS = {
-    "Before we leave": "🔔", "Questions to resolve": "❓", "Documents & border": "🛂",
-    "Electronics & chargers": "🔌", "Clothing": "👕", "Toiletries & meds": "🧴",
-    "Judaica": "🕎", "Food & snacks": "🍎", "Kitchen & dining": "🍽️",
-    "Kids": "🧸", "Beach & pool": "🏖️", "Bags & practical": "🎒"
-  };
-  function catIcon(name) { return CAT_ICONS[name] || "📦"; }
 
   const PRESET_ASSIGNEES = ["Dad", "Mom", "Mo", "Shmu", "Daniel"];
 
@@ -500,7 +491,6 @@
       titleRow.dataset.catToggle = catName;
       titleRow.innerHTML = `
         <span class="chevron">▾</span>
-        <span class="cat-icon">${catIcon(catName)}</span>
         <span class="cat-title">${escapeHtml(catName)}</span>
         ${allDone ? '<span class="cat-done-badge">✓ All packed</span>' : ""}`;
       block.appendChild(titleRow);
