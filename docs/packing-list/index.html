@@ -1235,6 +1235,8 @@
   chatToggle.addEventListener("click", () => { chatOpen ? closeChat() : openChat(); });
   chatClose.addEventListener("click", closeChat);
 
+  const NTFY_TOPIC = "niagara-packing-fc6uw2lezo0dm6fh";
+
   chatForm.addEventListener("submit", e => {
     e.preventDefault();
     const text = chatInput.value.trim();
@@ -1245,6 +1247,11 @@
       deviceId: getOrCreateDeviceId(),
       text,
       sentAt: serverTimestamp()
+    }).catch(() => {});
+    fetch(`https://ntfy.sh/${NTFY_TOPIC}`, {
+      method: "POST",
+      body: text,
+      headers: { "Title": `${currentViewerName} (packing list)` }
     }).catch(() => {});
   });
 
