@@ -63,6 +63,16 @@
   .item-row input[type="checkbox"] { width: 17px; height: 17px; accent-color: var(--accent); flex: none; }
   .item-row label { flex: 1; font-size: 14px; cursor: pointer; }
   .item-row.checked label { color: var(--ink-faint); text-decoration: line-through; }
+  .item-row.na label { color: var(--ink-faint); font-style: italic; }
+
+  .na-toggle {
+    display: inline-flex; align-items: center; gap: 3px; flex: none; cursor: pointer;
+    padding: 2px 5px; border-radius: 5px; border: 1px solid var(--border); background: var(--surface-2);
+  }
+  .na-toggle input { width: 12px; height: 12px; accent-color: var(--sun); margin: 0; }
+  .na-toggle span { font-size: 9.5px; font-weight: 700; letter-spacing: 0.03em; color: var(--ink-faint); }
+  .na-toggle:has(input:checked) { background: var(--sun-soft); border-color: transparent; }
+  .na-toggle:has(input:checked) span { color: var(--sun); }
   .item-row .rm, .item-row .edit { background: none; border: none; color: var(--ink-faint); cursor: pointer; font-size: 15px; padding: 2px 4px; flex: none; }
   .item-row .rm:hover { color: var(--sun); }
   .item-row .edit:hover { color: var(--accent); }
@@ -222,6 +232,7 @@
       <input type="text" id="search-input" placeholder="Search items…" aria-label="Search items">
     </div>
     <label class="open-only-toggle"><input type="checkbox" id="open-only-toggle"> Show only what's left</label>
+    <label class="open-only-toggle"><input type="checkbox" id="hide-na-toggle"> Hide N/A items</label>
     <div class="viewers" id="viewers"></div>
     <button type="button" id="change-name-btn" class="link-btn">Change name</button>
   </div>
@@ -462,6 +473,7 @@
   let searchQuery = "";
   let assigneeFilters = new Set();
   let openOnly = false;
+  let hideNA = false;
   let collapsedCats = new Set(JSON.parse(localStorage.getItem("packing-collapsed-cats") || "[]"));
   function saveCollapsed() { localStorage.setItem("packing-collapsed-cats", JSON.stringify([...collapsedCats])); }
 
@@ -526,6 +538,7 @@
       if (searchQuery) visibleItems = visibleItems.filter(i => i.name.toLowerCase().includes(searchQuery));
       if (assigneeFilters.size > 0) visibleItems = visibleItems.filter(i => assigneeFilters.has(i.assignee));
       if (openOnly) visibleItems = visibleItems.filter(i => !i.checked);
+      if (hideNA) visibleItems = visibleItems.filter(i => !i.na);
       if (visibleItems.length === 0) return;
 
       const isCollapsed = collapsedCats.has(catName);
@@ -548,16 +561,19 @@
 
       visibleItems.forEach(item => {
         const row = document.createElement("div");
-        row.className = "item-row" + (item.checked ? " checked" : "");
+        row.className = "item-row" + (item.checked ? " checked" : "") + (item.na ? " na" : "");
         const rowId = "chk-" + item.id;
+        const naToggle = `<label class="na-toggle" title="Not applicable"><input type="checkbox" data-na="${item.id}" ${item.na ? "checked" : ""}><span>NA</span></label>`;
         if (item.id === editingId) {
           row.className += " editing";
           row.innerHTML = `
+            ${naToggle}
             <input type="checkbox" id="${rowId}" data-id="${item.id}" ${item.checked ? "checked" : ""}>
             <input type="text" class="edit-input edit-input-name" data-edit-input="${item.id}" value="${escapeAttr(item.name)}">
             <select class="edit-input edit-input-assignee" data-edit-assignee="${item.id}">${basicAssigneeOptionsHtml(allAssignees, item.assignee || "")}</select>`;
         } else {
           row.innerHTML = `
+            ${naToggle}
             <input type="checkbox" id="${rowId}" data-id="${item.id}" ${item.checked ? "checked" : ""}>
             <label for="${rowId}">${escapeHtml(item.name)}</label>
             <select class="item-tag-select${item.assignee ? " assigned" : ""}" data-item-assignee="${item.id}" aria-label="Assign ${escapeHtml(item.name)} to">${basicAssigneeOptionsHtml(allAssignees, item.assignee || "")}</select>
@@ -627,6 +643,8 @@
       await updateDoc(listRef, updates);
     } else if (action.type === "assign") {
       await updateDoc(listRef, { [`items.${action.id}.assignee`]: action.from });
+    } else if (action.type === "na") {
+      await updateDoc(listRef, { [`items.${action.id}.na`]: action.from });
     }
   }
   async function applyForward(action) {
@@ -644,6 +662,8 @@
       await updateDoc(listRef, updates);
     } else if (action.type === "assign") {
       await updateDoc(listRef, { [`items.${action.id}.assignee`]: action.to });
+    } else if (action.type === "na") {
+      await updateDoc(listRef, { [`items.${action.id}.na`]: action.to });
     }
   }
 
@@ -657,6 +677,19 @@
       try {
         await updateDoc(listRef, { [`items.${id}.assignee`]: newAssignee });
         pushAction({ type: "assign", id, from: oldAssignee, to: newAssignee });
+      } catch (err) {
+        console.error(err);
+        setStatus("error", "Couldn't save");
+      }
+      return;
+    }
+    if (e.target.matches("[data-na]")) {
+      const id = e.target.dataset.na;
+      const newNA = e.target.checked;
+      setStatus("syncing", "Saving…");
+      try {
+        await updateDoc(listRef, { [`items.${id}.na`]: newNA });
+        pushAction({ type: "na", id, from: !newNA, to: newNA });
       } catch (err) {
         console.error(err);
         setStatus("error", "Couldn't save");
@@ -825,6 +858,12 @@
   // Show only what's left
   document.getElementById("open-only-toggle").addEventListener("change", e => {
     openOnly = e.target.checked;
+    render();
+  });
+
+  // Hide N/A items
+  document.getElementById("hide-na-toggle").addEventListener("change", e => {
+    hideNA = e.target.checked;
     render();
   });
 
