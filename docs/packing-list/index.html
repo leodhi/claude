@@ -221,7 +221,10 @@
 
   <div class="assignee-filter" id="assignee-filter"></div>
 
-  <button type="button" id="auto-assign-btn" class="link-btn" style="margin-bottom:16px;">Assign unassigned items to me (Elana/Shmuel items go to them)</button>
+  <div style="margin-bottom:16px; display:flex; gap:14px; flex-wrap:wrap;">
+    <button type="button" id="auto-assign-btn" class="link-btn">Assign unassigned items (Elana→Mom, Shmuel→Shmu, rest→Dad)</button>
+    <button type="button" id="fix-names-btn" class="link-btn">Fix names already assigned</button>
+  </div>
 
   <div class="panel">
     <div class="panel-head"><h2>Checklist</h2></div>
@@ -929,21 +932,9 @@
     }
   }
 
-  document.getElementById("auto-assign-btn").addEventListener("click", async () => {
-    const me = currentViewerName || "Me";
-    const changes = {};
-    Object.entries(currentItems).forEach(([id, it]) => {
-      if (it.assignee) return;
-      const lower = it.name.toLowerCase();
-      let target = me;
-      if (lower.includes("elana")) target = "Elana";
-      else if (lower.includes("shmuel")) target = "Shmuel";
-      changes[id] = { from: it.assignee || "", to: target };
-    });
-    if (Object.keys(changes).length === 0) { alert("Nothing to assign — every item already has someone."); return; }
-    const ok = confirm(`Assign ${Object.keys(changes).length} unassigned item(s) — items mentioning Elana or Shmuel go to them, everything else to "${me}"?`);
-    if (!ok) return;
-    setStatus("syncing", "Assigning…");
+  async function runBulkAssign(changes, busyLabel) {
+    if (Object.keys(changes).length === 0) { alert("Nothing to change."); return; }
+    setStatus("syncing", busyLabel);
     try {
       const updates = {};
       Object.entries(changes).forEach(([id, c]) => { updates[`items.${id}.assignee`] = c.to; });
@@ -952,8 +943,38 @@
       setStatus("synced", "Synced");
     } catch (err) {
       console.error(err);
-      setStatus("error", "Couldn't assign");
+      setStatus("error", "Couldn't save");
     }
+  }
+
+  document.getElementById("auto-assign-btn").addEventListener("click", async () => {
+    const changes = {};
+    Object.entries(currentItems).forEach(([id, it]) => {
+      if (it.assignee) return;
+      const lower = it.name.toLowerCase();
+      let target = "Dad";
+      if (lower.includes("elana")) target = "Mom";
+      else if (lower.includes("shmuel")) target = "Shmu";
+      changes[id] = { from: it.assignee || "", to: target };
+    });
+    if (Object.keys(changes).length === 0) { alert("Nothing to assign — every item already has someone."); return; }
+    const ok = confirm(`Assign ${Object.keys(changes).length} unassigned item(s) — items mentioning Elana go to Mom, Shmuel go to Shmu, everything else to Dad?`);
+    if (!ok) return;
+    await runBulkAssign(changes, "Assigning…");
+  });
+
+  document.getElementById("fix-names-btn").addEventListener("click", async () => {
+    const changes = {};
+    Object.entries(currentItems).forEach(([id, it]) => {
+      if (!it.assignee) return;
+      if (it.assignee === "Elana") changes[id] = { from: it.assignee, to: "Mom" };
+      else if (it.assignee === "Shmuel") changes[id] = { from: it.assignee, to: "Shmu" };
+      else if (!PRESET_ASSIGNEES.includes(it.assignee)) changes[id] = { from: it.assignee, to: "Dad" };
+    });
+    if (Object.keys(changes).length === 0) { alert("Nothing to fix — everything already matches Dad, Mom, Mo, Shmu, or Daniel."); return; }
+    const ok = confirm(`Relabel ${Object.keys(changes).length} item(s): "Elana" → Mom, "Shmuel" → Shmu, anything else non-standard → Dad?`);
+    if (!ok) return;
+    await runBulkAssign(changes, "Fixing…");
   });
 
   document.getElementById("archives-btn").addEventListener("click", openArchivesModal);
