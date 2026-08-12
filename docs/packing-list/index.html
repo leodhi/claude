@@ -86,6 +86,11 @@
 
   .toolbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 16px; }
   .search-wrap { flex: 1; min-width: 200px; }
+  .open-only-toggle {
+    display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--ink-muted);
+    cursor: pointer; user-select: none; white-space: nowrap;
+  }
+  .open-only-toggle input { accent-color: var(--accent); width: 15px; height: 15px; }
   #search-input {
     width: 100%; background: var(--surface); border: 1px solid var(--border); border-radius: 8px;
     padding: 9px 12px; color: var(--ink); font-size: 14px; font-family: inherit; box-shadow: var(--shadow);
@@ -114,6 +119,13 @@
   }
   .assignee-chip:hover { border-color: var(--accent); color: var(--accent); }
   .assignee-chip.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+
+  .quick-assignees { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 6px; }
+  .quick-assignees button {
+    font: inherit; cursor: pointer; border-radius: 999px; border: 1px solid var(--border);
+    background: var(--surface-2); color: var(--ink-muted); padding: 3px 10px; font-size: 12px;
+  }
+  .quick-assignees button:hover, .quick-assignees button.active { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }
 
   .item-tag {
     font-size: 11px; font-weight: 600; color: var(--accent); background: var(--accent-soft);
@@ -166,7 +178,7 @@
   <header>
     <div>
       <h1>Niagara Packing List</h1>
-      <p>Check off items and add or remove things — updates appear for everyone with this link, in real time.</p>
+      <p>Tap the checkbox next to an item to mark it packed — updates appear for everyone with this link, in real time.</p>
     </div>
     <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
       <button type="button" id="undo-btn" class="undo-btn" disabled>Undo</button>
@@ -180,6 +192,7 @@
     <div class="search-wrap">
       <input type="text" id="search-input" placeholder="Search items…" aria-label="Search items">
     </div>
+    <label class="open-only-toggle"><input type="checkbox" id="open-only-toggle"> Show only what's left</label>
     <div class="viewers" id="viewers"></div>
     <button type="button" id="change-name-btn" class="link-btn">Change name</button>
   </div>
@@ -197,7 +210,12 @@
       <form class="add-form" id="add-form">
         <div><label for="ci-name">Item</label><input type="text" id="ci-name" placeholder="Add anything" required></div>
         <div><label for="ci-cat">Category</label><select id="ci-cat"></select></div>
-        <div><label for="ci-assignee">Assign to <span style="text-transform:none; font-weight:400;">(optional)</span></label><input type="text" id="ci-assignee" list="assignee-list" placeholder="e.g. Elana"><datalist id="assignee-list"></datalist></div>
+        <div>
+          <label for="ci-assignee">Assign to <span style="text-transform:none; font-weight:400;">(optional)</span></label>
+          <input type="text" id="ci-assignee" list="assignee-list" placeholder="e.g. Elana">
+          <datalist id="assignee-list"></datalist>
+          <div class="quick-assignees" id="quick-assignees"></div>
+        </div>
         <div id="ci-cat-new-wrap" style="display:none;"><label for="ci-cat-new">New category name</label><input type="text" id="ci-cat-new" placeholder="e.g. Beach house"></div>
         <button type="submit">Add</button>
       </form>
@@ -248,6 +266,8 @@
     "Kids": "🧸", "Beach & pool": "🏖️", "Bags & practical": "🎒"
   };
   function catIcon(name) { return CAT_ICONS[name] || "📦"; }
+
+  const PRESET_ASSIGNEES = ["Dad", "Mom", "Mo", "Shmu", "Daniel"];
 
   const SEED = [
     ["Before we leave", "Feed the fish (Debbie)"],
@@ -410,6 +430,7 @@
   let pendingRerender = false;
   let searchQuery = "";
   let assigneeFilter = null;
+  let openOnly = false;
   let collapsedCats = new Set(JSON.parse(localStorage.getItem("packing-collapsed-cats") || "[]"));
   function saveCollapsed() { localStorage.setItem("packing-collapsed-cats", JSON.stringify([...collapsedCats])); }
 
@@ -425,9 +446,17 @@
 
   function renderAssigneeFilter(names) {
     const el = document.getElementById("assignee-filter");
-    if (names.length === 0) { el.innerHTML = ""; return; }
     el.innerHTML = names.map(n => `
       <button type="button" class="assignee-chip${assigneeFilter === n ? " active" : ""}" data-assignee-filter="${escapeAttr(n)}">${escapeHtml(n)}</button>`).join("");
+  }
+
+  function renderQuickAssignees(names) {
+    const el = document.getElementById("quick-assignees");
+    const assigneeInput = document.getElementById("ci-assignee");
+    el.innerHTML = names.map(n => `<button type="button" data-quick-assignee="${escapeAttr(n)}">${escapeHtml(n)}</button>`).join("");
+    el.querySelectorAll("[data-quick-assignee]").forEach(btn => {
+      btn.classList.toggle("active", assigneeInput.value === btn.dataset.quickAssignee);
+    });
   }
 
   function render() {
@@ -448,9 +477,11 @@
     const categoryOrder = [...CUSTOM_CATEGORIES, ...extraCats];
     renderCatOptions(categoryOrder);
 
-    const allAssignees = [...new Set(Object.values(currentItems).map(i => i.assignee).filter(Boolean))].sort();
+    const usedAssignees = [...new Set(Object.values(currentItems).map(i => i.assignee).filter(Boolean))].sort();
+    const allAssignees = [...new Set([...PRESET_ASSIGNEES, ...usedAssignees])];
     renderAssigneeOptions(allAssignees);
     renderAssigneeFilter(allAssignees);
+    renderQuickAssignees(PRESET_ASSIGNEES);
 
     categoryOrder.forEach(catName => {
       const items = byCat[catName];
@@ -461,6 +492,7 @@
       let visibleItems = items;
       if (searchQuery) visibleItems = visibleItems.filter(i => i.name.toLowerCase().includes(searchQuery));
       if (assigneeFilter) visibleItems = visibleItems.filter(i => i.assignee === assigneeFilter);
+      if (openOnly) visibleItems = visibleItems.filter(i => !i.checked);
       if (visibleItems.length === 0) return;
 
       const isCollapsed = collapsedCats.has(catName);
@@ -728,6 +760,21 @@
   document.getElementById("search-input").addEventListener("input", e => {
     searchQuery = e.target.value.trim().toLowerCase();
     render();
+  });
+
+  // Show only what's left
+  document.getElementById("open-only-toggle").addEventListener("change", e => {
+    openOnly = e.target.checked;
+    render();
+  });
+
+  // Quick-pick assignee buttons on the add form
+  document.getElementById("quick-assignees").addEventListener("click", e => {
+    const btn = e.target.closest("[data-quick-assignee]");
+    if (!btn) return;
+    const assigneeInput = document.getElementById("ci-assignee");
+    assigneeInput.value = assigneeInput.value === btn.dataset.quickAssignee ? "" : btn.dataset.quickAssignee;
+    renderQuickAssignees(PRESET_ASSIGNEES);
   });
 
   // Floating add button
