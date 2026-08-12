@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Niagara Packing List</title>
 <style>
   :root {
@@ -165,17 +165,17 @@
   .cat-block.collapsed .cat-items { display: none; }
 
   .fab {
-    position: fixed; bottom: 24px; right: 24px; width: 56px; height: 56px; border-radius: 50%;
+    position: fixed; bottom: calc(24px + env(safe-area-inset-bottom)); right: 24px; width: 56px; height: 56px; border-radius: 50%;
     background: var(--accent); color: #fff; border: none; font-size: 28px; line-height: 1;
-    box-shadow: 0 4px 16px rgba(0,0,0,0.2); cursor: pointer; z-index: 10;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.2); cursor: pointer; z-index: 20;
   }
   .fab:hover { filter: brightness(1.08); }
   .fab:focus-visible { outline: 2px solid var(--ink); outline-offset: 3px; }
 
   .chat-toggle {
-    position: fixed; bottom: 24px; left: 24px; width: 44px; height: 44px; border-radius: 50%;
+    position: fixed; bottom: calc(24px + env(safe-area-inset-bottom)); left: 24px; width: 44px; height: 44px; border-radius: 50%;
     background: var(--surface); color: var(--ink); border: 1px solid var(--border); font-size: 18px;
-    box-shadow: 0 4px 16px rgba(0,0,0,0.18); cursor: pointer; z-index: 10;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.18); cursor: pointer; z-index: 20;
     display: flex; align-items: center; justify-content: center;
   }
   .chat-toggle:hover { border-color: var(--accent); }
