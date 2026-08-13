@@ -234,8 +234,11 @@
   </div>
 
   <div class="panel">
-    <div class="panel-head"><h2>Bulk import</h2></div>
-    <div class="panel-body">
+    <div class="panel-head">
+      <h2>Bulk import</h2>
+      <button type="button" id="bulk-import-toggle" class="undo-btn">Show</button>
+    </div>
+    <div class="panel-body" id="bulk-import-body" style="display:none;">
       <p style="color:var(--ink-muted);font-size:13px;margin:0 0 10px;">One subscription per line. Format: <code>Name, Category, Cost, Interval, Unit, YYYY-MM-DD</code> — trailing fields are optional and default to Other / $0 / every 1 month / today, so you can paste names now and fill in real numbers later by editing each row.</p>
       <textarea id="bulk-import-text" rows="6" style="width:100%;background:var(--surface-2);border:1px solid var(--border);border-radius:6px;padding:8px;color:var(--ink);font-size:13px;font-family:ui-monospace,monospace;"></textarea>
       <button type="button" id="bulk-import-btn" class="undo-btn" style="margin-top:8px;">Import lines</button>
@@ -681,6 +684,18 @@
     if (fCat.value === NEW_CAT_VALUE) fCatNew.value = "";
     document.getElementById("f-name").focus();
   });
+
+  const bulkImportBody = document.getElementById("bulk-import-body");
+  const bulkImportToggle = document.getElementById("bulk-import-toggle");
+  function setBulkImportOpen(open) {
+    bulkImportBody.style.display = open ? "" : "none";
+    bulkImportToggle.textContent = open ? "Hide" : "Show";
+    try { localStorage.setItem("subs-bulk-import-open", open ? "1" : "0"); } catch (e) {}
+  }
+  let bulkImportWasOpen = false;
+  try { bulkImportWasOpen = localStorage.getItem("subs-bulk-import-open") === "1"; } catch (e) {}
+  setBulkImportOpen(bulkImportWasOpen);
+  bulkImportToggle.addEventListener("click", () => setBulkImportOpen(bulkImportBody.style.display === "none"));
 
   document.getElementById("bulk-import-btn").addEventListener("click", async () => {
     const raw = document.getElementById("bulk-import-text").value;
