@@ -176,6 +176,9 @@
       <h1 style="font-family:Georgia,serif;font-weight:400;">Subscription Ledger</h1>
       <p style="color:var(--ink-muted);margin-bottom:20px;">Sign in to view your data. Nobody else can see or edit it, even with this link.</p>
       <button type="button" id="signin-btn" class="undo-btn" style="padding:10px 20px;">Sign in with Google</button>
+      <p style="color:var(--ink-faint);font-size:12.5px;margin:16px 0 8px;">Google sign-in not working on this device/browser? Use an email link instead:</p>
+      <input type="email" id="signin-email" placeholder="you@example.com" style="width:100%;max-width:280px;background:var(--surface-2);border:1px solid var(--border);border-radius:6px;padding:8px 10px;color:var(--ink);font-size:14px;font-family:inherit;">
+      <div style="margin-top:8px;"><button type="button" id="signin-email-btn" class="undo-btn">Email me a sign-in link</button></div>
       <p id="signin-status" style="color:var(--ink-faint);font-size:12.5px;margin-top:14px;"></p>
     </div>
   </div>
@@ -288,7 +291,8 @@
     getFirestore, doc, onSnapshot, setDoc, updateDoc, deleteField, getDoc
   } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
   import {
-    getAuth, GoogleAuthProvider, signInWithPopup, signInWithRedirect, getRedirectResult, signOut, onAuthStateChanged
+    getAuth, GoogleAuthProvider, signInWithPopup, signInWithRedirect, getRedirectResult, signOut, onAuthStateChanged,
+    sendSignInLinkToEmail, isSignInWithEmailLink, signInWithEmailLink
   } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
 
   const firebaseConfig = {
@@ -343,6 +347,44 @@
     signinStatus.textContent = "Sign-in failed: " + (err && err.message ? err.message : "try again");
   });
 
+  // ---------- Email-link sign-in ----------
+  // A same-site fallback for when Google's popup/redirect flow can't
+  // complete -- most commonly Safari blocking the third-party storage that
+  // flow needs against packing-list-3c532.firebaseapp.com. A sign-in link
+  // only ever involves this page and the user's own inbox, no cross-site
+  // handshake at all.
+  document.getElementById("signin-email-btn").addEventListener("click", async () => {
+    const email = document.getElementById("signin-email").value.trim();
+    if (!email) { signinStatus.textContent = "Enter your email first."; return; }
+    signinStatus.textContent = "Sending…";
+    try {
+      await sendSignInLinkToEmail(authClient, email, {
+        url: window.location.href.split("?")[0],
+        handleCodeInApp: true
+      });
+      try { localStorage.setItem("subs-email-for-signin", email); } catch (e) {}
+      signinStatus.textContent = "Check " + email + " for a sign-in link, then open it on this device.";
+    } catch (err) {
+      signinStatus.textContent = "Couldn't send link: " + (err && err.message ? err.message : "try again");
+    }
+  });
+
+  (async function completeEmailLinkSignIn() {
+    if (!isSignInWithEmailLink(authClient, window.location.href)) return;
+    let email = null;
+    try { email = localStorage.getItem("subs-email-for-signin"); } catch (e) {}
+    if (!email) email = window.prompt("Confirm your email to finish signing in:");
+    if (!email) return;
+    signinStatus.textContent = "Signing you in…";
+    try {
+      await signInWithEmailLink(authClient, email, window.location.href);
+      try { localStorage.removeItem("subs-email-for-signin"); } catch (e) {}
+      history.replaceState(null, "", window.location.href.split("?")[0]);
+    } catch (err) {
+      signinStatus.textContent = "Sign-in link failed: " + (err && err.message ? err.message : "request a new one");
+    }
+  })();
+
   document.getElementById("clear-all-btn").addEventListener("click", async () => {
     if (!state.subs.length) return;
     const ok = await showConfirm(`Remove all ${state.subs.length} subscriptions? This cannot be undone.`, "Clear All");
@@ -373,13 +415,25 @@
     signinStatus.textContent = "Checking access…";
     try {
       const snap = await getDoc(ledgerRef);
-      if (!snap.exists() || !snap.data().ownerUid) {
+      const data = snap.exists() ? snap.data() : {};
+      const hasOwner = !!(data.ownerUid || data.ownerEmail);
+      if (!hasOwner) {
         // First person ever to sign in claims this ledger permanently.
-        await setDoc(ledgerRef, { ownerUid: user.uid }, { merge: true });
-      } else if (snap.data().ownerUid !== user.uid) {
-        pendingDeniedMessage = "This ledger belongs to a different account. Signed in as " + user.email + ".";
-        await signOut(authClient);
-        return;
+        // Both fields are stored so any sign-in method (Google popup/redirect
+        // or email link -- each gets its own separate Firebase uid for the
+        // same person) is recognized as the same owner going forward.
+        await setDoc(ledgerRef, { ownerUid: user.uid, ownerEmail: user.email }, { merge: true });
+      } else {
+        const matches = (data.ownerEmail && data.ownerEmail === user.email) || (data.ownerUid && data.ownerUid === user.uid);
+        if (!matches) {
+          pendingDeniedMessage = "This ledger belongs to a different account. Signed in as " + user.email + ".";
+          await signOut(authClient);
+          return;
+        }
+        // Backfill ownerEmail for ledgers claimed before email-based matching existed.
+        if (!data.ownerEmail && user.email) {
+          await setDoc(ledgerRef, { ownerEmail: user.email }, { merge: true });
+        }
       }
     } catch (err) {
       pendingDeniedMessage = "Couldn't verify access: " + (err && err.message ? err.message : "try again");
