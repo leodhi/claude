@@ -299,7 +299,7 @@
   import {
     getAuth, GoogleAuthProvider, signInWithPopup, signInWithRedirect, getRedirectResult, signOut, onAuthStateChanged,
     sendSignInLinkToEmail, isSignInWithEmailLink, signInWithEmailLink,
-    createUserWithEmailAndPassword, signInWithEmailAndPassword
+    createUserWithEmailAndPassword, signInWithEmailAndPassword, sendEmailVerification
   } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
 
   const firebaseConfig = {
@@ -459,9 +459,21 @@
         // same person) is recognized as the same owner going forward.
         await setDoc(ledgerRef, { ownerUid: user.uid, ownerEmail: user.email }, { merge: true });
       } else {
-        const matches = (data.ownerEmail && data.ownerEmail === user.email) || (data.ownerUid && data.ownerUid === user.uid);
-        if (!matches) {
-          pendingDeniedMessage = "This ledger belongs to a different account. Signed in as " + user.email + ".";
+        const matchesUid = data.ownerUid && data.ownerUid === user.uid;
+        // Anyone can TYPE an email into the password sign-up form without
+        // proving they own it -- Google and email-link sign-in both prove
+        // ownership inherently (Firebase marks those verified automatically),
+        // but a freshly created password account starts unverified. Requiring
+        // emailVerified here is what stops someone from just guessing your
+        // email and getting treated as the owner without your password.
+        const matchesVerifiedEmail = data.ownerEmail && data.ownerEmail === user.email && user.emailVerified;
+        if (!matchesUid && !matchesVerifiedEmail) {
+          if (data.ownerEmail === user.email && !user.emailVerified) {
+            try { await sendEmailVerification(user); } catch (e) {}
+            pendingDeniedMessage = "Almost there — verify your email first. A verification link was just sent to " + user.email + "; click it, then sign in again.";
+          } else {
+            pendingDeniedMessage = "This ledger belongs to a different account. Signed in as " + user.email + ".";
+          }
           await signOut(authClient);
           return;
         }
