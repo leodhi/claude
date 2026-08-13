@@ -288,7 +288,7 @@
     getFirestore, doc, onSnapshot, setDoc, updateDoc, deleteField, getDoc
   } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
   import {
-    getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged
+    getAuth, GoogleAuthProvider, signInWithPopup, signInWithRedirect, getRedirectResult, signOut, onAuthStateChanged
   } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
 
   const firebaseConfig = {
@@ -315,15 +315,33 @@
   const appWrap = document.getElementById("app-wrap");
   const signinStatus = document.getElementById("signin-status");
 
+  // Popups are unreliable on mobile Safari/Chrome (cookie and window
+  // restrictions commonly surface as auth/network-request-failed even with
+  // a fine connection) -- redirect works everywhere, so mobile browsers get
+  // that instead. Desktop keeps the popup since it doesn't leave the page.
+  function isMobileBrowser() {
+    return /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+  }
+
   document.getElementById("signin-btn").addEventListener("click", async () => {
     signinStatus.textContent = "Opening Google sign-in…";
     try {
-      await signInWithPopup(authClient, new GoogleAuthProvider());
+      if (isMobileBrowser()) {
+        await signInWithRedirect(authClient, new GoogleAuthProvider());
+      } else {
+        await signInWithPopup(authClient, new GoogleAuthProvider());
+      }
     } catch (err) {
       signinStatus.textContent = "Sign-in failed: " + (err && err.message ? err.message : "try again");
     }
   });
   document.getElementById("signout-btn").addEventListener("click", () => signOut(authClient));
+
+  // Surfaces errors from the redirect flow above (e.g. the user cancelled)
+  // once they're navigated back to this page after signing in on Google's site.
+  getRedirectResult(authClient).catch(err => {
+    signinStatus.textContent = "Sign-in failed: " + (err && err.message ? err.message : "try again");
+  });
 
   document.getElementById("clear-all-btn").addEventListener("click", async () => {
     if (!state.subs.length) return;
