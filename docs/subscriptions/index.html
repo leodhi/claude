@@ -252,7 +252,10 @@
   </div>
 
   <div class="panel">
-    <div class="panel-head"><h2>Subscriptions</h2></div>
+    <div class="panel-head">
+      <h2>Subscriptions</h2>
+      <button type="button" id="clear-all-btn" class="undo-btn">Clear all</button>
+    </div>
     <div class="panel-body">
       <div class="table-toolbar">
         <div class="search-wrap"><input type="text" id="search-input" placeholder="Search subscriptions…" aria-label="Search subscriptions"></div>
@@ -321,6 +324,16 @@
     }
   });
   document.getElementById("signout-btn").addEventListener("click", () => signOut(authClient));
+
+  document.getElementById("clear-all-btn").addEventListener("click", async () => {
+    if (!state.subs.length) return;
+    const ok = await showConfirm(`Remove all ${state.subs.length} subscriptions? This cannot be undone.`, "Clear All");
+    if (!ok) return;
+    const updates = {};
+    state.subs.forEach(s => { updates[`subs.${s.id}`] = deleteField(); });
+    await updateDoc(ledgerRef, updates);
+    showToast("Cleared all subscriptions");
+  });
 
   // A forced sign-out (wrong account, or a verification error) fires this
   // same handler again with user=null -- pendingDeniedMessage survives that
