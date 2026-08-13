@@ -74,9 +74,9 @@
   header p { margin: 0; color: var(--ink-muted); max-width: 58ch; }
   .sync-status { font-size: 12px; color: var(--ink-faint); margin-top: 6px; }
 
-  .summary { display: grid; grid-template-columns: repeat(4,1fr); gap: 12px; margin-bottom: 20px; }
-  @media (max-width: 720px) { .summary { grid-template-columns: 1fr 1fr; } }
-  .stat { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 15px 17px; box-shadow: var(--shadow); }
+  .summary { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-bottom: 20px; }
+  @media (max-width: 720px) { .summary { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); } }
+  .stat { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 15px 17px; box-shadow: var(--shadow); min-width: 0; }
   .stat .k { font-size: 11px; text-transform: uppercase; letter-spacing: 0.07em; color: var(--ink-faint); font-weight: 600; margin-bottom: 6px; }
   .stat .v { font-size: 22px; font-weight: 600; font-variant-numeric: tabular-nums; }
   .stat .sub { font-size: 12px; color: var(--ink-muted); margin-top: 2px; }
@@ -86,8 +86,8 @@
   .panel-head h2 { font-size: 13px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--ink-faint); font-weight: 600; margin: 0; }
   .panel-body { padding: 18px 20px; }
 
-  form.add-form { display: grid; grid-template-columns: 1.4fr 1fr 1fr 1fr 1fr auto; gap: 8px; align-items: end; }
-  @media (max-width: 800px) { form.add-form { grid-template-columns: 1fr 1fr; } }
+  form.add-form { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr) auto; gap: 8px; align-items: end; }
+  @media (max-width: 800px) { form.add-form { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); } }
   .add-form label { display: block; font-size: 11px; color: var(--ink-faint); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 4px; }
   .add-form input, .add-form select { width: 100%; }
   input[type="text"], input[type="number"], input[type="date"], select {
@@ -136,8 +136,8 @@
   .edit-btn:hover { color: var(--accent); }
   .empty { color: var(--ink-faint); font-size: 13px; padding: 10px 2px; }
 
-  .edit-row-form { display: grid; grid-template-columns: 1.4fr 1fr 1fr 1fr 1fr auto auto; gap: 8px; align-items: end; padding: 6px 0; }
-  @media (max-width: 800px) { .edit-row-form { grid-template-columns: 1fr 1fr; } }
+  .edit-row-form { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr) auto auto; gap: 8px; align-items: end; padding: 6px 0; }
+  @media (max-width: 800px) { .edit-row-form { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); } }
   .edit-row-form label { display: block; font-size: 11px; color: var(--ink-faint); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 4px; }
   .edit-row-form input, .edit-row-form select { width: 100%; }
   .edit-row-form button { font: inherit; cursor: pointer; border-radius: 6px; padding: 8px 14px; font-size: 13px; font-weight: 600; }
