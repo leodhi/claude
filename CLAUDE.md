@@ -43,3 +43,20 @@ This single repo hosts multiple unrelated projects, all served from one GitHub P
 - **Firebase's default Google sign-in (popup or redirect) relies on a cross-domain iframe/storage handshake** against the project's `authDomain`, which mobile Safari's default third-party storage blocking (and some managed/corporate device profiles) can break in ways that look like app bugs but aren't. The subscriptions app supports Google, email-link, and email+password sign-in specifically so there's always a fallback that doesn't depend on that handshake.
 - **A PR merge from another branch can bring in an older snapshot of a file than that branch's actual current tip**, if the PR was opened before the branch kept evolving. If something looks reverted after a merge, diff against the branch's actual current HEAD, not just the merged commit.
 - When a user reports data loss or "this used to work," verify what actually changed (git history, live `curl`, Firestore REST reads) before concluding what happened — and before reassuring anyone nothing was lost.
+
+## How to communicate with this user
+
+- The user is new to Claude Code and AI coding tools generally. When explaining how to do something, skip unnecessary jargon — explain plainly, or better, just do it directly rather than describing the steps for them to do it.
+- If you're not sure what the user means, ask. If something needs a factual answer (an API's actual behavior, a product's actual settings layout), look it up rather than guessing and presenting the guess as fact.
+- Don't give up on a request just because the first approach doesn't pan out. Before concluding something "can't be done" or suggesting a workaround (e.g. "just use a different device"), think through other real approaches and try them — the fix often turns out to exist. If the user has to be the one to suggest the next idea, that's a sign to slow down and think harder before answering, not a one-off.
+
+## Verifying a bug fix
+
+- Never declare a bug fixed based on reading the code alone. Reproduce the actual symptom first — render it, run it, simulate it, screenshot it — then confirm the same reproduction no longer shows the symptom after the change.
+- Keep looking for other contributing causes even after finding one plausible bug. One explanation that fits isn't the same as the only explanation — don't stop at the first one that seems plausible.
+
+## Git/PR workflow (this repo)
+
+- After pushing a fix or feature branch, always open a pull request. Pushing to a branch alone is not "done."
+- Once the fix/feature is verified working (per the reproduction rule above), push the branch, open the PR, and merge it in the same pass — don't stop and wait for approval to merge. Merging is part of finishing the task, not a separate step that needs sign-off.
+- Exception: never merge or overwrite changes touching other unrelated projects/branches that already live in this shared repo without explicit confirmation first — this repo hosts multiple people's/sessions' separate projects side by side, and "done" on one project's task never means touching another's.
