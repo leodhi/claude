@@ -115,12 +115,16 @@
   .cat-chip:hover { border-color: var(--accent); color: var(--accent); }
   .cat-chip.active { background: var(--accent); border-color: var(--accent); color: #fff; }
 
-  .table-scroll { overflow-x: auto; }
-  table { width: 100%; border-collapse: collapse; margin-top: 4px; }
-  th { text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--ink-faint); font-weight: 600; padding: 0 8px 8px; white-space: nowrap; }
-  td { padding: 9px 8px; border-top: 1px solid var(--border); font-size: 13.5px; vertical-align: middle; }
+  .table-scroll { overflow-x: hidden; }
+  table { width: 100%; table-layout: fixed; border-collapse: collapse; margin-top: 4px; }
+  th:nth-child(1), td:nth-child(1) { width: 42%; }
+  th:nth-child(2), td:nth-child(2) { width: 27%; }
+  th:nth-child(3), td:nth-child(3) { width: 27%; }
+  th:nth-child(4), td:nth-child(4) { width: 64px; }
+  th { text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--ink-faint); font-weight: 600; padding: 0 8px 8px; overflow-wrap: break-word; }
+  td { padding: 9px 8px; border-top: 1px solid var(--border); font-size: 13.5px; vertical-align: middle; overflow-wrap: break-word; }
   td.num { text-align: right; font-variant-numeric: tabular-nums; }
-  .name-cell { display: flex; flex-direction: column; max-width: 46vw; }
+  .name-cell { display: flex; flex-direction: column; min-width: 0; }
   .name-cell span { overflow-wrap: break-word; }
   .name-cell .cat { font-size: 11px; color: var(--ink-faint); }
   .pill { display: inline-block; padding: 3px 9px; border-radius: 999px; font-size: 12px; font-weight: 600; }
