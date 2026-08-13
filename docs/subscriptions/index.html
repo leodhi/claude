@@ -224,6 +224,19 @@
   </div>
 
   <div class="panel">
+    <div class="panel-head">
+      <h2>Quick add by voice</h2>
+      <button type="button" id="voice-add-toggle" class="undo-btn">Show</button>
+    </div>
+    <div class="panel-body" id="voice-add-body" style="display:none;">
+      <p style="color:var(--ink-muted);font-size:13px;margin:0 0 10px;">Tap the box, then tap the microphone on your keyboard and just talk — no commas needed. Say the name, the cost, how often it renews, and the renewal date, e.g. <em>"Weight Watchers ten dollars and eighty seven cents a month renewing August ninth."</em> Say "period" (or start a new line) between multiple subscriptions to add several at once. Category and renewal date are optional — pause a beat if you want to name a category as one of Other/Streaming/Software/Fitness/News/Cloud/Home, and it'll be picked up if mentioned.</p>
+      <textarea id="voice-add-text" rows="4" style="width:100%;background:var(--surface-2);border:1px solid var(--border);border-radius:6px;padding:8px;color:var(--ink);font-size:13px;font-family:inherit;" placeholder="Tap here, then tap the mic and talk…"></textarea>
+      <button type="button" id="voice-add-btn" class="undo-btn" style="margin-top:8px;">Add from text</button>
+      <div id="voice-add-status" style="margin-top:8px;color:var(--ink-faint);font-size:12.5px;white-space:pre-line;"></div>
+    </div>
+  </div>
+
+  <div class="panel">
     <div class="panel-head"><h2>Add subscription</h2></div>
     <div class="panel-body">
       <form class="add-form" id="add-form">
@@ -272,19 +285,6 @@
         </table>
       </div>
       <p class="empty" id="subs-empty">No subscriptions yet — add your first above.</p>
-    </div>
-  </div>
-
-  <div class="panel">
-    <div class="panel-head">
-      <h2>Quick add by voice</h2>
-      <button type="button" id="voice-add-toggle" class="undo-btn">Show</button>
-    </div>
-    <div class="panel-body" id="voice-add-body" style="display:none;">
-      <p style="color:var(--ink-muted);font-size:13px;margin:0 0 10px;">Tap the box, then tap the microphone on your keyboard and just talk — no commas needed. Say the name, the cost, how often it renews, and the renewal date, e.g. <em>"Weight Watchers ten dollars and eighty seven cents a month renewing August ninth."</em> Say "period" (or start a new line) between multiple subscriptions to add several at once. Category and renewal date are optional — pause a beat if you want to name a category as one of Other/Streaming/Software/Fitness/News/Cloud/Home, and it'll be picked up if mentioned.</p>
-      <textarea id="voice-add-text" rows="4" style="width:100%;background:var(--surface-2);border:1px solid var(--border);border-radius:6px;padding:8px;color:var(--ink);font-size:13px;font-family:inherit;" placeholder="Tap here, then tap the mic and talk…"></textarea>
-      <button type="button" id="voice-add-btn" class="undo-btn" style="margin-top:8px;">Add from text</button>
-      <div id="voice-add-status" style="margin-top:8px;color:var(--ink-faint);font-size:12.5px;white-space:pre-line;"></div>
     </div>
   </div>
 
