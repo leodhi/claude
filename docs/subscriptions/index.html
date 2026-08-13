@@ -277,6 +277,19 @@
 
   <div class="panel">
     <div class="panel-head">
+      <h2>Quick add by voice</h2>
+      <button type="button" id="voice-add-toggle" class="undo-btn">Show</button>
+    </div>
+    <div class="panel-body" id="voice-add-body" style="display:none;">
+      <p style="color:var(--ink-muted);font-size:13px;margin:0 0 10px;">Tap the box, then tap the microphone on your keyboard and just talk — no commas needed. Say the name, the cost, how often it renews, and the renewal date, e.g. <em>"Weight Watchers ten dollars and eighty seven cents a month renewing August ninth."</em> Say "period" (or start a new line) between multiple subscriptions to add several at once. Category and renewal date are optional — pause a beat if you want to name a category as one of Other/Streaming/Software/Fitness/News/Cloud/Home, and it'll be picked up if mentioned.</p>
+      <textarea id="voice-add-text" rows="4" style="width:100%;background:var(--surface-2);border:1px solid var(--border);border-radius:6px;padding:8px;color:var(--ink);font-size:13px;font-family:inherit;" placeholder="Tap here, then tap the mic and talk…"></textarea>
+      <button type="button" id="voice-add-btn" class="undo-btn" style="margin-top:8px;">Add from text</button>
+      <div id="voice-add-status" style="margin-top:8px;color:var(--ink-faint);font-size:12.5px;white-space:pre-line;"></div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-head">
       <h2>Bulk import</h2>
       <button type="button" id="bulk-import-toggle" class="undo-btn">Show</button>
     </div>
@@ -875,6 +888,187 @@
     }
     statusEl.textContent = `Imported ${added} subscription${added === 1 ? "" : "s"}.`;
     document.getElementById("bulk-import-text").value = "";
+  });
+
+  // ---------- Voice add ----------
+  // Parses free-form dictated text ("Weight Watchers ten dollars and eighty
+  // seven cents a month renewing August ninth") instead of requiring a
+  // strict comma format -- built because saying "comma" out loud for every
+  // field is exactly the friction that makes people ask someone else to do
+  // it for them instead.
+  const voiceAddBody = document.getElementById("voice-add-body");
+  const voiceAddToggle = document.getElementById("voice-add-toggle");
+  function setVoiceAddOpen(open) {
+    voiceAddBody.style.display = open ? "" : "none";
+    voiceAddToggle.textContent = open ? "Hide" : "Show";
+    try { localStorage.setItem("subs-voice-add-open", open ? "1" : "0"); } catch (e) {}
+  }
+  let voiceAddWasOpen = false;
+  try { voiceAddWasOpen = localStorage.getItem("subs-voice-add-open") === "1"; } catch (e) {}
+  setVoiceAddOpen(voiceAddWasOpen);
+  voiceAddToggle.addEventListener("click", () => setVoiceAddOpen(voiceAddBody.style.display === "none"));
+
+  function splitVoiceEntries(raw) {
+    return raw
+      .split(/\n+/)
+      .flatMap(line => line.split(/\.\s+(?=[A-Za-z])/))
+      .map(s => s.replace(/\.$/, "").trim())
+      .filter(Boolean);
+  }
+
+  const VOICE_WORDS_TO_NUM = {
+    zero: 0, one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10,
+    eleven: 11, twelve: 12, thirteen: 13, fourteen: 14, fifteen: 15, sixteen: 16, seventeen: 17, eighteen: 18, nineteen: 19,
+    twenty: 20, thirty: 30, forty: 40, fifty: 50, sixty: 60, seventy: 70, eighty: 80, ninety: 90
+  };
+  const VOICE_NUM_WORD_KEYS = Object.keys(VOICE_WORDS_TO_NUM).concat(["hundred", "and"]);
+  const VOICE_NUM_WORD_PATTERN = `(?:${VOICE_NUM_WORD_KEYS.join("|")})`;
+  const VOICE_NUM_PHRASE_PATTERN = `${VOICE_NUM_WORD_PATTERN}(?:[\\s-]+${VOICE_NUM_WORD_PATTERN})*`;
+
+  function voiceWordsToNumber(phrase) {
+    const words = phrase.toLowerCase().replace(/-/g, " ").trim().split(/\s+/).filter(w => w !== "and");
+    let total = 0, current = 0;
+    for (const w of words) {
+      if (w === "hundred") current = (current || 1) * 100;
+      else if (VOICE_WORDS_TO_NUM[w] !== undefined) current += VOICE_WORDS_TO_NUM[w];
+      else return null;
+    }
+    total += current;
+    return total;
+  }
+
+  const VOICE_MONTHS = {
+    january: 0, jan: 0, february: 1, feb: 1, march: 2, mar: 2, april: 3, apr: 3,
+    may: 4, june: 5, jun: 5, july: 6, jul: 6, august: 7, aug: 7,
+    september: 8, sept: 8, sep: 8, october: 9, oct: 9, november: 10, nov: 10, december: 11, dec: 11
+  };
+  const VOICE_ORDINALS = {
+    first: 1, second: 2, third: 3, fourth: 4, fifth: 5, sixth: 6, seventh: 7, eighth: 8, ninth: 9, tenth: 10,
+    eleventh: 11, twelfth: 12, thirteenth: 13, fourteenth: 14, fifteenth: 15, sixteenth: 16, seventeenth: 17,
+    eighteenth: 18, nineteenth: 19, twentieth: 20,
+    "twenty first": 21, "twenty-first": 21, "twenty second": 22, "twenty-second": 22,
+    "twenty third": 23, "twenty-third": 23, "twenty fourth": 24, "twenty-fourth": 24,
+    "twenty fifth": 25, "twenty-fifth": 25, "twenty sixth": 26, "twenty-sixth": 26,
+    "twenty seventh": 27, "twenty-seventh": 27, "twenty eighth": 28, "twenty-eighth": 28,
+    "twenty ninth": 29, "twenty-ninth": 29, thirtieth: 30, "thirty first": 31, "thirty-first": 31
+  };
+  const VOICE_DAY_NUM_PATTERN = "\\d{1,2}(?:st|nd|rd|th)?";
+  const VOICE_ORDINAL_WORDS_PATTERN = Object.keys(VOICE_ORDINALS).sort((a, b) => b.length - a.length).join("|");
+  const VOICE_MONTH_PATTERN = Object.keys(VOICE_MONTHS).sort((a, b) => b.length - a.length).join("|");
+
+  function voiceDayWordToNum(rawDay) {
+    const d = rawDay.toLowerCase();
+    return /^\d/.test(d) ? parseInt(d, 10) : VOICE_ORDINALS[d];
+  }
+
+  function voiceBuildRenewDate(today, monthIdx, dayNum) {
+    const now = new Date(today + "T00:00:00");
+    let year = now.getFullYear();
+    const candidate = new Date(year, monthIdx, dayNum);
+    if (candidate < now) year += 1;
+    return `${year}-${String(monthIdx + 1).padStart(2, "0")}-${String(dayNum).padStart(2, "0")}`;
+  }
+
+  function parseVoiceEntry(text, existingCategories, today) {
+    const raw = text.trim();
+    if (!raw) return null;
+    let working = raw;
+    let m;
+
+    let cost = null, costMatchText = null;
+    if ((m = working.match(/\$\s*(\d+(?:\.\d{1,2})?)/))) {
+      cost = parseFloat(m[1]); costMatchText = m[0];
+    } else if ((m = working.match(/(\d+(?:\.\d{1,2})?)\s*dollars?(?:\s+and\s+(\d{1,2})\s*cents?)?/i))) {
+      cost = parseFloat(m[1]) + (m[2] ? parseFloat(m[2]) / 100 : 0); costMatchText = m[0];
+    } else if ((m = working.match(new RegExp(`\\b(${VOICE_NUM_PHRASE_PATTERN})\\s*dollars?(?:\\s+and\\s+(${VOICE_NUM_PHRASE_PATTERN})\\s*cents?)?`, "i")))) {
+      const dollars = voiceWordsToNumber(m[1]);
+      const cents = m[2] ? voiceWordsToNumber(m[2]) : 0;
+      if (dollars !== null) { cost = dollars + (cents || 0) / 100; costMatchText = m[0]; }
+    } else if ((m = working.match(/(\d+(?:\.\d{1,2})?)\s*(?=a\s+(?:day|week|month|year)|per\s+(?:day|week|month|year)|(?:daily|weekly|monthly|yearly|annually))/i))) {
+      cost = parseFloat(m[1]); costMatchText = m[0];
+    }
+    if (cost === null) cost = 0;
+
+    let cycleUnit = "month";
+    if (/\b(year|yearly|annually|annual)\b/i.test(working)) cycleUnit = "year";
+    else if (/\b(week|weekly)\b/i.test(working)) cycleUnit = "week";
+    else if (/\b(day|daily)\b/i.test(working)) cycleUnit = "day";
+    else if (/\b(month|monthly)\b/i.test(working)) cycleUnit = "month";
+
+    let cycleInterval = 1;
+    if ((m = working.match(/every\s+other\s+(day|week|month|year)/i))) cycleInterval = 2;
+    else if ((m = working.match(/every\s+(\d+)\s+(day|week|month|year)s?/i))) cycleInterval = parseInt(m[1], 10);
+
+    let renew = null, dateMatchText = null;
+    if (/\btoday\b/i.test(working)) {
+      renew = today; dateMatchText = "today";
+    } else if (/\btomorrow\b/i.test(working)) {
+      const d = new Date(today + "T00:00:00"); d.setDate(d.getDate() + 1);
+      renew = d.toISOString().slice(0, 10); dateMatchText = "tomorrow";
+    } else {
+      let re = new RegExp(`\\b(${VOICE_MONTH_PATTERN})\\s+(${VOICE_DAY_NUM_PATTERN}|${VOICE_ORDINAL_WORDS_PATTERN})\\b`, "i");
+      if ((m = working.match(re))) {
+        dateMatchText = m[0];
+        const monthIdx = VOICE_MONTHS[m[1].toLowerCase()];
+        const dayNum = voiceDayWordToNum(m[2]);
+        if (dayNum) renew = voiceBuildRenewDate(today, monthIdx, dayNum);
+      } else {
+        re = new RegExp(`\\b(?:the\\s+)?(${VOICE_DAY_NUM_PATTERN}|${VOICE_ORDINAL_WORDS_PATTERN})\\s+of\\s+(${VOICE_MONTH_PATTERN})\\b`, "i");
+        if ((m = working.match(re))) {
+          dateMatchText = m[0];
+          const monthIdx = VOICE_MONTHS[m[2].toLowerCase()];
+          const dayNum = voiceDayWordToNum(m[1]);
+          if (dayNum) renew = voiceBuildRenewDate(today, monthIdx, dayNum);
+        }
+      }
+    }
+    if (!renew) renew = today;
+
+    let cat = "Other", catMatchText = null;
+    for (const c of existingCategories) {
+      if (c === "Other") continue;
+      const re = new RegExp(`\\b${c.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`, "i");
+      const mm = re.exec(working);
+      if (mm) { cat = c; catMatchText = mm[0]; break; }
+    }
+
+    let nameSource = working;
+    [costMatchText, dateMatchText, catMatchText].forEach(t => { if (t) nameSource = nameSource.replace(t, " "); });
+    nameSource = nameSource
+      .replace(/\bevery\s+other\s+(day|week|month|year)\b/gi, " ")
+      .replace(/\bevery\s+\d+\s+(day|week|month|year)s?\b/gi, " ")
+      .replace(/\b(a|per)\s+(day|week|month|year)\b/gi, " ")
+      .replace(/\b(daily|weekly|monthly|yearly|annually|annual)\b/gi, " ")
+      .replace(/\b(renewing|renews|renewal|renew|starting|starts|next payment|due)\b/gi, " ")
+      .replace(/\bon\b/gi, " ")
+      .replace(/\s{2,}/g, " ")
+      .trim()
+      .replace(/[,.;:\-–]+$/, "")
+      .trim();
+
+    if (!nameSource) return null;
+    return { name: nameSource, cat, cost, cycleInterval, cycleUnit, renew };
+  }
+
+  document.getElementById("voice-add-btn").addEventListener("click", async () => {
+    const raw = document.getElementById("voice-add-text").value;
+    const entries = splitVoiceEntries(raw);
+    const statusEl = document.getElementById("voice-add-status");
+    if (!entries.length) { statusEl.textContent = "Nothing to add — dictate or type a subscription first."; return; }
+    const today = new Date().toISOString().slice(0, 10);
+    let added = 0;
+    const summary = [];
+    for (const entry of entries) {
+      const parsed = parseVoiceEntry(entry, allCategories(), today);
+      if (!parsed) { summary.push(`Couldn't understand: "${entry}"`); continue; }
+      const sub = { id: uid(), ...parsed };
+      await fsAddSub(sub);
+      pushAction({ type: "add", id: sub.id, sub: { ...sub } });
+      added++;
+      summary.push(`Added "${sub.name}" — ${fmt$(sub.cost)} ${cycleShort(sub)}, ${sub.cat}, renews ${sub.renew}`);
+    }
+    statusEl.textContent = `Added ${added} of ${entries.length}.\n` + summary.join("\n") + "\nCheck the table below and edit anything it got wrong.";
+    document.getElementById("voice-add-text").value = "";
   });
 
   document.getElementById("search-input").addEventListener("input", e => {
