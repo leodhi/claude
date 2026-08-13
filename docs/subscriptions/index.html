@@ -902,11 +902,10 @@
   function setVoiceAddOpen(open) {
     voiceAddBody.style.display = open ? "" : "none";
     voiceAddToggle.textContent = open ? "Hide" : "Show";
-    try { localStorage.setItem("subs-voice-add-open", open ? "1" : "0"); } catch (e) {}
   }
-  let voiceAddWasOpen = false;
-  try { voiceAddWasOpen = localStorage.getItem("subs-voice-add-open") === "1"; } catch (e) {}
-  setVoiceAddOpen(voiceAddWasOpen);
+  // Always starts closed on load -- unlike Bulk Import, this isn't meant to
+  // remember whether you had it open last time.
+  setVoiceAddOpen(false);
   voiceAddToggle.addEventListener("click", () => setVoiceAddOpen(voiceAddBody.style.display === "none"));
 
   function splitVoiceEntries(raw) {
