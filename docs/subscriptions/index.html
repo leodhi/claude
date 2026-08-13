@@ -229,7 +229,7 @@
       <button type="button" id="voice-add-toggle" class="undo-btn">Show</button>
     </div>
     <div class="panel-body" id="voice-add-body" style="display:none;">
-      <p style="color:var(--ink-muted);font-size:13px;margin:0 0 10px;">Tap the box, then tap the microphone on your keyboard and just talk — no commas needed. Say the name, the cost, how often it renews, and the renewal date, e.g. <em>"Weight Watchers ten dollars and eighty seven cents a month renewing August ninth."</em> Say "period" (or start a new line) between multiple subscriptions to add several at once. Category and renewal date are optional — pause a beat if you want to name a category as one of Other/Streaming/Software/Fitness/News/Cloud/Home, and it'll be picked up if mentioned.</p>
+      <p style="color:var(--ink-muted);font-size:13px;margin:0 0 10px;">Tap the box, then tap the microphone on your keyboard and just talk — no commas needed. Say the name, the cost, how often it renews, and the renewal date, e.g. <em>"Weight Watchers ten dollars and eighty seven cents a month renewing August ninth."</em> Say "period" (or start a new line) between multiple subscriptions to add several at once. Category and renewal date are optional — pause a beat if you want to name a category as one of Other/Streaming/Software/Fitness/News/Cloud/Home, and it'll be picked up if mentioned. If the name matches one you already have, it'll ask whether to update that entry instead of adding a duplicate.</p>
       <textarea id="voice-add-text" rows="4" style="width:100%;background:var(--surface-2);border:1px solid var(--border);border-radius:6px;padding:8px;color:var(--ink);font-size:13px;font-family:inherit;" placeholder="Tap here, then tap the mic and talk…"></textarea>
       <button type="button" id="voice-add-btn" class="undo-btn" style="margin-top:8px;">Add from text</button>
       <div id="voice-add-status" style="margin-top:8px;color:var(--ink-faint);font-size:12.5px;white-space:pre-line;"></div>
@@ -718,13 +718,14 @@
     toastTimer = setTimeout(() => t.classList.remove("show"), 2600);
   }
 
-  function showConfirm(message, okLabel) {
+  function showConfirm(message, okLabel, cancelLabel) {
     return new Promise(resolve => {
       const modal = document.getElementById("confirm-modal");
       document.getElementById("confirm-modal-msg").textContent = message;
       const okBtn = document.getElementById("confirm-modal-ok");
       const cancelBtn = document.getElementById("confirm-modal-cancel");
       okBtn.textContent = okLabel || "Delete";
+      cancelBtn.textContent = cancelLabel || "Cancel";
       modal.classList.add("show");
       function cleanup(result) {
         modal.classList.remove("show");
@@ -1082,6 +1083,29 @@
     for (const entry of entries) {
       const parsed = parseVoiceEntry(entry, allCategories(), today);
       if (!parsed) { summary.push(`Couldn't understand: "${entry}"`); continue; }
+
+      // Only an exact (case-insensitive) name match counts as "the same
+      // subscription" -- anything fuzzier risks silently conflating two
+      // different services with similar names (e.g. YouTube TV vs YouTube
+      // Premium), so a near-miss just falls through to adding a new row.
+      const existing = state.subs.find(s => s.name.trim().toLowerCase() === parsed.name.trim().toLowerCase());
+      if (existing) {
+        const updateInstead = await showConfirm(
+          `You already have "${existing.name}" (${fmt$(existing.cost)} ${cycleShort(existing)}, renews ${existing.renew}). Update it with these details instead of adding a duplicate?`,
+          "Update existing",
+          "Add as new"
+        );
+        if (updateInstead) {
+          const before = { name: existing.name, cat: existing.cat, cost: existing.cost, cycleInterval: existing.cycleInterval, cycleUnit: existing.cycleUnit, renew: existing.renew };
+          const after = { name: parsed.name, cat: parsed.cat, cost: parsed.cost, cycleInterval: parsed.cycleInterval, cycleUnit: parsed.cycleUnit, renew: parsed.renew };
+          await fsEditSub(existing.id, after);
+          pushAction({ type: "edit", id: existing.id, from: before, to: after });
+          added++;
+          summary.push(`Updated "${after.name}" — ${fmt$(after.cost)} ${cycleShort(after)}, ${after.cat}, renews ${after.renew}`);
+          continue;
+        }
+      }
+
       const sub = { id: uid(), ...parsed };
       await fsAddSub(sub);
       pushAction({ type: "add", id: sub.id, sub: { ...sub } });
