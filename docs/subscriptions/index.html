@@ -969,6 +969,17 @@
     return `${year}-${String(monthIdx + 1).padStart(2, "0")}-${String(dayNum).padStart(2, "0")}`;
   }
 
+  function voiceBuildMonthlyDayRenew(today, dayNum) {
+    const now = new Date(today + "T00:00:00");
+    let year = now.getFullYear(), month = now.getMonth();
+    let candidate = new Date(year, month, dayNum);
+    if (candidate < now) {
+      month += 1;
+      candidate = new Date(year, month, dayNum);
+    }
+    return `${candidate.getFullYear()}-${String(candidate.getMonth() + 1).padStart(2, "0")}-${String(candidate.getDate()).padStart(2, "0")}`;
+  }
+
   function parseVoiceEntry(text, existingCategories, today) {
     const raw = text.trim();
     if (!raw) return null;
@@ -1019,6 +1030,16 @@
           const monthIdx = VOICE_MONTHS[m[2].toLowerCase()];
           const dayNum = voiceDayWordToNum(m[1]);
           if (dayNum) renew = voiceBuildRenewDate(today, monthIdx, dayNum);
+        } else {
+          // Recurring day-of-month, no specific month named, e.g. "the 27th
+          // of the month" -- means "renews on the 27th every month," not a
+          // one-off calendar date, so pick the nearest upcoming occurrence.
+          re = new RegExp(`\\b(?:on\\s+)?the\\s+(${VOICE_DAY_NUM_PATTERN}|${VOICE_ORDINAL_WORDS_PATTERN})\\s+of\\s+(?:the\\s+|every\\s+)?month\\b`, "i");
+          if ((m = working.match(re))) {
+            dateMatchText = m[0];
+            const dayNum = voiceDayWordToNum(m[1]);
+            if (dayNum) renew = voiceBuildMonthlyDayRenew(today, dayNum);
+          }
         }
       }
     }
