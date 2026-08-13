@@ -1,0 +1,803 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Subscription Ledger</title>
+<style>
+  :root {
+    --paper: #f6f4ef;
+    --surface: #ffffff;
+    --surface-2: #fbf9f4;
+    --ink: #241f18;
+    --ink-muted: #766c5c;
+    --ink-faint: #a89d89;
+    --border: #e6ddc9;
+    --accent: #8a5a2b;
+    --accent-soft: #f1e4d0;
+    --warn: #b23a3a;
+    --warn-soft: #f5dede;
+    --good: #3a7d5c;
+    --good-soft: #e1ede6;
+    --shadow: 0 1px 2px rgba(36,31,24,0.06), 0 8px 24px rgba(36,31,24,0.06);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --paper: #161310;
+      --surface: #1e1a15;
+      --surface-2: #241f19;
+      --ink: #efe9df;
+      --ink-muted: #b3a790;
+      --ink-faint: #766c5a;
+      --border: #322c22;
+      --accent: #d99a54;
+      --accent-soft: rgba(217,154,84,0.14);
+      --warn: #e28080;
+      --warn-soft: rgba(226,128,128,0.12);
+      --good: #6cc190;
+      --good-soft: rgba(108,193,144,0.12);
+      --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 8px 24px rgba(0,0,0,0.35);
+    }
+  }
+  :root[data-theme="dark"] {
+    --paper: #161310;
+    --surface: #1e1a15;
+    --surface-2: #241f19;
+    --ink: #efe9df;
+    --ink-muted: #b3a790;
+    --ink-faint: #766c5a;
+    --border: #322c22;
+    --accent: #d99a54;
+    --accent-soft: rgba(217,154,84,0.14);
+    --warn: #e28080;
+    --warn-soft: rgba(226,128,128,0.12);
+    --good: #6cc190;
+    --good-soft: rgba(108,193,144,0.12);
+    --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 8px 24px rgba(0,0,0,0.35);
+  }
+
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--paper); color: var(--ink); font-family: -apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif; font-size: 15px; line-height: 1.5; }
+  .wrap { max-width: 1040px; margin: 0 auto; padding: 40px 24px 72px; }
+  header { margin-bottom: 26px; }
+  .header-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; flex-wrap: wrap; }
+  .header-actions { display: flex; gap: 8px; flex: none; }
+  .undo-btn {
+    font: inherit; cursor: pointer; border-radius: 999px; border: 1px solid var(--border);
+    background: var(--surface); color: var(--ink-muted); padding: 6px 14px; font-size: 12.5px; font-weight: 600;
+  }
+  .undo-btn:not(:disabled):hover { border-color: var(--accent); color: var(--accent); }
+  .undo-btn:disabled { opacity: 0.4; cursor: default; }
+  .undo-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  header h1 { font-family: Georgia,"Iowan Old Style","Times New Roman",serif; font-weight: 400; font-size: clamp(26px,3.6vw,34px); margin: 0 0 4px; }
+  header p { margin: 0; color: var(--ink-muted); max-width: 58ch; }
+  .sync-status { font-size: 12px; color: var(--ink-faint); margin-top: 6px; }
+
+  .summary { display: grid; grid-template-columns: repeat(4,1fr); gap: 12px; margin-bottom: 20px; }
+  @media (max-width: 720px) { .summary { grid-template-columns: 1fr 1fr; } }
+  .stat { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 15px 17px; box-shadow: var(--shadow); }
+  .stat .k { font-size: 11px; text-transform: uppercase; letter-spacing: 0.07em; color: var(--ink-faint); font-weight: 600; margin-bottom: 6px; }
+  .stat .v { font-size: 22px; font-weight: 600; font-variant-numeric: tabular-nums; }
+  .stat .sub { font-size: 12px; color: var(--ink-muted); margin-top: 2px; }
+
+  .panel { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; box-shadow: var(--shadow); margin-bottom: 20px; }
+  .panel-head { display: flex; justify-content: space-between; align-items: center; padding: 16px 20px; border-bottom: 1px solid var(--border); }
+  .panel-head h2 { font-size: 13px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--ink-faint); font-weight: 600; margin: 0; }
+  .panel-body { padding: 18px 20px; }
+
+  form.add-form { display: grid; grid-template-columns: 1.4fr 1fr 1fr 1fr 1fr auto; gap: 8px; align-items: end; }
+  @media (max-width: 800px) { form.add-form { grid-template-columns: 1fr 1fr; } }
+  .add-form label { display: block; font-size: 11px; color: var(--ink-faint); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 4px; }
+  .add-form input, .add-form select { width: 100%; }
+  input[type="text"], input[type="number"], input[type="date"], select {
+    background: var(--surface-2); border: 1px solid var(--border); border-radius: 6px;
+    padding: 7px 9px; color: var(--ink); font-size: 14px; font-family: inherit;
+  }
+  input:focus-visible, select:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+  .add-form button { font: inherit; cursor: pointer; border-radius: 6px; border: 1px solid var(--accent); background: var(--accent); color: #fff; padding: 8px 14px; font-size: 13px; font-weight: 600; }
+  .add-form button:hover { filter: brightness(1.08); }
+  #f-cat-new-wrap { grid-column: 1 / -1; }
+  .cat-new-wrap { grid-column: 1 / -1; }
+
+  .table-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 14px; }
+  .search-wrap { flex: 1; min-width: 200px; }
+  #search-input {
+    width: 100%; background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px;
+    padding: 8px 12px; color: var(--ink); font-size: 14px; font-family: inherit;
+  }
+  #search-input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+  .cat-filter { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
+  .cat-chip {
+    font: inherit; cursor: pointer; border-radius: 999px; border: 1px solid var(--border);
+    background: var(--surface); color: var(--ink-muted); padding: 5px 12px; font-size: 12.5px; font-weight: 600;
+  }
+  .cat-chip:hover { border-color: var(--accent); color: var(--accent); }
+  .cat-chip.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+
+  table { width: 100%; border-collapse: collapse; margin-top: 4px; }
+  th { text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--ink-faint); font-weight: 600; padding: 0 8px 8px; }
+  td { padding: 9px 8px; border-top: 1px solid var(--border); font-size: 13.5px; vertical-align: middle; }
+  td.num { text-align: right; font-variant-numeric: tabular-nums; }
+  .name-cell { display: flex; flex-direction: column; }
+  .name-cell .cat { font-size: 11px; color: var(--ink-faint); }
+  .pill { display: inline-block; padding: 3px 9px; border-radius: 999px; font-size: 12px; font-weight: 600; }
+  .pill.soon { background: var(--warn-soft); color: var(--warn); }
+  .pill.later { background: var(--good-soft); color: var(--good); }
+  .rm { background: none; border: none; color: var(--ink-faint); cursor: pointer; font-size: 15px; padding: 2px 4px; }
+  .edit-btn { background: none; border: none; color: var(--ink-faint); cursor: pointer; font-size: 20px; padding: 2px 6px; }
+  .rm:hover { color: var(--warn); }
+  .edit-btn:hover { color: var(--accent); }
+  .empty { color: var(--ink-faint); font-size: 13px; padding: 10px 2px; }
+
+  .edit-row-form { display: grid; grid-template-columns: 1.4fr 1fr 1fr 1fr 1fr auto auto; gap: 8px; align-items: end; padding: 6px 0; }
+  @media (max-width: 800px) { .edit-row-form { grid-template-columns: 1fr 1fr; } }
+  .edit-row-form label { display: block; font-size: 11px; color: var(--ink-faint); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 4px; }
+  .edit-row-form input, .edit-row-form select { width: 100%; }
+  .edit-row-form button { font: inherit; cursor: pointer; border-radius: 6px; padding: 8px 14px; font-size: 13px; font-weight: 600; }
+  .edit-row-form .save-btn { border: 1px solid var(--accent); background: var(--accent); color: #fff; }
+  .edit-row-form .save-btn:hover { filter: brightness(1.08); }
+  .edit-row-form .cancel-btn { border: 1px solid var(--border); background: var(--surface); color: var(--ink-muted); }
+  .edit-row-form .cancel-btn:hover { color: var(--ink); }
+
+  .modal-backdrop {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.4); display: none;
+    align-items: center; justify-content: center; z-index: 30; padding: 20px;
+  }
+  .modal-backdrop.show { display: flex; }
+  .modal { background: var(--surface); border-radius: 12px; padding: 22px; max-width: 340px; width: 100%; box-shadow: var(--shadow); }
+  .modal p { margin: 0 0 18px; font-size: 14.5px; color: var(--ink); }
+  .modal-actions { display: flex; gap: 10px; justify-content: flex-end; }
+  .modal-actions button { font: inherit; cursor: pointer; border-radius: 6px; padding: 8px 16px; font-size: 13px; font-weight: 600; }
+  .modal-actions .save-btn { border: 1px solid var(--warn); background: var(--warn); color: #fff; }
+  .modal-actions .save-btn:hover { filter: brightness(1.08); }
+  .modal-actions .cancel-btn { border: 1px solid var(--border); background: var(--surface-2); color: var(--ink-muted); }
+  .modal-actions .cancel-btn:hover { color: var(--ink); }
+
+  .toast {
+    position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
+    background: var(--ink); color: var(--paper); padding: 10px 16px; border-radius: 8px;
+    font-size: 13px; opacity: 0; pointer-events: none; transition: opacity 0.2s ease; z-index: 40;
+    max-width: 90vw; text-align: center; box-shadow: var(--shadow);
+  }
+  .toast.show { opacity: 1; }
+
+  .bars { display: flex; align-items: flex-end; gap: 8px; height: 160px; }
+  .bar-col { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; height: 100%; gap: 6px; max-width: 46px; }
+  .bar-track { width: 100%; border-radius: 5px 5px 3px 3px; background: var(--accent); flex: none; }
+  .bar-lbl { font-size: 10.5px; color: var(--ink-faint); text-align: center; text-transform: uppercase; letter-spacing: 0.02em; }
+  .bar-val { font-size: 11px; color: var(--ink-muted); font-variant-numeric: tabular-nums; }
+</style>
+</head>
+<body>
+
+<div class="wrap" id="signin-gate">
+  <div class="panel" style="max-width:420px;margin:80px auto;">
+    <div class="panel-body" style="text-align:center;">
+      <h1 style="font-family:Georgia,serif;font-weight:400;">Subscription Ledger</h1>
+      <p style="color:var(--ink-muted);margin-bottom:20px;">Sign in to view your data. Nobody else can see or edit it, even with this link.</p>
+      <button type="button" id="signin-btn" class="undo-btn" style="padding:10px 20px;">Sign in with Google</button>
+      <p id="signin-status" style="color:var(--ink-faint);font-size:12.5px;margin-top:14px;"></p>
+    </div>
+  </div>
+</div>
+
+<div class="wrap" id="app-wrap" style="display:none;">
+  <header>
+    <div class="header-top">
+      <div>
+        <h1>Subscription Ledger</h1>
+        <p>Track every recurring charge, see what's about to renew, and know your real monthly burn.</p>
+        <div class="sync-status" id="sync-status">Connecting…</div>
+      </div>
+      <div class="header-actions">
+        <button type="button" id="undo-btn" class="undo-btn" disabled>Undo</button>
+        <button type="button" id="redo-btn" class="undo-btn" disabled>Redo</button>
+        <button type="button" id="export-btn" class="undo-btn">Export CSV</button>
+        <button type="button" id="copy-csv-btn" class="undo-btn">Copy CSV</button>
+        <button type="button" id="signout-btn" class="undo-btn">Sign out</button>
+      </div>
+    </div>
+  </header>
+
+  <div class="summary">
+    <div class="stat"><div class="k">Monthly burn</div><div class="v" id="stat-monthly">$0</div></div>
+    <div class="stat"><div class="k">Yearly burn</div><div class="v" id="stat-yearly">$0</div></div>
+    <div class="stat"><div class="k">Renewing in 7 days</div><div class="v" id="stat-soon">0</div><div class="sub" id="stat-soon-sub">—</div></div>
+    <div class="stat"><div class="k">Active subscriptions</div><div class="v" id="stat-count">0</div></div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-head"><h2>Add subscription</h2></div>
+    <div class="panel-body">
+      <form class="add-form" id="add-form">
+        <div><label for="f-name">Name</label><input type="text" id="f-name" placeholder="Netflix" required></div>
+        <div><label for="f-cat">Category</label>
+          <select id="f-cat"></select>
+        </div>
+        <div><label for="f-cost">Cost</label><input type="number" id="f-cost" min="0" step="0.01" placeholder="15.99" required></div>
+        <div><label for="f-cycle-n">Billed every</label>
+          <div style="display:flex; gap:6px;">
+            <input type="number" id="f-cycle-n" min="1" step="1" value="1" style="width:56px; flex:none;">
+            <select id="f-cycle-unit">
+              <option value="day">Day(s)</option>
+              <option value="week">Week(s)</option>
+              <option value="month" selected>Month(s)</option>
+              <option value="year">Year(s)</option>
+            </select>
+          </div>
+        </div>
+        <div><label for="f-renew">Next renewal</label><input type="date" id="f-renew" required></div>
+        <button type="submit">Add</button>
+        <div id="f-cat-new-wrap" style="display:none;"><label for="f-cat-new">New category name</label><input type="text" id="f-cat-new" placeholder="e.g. Kids"></div>
+      </form>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-head"><h2>Spend by category (monthly-equivalent)</h2></div>
+    <div class="panel-body"><div class="bars" id="bars"></div></div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-head"><h2>Subscriptions</h2></div>
+    <div class="panel-body">
+      <div class="table-toolbar">
+        <div class="search-wrap"><input type="text" id="search-input" placeholder="Search subscriptions…" aria-label="Search subscriptions"></div>
+      </div>
+      <div class="cat-filter" id="cat-filter"></div>
+      <table>
+        <thead><tr><th>Name</th><th class="num">Cost</th><th>Next renewal</th><th style="width:64px;"></th></tr></thead>
+        <tbody id="subs-body"></tbody>
+      </table>
+      <p class="empty" id="subs-empty">No subscriptions yet — add your first above.</p>
+    </div>
+  </div>
+</div>
+
+<div class="modal-backdrop" id="confirm-modal">
+  <div class="modal">
+    <p id="confirm-modal-msg"></p>
+    <div class="modal-actions">
+      <button type="button" id="confirm-modal-cancel" class="cancel-btn">Cancel</button>
+      <button type="button" id="confirm-modal-ok" class="save-btn">Delete</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
+  import {
+    getFirestore, doc, onSnapshot, setDoc, updateDoc, deleteField, getDoc
+  } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
+  import {
+    getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged
+  } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyDFJ_4r2c5P2w4F3TJg4CRNHP-yiDsRiRQ",
+    authDomain: "packing-list-3c532.firebaseapp.com",
+    projectId: "packing-list-3c532",
+    storageBucket: "packing-list-3c532.firebasestorage.app",
+    messagingSenderId: "209304705485",
+    appId: "1:209304705485:web:20c59e9f08465822c58c84"
+  };
+  const app = initializeApp(firebaseConfig);
+  const db = getFirestore(app);
+  const authClient = getAuth(app);
+  const ledgerRef = doc(db, "subscriptionLedgers", "family");
+
+  // ---------- Auth gate ----------
+  // The real security boundary is the Firestore rule requiring
+  // request.auth.uid to match the ledger's stored ownerUid -- this
+  // client-side gate is only UX (show/hide the sign-in screen). Whoever
+  // signs in FIRST claims the ledger by writing their uid into ownerUid;
+  // everyone after that is compared against it, both here and in the rule.
+  let unsubscribeSnapshot = null;
+  const signinGate = document.getElementById("signin-gate");
+  const appWrap = document.getElementById("app-wrap");
+  const signinStatus = document.getElementById("signin-status");
+
+  document.getElementById("signin-btn").addEventListener("click", async () => {
+    signinStatus.textContent = "Opening Google sign-in…";
+    try {
+      await signInWithPopup(authClient, new GoogleAuthProvider());
+    } catch (err) {
+      signinStatus.textContent = "Sign-in failed: " + (err && err.message ? err.message : "try again");
+    }
+  });
+  document.getElementById("signout-btn").addEventListener("click", () => signOut(authClient));
+
+  // A forced sign-out (wrong account, or a verification error) fires this
+  // same handler again with user=null -- pendingDeniedMessage survives that
+  // one re-entry so the explanation isn't wiped before it's ever seen.
+  let pendingDeniedMessage = null;
+  onAuthStateChanged(authClient, async (user) => {
+    if (unsubscribeSnapshot) { unsubscribeSnapshot(); unsubscribeSnapshot = null; }
+    if (!user) {
+      signinGate.style.display = "";
+      appWrap.style.display = "none";
+      if (pendingDeniedMessage) {
+        signinStatus.textContent = pendingDeniedMessage;
+        pendingDeniedMessage = null;
+      } else {
+        signinStatus.textContent = "";
+      }
+      return;
+    }
+    signinStatus.textContent = "Checking access…";
+    try {
+      const snap = await getDoc(ledgerRef);
+      if (!snap.exists() || !snap.data().ownerUid) {
+        // First person ever to sign in claims this ledger permanently.
+        await setDoc(ledgerRef, { ownerUid: user.uid }, { merge: true });
+      } else if (snap.data().ownerUid !== user.uid) {
+        pendingDeniedMessage = "This ledger belongs to a different account. Signed in as " + user.email + ".";
+        await signOut(authClient);
+        return;
+      }
+    } catch (err) {
+      pendingDeniedMessage = "Couldn't verify access: " + (err && err.message ? err.message : "try again");
+      await signOut(authClient);
+      return;
+    }
+    signinGate.style.display = "none";
+    appWrap.style.display = "";
+    startSync();
+  });
+
+  const CAT_COLORS = { Streaming:"#c26a3a", Software:"#3f7fbf", Fitness:"#3a7d5c", News:"#8a5a2b", Cloud:"#6a5a9a", Home:"#2f6f6b", Other:"#8a8a8a" };
+
+  // `state.subs` is always a plain mirror of the last Firestore snapshot --
+  // every write goes straight to Firestore, and onSnapshot re-renders from
+  // whatever comes back, so every open tab/device converges on the same data
+  // instead of silently drifting apart in browser-local storage.
+  let state = { subs: [] };
+  let synced = false;
+
+  function uid() { return Math.random().toString(36).slice(2, 10); }
+  function fmt$(n) { return "$" + n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+
+  const UNIT_DAYS = { day: 1, week: 7, month: 30.4368, year: 365.2422 };
+  const UNIT_PLURAL = { day: "days", week: "weeks", month: "months", year: "years" };
+  const UNIT_ABBR = { day: "d", week: "wk", month: "mo", year: "yr" };
+
+  function monthlyEquiv(s) {
+    const n = s.cycleInterval || 1;
+    const totalDays = n * UNIT_DAYS[s.cycleUnit || "month"];
+    return s.cost * (UNIT_DAYS.month / totalDays);
+  }
+
+  function cycleLabel(s) {
+    const n = s.cycleInterval || 1;
+    const unit = s.cycleUnit || "month";
+    if (n === 1) return unit === "day" ? "Daily" : unit === "week" ? "Weekly" : unit === "month" ? "Monthly" : "Yearly";
+    return `Every ${n} ${UNIT_PLURAL[unit]}`;
+  }
+
+  function cycleShort(s) {
+    const n = s.cycleInterval || 1;
+    const unit = s.cycleUnit || "month";
+    return n === 1 ? `/${UNIT_ABBR[unit]}` : `/${n}${UNIT_ABBR[unit]}`;
+  }
+
+  function daysUntil(dateStr) {
+    const today = new Date(); today.setHours(0,0,0,0);
+    const target = new Date(dateStr + "T00:00:00");
+    return Math.round((target - today) / 86400000);
+  }
+
+  // Advancing a stale renewal date forward is a local display concern only
+  // -- it does NOT write back to Firestore here, so simply opening the page
+  // never mutates shared data as a side effect of rendering it.
+  function nextRenewalDisplay(s) {
+    let d = daysUntil(s.renew);
+    let renew = s.renew;
+    while (d < 0) {
+      renew = advanceRenewal({ ...s, renew });
+      d = daysUntil(renew);
+    }
+    return d;
+  }
+
+  function advanceRenewal(s) {
+    const dt = new Date(s.renew + "T00:00:00");
+    const n = s.cycleInterval || 1;
+    const unit = s.cycleUnit || "month";
+    if (unit === "day") dt.setDate(dt.getDate() + n);
+    else if (unit === "week") dt.setDate(dt.getDate() + n * 7);
+    else if (unit === "month") dt.setMonth(dt.getMonth() + n);
+    else dt.setFullYear(dt.getFullYear() + n);
+    return dt.toISOString().slice(0, 10);
+  }
+
+  function renderSummary() {
+    const monthly = state.subs.reduce((s, x) => s + monthlyEquiv(x), 0);
+    document.getElementById("stat-monthly").textContent = fmt$(monthly);
+    document.getElementById("stat-yearly").textContent = fmt$(monthly * 12);
+    document.getElementById("stat-count").textContent = state.subs.length;
+
+    const soon = state.subs.filter(s => nextRenewalDisplay(s) <= 7);
+    document.getElementById("stat-soon").textContent = soon.length;
+    document.getElementById("stat-soon-sub").textContent = soon.length
+      ? fmt$(soon.reduce((s, x) => s + x.cost, 0)) + " due"
+      : "Nothing due soon";
+  }
+
+  function renderBars() {
+    const totals = {};
+    state.subs.forEach(s => { totals[s.cat] = (totals[s.cat] || 0) + monthlyEquiv(s); });
+    const container = document.getElementById("bars");
+    const entries = Object.entries(totals).sort((a, b) => b[1] - a[1]);
+    if (entries.length === 0) { container.innerHTML = '<p class="empty">Add subscriptions to see category spend.</p>'; return; }
+    const max = Math.max(...entries.map(e => e[1]));
+    container.innerHTML = "";
+    entries.forEach(([cat, val]) => {
+      const col = document.createElement("div");
+      col.className = "bar-col";
+      const h = Math.max(4, (val / max) * 100);
+      col.innerHTML = `<div class="bar-val">${fmt$(val)}</div><div class="bar-track" style="height:${h}%;background:${CAT_COLORS[cat] || CAT_COLORS.Other}"></div><div class="bar-lbl">${cat}</div>`;
+      container.appendChild(col);
+    });
+  }
+
+  const CATS_BASE = ["Streaming", "Software", "Fitness", "News", "Cloud", "Home", "Other"];
+  const NEW_CAT_VALUE = "__new__";
+  let editingId = null;
+  let searchQuery = "";
+  let categoryFilters = new Set();
+
+  function allCategories() {
+    const used = [...new Set(state.subs.map(s => s.cat))];
+    return [...new Set([...CATS_BASE, ...used])];
+  }
+
+  function catOptionsHtml(selected) {
+    return allCategories().map(c => `<option${c === selected ? " selected" : ""}>${escapeHtml(c)}</option>`).join("")
+      + `<option value="${NEW_CAT_VALUE}">+ New category…</option>`;
+  }
+
+  function renderCatFilter() {
+    const el = document.getElementById("cat-filter");
+    el.innerHTML = allCategories().map(c => `
+      <button type="button" class="cat-chip${categoryFilters.has(c) ? " active" : ""}" data-cat-filter="${escapeAttr(c)}">${escapeHtml(c)}</button>`).join("");
+  }
+
+  function renderTable() {
+    const body = document.getElementById("subs-body");
+    const empty = document.getElementById("subs-empty");
+    renderCatFilter();
+    if (state.subs.length === 0) {
+      body.innerHTML = "";
+      empty.style.display = "block";
+      empty.textContent = synced ? "No subscriptions yet — add your first above." : "Loading…";
+      return;
+    }
+    let visible = [...state.subs];
+    if (searchQuery) visible = visible.filter(s => s.name.toLowerCase().includes(searchQuery));
+    if (categoryFilters.size > 0) visible = visible.filter(s => categoryFilters.has(s.cat));
+    if (visible.length === 0 && editingId === null) { body.innerHTML = ""; empty.style.display = "block"; empty.textContent = "No subscriptions match."; return; }
+    empty.style.display = "none";
+    const sorted = visible.sort((a, b) => nextRenewalDisplay(a) - nextRenewalDisplay(b));
+    body.innerHTML = "";
+    sorted.forEach(s => {
+      if (s.id === editingId) {
+        const tr = document.createElement("tr");
+        const td = document.createElement("td");
+        td.colSpan = 4;
+        td.innerHTML = `
+          <form class="edit-row-form" data-edit-id="${s.id}">
+            <div><label>Name</label><input type="text" name="name" value="${escapeAttr(s.name)}" required></div>
+            <div><label>Category</label><select name="cat" data-cat-select>${catOptionsHtml(s.cat)}</select></div>
+            <div><label>Cost</label><input type="number" name="cost" min="0" step="0.01" value="${s.cost}" required></div>
+            <div><label>Billed every</label>
+              <div style="display:flex; gap:6px;">
+                <input type="number" name="cycleN" min="1" step="1" value="${s.cycleInterval || 1}" style="width:56px; flex:none;">
+                <select name="cycleUnit">
+                  <option value="day"${(s.cycleUnit || "month") === "day" ? " selected" : ""}>Day(s)</option>
+                  <option value="week"${(s.cycleUnit || "month") === "week" ? " selected" : ""}>Week(s)</option>
+                  <option value="month"${(s.cycleUnit || "month") === "month" ? " selected" : ""}>Month(s)</option>
+                  <option value="year"${(s.cycleUnit || "month") === "year" ? " selected" : ""}>Year(s)</option>
+                </select>
+              </div>
+            </div>
+            <div><label>Next renewal</label><input type="date" name="renew" value="${s.renew}" required></div>
+            <button type="submit" class="save-btn">Save</button>
+            <button type="button" class="cancel-btn" data-cancel-edit>Cancel</button>
+            <div class="cat-new-wrap" data-cat-new-wrap style="display:none;"><label>New category name</label><input type="text" name="catNew" placeholder="e.g. Kids"></div>
+          </form>`;
+        tr.appendChild(td);
+        body.appendChild(tr);
+        return;
+      }
+      const d = nextRenewalDisplay(s);
+      const pillClass = d <= 7 ? "soon" : "later";
+      const dLabel = d === 0 ? "Today" : d === 1 ? "Tomorrow" : `In ${d} days`;
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td><div class="name-cell"><span>${escapeHtml(s.name)}</span><span class="cat">${escapeHtml(s.cat)}</span></div></td>
+        <td class="num">${fmt$(s.cost)} ${cycleShort(s)}</td>
+        <td><span class="pill ${pillClass}">${dLabel}</span></td>
+        <td>
+          <button class="edit-btn" data-edit="${s.id}" aria-label="Edit ${escapeHtml(s.name)}">&#9998;</button>
+          <button class="rm" data-remove="${s.id}" aria-label="Remove ${escapeHtml(s.name)}">&times;</button>
+        </td>`;
+      body.appendChild(tr);
+    });
+  }
+  function escapeAttr(s) { return String(s).replace(/"/g, "&quot;"); }
+  function escapeHtml(s) { return String(s).replace(/[&<>"]/g, c => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;" }[c])); }
+
+  let toastTimer;
+  function showToast(msg) {
+    const t = document.getElementById("toast");
+    t.textContent = msg;
+    t.classList.add("show");
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => t.classList.remove("show"), 2600);
+  }
+
+  function showConfirm(message, okLabel) {
+    return new Promise(resolve => {
+      const modal = document.getElementById("confirm-modal");
+      document.getElementById("confirm-modal-msg").textContent = message;
+      const okBtn = document.getElementById("confirm-modal-ok");
+      const cancelBtn = document.getElementById("confirm-modal-cancel");
+      okBtn.textContent = okLabel || "Delete";
+      modal.classList.add("show");
+      function cleanup(result) {
+        modal.classList.remove("show");
+        okBtn.removeEventListener("click", onOk);
+        cancelBtn.removeEventListener("click", onCancel);
+        modal.removeEventListener("click", onBackdrop);
+        resolve(result);
+      }
+      function onOk() { cleanup(true); }
+      function onCancel() { cleanup(false); }
+      function onBackdrop(e) { if (e.target === modal) cleanup(false); }
+      okBtn.addEventListener("click", onOk);
+      cancelBtn.addEventListener("click", onCancel);
+      modal.addEventListener("click", onBackdrop);
+    });
+  }
+
+  function renderAll() { renderSummary(); renderBars(); renderTable(); updateUndoRedoButtons(); refreshAddCatOptions(); }
+
+  // ---------- Firestore sync ----------
+  // subs are stored as a map keyed by id (subs.<id> = {...}) rather than an
+  // array, so two devices editing at once merge field-by-field instead of
+  // one write silently clobbering the other's array. Only starts after the
+  // auth gate above confirms the signed-in user owns this ledger.
+  function startSync() {
+    unsubscribeSnapshot = onSnapshot(ledgerRef, snap => {
+      const data = snap.exists() ? snap.data() : {};
+      const map = data.subs || {};
+      state.subs = Object.keys(map).map(id => ({ id, ...map[id] }));
+      synced = true;
+      document.getElementById("sync-status").textContent = "Synced";
+      renderAll();
+    }, err => {
+      document.getElementById("sync-status").textContent = "Sync error — changes may not save. " + (err && err.message ? err.message : "");
+    });
+  }
+
+  async function fsAddSub(sub) {
+    await setDoc(ledgerRef, { subs: { [sub.id]: { name: sub.name, cat: sub.cat, cost: sub.cost, cycleInterval: sub.cycleInterval, cycleUnit: sub.cycleUnit, renew: sub.renew } } }, { merge: true });
+  }
+  async function fsRemoveSub(id) {
+    await updateDoc(ledgerRef, { [`subs.${id}`]: deleteField() }).catch(() => setDoc(ledgerRef, { subs: {} }, { merge: true }));
+  }
+  async function fsEditSub(id, fields) {
+    await setDoc(ledgerRef, { subs: { [id]: fields } }, { merge: true });
+  }
+
+  // Undo/redo replays the same Firestore writes in reverse -- there is no
+  // separate local-only history, so undo behaves the same whether the
+  // change came from this tab or synced in from another device.
+  const undoBtn = document.getElementById("undo-btn");
+  const redoBtn = document.getElementById("redo-btn");
+  let undoStack = [];
+  let redoStack = [];
+  function pushAction(action) {
+    undoStack.push(action);
+    redoStack = [];
+    updateUndoRedoButtons();
+  }
+  function updateUndoRedoButtons() {
+    undoBtn.disabled = undoStack.length === 0;
+    redoBtn.disabled = redoStack.length === 0;
+  }
+  async function applyInverse(action) {
+    if (action.type === "add") await fsRemoveSub(action.id);
+    else if (action.type === "remove") await fsAddSub(action.sub);
+    else if (action.type === "edit") await fsEditSub(action.id, action.from);
+  }
+  async function applyForward(action) {
+    if (action.type === "add") await fsAddSub(action.sub);
+    else if (action.type === "remove") await fsRemoveSub(action.id);
+    else if (action.type === "edit") await fsEditSub(action.id, action.to);
+  }
+  undoBtn.addEventListener("click", async () => {
+    if (!undoStack.length) return;
+    const action = undoStack.pop();
+    await applyInverse(action);
+    redoStack.push(action);
+    editingId = null;
+    updateUndoRedoButtons();
+  });
+  redoBtn.addEventListener("click", async () => {
+    if (!redoStack.length) return;
+    const action = redoStack.pop();
+    await applyForward(action);
+    undoStack.push(action);
+    editingId = null;
+    updateUndoRedoButtons();
+  });
+
+  document.getElementById("f-renew").value = new Date().toISOString().slice(0, 10);
+
+  const fCat = document.getElementById("f-cat");
+  const fCatNewWrap = document.getElementById("f-cat-new-wrap");
+  const fCatNew = document.getElementById("f-cat-new");
+  function refreshAddCatOptions() {
+    const prev = fCat.value;
+    fCat.innerHTML = catOptionsHtml(null);
+    if ([...fCat.options].some(o => o.value === prev)) fCat.value = prev;
+  }
+  refreshAddCatOptions();
+  fCat.addEventListener("change", () => {
+    const isNew = fCat.value === NEW_CAT_VALUE;
+    fCatNewWrap.style.display = isNew ? "" : "none";
+    if (isNew) fCatNew.focus();
+  });
+
+  document.getElementById("add-form").addEventListener("submit", async e => {
+    e.preventDefault();
+    const name = document.getElementById("f-name").value.trim();
+    const cat = fCat.value === NEW_CAT_VALUE ? fCatNew.value.trim() : fCat.value;
+    const costRaw = document.getElementById("f-cost").value;
+    const cost = +costRaw;
+    const cycleInterval = Math.max(1, +document.getElementById("f-cycle-n").value || 1);
+    const cycleUnit = document.getElementById("f-cycle-unit").value;
+    const renew = document.getElementById("f-renew").value;
+    if (!name || !cat || costRaw === "" || Number.isNaN(cost) || cost < 0 || !renew) return;
+    const sub = { id: uid(), name, cat, cost, cycleInterval, cycleUnit, renew };
+    await fsAddSub(sub);
+    pushAction({ type: "add", id: sub.id, sub: { ...sub } });
+    document.getElementById("f-name").value = "";
+    document.getElementById("f-cost").value = "";
+    document.getElementById("f-cycle-n").value = "1";
+    if (fCat.value === NEW_CAT_VALUE) fCatNew.value = "";
+    document.getElementById("f-name").focus();
+  });
+
+  document.getElementById("search-input").addEventListener("input", e => {
+    searchQuery = e.target.value.trim().toLowerCase();
+    renderTable();
+  });
+
+  document.getElementById("cat-filter").addEventListener("click", e => {
+    const chip = e.target.closest("[data-cat-filter]");
+    if (!chip) return;
+    const cat = chip.dataset.catFilter;
+    if (categoryFilters.has(cat)) categoryFilters.delete(cat); else categoryFilters.add(cat);
+    renderTable();
+  });
+
+  document.getElementById("subs-body").addEventListener("change", e => {
+    if (!e.target.matches("[data-cat-select]")) return;
+    const wrap = e.target.closest("form").querySelector("[data-cat-new-wrap]");
+    const isNew = e.target.value === NEW_CAT_VALUE;
+    wrap.style.display = isNew ? "" : "none";
+    if (isNew) wrap.querySelector("input").focus();
+  });
+
+  document.getElementById("subs-body").addEventListener("click", async e => {
+    const editBtn = e.target.closest("[data-edit]");
+    if (editBtn) { editingId = editBtn.dataset.edit; renderTable(); return; }
+
+    const cancelBtn = e.target.closest("[data-cancel-edit]");
+    if (cancelBtn) { editingId = null; renderTable(); return; }
+
+    const rmBtn = e.target.closest("[data-remove]");
+    if (rmBtn) {
+      const sub = state.subs.find(s => s.id === rmBtn.dataset.remove);
+      if (!sub) return;
+      const ok = await showConfirm(`Remove "${sub.name}"? This can be undone with the Undo button.`, "Delete");
+      if (!ok) return;
+      await fsRemoveSub(sub.id);
+      pushAction({ type: "remove", id: sub.id, sub: { ...sub } });
+      showToast(`Removed "${sub.name}"`);
+    }
+  });
+
+  document.getElementById("subs-body").addEventListener("submit", async e => {
+    const form = e.target.closest(".edit-row-form");
+    if (!form) return;
+    e.preventDefault();
+    const id = form.dataset.editId;
+    const sub = state.subs.find(s => s.id === id);
+    if (!sub) return;
+    const before = { name: sub.name, cat: sub.cat, cost: sub.cost, cycleInterval: sub.cycleInterval, cycleUnit: sub.cycleUnit, renew: sub.renew };
+    const fd = new FormData(form);
+    const catValue = fd.get("cat");
+    const after = { ...before };
+    after.name = fd.get("name").trim() || sub.name;
+    after.cat = catValue === NEW_CAT_VALUE ? (fd.get("catNew") || "").trim() || sub.cat : catValue;
+    const costRaw = fd.get("cost");
+    if (costRaw !== "" && costRaw !== null && !Number.isNaN(+costRaw)) after.cost = +costRaw;
+    after.cycleInterval = Math.max(1, +fd.get("cycleN") || 1);
+    after.cycleUnit = fd.get("cycleUnit");
+    after.renew = fd.get("renew");
+    await fsEditSub(id, after);
+    pushAction({ type: "edit", id, from: before, to: after });
+    editingId = null;
+  });
+
+  function browserDownloadCsv(csv) {
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "subscriptions.csv";
+    a.rel = "noopener";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 4000);
+  }
+
+  function buildCsv() {
+    const rows = [["Name", "Category", "Cost", "Billing cycle", "Next renewal"]];
+    [...state.subs].sort((a, b) => nextRenewalDisplay(a) - nextRenewalDisplay(b)).forEach(s => {
+      rows.push([s.name, s.cat, s.cost.toFixed(2), cycleLabel(s), s.renew]);
+    });
+    return rows.map(r => r.map(csvCell).join(",")).join("\r\n");
+  }
+
+  function copyToClipboard(text) {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      return navigator.clipboard.writeText(text);
+    }
+    const ta = document.createElement("textarea");
+    ta.value = text;
+    ta.style.position = "fixed";
+    ta.style.opacity = "0";
+    document.body.appendChild(ta);
+    ta.focus();
+    ta.select();
+    const ok = document.execCommand("copy");
+    document.body.removeChild(ta);
+    return ok ? Promise.resolve() : Promise.reject(new Error("Copy failed"));
+  }
+
+  document.getElementById("export-btn").addEventListener("click", async () => {
+    if (state.subs.length === 0) { showToast("No subscriptions to export yet."); return; }
+    const csv = buildCsv();
+    try {
+      browserDownloadCsv(csv);
+      showToast("Downloading subscriptions.csv…");
+    } catch (err) {
+      showToast("Couldn't export: " + (err && err.message ? err.message : "try again"));
+    }
+  });
+
+  document.getElementById("copy-csv-btn").addEventListener("click", async () => {
+    if (state.subs.length === 0) { showToast("No subscriptions to copy yet."); return; }
+    const csv = buildCsv();
+    try {
+      await copyToClipboard(csv);
+      showToast("Copied to clipboard");
+    } catch (err) {
+      showToast("Couldn't copy: " + (err && err.message ? err.message : "try again"));
+    }
+  });
+  function csvCell(v) {
+    const s = String(v);
+    return /[",\r\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+  }
+</script>
+
+</body>
+</html>
