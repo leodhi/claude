@@ -179,6 +179,12 @@
       <p style="color:var(--ink-faint);font-size:12.5px;margin:16px 0 8px;">Google sign-in not working on this device/browser? Use an email link instead:</p>
       <input type="email" id="signin-email" placeholder="you@example.com" style="width:100%;max-width:280px;background:var(--surface-2);border:1px solid var(--border);border-radius:6px;padding:8px 10px;color:var(--ink);font-size:14px;font-family:inherit;">
       <div style="margin-top:8px;"><button type="button" id="signin-email-btn" class="undo-btn">Email me a sign-in link</button></div>
+      <p style="color:var(--ink-faint);font-size:12.5px;margin:16px 0 8px;">Or set a password once, then sign in directly with no popup/redirect/email needed:</p>
+      <input type="password" id="signin-password" placeholder="Password (6+ characters)" style="width:100%;max-width:280px;background:var(--surface-2);border:1px solid var(--border);border-radius:6px;padding:8px 10px;color:var(--ink);font-size:14px;font-family:inherit;">
+      <div style="margin-top:8px;display:flex;gap:8px;justify-content:center;flex-wrap:wrap;">
+        <button type="button" id="signin-password-btn" class="undo-btn">Sign in</button>
+        <button type="button" id="signin-password-create-btn" class="undo-btn">Set password (first time)</button>
+      </div>
       <p id="signin-status" style="color:var(--ink-faint);font-size:12.5px;margin-top:14px;"></p>
     </div>
   </div>
@@ -292,7 +298,8 @@
   } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
   import {
     getAuth, GoogleAuthProvider, signInWithPopup, signInWithRedirect, getRedirectResult, signOut, onAuthStateChanged,
-    sendSignInLinkToEmail, isSignInWithEmailLink, signInWithEmailLink
+    sendSignInLinkToEmail, isSignInWithEmailLink, signInWithEmailLink,
+    createUserWithEmailAndPassword, signInWithEmailAndPassword
   } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
 
   const firebaseConfig = {
@@ -384,6 +391,34 @@
       signinStatus.textContent = "Sign-in link failed: " + (err && err.message ? err.message : "request a new one");
     }
   })();
+
+  // ---------- Password sign-in ----------
+  // No popup, no redirect, no cross-site domain at all -- just a form
+  // submission straight to Firebase, so this sidesteps every failure mode
+  // the other two methods can hit.
+  document.getElementById("signin-password-create-btn").addEventListener("click", async () => {
+    const email = document.getElementById("signin-email").value.trim();
+    const password = document.getElementById("signin-password").value;
+    if (!email || !password) { signinStatus.textContent = "Enter both email and password first."; return; }
+    if (password.length < 6) { signinStatus.textContent = "Password needs to be at least 6 characters."; return; }
+    signinStatus.textContent = "Setting up password sign-in…";
+    try {
+      await createUserWithEmailAndPassword(authClient, email, password);
+    } catch (err) {
+      signinStatus.textContent = "Couldn't set password: " + (err && err.message ? err.message : "try again");
+    }
+  });
+  document.getElementById("signin-password-btn").addEventListener("click", async () => {
+    const email = document.getElementById("signin-email").value.trim();
+    const password = document.getElementById("signin-password").value;
+    if (!email || !password) { signinStatus.textContent = "Enter both email and password first."; return; }
+    signinStatus.textContent = "Signing in…";
+    try {
+      await signInWithEmailAndPassword(authClient, email, password);
+    } catch (err) {
+      signinStatus.textContent = "Sign-in failed: " + (err && err.message ? err.message : "try again");
+    }
+  });
 
   document.getElementById("clear-all-btn").addEventListener("click", async () => {
     if (!state.subs.length) return;
