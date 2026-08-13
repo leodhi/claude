@@ -57,6 +57,7 @@
   }
 
   * { box-sizing: border-box; }
+  html, body { overflow-x: hidden; }
   body { margin: 0; background: var(--paper); color: var(--ink); font-family: -apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif; font-size: 15px; line-height: 1.5; }
   .wrap { max-width: 1040px; margin: 0 auto; padding: 40px 24px 72px; }
   header { margin-bottom: 26px; }
@@ -114,11 +115,13 @@
   .cat-chip:hover { border-color: var(--accent); color: var(--accent); }
   .cat-chip.active { background: var(--accent); border-color: var(--accent); color: #fff; }
 
+  .table-scroll { overflow-x: auto; }
   table { width: 100%; border-collapse: collapse; margin-top: 4px; }
-  th { text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--ink-faint); font-weight: 600; padding: 0 8px 8px; }
+  th { text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--ink-faint); font-weight: 600; padding: 0 8px 8px; white-space: nowrap; }
   td { padding: 9px 8px; border-top: 1px solid var(--border); font-size: 13.5px; vertical-align: middle; }
   td.num { text-align: right; font-variant-numeric: tabular-nums; }
-  .name-cell { display: flex; flex-direction: column; }
+  .name-cell { display: flex; flex-direction: column; max-width: 46vw; }
+  .name-cell span { overflow-wrap: break-word; }
   .name-cell .cat { font-size: 11px; color: var(--ink-faint); }
   .pill { display: inline-block; padding: 3px 9px; border-radius: 999px; font-size: 12px; font-weight: 600; }
   .pill.soon { background: var(--warn-soft); color: var(--warn); }
@@ -258,10 +261,12 @@
         <div class="search-wrap"><input type="text" id="search-input" placeholder="Search subscriptions…" aria-label="Search subscriptions"></div>
       </div>
       <div class="cat-filter" id="cat-filter"></div>
-      <table>
-        <thead><tr><th>Name</th><th class="num">Cost</th><th>Next renewal</th><th style="width:64px;"></th></tr></thead>
-        <tbody id="subs-body"></tbody>
-      </table>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Name</th><th class="num">Cost</th><th>Next renewal</th><th style="width:64px;"></th></tr></thead>
+          <tbody id="subs-body"></tbody>
+        </table>
+      </div>
       <p class="empty" id="subs-empty">No subscriptions yet — add your first above.</p>
     </div>
   </div>
