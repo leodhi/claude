@@ -234,6 +234,16 @@
   </div>
 
   <div class="panel">
+    <div class="panel-head"><h2>Bulk import</h2></div>
+    <div class="panel-body">
+      <p style="color:var(--ink-muted);font-size:13px;margin:0 0 10px;">One subscription per line. Format: <code>Name, Category, Cost, Interval, Unit, YYYY-MM-DD</code> — trailing fields are optional and default to Other / $0 / every 1 month / today, so you can paste names now and fill in real numbers later by editing each row.</p>
+      <textarea id="bulk-import-text" rows="6" style="width:100%;background:var(--surface-2);border:1px solid var(--border);border-radius:6px;padding:8px;color:var(--ink);font-size:13px;font-family:ui-monospace,monospace;"></textarea>
+      <button type="button" id="bulk-import-btn" class="undo-btn" style="margin-top:8px;">Import lines</button>
+      <span id="bulk-import-status" style="margin-left:10px;color:var(--ink-faint);font-size:12.5px;"></span>
+    </div>
+  </div>
+
+  <div class="panel">
     <div class="panel-head"><h2>Spend by category (monthly-equivalent)</h2></div>
     <div class="panel-body"><div class="bars" id="bars"></div></div>
   </div>
@@ -670,6 +680,32 @@
     document.getElementById("f-cycle-n").value = "1";
     if (fCat.value === NEW_CAT_VALUE) fCatNew.value = "";
     document.getElementById("f-name").focus();
+  });
+
+  document.getElementById("bulk-import-btn").addEventListener("click", async () => {
+    const raw = document.getElementById("bulk-import-text").value;
+    const lines = raw.split("\n").map(l => l.trim()).filter(l => l.length > 0);
+    if (!lines.length) return;
+    const statusEl = document.getElementById("bulk-import-status");
+    const today = new Date().toISOString().slice(0, 10);
+    let added = 0;
+    for (const line of lines) {
+      const parts = line.split(",").map(p => p.trim());
+      const name = parts[0];
+      if (!name) continue;
+      const cat = parts[1] || "Other";
+      const cost = parts[2] !== undefined && parts[2] !== "" && !Number.isNaN(+parts[2]) ? +parts[2] : 0;
+      const cycleInterval = parts[3] !== undefined && parts[3] !== "" && !Number.isNaN(+parts[3]) ? Math.max(1, +parts[3]) : 1;
+      const cycleUnit = ["day", "week", "month", "year"].includes(parts[4]) ? parts[4] : "month";
+      const renew = parts[5] && /^\d{4}-\d{2}-\d{2}$/.test(parts[5]) ? parts[5] : today;
+      const sub = { id: uid(), name, cat, cost, cycleInterval, cycleUnit, renew };
+      await fsAddSub(sub);
+      pushAction({ type: "add", id: sub.id, sub: { ...sub } });
+      added++;
+      statusEl.textContent = `Imported ${added} of ${lines.length}…`;
+    }
+    statusEl.textContent = `Imported ${added} subscription${added === 1 ? "" : "s"}.`;
+    document.getElementById("bulk-import-text").value = "";
   });
 
   document.getElementById("search-input").addEventListener("input", e => {
