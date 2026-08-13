@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Niagara Packing List</title>
 <style>
   :root {
@@ -22,8 +22,9 @@
   }
 
   * { box-sizing: border-box; }
-  html, body { background: var(--paper); }
+  html, body { background: var(--paper); height: 100%; overflow: hidden; }
   body { margin: 0; color: var(--ink); font-family: -apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif; font-size: 15px; line-height: 1.5; }
+  .scroll-container { height: 100%; overflow-y: auto; -webkit-overflow-scrolling: touch; }
   .wrap { max-width: 1080px; margin: 0 auto; padding: 40px 24px 72px; }
 
   header { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; flex-wrap: wrap; margin-bottom: 22px; }
@@ -55,27 +56,43 @@
   .progress-fill { height: 100%; background: var(--accent); transition: width 0.2s ease; }
   .progress-label { font-size: 13px; color: var(--ink-muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
 
-  .list-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 0 32px; margin-top: 16px; }
-  @media (max-width: 720px) { .list-grid { grid-template-columns: 1fr; } }
+  .list-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px 32px; margin-top: 16px; }
   .cat-block { margin-bottom: 18px; break-inside: avoid; }
-  .item-row { display: flex; align-items: center; gap: 10px; padding: 6px 4px; border-radius: 6px; }
+  .item-row { display: flex; align-items: center; gap: 5px; padding: 6px 4px; border-radius: 6px; }
+  .item-row > input[type="checkbox"] { margin-right: 5px; }
   .item-row:hover { background: var(--surface-2); }
   .item-row input[type="checkbox"] { width: 17px; height: 17px; accent-color: var(--accent); flex: none; }
-  .item-row label { flex: 1; font-size: 14px; cursor: pointer; }
-  .item-row.checked label { color: var(--ink-faint); text-decoration: line-through; }
-  .item-row .rm, .item-row .edit { background: none; border: none; color: var(--ink-faint); cursor: pointer; font-size: 15px; padding: 2px 4px; flex: none; }
+  .item-row .item-name { flex: 1; font-size: 14px; cursor: pointer; }
+  .item-row.checked .item-name { color: var(--ink-faint); text-decoration: line-through; }
+  .item-row.na .item-name { color: var(--ink-faint); text-decoration: line-through; }
+
+  .na-toggle {
+    display: inline-flex; align-items: center; gap: 3px; flex: none; cursor: pointer;
+  }
+  .na-toggle input {
+    -webkit-appearance: none; appearance: none;
+    width: 10px; height: 10px; margin: 0; padding: 0; flex: none;
+    border: 1px solid var(--ink-faint); border-radius: 2px; background: var(--surface);
+  }
+  .na-toggle input:checked { background: var(--sun); border-color: var(--sun); }
+  .na-toggle span { font-size: 8px; font-weight: 700; letter-spacing: 0.02em; color: var(--ink-faint); }
+  .na-toggle:has(input:checked) span { color: var(--sun); }
+  .item-row .rm, .item-row .edit { background: none; border: none; color: var(--ink-faint); cursor: pointer; font-size: 15px; padding: 2px; flex: none; }
   .item-row .rm:hover { color: var(--sun); }
   .item-row .edit:hover { color: var(--accent); }
   .item-row .edit-input {
-    flex: 1; background: var(--surface); border: 1px solid var(--accent); border-radius: 5px;
-    padding: 3px 6px; color: var(--ink); font-size: 14px; font-family: inherit;
+    background: var(--surface); border: 1px solid var(--accent); border-radius: 5px;
+    padding: 5px 6px; color: var(--ink); font-size: 14px; font-family: inherit;
   }
   .item-row .edit-input:focus-visible { outline: none; }
+  .item-row.editing { flex-wrap: wrap; row-gap: 6px; }
+  .item-row .edit-input-name { flex: 1 1 140px; min-width: 100px; }
+  .item-row .edit-input-assignee { flex: 1 1 120px; min-width: 100px; margin-left: 27px; }
 
   form.add-form { display: grid; grid-template-columns: 1fr 1fr 1fr auto; gap: 8px; align-items: end; margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--border); }
   @media (max-width: 700px) { form.add-form { grid-template-columns: 1fr 1fr; } }
   @media (max-width: 420px) { form.add-form { grid-template-columns: 1fr; } }
-  #ci-cat-new-wrap { grid-column: 1 / -1; }
+  #ci-cat-new-wrap, #ci-assignee-new-wrap { grid-column: 1 / -1; }
   .add-form label { display: block; font-size: 11px; color: var(--ink-faint); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 4px; }
   .add-form input, .add-form select { width: 100%; background: var(--surface-2); border: 1px solid var(--border); border-radius: 6px; padding: 7px 9px; color: var(--ink); font-size: 14px; font-family: inherit; }
   .add-form input:focus-visible, .add-form select:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
@@ -84,8 +101,13 @@
 
   .empty { color: var(--ink-faint); font-size: 13px; }
 
-  .toolbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 16px; }
-  .search-wrap { flex: 1; min-width: 200px; }
+  .toolbar { margin-bottom: 12px; }
+  .search-wrap { width: 100%; }
+  .controls-row {
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 10px 20px; flex-wrap: wrap; margin-bottom: 16px;
+  }
+  .filters-group { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
   .open-only-toggle {
     display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--ink-muted);
     cursor: pointer; user-select: none; white-space: nowrap;
@@ -106,6 +128,8 @@
     width: 16px; height: 16px; border-radius: 50%; background: var(--accent); color: #fff;
     font-size: 9px; font-weight: 700; display: flex; align-items: center; justify-content: center; flex: none;
   }
+  .viewer-chip.self { cursor: pointer; }
+  .viewer-chip.self:hover { border-color: var(--accent); color: var(--accent); }
   .link-btn {
     font: inherit; cursor: pointer; border: none; background: none; color: var(--ink-faint);
     font-size: 12px; text-decoration: underline; padding: 4px 2px;
@@ -120,18 +144,15 @@
   .assignee-chip:hover { border-color: var(--accent); color: var(--accent); }
   .assignee-chip.active { background: var(--accent); border-color: var(--accent); color: #fff; }
 
-  .quick-assignees { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 6px; }
-  .quick-assignees button {
-    font: inherit; cursor: pointer; border-radius: 999px; border: 1px solid var(--border);
-    background: var(--surface-2); color: var(--ink-muted); padding: 3px 10px; font-size: 12px;
+  .item-tag-select {
+    font-size: 11px; font-weight: 600; color: var(--ink-faint); background: var(--surface-2);
+    border: 1px solid var(--border); border-radius: 999px; padding: 3px 4px; flex: none;
+    white-space: nowrap; font-family: inherit; cursor: pointer;
+    width: 62px; text-overflow: ellipsis; overflow: hidden;
   }
-  .quick-assignees button:hover, .quick-assignees button.active { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }
-
-  .item-tag {
-    font-size: 11px; font-weight: 600; color: var(--accent); background: var(--accent-soft);
-    border-radius: 999px; padding: 2px 8px; flex: none; white-space: nowrap;
-  }
-  .item-row.checked .item-tag { opacity: 0.5; }
+  .item-tag-select.assigned { color: var(--accent); background: var(--accent-soft); border-color: transparent; }
+  .item-tag-select:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+  .item-row.checked .item-tag-select { opacity: 0.5; }
 
   .cat-title-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; cursor: pointer; user-select: none; }
   .cat-title-row:hover .cat-title { color: var(--accent); }
@@ -141,17 +162,67 @@
   }
   .cat-title-row.collapsed .chevron { transform: rotate(-90deg); }
   .cat-title { font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--sun); font-weight: 700; margin: 0; flex: 1; }
-  .cat-icon { font-size: 13px; }
   .cat-done-badge { font-size: 11px; color: var(--good); font-weight: 600; white-space: nowrap; }
   .cat-block.collapsed .cat-items { display: none; }
 
   .fab {
-    position: fixed; bottom: 24px; right: 24px; width: 56px; height: 56px; border-radius: 50%;
+    position: fixed; bottom: calc(24px + env(safe-area-inset-bottom)); right: 24px; width: 56px; height: 56px; border-radius: 50%;
     background: var(--accent); color: #fff; border: none; font-size: 28px; line-height: 1;
-    box-shadow: 0 4px 16px rgba(0,0,0,0.2); cursor: pointer; z-index: 10;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.2); cursor: pointer; z-index: 20;
+    -webkit-transform: translateZ(0); transform: translateZ(0); will-change: transform;
   }
   .fab:hover { filter: brightness(1.08); }
   .fab:focus-visible { outline: 2px solid var(--ink); outline-offset: 3px; }
+
+  .chat-toggle {
+    position: fixed; bottom: calc(24px + env(safe-area-inset-bottom)); left: 24px; width: 44px; height: 44px; border-radius: 50%;
+    background: var(--surface); color: var(--ink); border: 1px solid var(--border); font-size: 18px;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.18); cursor: pointer; z-index: 20;
+    display: flex; align-items: center; justify-content: center;
+    -webkit-transform: translateZ(0); transform: translateZ(0); will-change: transform;
+  }
+  .chat-toggle:hover { border-color: var(--accent); }
+  .chat-toggle:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+  .chat-badge {
+    position: absolute; top: -2px; right: -2px; min-width: 16px; height: 16px; border-radius: 999px;
+    background: var(--sun); color: #fff; font-size: 10px; font-weight: 700; line-height: 16px;
+    text-align: center; padding: 0 3px;
+  }
+
+  .chat-panel {
+    position: fixed; bottom: 0; left: 0; width: 260px; max-width: calc(100vw - 24px);
+    height: 340px; max-height: 55vh; background: var(--surface); border: 1px solid var(--border);
+    border-radius: 12px 12px 0 0; box-shadow: 0 -4px 24px rgba(0,0,0,0.18);
+    display: none; flex-direction: column; z-index: 15; margin-left: 24px;
+  }
+  .chat-panel.show { display: flex; }
+  .chat-panel-head {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 12px 14px; border-bottom: 1px solid var(--border); flex: none;
+  }
+  .chat-panel-head h3 { margin: 0; font-size: 14px; }
+  .chat-messages { flex: 1; overflow-y: auto; padding: 12px 14px; display: flex; flex-direction: column; gap: 10px; }
+  .chat-msg { max-width: 85%; }
+  .chat-msg .who { font-size: 10.5px; font-weight: 700; color: var(--ink-faint); margin-bottom: 2px; }
+  .chat-msg .bubble { background: var(--surface-2); border: 1px solid var(--border); border-radius: 10px; padding: 6px 10px; font-size: 13.5px; word-break: break-word; }
+  .chat-msg.self { align-self: flex-end; }
+  .chat-msg.self .who { text-align: right; }
+  .chat-msg.self .bubble { background: var(--accent-soft); border-color: transparent; }
+  .chat-empty { color: var(--ink-faint); font-size: 13px; text-align: center; margin: auto; }
+  .chat-form { display: flex; gap: 8px; padding: 10px 14px; border-top: 1px solid var(--border); flex: none; }
+  .chat-form input {
+    flex: 1; background: var(--surface-2); border: 1px solid var(--border); border-radius: 999px;
+    padding: 8px 14px; color: var(--ink); font-size: 14px; font-family: inherit;
+  }
+  .chat-form input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+  .chat-form button {
+    width: 38px; height: 38px; border-radius: 50%; border: none; background: var(--accent);
+    color: #fff; font-size: 15px; cursor: pointer; flex: none;
+  }
+  .chat-form button:hover { filter: brightness(1.08); }
+  @media (max-width: 480px) {
+    .chat-panel { width: calc(100vw - 48px); max-width: 220px; margin-left: 12px; left: 0; height: 300px; max-height: 40vh; border-radius: 12px; }
+  }
 
   .modal-backdrop {
     position: fixed; inset: 0; background: rgba(0,0,0,0.4); display: none;
@@ -170,20 +241,51 @@
     background: var(--accent); color: #fff; padding: 9px 14px; font-size: 14px; font-weight: 600;
   }
 
+  .modal-wide { max-width: 560px; max-height: 80vh; overflow-y: auto; }
+  .modal-head { display: flex; align-items: center; justify-content: space-between; }
+  .modal-close { width: auto; background: none; border: none; color: var(--ink-faint); font-size: 22px; padding: 0 4px; line-height: 1; }
+  .modal-close:hover { color: var(--ink); }
+
+  .archive-row { border: 1px solid var(--border); border-radius: 8px; margin-bottom: 10px; overflow: hidden; }
+  .archive-row-head {
+    display: flex; justify-content: space-between; align-items: center; gap: 10px;
+    padding: 12px 14px; cursor: pointer; background: var(--surface-2);
+  }
+  .archive-row-head:hover { background: var(--accent-soft); }
+  .archive-row-head .left { display: flex; align-items: center; gap: 10px; min-width: 0; }
+  .archive-row-head .chevron { font-size: 14px; color: var(--ink-faint); flex: none; transition: transform 0.15s ease; }
+  .archive-row.open .archive-row-head .chevron { transform: rotate(90deg); }
+  .archive-row-head .date { font-weight: 600; font-size: 14px; }
+  .archive-row-head .right { display: flex; align-items: center; gap: 10px; flex: none; }
+  .archive-row-head .stats { font-size: 12.5px; color: var(--ink-muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .archive-delete {
+    background: none; border: none; color: var(--ink-faint); cursor: pointer; font-size: 15px;
+    padding: 2px 4px; width: auto; line-height: 1;
+  }
+  .archive-delete:hover { color: var(--sun); }
+  .archive-items { padding: 10px 14px; display: none; }
+  .archive-row.open .archive-items { display: block; }
+  .archive-cat { margin-bottom: 10px; }
+  .archive-cat:last-child { margin-bottom: 0; }
+  .archive-cat-title { font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--sun); font-weight: 700; margin-bottom: 4px; }
+  .archive-item { font-size: 13.5px; padding: 3px 0; color: var(--ink-muted); }
+  .archive-item.was-checked { color: var(--ink-faint); text-decoration: line-through; }
 </style>
 </head>
 <body>
 
+<div class="scroll-container">
 <div class="wrap">
   <header>
     <div>
       <h1>Niagara Packing List</h1>
-      <p>Tap the checkbox next to an item to mark it packed — updates appear for everyone with this link, in real time.</p>
+      <p>Tap the checkbox next to an item to mark it packed — it'll move to the bottom of its category. Updates appear for everyone with this link, in real time.</p>
     </div>
     <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
       <button type="button" id="undo-btn" class="undo-btn" disabled>Undo</button>
       <button type="button" id="redo-btn" class="undo-btn" disabled>Redo</button>
       <button type="button" id="reset-btn" class="undo-btn">New trip</button>
+      <button type="button" id="archives-btn" class="undo-btn">Archives</button>
       <span class="status" id="status"><span class="dot"></span><span id="status-text">Connecting…</span></span>
     </div>
   </header>
@@ -192,9 +294,14 @@
     <div class="search-wrap">
       <input type="text" id="search-input" placeholder="Search items…" aria-label="Search items">
     </div>
-    <label class="open-only-toggle"><input type="checkbox" id="open-only-toggle"> Show only what's left</label>
+  </div>
+
+  <div class="controls-row">
+    <div class="filters-group">
+      <label class="open-only-toggle"><input type="checkbox" id="open-only-toggle"> Hide completed</label>
+      <label class="open-only-toggle"><input type="checkbox" id="hide-na-toggle"> Hide N/A items</label>
+    </div>
     <div class="viewers" id="viewers"></div>
-    <button type="button" id="change-name-btn" class="link-btn">Change name</button>
   </div>
 
   <div class="assignee-filter" id="assignee-filter"></div>
@@ -211,19 +318,35 @@
         <div><label for="ci-name">Item</label><input type="text" id="ci-name" placeholder="Add anything" required></div>
         <div><label for="ci-cat">Category</label><select id="ci-cat"></select></div>
         <div>
-          <label for="ci-assignee">Assign to <span style="text-transform:none; font-weight:400;">(optional)</span></label>
-          <input type="text" id="ci-assignee" list="assignee-list" placeholder="e.g. Elana">
-          <datalist id="assignee-list"></datalist>
-          <div class="quick-assignees" id="quick-assignees"></div>
+          <label for="ci-assignee">Assign to</label>
+          <select id="ci-assignee"></select>
         </div>
+        <div id="ci-assignee-new-wrap" style="display:none;"><label for="ci-assignee-new">Name</label><input type="text" id="ci-assignee-new" placeholder="e.g. Elana"></div>
         <div id="ci-cat-new-wrap" style="display:none;"><label for="ci-cat-new">New category name</label><input type="text" id="ci-cat-new" placeholder="e.g. Beach house"></div>
         <button type="submit">Add</button>
       </form>
     </div>
   </div>
 </div>
+</div>
 
 <button type="button" id="fab-add" class="fab" aria-label="Add an item">+</button>
+
+<button type="button" id="chat-toggle" class="chat-toggle" aria-label="Open chat">
+  💬<span class="chat-badge" id="chat-badge" style="display:none;"></span>
+</button>
+
+<div class="chat-panel" id="chat-panel">
+  <div class="chat-panel-head">
+    <h3>Chat</h3>
+    <button type="button" id="chat-close" class="modal-close" aria-label="Close chat">&times;</button>
+  </div>
+  <div class="chat-messages" id="chat-messages"></div>
+  <form class="chat-form" id="chat-form">
+    <input type="text" id="chat-input" placeholder="Message…" maxlength="500" autocomplete="off">
+    <button type="submit" aria-label="Send">➤</button>
+  </form>
+</div>
 
 <div class="modal-backdrop" id="name-modal">
   <div class="modal">
@@ -234,10 +357,22 @@
   </div>
 </div>
 
+<div class="modal-backdrop" id="archives-modal">
+  <div class="modal modal-wide">
+    <div class="modal-head">
+      <h3>Past trips</h3>
+      <button type="button" id="archives-close" class="modal-close" aria-label="Close">&times;</button>
+    </div>
+    <p>Saved automatically each time "New trip" is used.</p>
+    <div id="archives-list"></div>
+  </div>
+</div>
+
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
   import {
-    getFirestore, doc, getDoc, setDoc, updateDoc, onSnapshot, deleteField, collection, serverTimestamp
+    getFirestore, doc, getDoc, getDocs, setDoc, updateDoc, deleteDoc, onSnapshot, deleteField, collection,
+    serverTimestamp, addDoc, query, orderBy, limit
   } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
 
   const firebaseConfig = {
@@ -258,14 +393,6 @@
     "Clothing", "Toiletries & meds", "Judaica", "Food & snacks", "Kitchen & dining",
     "Kids", "Beach & pool", "Bags & practical"
   ];
-
-  const CAT_ICONS = {
-    "Before we leave": "🔔", "Questions to resolve": "❓", "Documents & border": "🛂",
-    "Electronics & chargers": "🔌", "Clothing": "👕", "Toiletries & meds": "🧴",
-    "Judaica": "🕎", "Food & snacks": "🍎", "Kitchen & dining": "🍽️",
-    "Kids": "🧸", "Beach & pool": "🏖️", "Bags & practical": "🎒"
-  };
-  function catIcon(name) { return CAT_ICONS[name] || "📦"; }
 
   const PRESET_ASSIGNEES = ["Dad", "Mom", "Mo", "Shmu", "Daniel"];
 
@@ -429,34 +556,38 @@
   let editingId = null;
   let pendingRerender = false;
   let searchQuery = "";
-  let assigneeFilter = null;
+  let assigneeFilters = new Set();
   let openOnly = false;
+  let hideNA = false;
   let collapsedCats = new Set(JSON.parse(localStorage.getItem("packing-collapsed-cats") || "[]"));
   function saveCollapsed() { localStorage.setItem("packing-collapsed-cats", JSON.stringify([...collapsedCats])); }
 
-  const assigneeListEl = document.getElementById("assignee-list");
-  function renderAssigneeOptions(names) {
-    assigneeListEl.innerHTML = "";
-    names.forEach(n => {
-      const opt = document.createElement("option");
-      opt.value = n;
-      assigneeListEl.appendChild(opt);
-    });
+  const ciAssignee = document.getElementById("ci-assignee");
+  const ciAssigneeNewWrap = document.getElementById("ci-assignee-new-wrap");
+  const ciAssigneeNew = document.getElementById("ci-assignee-new");
+  const NEW_ASSIGNEE_VALUE = "__new_assignee__";
+  function basicAssigneeOptionsHtml(names, selected) {
+    return `<option value="">Unassigned</option>` +
+      names.map(n => `<option value="${escapeAttr(n)}"${n === selected ? " selected" : ""}>${escapeHtml(n)}</option>`).join("");
   }
+  function assigneeSelectOptionsHtml(names) {
+    return basicAssigneeOptionsHtml(names) + `<option value="${NEW_ASSIGNEE_VALUE}">+ Someone else…</option>`;
+  }
+  function renderAssigneeOptions(names) {
+    const prevValue = ciAssignee.value;
+    ciAssignee.innerHTML = assigneeSelectOptionsHtml(names);
+    if (names.includes(prevValue) || prevValue === NEW_ASSIGNEE_VALUE || prevValue === "") ciAssignee.value = prevValue;
+  }
+  ciAssignee.addEventListener("change", () => {
+    const isNew = ciAssignee.value === NEW_ASSIGNEE_VALUE;
+    ciAssigneeNewWrap.style.display = isNew ? "" : "none";
+    if (isNew) ciAssigneeNew.focus();
+  });
 
   function renderAssigneeFilter(names) {
     const el = document.getElementById("assignee-filter");
     el.innerHTML = names.map(n => `
-      <button type="button" class="assignee-chip${assigneeFilter === n ? " active" : ""}" data-assignee-filter="${escapeAttr(n)}">${escapeHtml(n)}</button>`).join("");
-  }
-
-  function renderQuickAssignees(names) {
-    const el = document.getElementById("quick-assignees");
-    const assigneeInput = document.getElementById("ci-assignee");
-    el.innerHTML = names.map(n => `<button type="button" data-quick-assignee="${escapeAttr(n)}">${escapeHtml(n)}</button>`).join("");
-    el.querySelectorAll("[data-quick-assignee]").forEach(btn => {
-      btn.classList.toggle("active", assigneeInput.value === btn.dataset.quickAssignee);
-    });
+      <button type="button" class="assignee-chip${assigneeFilters.has(n) ? " active" : ""}" data-assignee-filter="${escapeAttr(n)}">${escapeHtml(n)}</button>`).join("");
   }
 
   function render() {
@@ -469,7 +600,9 @@
       (byCat[it.cat] = byCat[it.cat] || []).push({ id, ...it });
     });
     Object.values(byCat).forEach(arr => arr.sort((a, b) => {
-      if (a.checked !== b.checked) return a.checked ? 1 : -1;
+      const rank = it => it.na ? 2 : (it.checked ? 1 : 0);
+      const ra = rank(a), rb = rank(b);
+      if (ra !== rb) return ra - rb;
       return (a.order ?? 0) - (b.order ?? 0);
     }));
 
@@ -481,7 +614,6 @@
     const allAssignees = [...new Set([...PRESET_ASSIGNEES, ...usedAssignees])];
     renderAssigneeOptions(allAssignees);
     renderAssigneeFilter(allAssignees);
-    renderQuickAssignees(PRESET_ASSIGNEES);
 
     categoryOrder.forEach(catName => {
       const items = byCat[catName];
@@ -491,8 +623,9 @@
 
       let visibleItems = items;
       if (searchQuery) visibleItems = visibleItems.filter(i => i.name.toLowerCase().includes(searchQuery));
-      if (assigneeFilter) visibleItems = visibleItems.filter(i => i.assignee === assigneeFilter);
+      if (assigneeFilters.size > 0) visibleItems = visibleItems.filter(i => assigneeFilters.has(i.assignee));
       if (openOnly) visibleItems = visibleItems.filter(i => !i.checked);
+      if (hideNA) visibleItems = visibleItems.filter(i => !i.na);
       if (visibleItems.length === 0) return;
 
       const isCollapsed = collapsedCats.has(catName);
@@ -506,7 +639,6 @@
       titleRow.dataset.catToggle = catName;
       titleRow.innerHTML = `
         <span class="chevron">▾</span>
-        <span class="cat-icon">${catIcon(catName)}</span>
         <span class="cat-title">${escapeHtml(catName)}</span>
         ${allDone ? '<span class="cat-done-badge">✓ All packed</span>' : ""}`;
       block.appendChild(titleRow);
@@ -516,19 +648,23 @@
 
       visibleItems.forEach(item => {
         const row = document.createElement("div");
-        row.className = "item-row" + (item.checked ? " checked" : "");
+        row.className = "item-row" + (item.checked ? " checked" : "") + (item.na ? " na" : "");
         const rowId = "chk-" + item.id;
+        const naToggle = `<label class="na-toggle" title="Not applicable"><input type="checkbox" data-na="${item.id}" ${item.na ? "checked" : ""}><span>NA</span></label>`;
         if (item.id === editingId) {
+          row.className += " editing";
           row.innerHTML = `
             <input type="checkbox" id="${rowId}" data-id="${item.id}" ${item.checked ? "checked" : ""}>
-            <input type="text" class="edit-input" data-edit-input="${item.id}" value="${escapeAttr(item.name)}">
-            <input type="text" class="edit-input" data-edit-assignee="${item.id}" list="assignee-list" placeholder="Assign to…" style="flex:0 0 110px;" value="${escapeAttr(item.assignee || "")}">`;
+            <input type="text" class="edit-input edit-input-name" data-edit-input="${item.id}" value="${escapeAttr(item.name)}">
+            <select class="edit-input edit-input-assignee" data-edit-assignee="${item.id}">${basicAssigneeOptionsHtml(allAssignees, item.assignee || "")}</select>
+            ${naToggle}`;
         } else {
           row.innerHTML = `
             <input type="checkbox" id="${rowId}" data-id="${item.id}" ${item.checked ? "checked" : ""}>
-            <label for="${rowId}">${escapeHtml(item.name)}</label>
-            ${item.assignee ? `<span class="item-tag">${escapeHtml(item.assignee)}</span>` : ""}
+            <label class="item-name" for="${rowId}">${escapeHtml(item.name)}</label>
+            <select class="item-tag-select${item.assignee ? " assigned" : ""}" data-item-assignee="${item.id}" aria-label="Assign ${escapeHtml(item.name)} to">${basicAssigneeOptionsHtml(allAssignees, item.assignee || "")}</select>
             <button class="edit" data-edit="${item.id}" aria-label="Edit ${escapeHtml(item.name)}">✎</button>
+            ${naToggle}
             <button class="rm" data-remove="${item.id}" aria-label="Remove ${escapeHtml(item.name)}">&times;</button>`;
         }
         itemsWrap.appendChild(row);
@@ -588,6 +724,14 @@
       await updateDoc(listRef, { [`items.${action.id}`]: action.item });
     } else if (action.type === "edit") {
       await updateDoc(listRef, { [`items.${action.id}.name`]: action.from.name, [`items.${action.id}.assignee`]: action.from.assignee });
+    } else if (action.type === "bulkAssign") {
+      const updates = {};
+      Object.entries(action.changes).forEach(([id, c]) => { updates[`items.${id}.assignee`] = c.from; });
+      await updateDoc(listRef, updates);
+    } else if (action.type === "assign") {
+      await updateDoc(listRef, { [`items.${action.id}.assignee`]: action.from });
+    } else if (action.type === "na") {
+      await updateDoc(listRef, { [`items.${action.id}.na`]: action.from });
     }
   }
   async function applyForward(action) {
@@ -599,10 +743,46 @@
       await updateDoc(listRef, { [`items.${action.id}`]: deleteField() });
     } else if (action.type === "edit") {
       await updateDoc(listRef, { [`items.${action.id}.name`]: action.to.name, [`items.${action.id}.assignee`]: action.to.assignee });
+    } else if (action.type === "bulkAssign") {
+      const updates = {};
+      Object.entries(action.changes).forEach(([id, c]) => { updates[`items.${id}.assignee`] = c.to; });
+      await updateDoc(listRef, updates);
+    } else if (action.type === "assign") {
+      await updateDoc(listRef, { [`items.${action.id}.assignee`]: action.to });
+    } else if (action.type === "na") {
+      await updateDoc(listRef, { [`items.${action.id}.na`]: action.to });
     }
   }
 
   document.getElementById("list-grid").addEventListener("change", async e => {
+    if (e.target.matches("[data-item-assignee]")) {
+      const id = e.target.dataset.itemAssignee;
+      const newAssignee = e.target.value;
+      const oldAssignee = currentItems[id] ? (currentItems[id].assignee || "") : "";
+      e.target.classList.toggle("assigned", !!newAssignee);
+      setStatus("syncing", "Saving…");
+      try {
+        await updateDoc(listRef, { [`items.${id}.assignee`]: newAssignee });
+        pushAction({ type: "assign", id, from: oldAssignee, to: newAssignee });
+      } catch (err) {
+        console.error(err);
+        setStatus("error", "Couldn't save");
+      }
+      return;
+    }
+    if (e.target.matches("[data-na]")) {
+      const id = e.target.dataset.na;
+      const newNA = e.target.checked;
+      setStatus("syncing", "Saving…");
+      try {
+        await updateDoc(listRef, { [`items.${id}.na`]: newNA });
+        pushAction({ type: "na", id, from: !newNA, to: newNA });
+      } catch (err) {
+        console.error(err);
+        setStatus("error", "Couldn't save");
+      }
+      return;
+    }
     if (e.target.type !== "checkbox") return;
     const id = e.target.dataset.id;
     const newChecked = e.target.checked;
@@ -663,6 +843,8 @@
     if (rmBtn) {
       const id = rmBtn.dataset.remove;
       const removedItem = currentItems[id];
+      const itemName = removedItem ? removedItem.name : "this item";
+      if (!confirm(`Delete "${itemName}"? This can be undone with the Undo button.`)) return;
       setStatus("syncing", "Saving…");
       try {
         await updateDoc(listRef, { [`items.${id}`]: deleteField() });
@@ -699,9 +881,8 @@
   document.getElementById("add-form").addEventListener("submit", async e => {
     e.preventDefault();
     const nameInput = document.getElementById("ci-name");
-    const assigneeInput = document.getElementById("ci-assignee");
     const name = nameInput.value.trim();
-    const assignee = assigneeInput.value.trim();
+    const assignee = ciAssignee.value === NEW_ASSIGNEE_VALUE ? ciAssigneeNew.value.trim() : ciAssignee.value;
     const cat = ciCat.value === NEW_CAT_VALUE ? ciCatNew.value.trim() : ciCat.value;
     if (!name || !cat) return;
     const id = uid();
@@ -713,6 +894,7 @@
       pushAction({ type: "add", id, itemData });
       nameInput.value = "";
       if (ciCat.value === NEW_CAT_VALUE) ciCatNew.value = "";
+      if (ciAssignee.value === NEW_ASSIGNEE_VALUE) ciAssigneeNew.value = "";
       nameInput.focus();
     } catch (err) {
       console.error(err);
@@ -724,7 +906,7 @@
     const chip = e.target.closest("[data-assignee-filter]");
     if (!chip) return;
     const name = chip.dataset.assigneeFilter;
-    assigneeFilter = assigneeFilter === name ? null : name;
+    if (assigneeFilters.has(name)) assigneeFilters.delete(name); else assigneeFilters.add(name);
     render();
   });
 
@@ -768,13 +950,10 @@
     render();
   });
 
-  // Quick-pick assignee buttons on the add form
-  document.getElementById("quick-assignees").addEventListener("click", e => {
-    const btn = e.target.closest("[data-quick-assignee]");
-    if (!btn) return;
-    const assigneeInput = document.getElementById("ci-assignee");
-    assigneeInput.value = assigneeInput.value === btn.dataset.quickAssignee ? "" : btn.dataset.quickAssignee;
-    renderQuickAssignees(PRESET_ASSIGNEES);
+  // Hide N/A items
+  document.getElementById("hide-na-toggle").addEventListener("change", e => {
+    hideNA = e.target.checked;
+    render();
   });
 
   // Floating add button
@@ -807,6 +986,110 @@
     }
   });
 
+  // Archives
+  function formatArchiveDate(ts) {
+    if (!ts || !ts.toDate) return "Unknown date";
+    const d = ts.toDate();
+    return d.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" }) +
+      " · " + d.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
+  }
+
+  function renderArchiveItems(container, items) {
+    const byCat = {};
+    Object.values(items).forEach(it => { (byCat[it.cat] = byCat[it.cat] || []).push(it); });
+    const extraCats = Object.keys(byCat).filter(c => !CUSTOM_CATEGORIES.includes(c)).sort();
+    const order = [...CUSTOM_CATEGORIES, ...extraCats];
+    container.innerHTML = "";
+    order.forEach(catName => {
+      const catItems = byCat[catName];
+      if (!catItems || catItems.length === 0) return;
+      const block = document.createElement("div");
+      block.className = "archive-cat";
+      const title = document.createElement("div");
+      title.className = "archive-cat-title";
+      title.textContent = catName;
+      block.appendChild(title);
+      [...catItems].sort((a, b) => (a.order ?? 0) - (b.order ?? 0)).forEach(it => {
+        const row = document.createElement("div");
+        row.className = "archive-item" + (it.checked ? " was-checked" : "");
+        row.textContent = it.name + (it.assignee ? " — " + it.assignee : "");
+        block.appendChild(row);
+      });
+      container.appendChild(block);
+    });
+  }
+
+  async function openArchivesModal() {
+    const listEl = document.getElementById("archives-list");
+    listEl.innerHTML = '<p class="empty">Loading…</p>';
+    document.getElementById("archives-modal").classList.add("show");
+    try {
+      const snap = await getDocs(collection(db, "packingLists", "family", "archives"));
+      const archives = [];
+      snap.forEach(d => archives.push({ id: d.id, ...d.data() }));
+      archives.sort((a, b) => {
+        const at = a.archivedAt && a.archivedAt.toMillis ? a.archivedAt.toMillis() : 0;
+        const bt = b.archivedAt && b.archivedAt.toMillis ? b.archivedAt.toMillis() : 0;
+        return bt - at;
+      });
+      if (archives.length === 0) {
+        listEl.innerHTML = '<p class="empty">No past trips saved yet — they\'re created automatically each time you use "New trip."</p>';
+        return;
+      }
+      listEl.innerHTML = "";
+      archives.forEach(archive => {
+        const items = archive.items || {};
+        const total = Object.keys(items).length;
+        const checkedCount = Object.values(items).filter(i => i.checked).length;
+        const row = document.createElement("div");
+        row.className = "archive-row";
+        const head = document.createElement("div");
+        head.className = "archive-row-head";
+        head.innerHTML = `
+          <span class="left"><span class="chevron">▸</span><span class="date">${escapeHtml(formatArchiveDate(archive.archivedAt))}</span></span>
+          <span class="right"><span class="stats">${checkedCount} / ${total} packed</span><button type="button" class="archive-delete" data-delete-archive="${escapeAttr(archive.id)}" aria-label="Delete this trip">&times;</button></span>`;
+        const itemsEl = document.createElement("div");
+        itemsEl.className = "archive-items";
+        head.querySelector(".left").addEventListener("click", () => {
+          const opening = !row.classList.contains("open");
+          row.classList.toggle("open", opening);
+          if (opening && !itemsEl.dataset.rendered) {
+            renderArchiveItems(itemsEl, items);
+            itemsEl.dataset.rendered = "1";
+          }
+        });
+        head.querySelector("[data-delete-archive]").addEventListener("click", async e => {
+          e.stopPropagation();
+          if (!confirm("Delete this saved trip? This can't be undone.")) return;
+          try {
+            await deleteDoc(doc(db, "packingLists", "family", "archives", archive.id));
+            row.remove();
+            if (!document.getElementById("archives-list").children.length) {
+              document.getElementById("archives-list").innerHTML = '<p class="empty">No past trips saved yet — they\'re created automatically each time you use "New trip."</p>';
+            }
+          } catch (err) {
+            console.error(err);
+            alert("Couldn't delete this trip. Try again.");
+          }
+        });
+        row.appendChild(head);
+        row.appendChild(itemsEl);
+        listEl.appendChild(row);
+      });
+    } catch (err) {
+      console.error(err);
+      listEl.innerHTML = '<p class="empty">Couldn\'t load past trips.</p>';
+    }
+  }
+
+  document.getElementById("archives-btn").addEventListener("click", openArchivesModal);
+  document.getElementById("archives-close").addEventListener("click", () => {
+    document.getElementById("archives-modal").classList.remove("show");
+  });
+  document.getElementById("archives-modal").addEventListener("click", e => {
+    if (e.target.id === "archives-modal") e.currentTarget.classList.remove("show");
+  });
+
   // Presence: who's currently viewing
   const nameModal = document.getElementById("name-modal");
   const nameModalInput = document.getElementById("name-modal-input");
@@ -833,16 +1116,17 @@
     if (presenceStarted) return;
     presenceStarted = true;
     setInterval(heartbeat, 20000);
+    const myDeviceId = getOrCreateDeviceId();
     onSnapshot(collection(db, "packingLists", "family", "presence"), snap => {
       const now = Date.now();
       const active = [];
       snap.forEach(d => {
         const data = d.data();
         const seenMs = data.lastSeen && data.lastSeen.toMillis ? data.lastSeen.toMillis() : now;
-        if (now - seenMs < 45000) active.push(data.name || "Someone");
+        if (now - seenMs < 45000) active.push({ name: data.name || "Someone", isSelf: d.id === myDeviceId });
       });
-      viewersEl.innerHTML = active.map(n => `
-        <span class="viewer-chip"><span class="avatar">${escapeHtml(n.slice(0, 1).toUpperCase())}</span>${escapeHtml(n)}</span>`).join("");
+      viewersEl.innerHTML = active.map(v => `
+        <span class="viewer-chip${v.isSelf ? " self" : ""}"${v.isSelf ? ' data-change-name="1" title="Tap to change your name"' : ""}><span class="avatar">${escapeHtml(v.name.slice(0, 1).toUpperCase())}</span>${escapeHtml(v.name)}${v.isSelf ? " (you)" : ""}</span>`).join("");
     });
   }
 
@@ -858,16 +1142,122 @@
     localStorage.setItem("packing-viewer-name", name);
     nameModal.classList.remove("show");
     startPresence(name);
+    startChat();
   }
   document.getElementById("name-modal-save").addEventListener("click", saveViewerName);
   nameModalInput.addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); saveViewerName(); } });
 
-  document.getElementById("change-name-btn").addEventListener("click", () => {
+  viewersEl.addEventListener("click", e => {
+    if (!e.target.closest("[data-change-name]")) return;
     nameModalInput.value = currentViewerName || "";
     nameModal.classList.add("show");
     nameModalInput.focus();
     nameModalInput.select();
   });
+
+  // Chat
+  const chatToggle = document.getElementById("chat-toggle");
+  const chatClose = document.getElementById("chat-close");
+  const chatPanel = document.getElementById("chat-panel");
+  const chatMessagesEl = document.getElementById("chat-messages");
+  const chatForm = document.getElementById("chat-form");
+  const chatInput = document.getElementById("chat-input");
+  const chatBadge = document.getElementById("chat-badge");
+
+  let chatStarted = false;
+  let chatOpen = false;
+  let unreadCount = 0;
+  let lastRenderedMsgIds = new Set();
+
+  function renderUnreadBadge() {
+    if (unreadCount > 0) {
+      chatBadge.textContent = unreadCount > 9 ? "9+" : String(unreadCount);
+      chatBadge.style.display = "flex";
+    } else {
+      chatBadge.style.display = "none";
+    }
+  }
+
+  function renderChatMessages(msgs) {
+    const myDeviceId = getOrCreateDeviceId();
+    if (msgs.length === 0) {
+      chatMessagesEl.innerHTML = `<div class="chat-empty">No messages yet. Say hi!</div>`;
+      return;
+    }
+    chatMessagesEl.innerHTML = msgs.map(m => `
+      <div class="chat-msg${m.deviceId === myDeviceId ? " self" : ""}">
+        <div class="who">${escapeHtml(m.name || "Someone")}</div>
+        <div class="bubble">${escapeHtml(m.text || "")}</div>
+      </div>`).join("");
+    chatMessagesEl.scrollTop = chatMessagesEl.scrollHeight;
+  }
+
+  function startChat() {
+    if (chatStarted) return;
+    chatStarted = true;
+    const myDeviceId = getOrCreateDeviceId();
+    const chatQuery = query(collection(db, "packingLists", "family", "chat"), orderBy("sentAt"), limit(100));
+    let firstSnapshot = true;
+    onSnapshot(chatQuery, snap => {
+      const msgs = [];
+      snap.forEach(d => msgs.push({ id: d.id, ...d.data() }));
+      const newIds = new Set(msgs.map(m => m.id));
+      if (!firstSnapshot && !chatOpen) {
+        msgs.forEach(m => {
+          if (!lastRenderedMsgIds.has(m.id) && m.deviceId !== myDeviceId) {
+            unreadCount++;
+          }
+        });
+        renderUnreadBadge();
+      }
+      lastRenderedMsgIds = newIds;
+      firstSnapshot = false;
+      renderChatMessages(msgs);
+    });
+  }
+
+  function openChat() {
+    chatOpen = true;
+    chatPanel.classList.add("show");
+    chatToggle.style.display = "none";
+    unreadCount = 0;
+    renderUnreadBadge();
+    chatMessagesEl.scrollTop = chatMessagesEl.scrollHeight;
+    chatInput.focus();
+  }
+
+  function closeChat() {
+    chatOpen = false;
+    chatPanel.classList.remove("show");
+    chatToggle.style.display = "flex";
+  }
+
+  chatToggle.addEventListener("click", () => { chatOpen ? closeChat() : openChat(); });
+  chatClose.addEventListener("click", closeChat);
+
+  const NTFY_TOPIC = "niagara-packing-fc6uw2lezo0dm6fh";
+
+  chatForm.addEventListener("submit", e => {
+    e.preventDefault();
+    const text = chatInput.value.trim();
+    if (!text || !currentViewerName) return;
+    chatInput.value = "";
+    addDoc(collection(db, "packingLists", "family", "chat"), {
+      name: currentViewerName,
+      deviceId: getOrCreateDeviceId(),
+      text,
+      sentAt: serverTimestamp()
+    }).catch(() => {});
+    if (currentViewerName.trim().toLowerCase() !== "dad") {
+      fetch(`https://ntfy.sh/${NTFY_TOPIC}`, {
+        method: "POST",
+        body: text,
+        headers: { "Title": `${currentViewerName} (packing list)` }
+      }).catch(() => {});
+    }
+  });
+
+  if (savedName) startChat();
 </script>
 </body>
 </html>
