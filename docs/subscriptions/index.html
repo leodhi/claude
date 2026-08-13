@@ -185,6 +185,7 @@
         <button type="button" id="signin-password-btn" class="undo-btn">Sign in</button>
         <button type="button" id="signin-password-create-btn" class="undo-btn">Set password (first time)</button>
       </div>
+      <div style="margin-top:6px;"><button type="button" id="signin-password-forgot-btn" class="undo-btn" style="font-size:11.5px;padding:4px 10px;">Forgot password?</button></div>
       <p id="signin-status" style="color:var(--ink-faint);font-size:12.5px;margin-top:14px;"></p>
     </div>
   </div>
@@ -299,7 +300,7 @@
   import {
     getAuth, GoogleAuthProvider, signInWithPopup, signInWithRedirect, getRedirectResult, signOut, onAuthStateChanged,
     sendSignInLinkToEmail, isSignInWithEmailLink, signInWithEmailLink,
-    createUserWithEmailAndPassword, signInWithEmailAndPassword, sendEmailVerification
+    createUserWithEmailAndPassword, signInWithEmailAndPassword, sendEmailVerification, sendPasswordResetEmail
   } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
 
   const firebaseConfig = {
@@ -417,6 +418,18 @@
       await signInWithEmailAndPassword(authClient, email, password);
     } catch (err) {
       signinStatus.textContent = "Sign-in failed: " + (err && err.message ? err.message : "try again");
+    }
+  });
+
+  document.getElementById("signin-password-forgot-btn").addEventListener("click", async () => {
+    const email = document.getElementById("signin-email").value.trim();
+    if (!email) { signinStatus.textContent = "Enter your email first, then tap this again."; return; }
+    signinStatus.textContent = "Sending…";
+    try {
+      await sendPasswordResetEmail(authClient, email);
+      signinStatus.textContent = "Check " + email + " for a reset link, then come back and sign in with your new password.";
+    } catch (err) {
+      signinStatus.textContent = "Couldn't send reset email: " + (err && err.message ? err.message : "try again");
     }
   });
 
