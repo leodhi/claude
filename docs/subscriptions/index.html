@@ -244,19 +244,6 @@
   </div>
 
   <div class="panel">
-    <div class="panel-head">
-      <h2>Bulk import</h2>
-      <button type="button" id="bulk-import-toggle" class="undo-btn">Show</button>
-    </div>
-    <div class="panel-body" id="bulk-import-body" style="display:none;">
-      <p style="color:var(--ink-muted);font-size:13px;margin:0 0 10px;">One subscription per line. Format: <code>Name, Category, Cost, Interval, Unit, YYYY-MM-DD</code> — trailing fields are optional and default to Other / $0 / every 1 month / today, so you can paste names now and fill in real numbers later by editing each row.</p>
-      <textarea id="bulk-import-text" rows="6" style="width:100%;background:var(--surface-2);border:1px solid var(--border);border-radius:6px;padding:8px;color:var(--ink);font-size:13px;font-family:ui-monospace,monospace;"></textarea>
-      <button type="button" id="bulk-import-btn" class="undo-btn" style="margin-top:8px;">Import lines</button>
-      <span id="bulk-import-status" style="margin-left:10px;color:var(--ink-faint);font-size:12.5px;"></span>
-    </div>
-  </div>
-
-  <div class="panel">
     <div class="panel-head"><h2>Spend by category (monthly-equivalent)</h2></div>
     <div class="panel-body"><div class="bars" id="bars"></div></div>
   </div>
@@ -276,6 +263,19 @@
         <tbody id="subs-body"></tbody>
       </table>
       <p class="empty" id="subs-empty">No subscriptions yet — add your first above.</p>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-head">
+      <h2>Bulk import</h2>
+      <button type="button" id="bulk-import-toggle" class="undo-btn">Show</button>
+    </div>
+    <div class="panel-body" id="bulk-import-body" style="display:none;">
+      <p style="color:var(--ink-muted);font-size:13px;margin:0 0 10px;">One subscription per line. Format: <code>Name, Category, Cost, Interval, Unit, YYYY-MM-DD</code> — trailing fields are optional and default to Other / $0 / every 1 month / today, so you can paste names now and fill in real numbers later by editing each row.</p>
+      <textarea id="bulk-import-text" rows="6" style="width:100%;background:var(--surface-2);border:1px solid var(--border);border-radius:6px;padding:8px;color:var(--ink);font-size:13px;font-family:ui-monospace,monospace;"></textarea>
+      <button type="button" id="bulk-import-btn" class="undo-btn" style="margin-top:8px;">Import lines</button>
+      <span id="bulk-import-status" style="margin-left:10px;color:var(--ink-faint);font-size:12.5px;"></span>
     </div>
   </div>
 </div>
