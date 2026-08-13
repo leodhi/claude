@@ -117,10 +117,10 @@
 
   .table-scroll { overflow-x: hidden; }
   table { width: 100%; table-layout: fixed; border-collapse: collapse; margin-top: 4px; }
-  th:nth-child(1), td:nth-child(1) { width: 42%; }
-  th:nth-child(2), td:nth-child(2) { width: 27%; }
-  th:nth-child(3), td:nth-child(3) { width: 27%; }
-  th:nth-child(4), td:nth-child(4) { width: 64px; }
+  th:nth-child(1), td:not([colspan]):nth-child(1) { width: 42%; }
+  th:nth-child(2), td:not([colspan]):nth-child(2) { width: 27%; }
+  th:nth-child(3), td:not([colspan]):nth-child(3) { width: 27%; }
+  th:nth-child(4), td:not([colspan]):nth-child(4) { width: 64px; }
   th { text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--ink-faint); font-weight: 600; padding: 0 8px 8px; overflow-wrap: break-word; }
   td { padding: 9px 8px; border-top: 1px solid var(--border); font-size: 13.5px; vertical-align: middle; overflow-wrap: break-word; }
   td.num { text-align: right; font-variant-numeric: tabular-nums; }
@@ -1176,6 +1176,11 @@
     await fsEditSub(id, after);
     pushAction({ type: "edit", id, from: before, to: after });
     editingId = null;
+    // Don't rely solely on Firestore's snapshot round-trip to close the
+    // form -- under real network timing that can lag, leaving Save looking
+    // like it did nothing even though the write succeeded.
+    state.subs = state.subs.map(s => (s.id === id ? { ...s, ...after } : s));
+    renderAll();
   });
 
   function browserDownloadCsv(csv) {
