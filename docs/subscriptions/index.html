@@ -173,7 +173,8 @@
 
   .bars-scroll { overflow-x: auto; }
   .bars { display: flex; align-items: flex-end; gap: 16px; height: 160px; width: max-content; min-width: 100%; }
-  .bar-col { flex: 0 0 56px; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; height: 100%; gap: 6px; width: 56px; }
+  .bar-col { flex: 0 0 56px; display: flex; flex-direction: column; align-items: center; gap: 6px; width: 56px; }
+  .bar-track-wrap { height: 100px; width: 100%; display: flex; align-items: flex-end; flex: none; }
   .bar-track { width: 100%; border-radius: 5px 5px 3px 3px; background: var(--accent); flex: none; }
   .bar-lbl { font-size: 10.5px; color: var(--ink-faint); text-align: center; text-transform: uppercase; letter-spacing: 0.02em; white-space: nowrap; }
   .bar-val { font-size: 11px; color: var(--ink-muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
@@ -643,7 +644,7 @@
       const col = document.createElement("div");
       col.className = "bar-col";
       const h = Math.max(4, (val / max) * 100);
-      col.innerHTML = `<div class="bar-val">${fmt$(val)}</div><div class="bar-track" style="height:${h}%;background:${CAT_COLORS[cat] || CAT_COLORS.Other}"></div><div class="bar-lbl">${cat}</div>`;
+      col.innerHTML = `<div class="bar-val">${fmt$(val)}</div><div class="bar-track-wrap"><div class="bar-track" style="height:${h}%;background:${CAT_COLORS[cat] || CAT_COLORS.Other}"></div></div><div class="bar-lbl">${cat}</div>`;
       container.appendChild(col);
     });
   }
