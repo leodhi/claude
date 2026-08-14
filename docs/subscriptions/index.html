@@ -57,7 +57,7 @@
   }
 
   * { box-sizing: border-box; }
-  html, body { overflow-x: hidden; }
+  html, body { overflow-x: clip; overflow-y: visible; }
   body { margin: 0; background: var(--paper); color: var(--ink); font-family: -apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif; font-size: 15px; line-height: 1.5; }
   .wrap { max-width: 1040px; margin: 0 auto; padding: 40px 32px 72px; }
   header { margin-bottom: 26px; }
@@ -115,7 +115,7 @@
   .cat-chip:hover { border-color: var(--accent); color: var(--accent); }
   .cat-chip.active { background: var(--accent); border-color: var(--accent); color: #fff; }
 
-  .table-scroll { overflow-x: hidden; }
+  .table-scroll { overflow-x: clip; }
   table { width: 100%; table-layout: fixed; border-collapse: collapse; margin-top: 4px; }
   th:nth-child(1), td:not([colspan]):nth-child(1) { width: 42%; }
   th:nth-child(2), td:not([colspan]):nth-child(2) { width: 27%; }
