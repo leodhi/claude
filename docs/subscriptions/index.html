@@ -122,6 +122,9 @@
   th:nth-child(3), td:not([colspan]):nth-child(3) { width: 27%; }
   th:nth-child(4), td:not([colspan]):nth-child(4) { width: 64px; }
   th { text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--ink-faint); font-weight: 600; padding: 0 8px 8px; overflow-wrap: break-word; }
+  th.sortable { cursor: pointer; user-select: none; }
+  th.sortable:hover { color: var(--accent); }
+  .sort-arrow { display: inline-block; width: 0.9em; margin-left: 2px; }
   td { padding: 9px 8px; border-top: 1px solid var(--border); font-size: 13.5px; vertical-align: middle; overflow-wrap: break-word; }
   td.num { text-align: right; font-variant-numeric: tabular-nums; }
   .name-cell { display: flex; flex-direction: column; min-width: 0; }
@@ -280,7 +283,12 @@
       <div class="cat-filter" id="cat-filter"></div>
       <div class="table-scroll">
         <table>
-          <thead><tr><th>Name</th><th class="num">Cost</th><th>Next renewal</th><th style="width:64px;"></th></tr></thead>
+          <thead><tr>
+            <th data-sort-col="name" class="sortable">Name<span class="sort-arrow" data-sort-arrow="name"></span></th>
+            <th data-sort-col="cost" class="sortable num">Cost<span class="sort-arrow" data-sort-arrow="cost"></span></th>
+            <th data-sort-col="renew" class="sortable">Next renewal<span class="sort-arrow" data-sort-arrow="renew"></span></th>
+            <th style="width:64px;"></th>
+          </tr></thead>
           <tbody id="subs-body"></tbody>
         </table>
       </div>
@@ -644,6 +652,9 @@
   let editingId = null;
   let searchQuery = "";
   let categoryFilters = new Set();
+  // null sortColumn means the original default: soonest renewal first.
+  let sortColumn = null;
+  let sortDirection = "asc";
 
   function allCategories() {
     const used = [...new Set(state.subs.map(s => s.cat))];
@@ -676,7 +687,20 @@
     if (categoryFilters.size > 0) visible = visible.filter(s => categoryFilters.has(s.cat));
     if (visible.length === 0 && editingId === null) { body.innerHTML = ""; empty.style.display = "block"; empty.textContent = "No subscriptions match."; return; }
     empty.style.display = "none";
-    const sorted = visible.sort((a, b) => nextRenewalDisplay(a) - nextRenewalDisplay(b));
+    const dir = sortDirection === "desc" ? -1 : 1;
+    let sorted;
+    if (sortColumn === "name") {
+      sorted = visible.sort((a, b) => dir * a.name.localeCompare(b.name, undefined, { sensitivity: "base" }));
+    } else if (sortColumn === "cost") {
+      sorted = visible.sort((a, b) => dir * (a.cost - b.cost));
+    } else if (sortColumn === "renew") {
+      sorted = visible.sort((a, b) => dir * (nextRenewalDisplay(a) - nextRenewalDisplay(b)));
+    } else {
+      sorted = visible.sort((a, b) => nextRenewalDisplay(a) - nextRenewalDisplay(b));
+    }
+    document.querySelectorAll("[data-sort-arrow]").forEach(el => {
+      el.textContent = sortColumn === el.dataset.sortArrow ? (sortDirection === "desc" ? "▼" : "▲") : "";
+    });
     body.innerHTML = "";
     sorted.forEach(s => {
       if (s.id === editingId) {
@@ -1140,6 +1164,19 @@
 
   document.getElementById("search-input").addEventListener("input", e => {
     searchQuery = e.target.value.trim().toLowerCase();
+    renderTable();
+  });
+
+  document.querySelector(".table-scroll thead").addEventListener("click", e => {
+    const th = e.target.closest("[data-sort-col]");
+    if (!th) return;
+    const col = th.dataset.sortCol;
+    if (sortColumn === col) {
+      sortDirection = sortDirection === "asc" ? "desc" : "asc";
+    } else {
+      sortColumn = col;
+      sortDirection = "asc";
+    }
     renderTable();
   });
 
