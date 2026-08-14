@@ -325,6 +325,23 @@
     createUserWithEmailAndPassword, signInWithEmailAndPassword, sendEmailVerification, sendPasswordResetEmail
   } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
 
+  // iOS Safari has ignored the viewport meta tag's user-scalable/maximum-scale
+  // restrictions since iOS 10 (an intentional accessibility override), so an
+  // accidental pinch or double-tap can still zoom the page -- and once
+  // zoomed, panning around shows a cropped window of the real layout that
+  // looks exactly like a CSS overflow bug but isn't one. Blocking the actual
+  // gesture events in JS is the standard workaround, since iOS does still
+  // respect preventDefault() on these.
+  document.addEventListener("gesturestart", e => e.preventDefault());
+  document.addEventListener("gesturechange", e => e.preventDefault());
+  document.addEventListener("touchmove", e => { if (e.touches.length > 1) e.preventDefault(); }, { passive: false });
+  let lastTouchEnd = 0;
+  document.addEventListener("touchend", e => {
+    const now = Date.now();
+    if (now - lastTouchEnd <= 300) e.preventDefault();
+    lastTouchEnd = now;
+  }, false);
+
   const firebaseConfig = {
     apiKey: "AIzaSyDFJ_4r2c5P2w4F3TJg4CRNHP-yiDsRiRQ",
     authDomain: "packing-list-3c532.firebaseapp.com",
