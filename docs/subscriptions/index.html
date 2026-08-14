@@ -997,10 +997,16 @@
     return `${candidate.getFullYear()}-${String(candidate.getMonth() + 1).padStart(2, "0")}-${String(candidate.getDate()).padStart(2, "0")}`;
   }
 
+  // Strips a spoken lead-in phrase before the actual subscription name, e.g.
+  // "let's add Weight Watchers..." -> "Weight Watchers...". Without this,
+  // that lead-in has nothing else to be recognized as and ends up stuck in
+  // the parsed name, same failure mode as the unrecognized-date bug.
+  const VOICE_LEAD_IN_RE = /^(let'?s\s+add|please\s+add|can\s+you\s+add|could\s+you\s+add|i\s+want\s+to\s+add|i'?d\s+like\s+to\s+add|i\s+need\s+to\s+add|add)\s+/i;
+
   function parseVoiceEntry(text, existingCategories, today) {
     const raw = text.trim();
     if (!raw) return null;
-    let working = raw;
+    let working = raw.replace(VOICE_LEAD_IN_RE, "");
     let m;
 
     let cost = null, costMatchText = null;
