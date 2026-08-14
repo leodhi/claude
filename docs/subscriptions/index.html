@@ -171,11 +171,12 @@
   }
   .toast.show { opacity: 1; }
 
-  .bars { display: flex; align-items: flex-end; gap: 8px; height: 160px; }
-  .bar-col { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; height: 100%; gap: 6px; max-width: 46px; min-width: 0; }
+  .bars-scroll { overflow-x: auto; }
+  .bars { display: flex; align-items: flex-end; gap: 16px; height: 160px; width: max-content; min-width: 100%; }
+  .bar-col { flex: 0 0 56px; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; height: 100%; gap: 6px; width: 56px; }
   .bar-track { width: 100%; border-radius: 5px 5px 3px 3px; background: var(--accent); flex: none; }
-  .bar-lbl { font-size: 10.5px; color: var(--ink-faint); text-align: center; text-transform: uppercase; letter-spacing: 0.02em; }
-  .bar-val { font-size: 11px; color: var(--ink-muted); font-variant-numeric: tabular-nums; }
+  .bar-lbl { font-size: 10.5px; color: var(--ink-faint); text-align: center; text-transform: uppercase; letter-spacing: 0.02em; white-space: nowrap; }
+  .bar-val { font-size: 11px; color: var(--ink-muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
 </style>
 </head>
 <body>
@@ -268,7 +269,7 @@
 
   <div class="panel">
     <div class="panel-head"><h2>Spend by category (monthly-equivalent)</h2></div>
-    <div class="panel-body"><div class="bars" id="bars"></div></div>
+    <div class="panel-body"><div class="bars-scroll"><div class="bars" id="bars"></div></div></div>
   </div>
 
   <div class="panel">
