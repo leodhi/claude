@@ -173,7 +173,10 @@
 
   .bars-scroll { overflow-x: auto; }
   .bars { display: flex; align-items: flex-end; gap: 16px; height: 160px; width: max-content; min-width: 100%; }
-  .bar-col { flex: 0 0 56px; display: flex; flex-direction: column; align-items: center; gap: 6px; width: 56px; }
+  .bar-col { flex: 0 0 56px; display: flex; flex-direction: column; align-items: center; gap: 6px; width: 56px; cursor: pointer; border-radius: 8px; padding: 4px; margin: -4px; }
+  .bar-col:hover { background: var(--surface-2); }
+  .bar-col.active .bar-lbl { color: var(--accent); font-weight: 700; }
+  .bar-col.active { background: var(--accent-soft); }
   .bar-track-wrap { height: 100px; width: 100%; display: flex; align-items: flex-end; flex: none; }
   .bar-track { width: 100%; border-radius: 5px 5px 3px 3px; background: var(--accent); flex: none; }
   .bar-lbl { font-size: 10.5px; color: var(--ink-faint); text-align: center; text-transform: uppercase; letter-spacing: 0.02em; white-space: nowrap; }
@@ -642,7 +645,8 @@
     container.innerHTML = "";
     entries.forEach(([cat, val]) => {
       const col = document.createElement("div");
-      col.className = "bar-col";
+      col.className = "bar-col" + (categoryFilters.has(cat) ? " active" : "");
+      col.dataset.catFilter = cat;
       const h = Math.max(4, (val / max) * 100);
       col.innerHTML = `<div class="bar-val">${fmt$(val)}</div><div class="bar-track-wrap"><div class="bar-track" style="height:${h}%;background:${CAT_COLORS[cat] || CAT_COLORS.Other}"></div></div><div class="bar-lbl">${cat}</div>`;
       container.appendChild(col);
@@ -1187,7 +1191,15 @@
     if (!chip) return;
     const cat = chip.dataset.catFilter;
     if (categoryFilters.has(cat)) categoryFilters.delete(cat); else categoryFilters.add(cat);
-    renderTable();
+    renderAll();
+  });
+
+  document.getElementById("bars").addEventListener("click", e => {
+    const col = e.target.closest("[data-cat-filter]");
+    if (!col) return;
+    const cat = col.dataset.catFilter;
+    if (categoryFilters.has(cat)) categoryFilters.delete(cat); else categoryFilters.add(cat);
+    renderAll();
   });
 
   document.getElementById("subs-body").addEventListener("change", e => {
