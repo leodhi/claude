@@ -231,7 +231,7 @@
   <div class="row" style="align-items:center; margin-bottom:4px;">
     <h1 style="margin:0;">📢 Don't Copy Me</h1>
   </div>
-  <div class="subtitle">Shout it out — don't match anyone else &middot; <a class="top-link" href="index.html">&larr; all games</a></div>
+  <div class="subtitle">Answer fast — don't match anyone else &middot; <a class="top-link" href="index.html">&larr; all games</a></div>
   <div class="rules-link-row"><button type="button" class="rules-link-btn" id="rules-btn">Rules</button></div>
   <div class="rules-modal-backdrop" id="rules-modal-backdrop">
     <div class="rules-modal">
@@ -335,7 +335,7 @@
     </div>
     <div class="card" id="turn-active-card">
       <div class="timer-display center" id="turn-timer">0:45</div>
-      <label>Shout it — then type what you said</label>
+      <label>Your answer</label>
       <input type="text" id="turn-answer-field" placeholder="Type your answer..." maxlength="60">
       <button class="primary" id="btn-turn-submit" type="button" style="margin-top:10px;">Lock In Answer</button>
       <div class="waiting-text" id="turn-waiting" style="display:none">Waiting for other players…</div>
@@ -692,7 +692,8 @@ var mp = {
   room: null,
   timerHandle: null,
   timerRemaining: 0,
-  timerRoundKey: null
+  timerRoundKey: null,
+  finishingTurnKey: null
 };
 
 function roomRef(code) { return ref(db, "rooms/" + code); }
@@ -794,8 +795,11 @@ async function joinRoomFlow(code, name) {
   subscribeRoom(code);
 }
 
-$("btn-leave-room").addEventListener("click", function () {
+$("btn-leave-room").addEventListener("click", async function () {
   if (!confirm("Leave this room?")) return;
+  if (mp.roomCode && mp.uid) {
+    await set(ref(db, "rooms/" + mp.roomCode + "/players/" + mp.uid), null);
+  }
   localStorage.removeItem("dontcopyme_room");
   location.reload();
 });
@@ -1023,9 +1027,16 @@ function renderTurn() {
 
   showScreen("screen-turn");
 
-  if (mp.isHost) {
-    var count = round.answers ? Object.keys(round.answers).length : 0;
-    if (count >= round.stillIn.length && round.stillIn.length > 0) finishMpTurn();
+  // Any connected client can trigger the advance once everyone's answered —
+  // not just the host — so the round can't get stuck if the host's own
+  // client is slow to notice (or if hostUid ever falls out of sync).
+  var count = round.answers ? Object.keys(round.answers).length : 0;
+  if (count >= round.stillIn.length && round.stillIn.length > 0 && !mp.finishingTurnKey) {
+    var finishKey = round.roundNum + "-" + round.turnNum;
+    mp.finishingTurnKey = finishKey;
+    finishMpTurn().finally(function () {
+      if (mp.finishingTurnKey === finishKey) mp.finishingTurnKey = null;
+    });
   }
 }
 
