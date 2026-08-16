@@ -52,11 +52,18 @@
 
   .search-wrap { margin-bottom: 14px; display: none; }
   .search-wrap.show { display: block; }
+  .search-input-wrap { position: relative; }
   #search-input {
     width: 100%; background: #1c1c1e; border: 1px solid #3a3a3c; border-radius: 10px;
-    padding: 10px 12px; color: var(--ink); font-size: 15px; font-family: inherit;
+    padding: 10px 34px 10px 12px; color: var(--ink); font-size: 15px; font-family: inherit;
   }
   #search-input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+  .search-clear-btn {
+    position: absolute; right: 6px; top: 50%; transform: translateY(-50%);
+    background: none; border: none; color: var(--ink-faint); font-size: 15px;
+    cursor: pointer; padding: 6px; line-height: 1; display: none;
+  }
+  .search-clear-btn:hover { color: var(--ink); }
 
   .progress-wrap { display: flex; align-items: center; gap: 10px; margin-bottom: 20px; }
   .progress-track { flex: 1; height: 6px; border-radius: 3px; background: #2c2c2e; overflow: hidden; }
@@ -177,7 +184,10 @@
       </div>
     </div>
     <div class="search-wrap" id="search-wrap">
-      <input type="text" id="search-input" placeholder="Search items…" aria-label="Search items">
+      <div class="search-input-wrap">
+        <input type="text" id="search-input" placeholder="Search items…" aria-label="Search items">
+        <button type="button" id="search-clear" class="search-clear-btn" aria-label="Clear search">✕</button>
+      </div>
     </div>
     <div class="progress-wrap">
       <div class="progress-track"><div class="progress-fill" id="progress-fill" style="width:0%"></div></div>
@@ -255,14 +265,15 @@
   // category. Bounded conservatively so white row text stays legible even at
   // the lightest end -- letting it drift toward pale yellow made text hard to
   // read there.
-  const GRADIENT_BASE = { h: 8, s: 80, l: 45 };
+  const GRADIENT_BASE = { h: 8, s: 80, l: 36 };
+  const GRADIENT_LIGHT_CAP = 51;
   function headerColorForCat() {
     return `hsl(${GRADIENT_BASE.h}, ${GRADIENT_BASE.s}%, ${GRADIENT_BASE.l}%)`;
   }
   function gradientRowColor(index, total) {
     const t = total <= 1 ? 0 : index / (total - 1);
     const hue = GRADIENT_BASE.h + t * 15;
-    const light = Math.min(51, GRADIENT_BASE.l + t * 6);
+    const light = Math.min(GRADIENT_LIGHT_CAP, GRADIENT_BASE.l + t * (GRADIENT_LIGHT_CAP - GRADIENT_BASE.l));
     return `hsl(${hue.toFixed(1)}, ${GRADIENT_BASE.s}%, ${light}%)`;
   }
 
@@ -362,6 +373,11 @@
   const searchToggle = document.getElementById("search-toggle");
   const searchWrap = document.getElementById("search-wrap");
   const searchInput = document.getElementById("search-input");
+  const searchClearBtn = document.getElementById("search-clear");
+
+  function updateSearchClearVisibility() {
+    searchClearBtn.style.display = searchInput.value ? "block" : "none";
+  }
 
   searchToggle.addEventListener("click", () => {
     const showing = searchWrap.classList.contains("show");
@@ -370,6 +386,7 @@
       searchInput.value = "";
       searchQuery = "";
       searchToggle.textContent = "🔍";
+      updateSearchClearVisibility();
       render();
     } else {
       searchWrap.classList.add("show");
@@ -377,8 +394,16 @@
       searchInput.focus();
     }
   });
+  searchClearBtn.addEventListener("click", () => {
+    searchInput.value = "";
+    searchQuery = "";
+    updateSearchClearVisibility();
+    searchInput.focus();
+    render();
+  });
   searchInput.addEventListener("input", () => {
     searchQuery = searchInput.value.trim().toLowerCase();
+    updateSearchClearVisibility();
     render();
   });
 
