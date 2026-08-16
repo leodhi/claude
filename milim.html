@@ -7,14 +7,14 @@
 <link rel="apple-touch-icon" href="icon-milim.png">
 <style>
   :root {
-    --bg: #14110c;
-    --panel: #201a12;
-    --panel-2: #2b2317;
-    --accent: #c9a227;
-    --accent-2: #b4432f;
-    --text: #f5eee0;
-    --text-dim: #a89878;
-    --border: #3a2f1e;
+    --bg: #f3ecdb;
+    --panel: #faf6ea;
+    --panel-2: #ede3cd;
+    --accent: #b8842a;
+    --accent-2: #a8402c;
+    --text: #241f17;
+    --text-dim: #6e6353;
+    --border: #ddd0b0;
   }
   * { box-sizing: border-box; }
   html, body {
@@ -229,11 +229,11 @@
       <h2>📖 How to Play</h2>
       <div class="rules-section">
         <div class="rules-section-label">Each round</div>
-        A Hebrew or Aramaic word from the deck is shown to everyone at once. Choose how you answer: pick from four choices, type your own answer, or a random mix of both each round.
+        A Hebrew or Aramaic word from the deck is shown to everyone at once. Choose how you answer: pick from four choices, type your own answer, or a random mix of both each round. Everyone gets <strong>20 seconds</strong> per word.
       </div>
       <div class="rules-section">
         <div class="rules-section-label">Scoring</div>
-        A correct guess earns <strong>+1 point</strong>. Wrong guesses don't cost you anything — just get the next one.
+        A correct guess earns <strong>+1 point</strong>. Get <strong>3 wrong in a row</strong> and you lose <strong>1 point</strong> (never below 0) — a correct answer resets that streak back to zero.
       </div>
       <div class="rules-section">
         <div class="rules-section-label">Winning</div>
@@ -549,6 +549,7 @@ const auth = getAuth(app);
 const db = getDatabase(app);
 
 var ROUND_TIME = 20;
+var WRONG_STREAK_PENALTY = 3;
 
 // Word bank: [number, hebrew, english]
 var WORDS = [[1,"מַתְנִי׳ · מַתְנִיתִין · מִשְׁנָה","Mishna"],[2,"גְמ׳ · גְּמָרָא · תַּלְמוּד","Talmud"],[3,"אָחִיךָ","Your brother / Fellow Jew"],[4,"גּוֹי · גּוֹיִם","Non-Jew(s) * Nation(s)"],[5,"שׁוֹר","Ox / Bull (same word for plural)"],[6,"חֲמוֹר · חֲמוֹרִים","Donkey * Donkeys"],[7,"שֶׂה","Sheep / Lamb"],[8,"שִׂמְלָה","Garment"],[9,"אֲבָל","But"],[10,"הָשֵׁב","Return"],[11,"הָשֵׁב תְּשִׁיבֵם לְאָחִיךָ · הֲשָׁבַת אֲבֵידָה שֶׁל מִצְוַת עֲשֵׂה","You should surely return it to your brother / Returning a lost object is a positive command"],[12,"קָרוֹב","Close - Near"],[13,"עַד","Until"],[14,"אִם","If"],[15,"דִּבְרֵי","Words of / These are the words of"],[16,"דָּבָר · דְּבָרִים","Word(s) * Thing(s)"],[17,"אֲבֵידָה","Lost object"],[18,"מְצִיאָה · מְצִיאוֹת","Found object(s) * Finding(s)"],[19,"מָצָא","Found"],[20,"מִמֶּנּוּ","From him / From it / From us"],[21,"אֵלּוּ","These"],[22,"אֶלָּא","But / Only / Rather / Except"],[23,"וְכֵן","And yes / And so / And also / And similarly"],[24,"חַיָּיב","Obligated"],[25,"פָּטוּר","Exempt"],[26,"לְהַכְרִיז","To announce"],[27,"לְהַחֲזִיר","To return"],[28,"פֵּירוֹת","Produce / Fruits / Grain"],[29,"מְפוּזָּר · מְפוּזָּרִין · מְפוּזָּרוֹת","Scattered"],[30,"מָעוֹת","Coins / Money"],[31,"כְּרִיכוֹת","Small sheaves"],[32,"אֲלוּמוֹת","Big sheaves"],[33,"[בְּ]רְשׁוּת הָרַבִּים · בְּרה״ר","[In] Public property - Area"],[34,"[בְּ]רְשׁוּת הַיָּחִיד · בְּרה״י","[In] Private property - Area"],[35,"בָּשָׂר","Meat / Flesh"],[36,"לֹא תוּכַל לְהִתְעַלֵּם · הֲשָׁבַת אֲבֵידָה שֶׁל מִצְוַת עֲשֵׂה לֹא תַעֲשֶׂה","You are not allowed to hide / ignore [a lost object] — also a prohibition"],[37,"דָּג · דָּגִים","Fish"],[38,"מְדִינָה · מְדִינוֹת","Country * Countries"],[39,"עִיר · עָרִים","City * Cities"],[40,"תְּנַן","We learned in a Mishnah"],[41,"תַּנְיָא","We learned in a Braisa"],[42,"הֲרֵי אֵלּוּ שֶׁלּוֹ","These are his"],[43,"חַיָּיב לְהַכְרִיז","Obligated to announce"],[44,"כִּכָּר · כִּכָּרוֹת","Loaf * Loaves of bread"],[45,"כֵּיצַד","How / How so / When"],[46,"שִׁנּוּי","Unusual / Different"],[47,"כְּלִי","Vessel / Utensil"],[48,"כְּלִי · כֵּלִים","Vessels * Utensils"],[49,"לָשׁוֹן · לְשׁוֹנוֹת","Tongue(s) * Term(s) * Language(s)"],[50,"סִימָן · סִימָנִים","Identifying mark(s) * Sign(s)"],[51,"יֵאוּשׁ","Give up hope"],[52,"תּוֹךְ","Midst (middle)"],[53,"קֶשֶׁר","Knot / Tie"],[54,"הֶפְקֵר","Ownerless"],[55,"הוֹאִיל","Since"],[56,"טַעַם","Reason / Taste"],[57,"טַעֲמָא","Reason"],[58,"מַאי טַעֲמָא · טַעֲמָא מַאי","What's the reason?"],[59,"בֵּי · בַּיִת · בָּתִּים","House * Houses"],[60,"בַּעֲה״ב · בַּעַל הַבַּיִת","Houseowner"],[61,"בַּעֲלֵי בָּתִּים","Houseowners"],[62,"בַּעַל · בַּעֲלִים","Owner * Owners"],[63,"שָׁוֶה · שָׁוִין","Equal * Same"],[64,"שְׁאָר","Rest (remaining)"],[65,"לְאַפּוּקֵי","To exclude"],[66,"לְאַתּוּיֵי","To include"],[67,"רֵישָׁא","Beginning / First case"],[68,"סֵיפָא","End / Last case"],[69,"אִי","If"],[70,"מְפָרֵשׁ","Explain"],[71,"כַּמָּה","How many - How much"],[72,"ה״ד · הֵיכִי דָמֵי","What's this case like / Wassup"],[73,"דֶּרֶךְ · דְּרָכִים","Way(s) * Road(s) * Path(s)"],[74,"אֲפִילוּ","Even / Even though"],[75,"טוּבָא","More"],[76,"נַמֵי","Also"],[77,"הֵינוּחַ","Placed"],[78,"הָכִי","Like this / Like so"],[79,"הָכָא","Here"],[80,"הָתָם","There"],[81,"אֲשֶׁר","That / Which"],[82,"עַסְקִינָן","We are talking about / We are dealing with"],[83,"טְרַח","Bother / Effort"],[84,"אִינִשׁ","Man / Person"],[85,"הָדָר","Return / Beautiful / RH"],[86,"שָׁקִיל","Take"],[87,"לֵיהּ","Him / To him"],[88,"לְהוּ","Them / To them"],[89,"בָּעֵי","Need / Want / Ask (an informational question)"],[90,"נִיכָּר","Recognizable"],[91,"כֵּיוָן","Since"],[92,"אוֹ","Or"],[93,"דִּלְמָא","Maybe - Perhaps"],[94,"אוֹ דִלְמָא","Or maybe"],[95,"טְפֵי","Bigger"],[96,"חָשׁוּב","Considered / Important"],[97,"הָוֵי","It is (considered)"],[98,"מִשׁוּם","Because / In the name of"],[99,"כ״ש · כָּל שֶׁכֵּן","Certainly / All the more so / For sure x3"],[100,"תֵּיקוּ · תִּשְׁבִּי יְתָרֵץ קֻשְׁיוֹת וְאִבַּעְיוֹת (אֵלִיָּהוּ הַנָּבִיא יַעֲנֶה כְּשֶׁיָּבוֹא מָשִׁיחַ)","Let it stand / *Bag* — Eliyahu HaNavi will answer when Moshiach comes"],[101,"א״ל · אָמַר לֵיהּ","He said to him"],[102,"א״ל · אָמַר לְהוּ","He said to them"],[103,"א״ל · אָמְרוּ לֵיהּ","They said to him"],[104,"מַאי","What / What's the halacha?"],[105,"בְּמַאי","With what?"],[106,"בְּמַאי עַסְקִינָן","With what are we dealing? / With what are we talking about?"],[107,"הַב״ע · הָכָא בְּמַאי עַסְקִינָן","With what are we dealing here? With what are we talking about here?"],[108,"שְׁקוֹל · שָׁקִיל","Take"],[109,"הֲשָׁבַת אֲבֵידָה","Returning a lost object"],[110,"מוֹצֵא","Find / Finder"],[111,"מַהוּ","What / What's the halacha?"],[112,"מִיהוּ","However"],[113,"וא״ת · וְאִם תֹּאמַר","And Tosfos asks"],[114,"וי״ל · וְיֵשׁ לוֹמַר","And Tosfos answers"],[115,"א״נ · אִי נַמֵי","Or else / Another answer"],[116,"תִּימָה · תִּימָא","Tosfos asks a BOMB question"],[117,"אִיכָּא","There is / There are"],[118,"לֵיכָּא","There isn't / There aren't"],[119,"כְּלָל · כְּלָלָא","Rule / General rule"],[120,"כְּגוֹן","For example / For instance"],[121,"אִיתְּמַר","It was stated / said (by Amoraim)"],[122,"כ״ע · כּוּלֵּי עָלְמָא","Everybody / The whole world"],[123,"כּוּלֵּי עָלְמָא לָא פְּלִיגִי","Everybody doesn't argue / Everybody agrees"],[124,"פְּלִיגִי","Argues"],[125,"אֲתָא","It came / He came"],[126,"דַּעַת","Knowledge"],[127,"עֵד · עֵדִים","Witness * Witnesses"],[128,"מָקוֹם","ה׳ / Place"],[129,"אע״פ · אַף עַל פִּי","Even though"],[130,"אע״ג · אַף עַל גַּב","Even though"],[131,"אָסוּר","Forbidden / Not allowed / Prohibited"],[132,"מוּתָּר","Permitted / Allowed"],[133,"אִית לִי","I have"],[134,"לֵית לִי","I don't have"],[135,"נָהָר · נְהָרוֹת","River * Rivers"],[136,"רַחֲמָנָא","Torah / The Merciful One"],[137,"שָׁרֵי · שַׁרְיָא · שַׁרְיֵיהּ","Permits - Permitted"],[138,"אֲבֵידָה מִדַּעַת","A knowingly lost object"],[139,"יֵאוּשׁ מִדַּעַת","Giving up hope with knowledge"],[140,"רַחֲמָנָא שַׁרְיֵיהּ","The Torah permits"],[141,"לְקַמָּן","*Later on (Later on)"],[142,"לְקַמֵּיהּ","*Later on (Right away)"],[143,"הַשְׁתָּא","Now"],[144,"סְתָם","Regular / Normal"],[145,"עֲדַיִן","Yet / Still / More"],[146,"נָפַל","Fell"],[147,"אַגַּב","Since"],[148,"בַּגְמ׳ (בַּגְּמָרָא) מְפָרֵשׁ","In the Gemara it will explain it"],[149,"ת״ש · תָּא שְׁמַע","Come and listen / Come and hear (Proof)"],[150,"אַמַּאי","Why?"],[151,"לִפְנֵי","Before / In front of"],[152,"אַחַר","After (Immediately)"],[153,"אַחֲרֵי","After (A while later)"],[154,"אַחֵר","Other / Another / Different"],[155,"חוּץ","Outside / Except"],[156,"כִּי","Because / That / When / If"],[157,"ה״נ · הָכָא נַמֵי","Here also"],[158,"ה״נ · הָתָם נַמֵי","There also"],[159,"ה״נ · הָכִי נַמֵי","Like this also"],[160,"כִּיס","Purse / Pocket"],[161,"שָׁעָה","Time / Hour"],[162,"אַנְב","Since"],[163,"יָחִיד","Singular / Individual"],[164,"רַבִּים","Plural / Many"],[165,"דָּבָר שֶׁיֵּשׁ בּוֹ סִימָן","Something that has an identifying mark on it"],[166,"קוֹדֶם","Before"],[167,"שָׂדֶה","Field"],[168,"בִּשְׁלָמָא","It is understandable / I could understand"],[169,"זָקֵן · זְקֵנִים","Old person * Elders"],[170,"תַּרְגְּמָהּ","Explain / Interpret"],[171,"מָתַי","When"],[172,"אֵימָתַי","When"],[173,"מֵאֵימָתַי","From when"],[174,"עָנִי · עֲנִיִּים","Poor person * Poor people"],[175,"עָשִׁיר · עֲשִׁירִים","Rich person * Rich people"],[176,"קַמָּא","First"],[177,"מְצִיעָא","Middle"],[178,"בַּתְרָא","Last"],[179,"בָּתַר","After"],[180,"זִיל","Go"],[181,"אָזִיל","Goes / Went"],[182,"נְהִי","It is true / Granted"],[183,"דּוּכְתָּא","Place"],[184,"הָנָךְ","Those"],[185,"מֵעִיקָּרָא","From the beginning"],[186,"צַד","Side / Next to"],[187,"גֶּזֶל","Theft"],[188,"גַּנָּב","Sneaky thief"],[189,"גַּזְלָן","Armed robber"],[190,"דָּבָר שֶׁאֵין בּוֹ סִימָן","Something that doesn't have an identifying mark on it"],[191,"מִפְּנֵי","Because"],[192,"קֻשְׁיָא · קָשֶׁה","[Challenge - Attack] Question / Difficulty"],[193,"תֵּירוּץ","Answer"],[194,"שְׁאֵלָה","[Informational] Question"],[195,"תְּשׁוּבָה","Answer / Return"],[196,"שַׁאנִי","Different"],[197,"א״ה · אִי הָכִי","If so?"],[198,"חֲדָא · חַד","1"],[199,"תְּרֵי","2"],[200,"תְּלָתָא · תְּלָת","3"],[201,"סוּגְיָא","Topic / Discussion"],[202,"עִנְיָן","Topic"],[203,"מַחְלוֹקֶת","Argument / Disagreement"],[204,"הו״א · הֲוָה אָמִינָא","Assumption / [I] would've thought"],[205,"מַסְקָנָא","Conclusion / Final answer"],[206,"מֵימְרָא","Statement"],[207,"רְאָיָה","ProoPH (Proof)"],[208,"נ״מ · נַפְקָא מִינָה","Practical difference"],[209,"מַאי נַפְקָא מִינָה","What's the practical difference?"],[210,"שַׁאנִי הָכָא","It's different here"],[211,"שַׁאנִי הָתָם","It's different there"],[212,"רָמֵי · וְרַמִינְהוּ · וּרְמִינְהִי","Contradiction / And I'll ask you a contradiction"],[213,"אֵצֶל","Near / Next to"],[214,"דּוֹמֶה · דּוֹמְיָא","Similar"],[215,"בֵּין","Between / Whether"],[216,"בֵּין כָּךְ וּבֵין כָּךְ","Whether this or whether that"],[217,"תְּיוּבְתָּא","Disproved / Shlugged up"],[218,"הִלְכְתָא","The Halacha"],[219,"הָנֵי","These"],[220,"מִילֵי","Words"],[221,"ה״מ · הָנֵי מִילֵי","These words / When do these words apply"],[222,"אִיכָּא לְמֵימַר","You can say"],[223,"לֵיכָּא לְמֵימַר","You can't say / Don't say"],[224,"[מ][ד]אוֹרַיְיתָא","[From] {The} Torah"],[225,"[מ][ד]רַבָּנָן","[From] {The} Rabbis"],[226,"דִּין","Law / Judgement"],[227,"חֲזִי · חֲזָא","See / Saw"],[228,"חַזְיֵיהּ","He saw"],[229,"בְּתוֹךְ","In the midst / middle"],[230,"אֵימָא","I would say / I could say"],[231,"לֵימָא","Let us say / Should we say"],[232,"נֵימָא","We could say / We would say"],[233,"תֵּימָא","You would say / You could say"],[234,"רְשׁוּת","Permission / Property"],[235,"מִנְיָן","Number"],[236,"מְנַיִן","From where do we know"],[237,"שָׁלִיחַ","Messenger"],[238,"ס״ד · סָלְקָא דַּעְתָּךְ","You think / We think"],[239,"אס״ד · אִי סָלְקָא דַּעְתָּךְ","If you want to think"],[240,"סד״א · סָלְקָא דַּעְתָּךְ אָמִינָא","I would've thought"],[241,"קס״ד · קָא סָלְקָא דַּעְתָּךְ","You would think"],[242,"סָבַר","Holds (His opinion)"],[243,"סְבָרָא","Logic"],[244,"מִסְתַּבְּרָא","It is logical"],[245,"עִידִּית","One's best quality produce"],[246,"בֵּינוֹנִית","One's medium quality produce"],[247,"זִיבּוּרִית","One's worst quality produce"],[248,"שָׁכַח","Forgot"],[249,"אַשְׁכַּח","Found"],[250,"הִלְכָּךְ","Therefore"],[251,"תַּנָּא · תַּנָּאִים","Teacher(s) / Author(s) / Sage(s)"],[252,"אָמוֹרָא · אָמוֹרָאִים","Interpreter * Interpreters"],[253,"רִאשׁוֹן · רִאשׁוֹנִים","First */* Early commentator(s)"],[254,"אַחֲרוֹן · אַחֲרוֹנִים","Last */* Later commentator(s)"],[255,"קְרָא","(Word(s) in a Pasuk)"],[256,"עֲשֵׂה","Do / Positive commandment"],[257,"לָאו · מִצְוַת לֹא תַעֲשֶׂה","Don't do / Prohibition"],[258,"דִּכְתִיב","That it's written (in a Pasuk)"],[259,"שֶׁנֶּאֱמַר","Like it says (in a Pasuk)"],[260,"שִׁיעוּר","Measurement / Lesson"],[261,"פְּלוּגְתָּא","Argument"],[262,"שְׁלוּחוֹ שֶׁל אָדָם כְּמוֹתוֹ","A messenger of a person is like himself"],[263,"בְּעִידְנָא","At the time"],[264,"יְתֵירָא","Extra"],[265,"לָאו","No / Not"],[266,"נִיחָא","Good / Fine / Acceptable"],[267,"עוֹד","Again / Yet / Still / More"],[268,"אַלְמָא","We see / (It proves)"],[269,"מָר","Master / Bitter"],[270,"יָתוֹם · יְתוֹמִים","Orphan * Orphans"],[271,"ל״ש · לָא שְׁנָא","There is no difference"],[272,"ל״ש · לָא שָׁנוּ","They didn't teach / We didn't learn"],[273,"נָכְרִי · נָכְרִים","Non Jew * Non Jews"],[274,"ת״ק · תַּנָּא קַמָּא","The first Tanna"],[275,"מִשְּׁמֵיהּ","In the name of"],[276,"שָׁכִיחַ","Common"],[277,"כְּבָר","Already"],[278,"בָּעוּ","They asked"],[279,"אוֹת · אוֹתוֹת","Sign(s) / Letter(s)"],[280,"כֶּסֶף","Silver / Money"],[281,"זָהָב","Gold"],[282,"נְחוֹשֶׁת","Copper"],[283,"מִדָּה · מִדּוֹת","Measurement(s) / Character trait(s)"],[284,"מִשְׁקָל · מִשְׁקָלוֹת","Weight * Weights"],[285,"גּוּפָא","Let's go back to what was stated previously"],[286,"גּוּפָהּ","Itself"],[287,"כַּד · כַּדֵּי · כַּדִּים","Pitcher * Pitchers"],[288,"חָבִית · חָבִיּוֹת","Barrel * Barrels"],[289,"יַיִן · יֵינוֹת","Wine * Wines"],[290,"שֶׁמֶן · שְׁמָנִים","Oil * Oils"],[291,"תְּבוּאָה · תְּבוּאוֹת","Produce / Grain (S & P)"],[292,"תָּמָר · תְּמָרִים","Date * Dates"],[293,"תְּאֵנָה · תְּאֵנִים","Fig * Figs"],[294,"רִמּוֹן · רִמּוֹנִים","Pomegranate * Pomegranates"],[295,"זַיִת · זֵיתִים","Olive * Olives"],[296,"מִכְּלָל","It implies / We see from here / From here we see"],[297,"אֲפִילוּ תֵּימָא","You could even say"],[298,"כָּאן","Here"],[299,"אִידֵי","This"],[300,"אִידֵי וְאִידֵי","This and this / This and that"],[301,"חָבֵר · חֲבֵרִים","Friend * Friends"],[302,"אִיכָּא דְאָמְרִי","There are [those] that say"],[303,"גַּבְרָא","Man"],[304,"הַהוּא גַּבְרָא","There was a man"],[305,"זִיל שְׁקוֹל לְנַפְשָׁךְ","Go and take [it] for yourself"],[306,"חָדָשׁ","New"],[307,"חוֹדֶשׁ","Month"],[308,"עַיִן · עֵינַיִם","Eye * Eyes"],[309,"לְעוֹלָם","Really I'll tell you / Forever"],[310,"ת״ר · תָּנוּ רַבָּנָן · בְּרַיְיתָא","Our Rabbis taught in a Braisa"],[311,"סְפִינָה","Ship"],[312,"ש״מ · שְׁמַע מִינָה","We see from here / We hear from this"],[313,"פַּעַם","Time"],[314,"פַּעֲמַיִם","2 Times"],[315,"פְּעָמִים","Times"],[316,"פְּלוֹנִי","So and so / Such and such / Variable / X"],[317,"ה״ה · הוּא הַדִּין","The same law applies"],[318,"גַּבֵּי","Concerning / On top of"],[319,"בָּשָׂר שֶׁנִּתְעַלֵּם מִן הָעַיִן","Meat that was hidden from the eye"],[320,"עָדִיף · עֲדִיפָא","Better"],[321,"בֶּגֶד · בְּגָדִים","Clothes - Clothing"],[322,"וַדַּאי","Certainly"],[323,"סָפֵק","Doubt"],[324,"שַׁפִּיר","Good / Beautiful / RH"],[325,"דִּיּוּק","Infer - Inference"],[326,"צִבּוּר · צִבּוּרֵי","Pile * Piles"],[327,"מְיַירֵי","We are talking about / It is talking about"],[328,"עַל גַּב","On top"],[329,"רַק","Only"],[330,"רֵק","Empty"],[331,"קְצָת · מִקְצָת","Part - Partial / A little / Some"],[332,"קַרְקַע","Ground / Land"],[333,"אִי בָּעֵית אֵימָא","If you want, I can say (Answer)"],[334,"ה״ג · הָכִי גַּרְסִינָן","Like this is the correct text"],[335,"דַּוְקָא","Specifically"],[336,"מַטְבֵּעַ","Coin"],[337,"מָמוֹן","Money"],[338,"זוּז","Currency"],[339,"דִּינָר","Currency"],[340,"סֶלַע","Currency / Rock"],[341,"פְּרוּטָה","Currency (Lowest Halachic amount)"],[342,"שָׁוֶה פְּרוּטָה","The worth of a Perutah"],[343,"ע״ז · עֲבוֹדָה זָרָה","Idol worship"],[344,"עכו״ם · עוֹבֵד כּוֹכָבִים וּמַזָּלוֹת","Idol worship (Lit. one who serves stars and constellations)"],[345,"פָּשׁוּט · פְּשִׁיטָא","Obvious / Simple"],[346,"רוֹב · רוּבָּא","Majority"],[347,"הוֹלְכִים אַחַר הָרוֹב","We follow the majority"],[348,"א״כ · אִם כֵּן","If so"],[349,"רָגִיל · רְגִילוּת","Regular / Common"],[350,"לְעֵיל","Earlier / Before / Above"],[351,"רש״י · רַבִּי שְׁלֹמֹה יִצְחָקִי · רַבָּן שֶׁל יִשְׂרָאֵל","Rashi (BFF) / The rabbi of Bnei Yisrael"],[352,"ר״ת · רַבֵּינוּ תָּם (בַּעֲלֵי תוֹסָפוֹת) — נֶכֶד שֶׁל רש״י","One of the Baalei Tosfos (also a grandson of Rashi)"],[353,"פרש״י · פֵּירוּשׁ רש״י","Rashi explains"],[354,"אָז","Then"],[355,"הַיְינוּ","That is"],[356,"חוֹשֵׁשׁ · חַיְישִׁי","Suspect"],[357,"חַיְישִׁינָן","We suspect"],[358,"מוֹדֶה","Admits / Agrees / Thanks"],[359,"מ״מ · מִכָּל מָקוֹם","However / Nevertheless"],[360,"אֵין הָכִי נַמֵי","Yes, it is like this (you are correct)"],[361,"אוֹבֵד","Loser"],[362,"מ״ד · מַאן דְּאָמַר","The one that said"],[363,"לְפִיכָךְ","Therefore"],[364,"נָקַט","Chose / Took"],[365,"כְּמוֹ","Like / As"],[366,"אֶרֶץ","Land / Earth"],[367,"אַף","Even / Even though / Also"],[368,"בְּנֵי אָדָם","People"],[369,"צָרִיךְ","Need / Necessary"],[370,"צְרִיכִי","It is needed / It is necessary"],[371,"פָּחוֹת","Less"],[372,"יוֹתֵר","More"],[373,"כְּלוּם","Nothing"],[374,"זֶה · זוֹ","This"],[375,"אִילָן · אִילָנוֹת","Tree * Trees"],[376,"בַּעַל אֲבֵידָה","The person who lost the object (Lit. owner of the lost object)"],[377,"לְפִיכָךְ","Therefore"],[378,"וכו׳ · וְכוּלֵי","Etc. (not from Tanach)"],[379,"וגו׳ · וְגוֹמֵר","Etc. (from Tanach)"],[380,"נָטַל","Took"],[381,"נוֹטֵל","Take"],[382,"אֱמֶת","Truth"],[383,"שֶׁקֶר","Lie / Falsehood"],[384,"עַתָּה · עַכְשָׁיו","Now"],[385,"נ״ב · נִרְאֶה בְּעֵינַי","It appears in my eyes (It appears to me)"],[386,"יֵשׁ","There is"],[387,"אֵין","There isn't"],[388,"סוֹמֵךְ","Support / Rely"],[389,"בְּהֵמָה · בְּהֵמוֹת","(Domesticated) Animal * Animals"],[390,"חַיָּה · חַיּוֹת","(Wild) Animal * Animals"],[391,"כְּלוֹמַר","In other words / It means to say"],[392,"אֶבֶן · אֲבָנִים","Stone * Stones"],[393,"מְנָלָן","From where do we know"],[394,"אֶפְשָׁר","Possible"],[395,"מוֹכֵר","Seller"],[396,"צוּרְבָא מֵרַבָּנָן","Talmid Chochom"],[397,"אַיְידֵי","Since"],[398,"הָא","This"],[399,"הָא וְהָא","This and that"],[400,"תַּנְיָא נַמֵי הָכִי","We also learned in a Braisa like this"],[401,"תּוֹבֵעַ · תּוֹבְעִין","Claimer * Claimers"],[402,"לָמָּה · מַדּוּעַ","Why"],[403,"בַּגְמ׳ (בַּגְּמָרָא) מְפָרֵשׁ לָהּ","In the Gemara it will explain it"],[404,"ל״ל · לָמָּה לִי","Why do I need it?"],[405,"רֹאשׁ","Head / Top / Beginning"],[406,"סוֹף","End"],[407,"בּוֹר","Pit"],[408,"דְּרָשָׁה","Expound(ing) / (To teach)"],[409,"שֵׂעָר","Hair"],[410,"סַגֵּי","Enough"],[411,"אֲנָא","I"],[412,"אֲנָן","We"],[413,"אֲפִילוּ הָכִי","Even so"],[414,"{בְּ}שַׁעַת","{At} The time"],[415,"פְּרָט","(To) Exclude"],[416,"בֵּינַיְיהוּ","Between them"],[417,"מַאי בֵּינַיְיהוּ","What's [the difference] between them"],[418,"אִיכָּא בֵּינַיְיהוּ","This is [the difference] between them"],[419,"אִידָךְ","Other"],[420,"אִיבַּעְיָא לְהוּ","They asked them (in the Beis Midrash)"],[421,"פָּרִיךְ","Ask"],[422,"[וּ]פָרְכִינָן","[And] We ask"],[423,"א״י · אֶרֶץ יִשְׂרָאֵל","The Land of Israel"],[424,"שֶׁמָּא","Maybe - Perhaps"],[425,"דִּבְרֵי הַכֹּל","Lit. The words of all *According to everybody*"],[426,"גֶּשֶׁם · מָטָר","Rain"],[427,"טַל","Dew"],[428,"יוֹמָא · יְמָמָא","Day"],[429,"לֵילְיָא","Night"],[430,"שָׁכֵן","Neighbor"],[431,"אִיפְּכָא מִסְתַּבְּרָא","The opposite is more logical"],[432,"חוּרְבָּן","Destruction"],[433,"תַּקָּנָה","Decree"],[434,"הִתְקִינוּ","They decreed"],[435,"ב״ד · בֵּית דִּין","Court - Courthouse"],[436,"שָׂם","Put / Place"],[437,"שֵׁם","Name"],[438,"שָׁם","There"],[439,"מָלֵא","Full"],[440,"חָסֵר","Missing"],[441,"עִם","With"],[442,"עַם · עַמִּים","Nation * Nations"],[443,"גַּם","Also"],[444,"דַּי (דַּיֵּינוּ)","Enough"],[445,"ק״ו · קַל וָחוֹמֶר","(We learn) Light from the heavy"],[446,"רַמַּאי","Fraud"],[447,"גָּבוֹהַּ","High"],[448,"קמ״ל · קָא מַשְׁמַע לָן","It comes to teach us"],[449,"מַלְכָּא","King"],[450,"חז״ל · חֲכָמֵינוּ זִכְרוֹנָם לִבְרָכָה","Our Sages of Blessed Memory"]]
@@ -755,6 +756,7 @@ async function createRoomFlow(name) {
     settings: { targetScore: 20, guessMode: "choice" },
     players: { [uid]: { name: name, joinedAt: Date.now() } },
     scores: { [uid]: 0 },
+    wrongStreaks: { [uid]: 0 },
     usedWords: {}
   });
   mp.roomCode = code;
@@ -773,6 +775,7 @@ async function joinRoomFlow(code, name) {
   await update(ref(db, "rooms/" + code + "/players/" + uid), { name: name, joinedAt: Date.now() });
   if (!val.scores || val.scores[uid] === undefined) {
     await update(ref(db, "rooms/" + code + "/scores"), (function () { var o = {}; o[uid] = 0; return o; })());
+    await update(ref(db, "rooms/" + code + "/wrongStreaks"), (function () { var o = {}; o[uid] = 0; return o; })());
   }
   mp.roomCode = code;
   mp.name = name;
@@ -1147,10 +1150,22 @@ $("btn-next-round").addEventListener("click", function () {
   var room = mp.room;
   var round = room.round;
   var scoreUpdates = {};
+  var streakUpdates = {};
   mpPlayerUids().forEach(function (uid) {
     var score = room.scores[uid] || 0;
-    if (round.judged[uid]) score += 1;
+    var streak = (room.wrongStreaks && room.wrongStreaks[uid]) || 0;
+    if (round.judged[uid]) {
+      score += 1;
+      streak = 0;
+    } else {
+      streak += 1;
+      if (streak >= WRONG_STREAK_PENALTY) {
+        score = Math.max(0, score - 1);
+        streak = 0;
+      }
+    }
     scoreUpdates[uid] = score;
+    streakUpdates[uid] = streak;
   });
 
   var sorted = mpPlayerUids().slice().sort(function (a, b) { return scoreUpdates[b] - scoreUpdates[a]; });
@@ -1162,9 +1177,9 @@ $("btn-next-round").addEventListener("click", function () {
   }
 
   if (winnerUid) {
-    update(roomRef(mp.roomCode), { phase: "game-won", scores: scoreUpdates, winnerUid: winnerUid });
+    update(roomRef(mp.roomCode), { phase: "game-won", scores: scoreUpdates, wrongStreaks: streakUpdates, winnerUid: winnerUid });
   } else {
-    update(roomRef(mp.roomCode), { phase: "scores", scores: scoreUpdates });
+    update(roomRef(mp.roomCode), { phase: "scores", scores: scoreUpdates, wrongStreaks: streakUpdates });
   }
 });
 
@@ -1269,6 +1284,7 @@ var localState = {
   targetScore: 20,
   guessMode: "choice",
   scores: {},
+  wrongStreaks: {},
   usedWords: {},
   turnOrder: [],
   turnIndex: 0,
@@ -1345,7 +1361,8 @@ $("local-btn-start-game").addEventListener("click", function () {
   if (names.length < 1) { alert("Enter at least one player name."); return; }
   localState.players = names;
   localState.scores = {};
-  names.forEach(function (n) { localState.scores[n] = 0; });
+  localState.wrongStreaks = {};
+  names.forEach(function (n) { localState.scores[n] = 0; localState.wrongStreaks[n] = 0; });
   localState.usedWords = {};
   localTurnOrderNewRound();
   localSaveCheckpoint("local-screen-setup");
@@ -1493,7 +1510,20 @@ function localRenderJudgeList() {
 
 $("local-btn-next-round").addEventListener("click", function () {
   localState.players.forEach(function (name) {
-    if (localState.roundJudged[name]) localState.scores[name] = (localState.scores[name] || 0) + 1;
+    var score = localState.scores[name] || 0;
+    var streak = localState.wrongStreaks[name] || 0;
+    if (localState.roundJudged[name]) {
+      score += 1;
+      streak = 0;
+    } else {
+      streak += 1;
+      if (streak >= WRONG_STREAK_PENALTY) {
+        score = Math.max(0, score - 1);
+        streak = 0;
+      }
+    }
+    localState.scores[name] = score;
+    localState.wrongStreaks[name] = streak;
   });
 
   var sorted = localState.players.slice().sort(function (a, b) { return (localState.scores[b] || 0) - (localState.scores[a] || 0); });
@@ -1576,7 +1606,7 @@ function localSaveCheckpoint(screenId) {
       screen: screenId,
       localState: {
         players: localState.players, targetScore: localState.targetScore, guessMode: localState.guessMode,
-        scores: localState.scores, usedWords: localState.usedWords
+        scores: localState.scores, wrongStreaks: localState.wrongStreaks, usedWords: localState.usedWords
       }
     };
     localStorage.setItem(LOCAL_SAVE_KEY, JSON.stringify(snapshot));
