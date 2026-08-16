@@ -380,11 +380,12 @@
       <div class="scoreboard" id="scoreboard"></div>
       <div class="target-score-line">Playing to <strong id="scoreboard-target"></strong> points</div>
     </div>
-    <div class="footer-nav" id="scores-host-nav" style="display:none">
+    <div class="footer-nav">
       <button class="secondary" id="btn-back-to-round" type="button">Continue Playing</button>
+    </div>
+    <div class="footer-nav" id="scores-host-nav" style="display:none">
       <button class="danger" id="btn-end-game" type="button">End Game</button>
     </div>
-    <div class="waiting-text" id="scores-waiting" style="display:none">Waiting for host…</div>
   </div>
 
   <!-- MULTIPLAYER: GAME WON -->
@@ -673,7 +674,12 @@ function renderScoreboardInto(el, scores) {
   entries.forEach(function (e) {
     var row = document.createElement("div");
     row.className = "score-row";
-    row.innerHTML = "<span>" + e.name + "</span><strong>" + e.score + "</strong>";
+    var span = document.createElement("span");
+    span.textContent = e.name;
+    var strong = document.createElement("strong");
+    strong.textContent = e.score;
+    row.appendChild(span);
+    row.appendChild(strong);
     el.appendChild(row);
   });
 }
@@ -693,7 +699,9 @@ var mp = {
   timerHandle: null,
   timerRemaining: 0,
   timerRoundKey: null,
-  finishingTurnKey: null
+  finishingTurnKey: null,
+  watchdogHandle: null,
+  watchdogRoundKey: null
 };
 
 function roomRef(code) { return ref(db, "rooms/" + code); }
@@ -894,10 +902,15 @@ function render() {
 function mpPlayerName(uid) {
   return mp.room.players && mp.room.players[uid] ? mp.room.players[uid].name : "?";
 }
+function mpPlayerLabel(uid) {
+  return mpPlayerName(uid) + (uid === mp.room.hostUid ? " (Host)" : "");
+}
 function mpPlayerUids() { return mp.room.players ? Object.keys(mp.room.players) : []; }
 
 // ---------- Lobby ----------
 function renderLobby() {
+  stopMpWatchdog();
+  mp.watchdogRoundKey = null;
   var room = mp.room;
   $("lobby-code").textContent = mp.roomCode;
 
@@ -968,9 +981,36 @@ async function mpGoToTurn(stillIn, roundNum, turnNum, outThisRound, wasWipe) {
       roundNum: roundNum, turnNum: turnNum,
       stillIn: stillIn, outThisRound: outThisRound || [],
       prompt: picked.prompt, answers: {}, turnEliminated: null, turnReason: null,
-      wipe: !!wasWipe, roundWinnerUid: null
+      wipe: !!wasWipe, roundWinnerUid: null,
+      // A shared deadline (not tied to any one player's own device) so the
+      // round can still finish even if someone's answer never comes because
+      // their tab is closed, dead, or was never really there — not just
+      // when the current player is slow to answer.
+      turnDeadline: Date.now() + ROUND_TIME * 1000
     }
   });
+}
+
+// Any client on the turn screen runs this watchdog. If the shared deadline
+// has passed and someone in stillIn still has no answer on record, force
+// their answer to empty (a normal timeout) so the round isn't stuck waiting
+// on a player who may not even be connected anymore.
+function startMpWatchdog() {
+  stopMpWatchdog();
+  mp.watchdogHandle = setInterval(function () {
+    var room = mp.room;
+    if (!room || room.phase !== "turn" || !room.round || !room.round.turnDeadline) return;
+    if (Date.now() < room.round.turnDeadline) return;
+    var round = room.round;
+    var missing = round.stillIn.filter(function (uid) { return !round.answers || round.answers[uid] === undefined; });
+    if (missing.length === 0) return;
+    var patch = {};
+    missing.forEach(function (uid) { patch[uid] = ""; });
+    update(ref(db, "rooms/" + mp.roomCode + "/round/answers"), patch);
+  }, 2000);
+}
+function stopMpWatchdog() {
+  if (mp.watchdogHandle) { clearInterval(mp.watchdogHandle); mp.watchdogHandle = null; }
 }
 
 // ---------- Turn (answering / spectating) ----------
@@ -985,7 +1025,7 @@ function renderTurn() {
   $("turn-prompt-text").textContent = round.prompt;
   $("turn-wipe-banner").style.display = round.wipe ? "" : "none";
 
-  $("turn-stillin-list").textContent = round.stillIn.map(mpPlayerName).join(", ");
+  $("turn-stillin-list").textContent = round.stillIn.map(mpPlayerLabel).join(", ");
   var outNames = (round.outThisRound || []).map(mpPlayerName);
   $("turn-out-row").style.display = outNames.length ? "" : "none";
   $("turn-out-list").textContent = outNames.join(", ");
@@ -1021,11 +1061,18 @@ function renderTurn() {
     var answered = round.answers && round.answers[uid] !== undefined;
     var row = document.createElement("div");
     row.className = "score-row";
-    row.innerHTML = "<span>" + (answered ? "✅" : "⏳") + " " + mpPlayerName(uid) + "</span>";
+    var span = document.createElement("span");
+    span.textContent = (answered ? "✅" : "⏳") + " " + mpPlayerLabel(uid);
+    row.appendChild(span);
     statusList.appendChild(row);
   });
 
   showScreen("screen-turn");
+
+  if (mp.watchdogRoundKey !== key) {
+    mp.watchdogRoundKey = key;
+    startMpWatchdog();
+  }
 
   // Any connected client can trigger the advance once everyone's answered —
   // not just the host — so the round can't get stuck if the host's own
@@ -1083,6 +1130,8 @@ async function finishMpTurn() {
 
 // ---------- Turn reveal ----------
 function renderTurnReveal() {
+  stopMpWatchdog();
+  mp.watchdogRoundKey = null;
   var room = mp.room;
   var round = room.round;
   $("reveal-prompt-text").textContent = round.prompt;
@@ -1124,15 +1173,12 @@ function renderTurnReveal() {
   else if (survivors.length === 0) btn.textContent = "Everyone Matched — Try Again";
   else btn.textContent = "Next Prompt (" + survivors.length + " left)";
 
-  var hostNav = $("turn-reveal-host-nav");
-  var waiting = $("turn-reveal-waiting");
-  if (mp.isHost) { hostNav.style.display = "flex"; waiting.style.display = "none"; }
-  else { hostNav.style.display = "none"; waiting.style.display = ""; }
+  $("turn-reveal-host-nav").style.display = "flex";
+  $("turn-reveal-waiting").style.display = "none";
   showScreen("screen-turn-reveal");
 }
 
 $("btn-turn-continue").addEventListener("click", async function () {
-  if (!mp.isHost) return;
   var room = mp.room;
   var round = room.round;
   var survivors = round.stillIn.filter(function (uid) { return !round.turnEliminated[uid]; });
@@ -1163,6 +1209,8 @@ async function mpFinishRoundWin(winnerUid, round) {
 
 // ---------- Scoreboard ----------
 function renderScoresScreen() {
+  stopMpWatchdog();
+  mp.watchdogRoundKey = null;
   var room = mp.room;
   var scoresByName = {};
   mpPlayerUids().forEach(function (uid) { scoresByName[mpPlayerName(uid)] = room.scores[uid] || 0; });
@@ -1177,15 +1225,11 @@ function renderScoresScreen() {
     banner.style.display = "none";
   }
 
-  var hostNav = $("scores-host-nav");
-  var waiting = $("scores-waiting");
-  if (mp.isHost) { hostNav.style.display = "flex"; waiting.style.display = "none"; }
-  else { hostNav.style.display = "none"; waiting.style.display = ""; }
+  $("scores-host-nav").style.display = mp.isHost ? "flex" : "none";
   showScreen("screen-scores");
 }
 
 $("btn-back-to-round").addEventListener("click", function () {
-  if (!mp.isHost) return;
   var room = mp.room;
   mpGoToTurn(mpPlayerUids(), (room.round ? room.round.roundNum : 0) + 1, 1, [], false);
 });
@@ -1197,6 +1241,8 @@ $("btn-end-game").addEventListener("click", function () {
 
 // ---------- Game won ----------
 function renderGameWonScreen() {
+  stopMpWatchdog();
+  mp.watchdogRoundKey = null;
   var room = mp.room;
   $("winner-name").textContent = mpPlayerName(room.winnerUid);
   var scoresByName = {};
