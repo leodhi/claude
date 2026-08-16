@@ -66,7 +66,7 @@
   .cat-section { border-radius: 16px; overflow: hidden; margin-bottom: 22px; box-shadow: var(--shadow); }
   .cat-header {
     display: flex; align-items: center; justify-content: space-between; gap: 8px;
-    padding: 16px 16px 14px; font-weight: 800; font-size: 19px; letter-spacing: -0.01em; color: #fff;
+    padding: 16px 16px 14px; font-weight: 900; font-size: 20px; letter-spacing: -0.01em; color: #fff;
     cursor: pointer; user-select: none;
   }
   .cat-header .cat-title-text { display: inline-flex; align-items: center; gap: 8px; }
@@ -250,38 +250,20 @@
   ];
   const PRESET_ASSIGNEES = ["Dad", "Mom", "Mo", "Shmu", "Daniel"];
 
-  // Each category gets a base hue; rows within a category sweep from that base
-  // (darker/more saturated) to a lighter shade further down the list, mimicking
-  // the Clear app's per-list color gradient.
-  const CATEGORY_HUES = [
-    { h: 4,   s: 76, l: 46 },  // red
-    { h: 16,  s: 82, l: 48 },  // red-orange
-    { h: 30,  s: 85, l: 48 },  // orange
-    { h: 42,  s: 80, l: 46 },  // amber
-    { h: 168, s: 55, l: 36 },  // teal
-    { h: 195, s: 60, l: 40 },  // cyan
-    { h: 212, s: 62, l: 46 },  // blue
-    { h: 250, s: 50, l: 50 },  // indigo
-    { h: 280, s: 45, l: 48 },  // purple
-    { h: 320, s: 55, l: 48 },  // magenta
-    { h: 348, s: 65, l: 50 },  // rose
-    { h: 200, s: 70, l: 44 },  // sky
-    { h: 225, s: 15, l: 38 },  // slate
-  ];
-  function hueForCat(catName, categoryOrder) {
-    const idx = categoryOrder.indexOf(catName);
-    return CATEGORY_HUES[(idx < 0 ? 0 : idx) % CATEGORY_HUES.length];
+  // Every category uses the same orange gradient (deep red-orange at the top of
+  // its card, sweeping to a lighter amber further down) rather than a color per
+  // category. Bounded conservatively so white row text stays legible even at
+  // the lightest end -- letting it drift toward pale yellow made text hard to
+  // read there.
+  const GRADIENT_BASE = { h: 8, s: 80, l: 45 };
+  function headerColorForCat() {
+    return `hsl(${GRADIENT_BASE.h}, ${GRADIENT_BASE.s}%, ${GRADIENT_BASE.l}%)`;
   }
-  function headerColorForCat(catName, categoryOrder) {
-    const b = hueForCat(catName, categoryOrder);
-    return `hsl(${b.h}, ${b.s}%, ${b.l}%)`;
-  }
-  function gradientRowColor(catName, categoryOrder, index, total) {
-    const b = hueForCat(catName, categoryOrder);
+  function gradientRowColor(index, total) {
     const t = total <= 1 ? 0 : index / (total - 1);
-    const hue = (b.h + t * 30) % 360;
-    const light = Math.min(70, b.l + t * 16);
-    return `hsl(${hue.toFixed(1)}, ${b.s}%, ${light}%)`;
+    const hue = GRADIENT_BASE.h + t * 15;
+    const light = Math.min(51, GRADIENT_BASE.l + t * 6);
+    return `hsl(${hue.toFixed(1)}, ${GRADIENT_BASE.s}%, ${light}%)`;
   }
 
   function uid() { return Math.random().toString(36).slice(2, 10); }
@@ -703,7 +685,7 @@
       const header = document.createElement("div");
       header.className = "cat-header";
       header.dataset.catToggle = catName;
-      header.style.background = headerColorForCat(catName, categoryOrder);
+      header.style.background = headerColorForCat();
       const doneCount = items.filter(i => i.checked).length;
       header.innerHTML = `<span class="cat-title-text"><span class="cat-chevron">▾</span>${escapeHtml(catName)}</span><span class="cat-count">${doneCount} / ${items.length}</span>`;
       section.appendChild(header);
@@ -716,7 +698,7 @@
 
       visibleItems.forEach(item => {
         const isDone = item.checked || item.na;
-        const bg = isDone ? "var(--bg)" : gradientRowColor(catName, categoryOrder, openIdx++, openCount);
+        const bg = isDone ? "var(--bg)" : gradientRowColor(openIdx++, openCount);
         const row = document.createElement("div");
         row.className = "swipe-row";
         row.innerHTML = `
