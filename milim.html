@@ -229,7 +229,7 @@
       <h2>📖 How to Play</h2>
       <div class="rules-section">
         <div class="rules-section-label">Each round</div>
-        A Hebrew or Aramaic word from the deck is shown to everyone at once. Pick what you think it means from four choices.
+        A Hebrew or Aramaic word from the deck is shown to everyone at once. Choose how you answer: pick from four choices, type your own answer, or a random mix of both each round.
       </div>
       <div class="rules-section">
         <div class="rules-section-label">Scoring</div>
@@ -302,7 +302,9 @@
       <div class="player-chip-list" id="lobby-players"></div>
     </div>
     <div class="card" id="lobby-settings-card">
-      <label>Points to Win</label>
+      <label>Guessing Mode</label>
+      <div class="chip-group" id="guess-mode-chips"></div>
+      <label style="margin-top:12px">Points to Win</label>
       <div class="target-score-row">
         <button class="stepper-btn" id="btn-target-down" type="button" aria-label="Decrease">&minus;</button>
         <input type="number" id="target-score-input" class="target-score-field" min="1" max="99" value="20">
@@ -322,8 +324,14 @@
     </div>
     <div class="card center">
       <div class="hebrew-question hebrew" id="input-question"></div>
-      <label>What does it mean?</label>
-      <div class="chip-group" id="input-choice-options"></div>
+      <div id="input-type-card">
+        <label>What does it mean?</label>
+        <input type="text" id="input-answer-field" placeholder="Type what you think it means..." maxlength="60">
+      </div>
+      <div id="input-choice-card" style="display:none;">
+        <label>What does it mean?</label>
+        <div class="chip-group" id="input-choice-options"></div>
+      </div>
     </div>
     <button class="primary" id="btn-submit-answer" type="button" disabled>Lock In Answer</button>
     <div class="waiting-text" id="round-waiting" style="display:none">Waiting for other players…</div>
@@ -410,6 +418,11 @@
       <small class="hint">Playing solo? Remove a row with ✕ — you don't need more than one.</small>
     </div>
     <div class="card">
+      <label>Guessing Mode</label>
+      <div class="chip-group" id="local-guess-mode-chips"></div>
+      <small class="hint">Type the Answer: everyone types what they think it means. Multiple Choice: pick from four options. Random Mix: each round randomly gets one or the other, the same for everyone that round.</small>
+    </div>
+    <div class="card">
       <label>Points to Win</label>
       <div class="target-score-row">
         <button class="stepper-btn" id="local-btn-target-down" type="button" aria-label="Decrease">&minus;</button>
@@ -442,8 +455,14 @@
     </div>
     <div class="card center">
       <div class="hebrew-question hebrew" id="local-input-question"></div>
-      <label>What does it mean?</label>
-      <div class="chip-group" id="local-input-choice-options"></div>
+      <div id="local-input-type-card">
+        <label>What does it mean?</label>
+        <input type="text" id="local-input-answer-field" placeholder="Type what you think it means..." maxlength="60">
+      </div>
+      <div id="local-input-choice-card" style="display:none;">
+        <label>What does it mean?</label>
+        <div class="chip-group" id="local-input-choice-options"></div>
+      </div>
     </div>
     <button class="primary" id="local-btn-submit-answer" type="button" disabled>Lock In Answer</button>
   </div>
@@ -580,6 +599,70 @@ function buildChoiceOptions(word) {
   return shuffle(distractors.concat([correct]));
 }
 
+var mpGuessModes = [
+  { id: "choice", label: "Multiple Choice" },
+  { id: "type", label: "Type the Answer" },
+  { id: "mix", label: "Random Mix" }
+];
+
+// Many entries pack several acceptable phrasings into one English gloss
+// (e.g. "Donkey * Donkeys", "Give up hope / Despair", with parenthetical
+// asides like "(considered)" or trailing notes after an em dash). Splits
+// that into a clean list of standalone phrases a typed answer can match
+// against, rather than requiring the whole gloss verbatim.
+function acceptableAnswers(word) {
+  var raw = word[2].split(" — ")[0];
+  var pieces = raw.split(/[\/*]/);
+  var seen = {};
+  var out = [];
+  pieces.forEach(function (piece) {
+    var cleaned = piece.replace(/\([^)]*\)/g, "").replace(/\[[^\]]*\]/g, "").trim();
+    if (!cleaned || seen[cleaned]) return;
+    seen[cleaned] = true;
+    out.push(cleaned);
+  });
+  return out.length ? out : [word[2]];
+}
+
+function normalizeAnswer(s) {
+  return (s || "").toLowerCase().trim().replace(/^(a|an|the)\s+/, "").replace(/[^a-z0-9 ]/g, "").replace(/\s+/g, " ");
+}
+
+function levenshtein(a, b) {
+  var m = a.length, n = b.length;
+  var prev = [];
+  for (var j = 0; j <= n; j++) prev[j] = j;
+  for (var i = 1; i <= m; i++) {
+    var cur = [i];
+    for (var k = 1; k <= n; k++) {
+      var cost = a[i - 1] === b[k - 1] ? 0 : 1;
+      cur[k] = Math.min(prev[k] + 1, cur[k - 1] + 1, prev[k - 1] + cost);
+    }
+    prev = cur;
+  }
+  return prev[n];
+}
+
+function isCloseToOne(given, candidate) {
+  var g = normalizeAnswer(given);
+  var a = normalizeAnswer(candidate);
+  if (!g) return false;
+  if (g === a) return true;
+  if (g.replace(/s$/, "") === a.replace(/s$/, "")) return true;
+  if (a.length >= 3 && (g.indexOf(a) !== -1 || a.indexOf(g) !== -1)) return true;
+  var maxLen = Math.max(g.length, a.length);
+  var threshold = maxLen <= 4 ? 0 : (maxLen <= 6 ? 1 : 2);
+  return levenshtein(g, a) <= threshold;
+}
+
+function isCloseAnswer(given, word) {
+  var alts = acceptableAnswers(word);
+  for (var i = 0; i < alts.length; i++) {
+    if (isCloseToOne(given, alts[i])) return true;
+  }
+  return false;
+}
+
 // =========================================================================
 // MULTIPLAYER MODE
 // =========================================================================
@@ -669,7 +752,7 @@ async function createRoomFlow(name) {
     createdAt: Date.now(),
     hostUid: uid,
     phase: "lobby",
-    settings: { targetScore: 20 },
+    settings: { targetScore: 20, guessMode: "choice" },
     players: { [uid]: { name: name, joinedAt: Date.now() } },
     scores: { [uid]: 0 },
     usedWords: {}
@@ -816,6 +899,20 @@ function renderLobby() {
     list.appendChild(chip);
   });
 
+  var modeWrap = $("guess-mode-chips");
+  modeWrap.innerHTML = "";
+  mpGuessModes.forEach(function (mode) {
+    var chip = document.createElement("div");
+    chip.className = "chip" + (room.settings.guessMode === mode.id ? " selected" : "") + (mp.isHost ? "" : " static");
+    chip.textContent = mode.label;
+    if (mp.isHost) {
+      chip.addEventListener("click", function () {
+        update(ref(db, "rooms/" + mp.roomCode + "/settings"), { guessMode: mode.id });
+      });
+    }
+    modeWrap.appendChild(chip);
+  });
+
   var targetInput = $("target-score-input");
   targetInput.value = room.settings.targetScore;
   targetInput.disabled = !mp.isHost;
@@ -863,14 +960,17 @@ async function startMpRound() {
   usedWords = Object.assign({}, usedWords);
   usedWords[word[0]] = true;
 
-  var options = buildChoiceOptions(word);
+  var roundGuessMode = room.settings.guessMode === "mix"
+    ? ((Math.random() < 0.5) ? "type" : "choice")
+    : (room.settings.guessMode || "choice");
+  var options = roundGuessMode === "choice" ? buildChoiceOptions(word) : null;
 
   await update(roomRef(mp.roomCode), {
     phase: "round",
     usedWords: usedWords,
     round: {
       wordNum: word[0], he: word[1], en: word[2],
-      options: options, answers: {}, judged: {}
+      roundGuessMode: roundGuessMode, options: options, answers: {}, judged: {}
     }
   });
 }
@@ -881,22 +981,37 @@ function renderRound() {
   var round = room.round;
   var key = roundKey(round);
   var myAnswer = round.answers ? round.answers[mp.uid] : undefined;
+  var mode = round.roundGuessMode || "choice";
 
   $("round-word-num").textContent = "#" + round.wordNum;
   $("input-question").textContent = round.he;
 
+  $("input-type-card").style.display = mode === "choice" ? "none" : "";
+  $("input-choice-card").style.display = mode === "choice" ? "" : "none";
+
   if (myAnswer !== undefined) {
     $("btn-submit-answer").style.display = "none";
     $("round-waiting").style.display = "";
-    renderMpChoiceOptions(round.options, true);
+    if (mode === "choice") {
+      renderMpChoiceOptions(round.options, true);
+    } else {
+      $("input-answer-field").value = myAnswer;
+      $("input-answer-field").disabled = true;
+    }
     stopMpTimer();
   } else {
     $("round-waiting").style.display = "none";
     $("btn-submit-answer").style.display = "";
-    renderMpChoiceOptions(round.options, false);
+    if (mode === "choice") {
+      renderMpChoiceOptions(round.options, false);
+    } else {
+      $("input-answer-field").disabled = false;
+      $("btn-submit-answer").disabled = false;
+    }
     if (mp.timerRoundKey !== key) {
       mp.timerRoundKey = key;
       mp.choiceSelected = null;
+      $("input-answer-field").value = "";
       startMpTimer();
     }
   }
@@ -964,7 +1079,8 @@ function updateMpTimerDisplay() {
 }
 
 function submitMpAnswer() {
-  var answer = mp.choiceSelected || "";
+  var mode = (mp.room.round.roundGuessMode || "choice");
+  var answer = mode === "choice" ? (mp.choiceSelected || "") : $("input-answer-field").value.trim();
   update(ref(db, "rooms/" + mp.roomCode + "/round/answers"), (function () { var o = {}; o[mp.uid] = answer; return o; })());
 }
 
@@ -973,9 +1089,11 @@ $("btn-submit-answer").addEventListener("click", submitMpAnswer);
 async function finishMpRound() {
   var room = mp.room;
   var round = room.round;
+  var mode = round.roundGuessMode || "choice";
+  var wordForMatch = [round.wordNum, round.he, round.en];
   var judged = {};
   mpPlayerUids().forEach(function (uid) {
-    judged[uid] = round.answers[uid] === round.en;
+    judged[uid] = mode === "choice" ? (round.answers[uid] === round.en) : isCloseAnswer(round.answers[uid], wordForMatch);
   });
   await update(roomRef(mp.roomCode), { phase: "reveal", round: Object.assign({}, round, { judged: judged }) });
 }
@@ -1139,6 +1257,7 @@ function renderScoreboardInto(el, scores) {
 $("btn-local-mode").addEventListener("click", function () {
   localCheckResumeBanners();
   localRenderPlayerList();
+  localRenderGuessModeChips();
   showScreen("local-screen-setup");
 });
 $("local-btn-back-home").addEventListener("click", function () { showScreen("screen-home"); });
@@ -1148,6 +1267,7 @@ var LOCAL_SAVE_KEY = "milimPartySave";
 var localState = {
   players: ["", ""],
   targetScore: 20,
+  guessMode: "choice",
   scores: {},
   usedWords: {},
   turnOrder: [],
@@ -1156,10 +1276,26 @@ var localState = {
   roundJudged: {},
   currentWord: null,
   currentOptions: null,
+  currentMode: "choice",
   choiceSelected: null,
   timerHandle: null,
   timerRemaining: 0
 };
+
+function localRenderGuessModeChips() {
+  var wrap = $("local-guess-mode-chips");
+  wrap.innerHTML = "";
+  mpGuessModes.forEach(function (mode) {
+    var chip = document.createElement("div");
+    chip.className = "chip" + (localState.guessMode === mode.id ? " selected" : "");
+    chip.textContent = mode.label;
+    chip.addEventListener("click", function () {
+      localState.guessMode = mode.id;
+      localRenderGuessModeChips();
+    });
+    wrap.appendChild(chip);
+  });
+}
 
 function localRenderPlayerList() {
   var wrap = $("local-player-list");
@@ -1227,7 +1363,10 @@ function localTurnOrderNewRound() {
   var word = pickRandom(pool);
   localState.usedWords[word[0]] = true;
   localState.currentWord = word;
-  localState.currentOptions = buildChoiceOptions(word);
+  localState.currentMode = localState.guessMode === "mix"
+    ? ((Math.random() < 0.5) ? "type" : "choice")
+    : (localState.guessMode || "choice");
+  localState.currentOptions = localState.currentMode === "choice" ? buildChoiceOptions(word) : null;
 }
 
 function localGoToPassTurn() {
@@ -1245,8 +1384,16 @@ $("local-btn-ready-to-answer").addEventListener("click", function () {
   var name = localState.turnOrder[localState.turnIndex];
   $("local-input-name").textContent = name;
   $("local-input-question").textContent = localState.currentWord[1];
-  localState.choiceSelected = null;
-  localRenderLocalChoiceOptions();
+  var isChoice = localState.currentMode === "choice";
+  $("local-input-type-card").style.display = isChoice ? "none" : "";
+  $("local-input-choice-card").style.display = isChoice ? "" : "none";
+  if (isChoice) {
+    localState.choiceSelected = null;
+    localRenderLocalChoiceOptions();
+  } else {
+    $("local-input-answer-field").value = "";
+    $("local-btn-submit-answer").disabled = false;
+  }
   localStartTimer();
   showScreen("local-screen-answer-input");
 });
@@ -1295,7 +1442,8 @@ function localUpdateTimerDisplay() {
 function localSubmitAnswer() {
   localStopTimer();
   var name = localState.turnOrder[localState.turnIndex];
-  localState.roundAnswers[name] = localState.choiceSelected || "";
+  var answer = localState.currentMode === "choice" ? (localState.choiceSelected || "") : $("local-input-answer-field").value.trim();
+  localState.roundAnswers[name] = answer;
   localState.turnIndex++;
   localGoToPassTurn();
 }
@@ -1303,8 +1451,10 @@ $("local-btn-submit-answer").addEventListener("click", localSubmitAnswer);
 
 $("local-btn-show-answer").addEventListener("click", function () {
   var word = localState.currentWord;
+  var isChoice = localState.currentMode === "choice";
   localState.players.forEach(function (name) {
-    localState.roundJudged[name] = localState.roundAnswers[name] === word[2];
+    var given = localState.roundAnswers[name];
+    localState.roundJudged[name] = isChoice ? (given === word[2]) : isCloseAnswer(given, word);
   });
   $("local-reveal-hebrew-text").textContent = word[1];
   $("local-reveal-answer-text").textContent = word[2];
@@ -1394,6 +1544,7 @@ $("local-btn-new-game").addEventListener("click", function () {
   localStorage.removeItem(LOCAL_SAVE_KEY);
   showScreen("local-screen-setup");
   localRenderPlayerList();
+  localRenderGuessModeChips();
 });
 $("local-btn-extend-game").addEventListener("click", function () {
   var floor = (localState.scores[localState.winner] || 0) + 1;
@@ -1424,7 +1575,7 @@ function localSaveCheckpoint(screenId) {
     var snapshot = {
       screen: screenId,
       localState: {
-        players: localState.players, targetScore: localState.targetScore,
+        players: localState.players, targetScore: localState.targetScore, guessMode: localState.guessMode,
         scores: localState.scores, usedWords: localState.usedWords
       }
     };
