@@ -69,6 +69,14 @@
   }
   .search-clear-btn:hover { color: var(--ink); }
 
+  .assignee-filter { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 14px; }
+  .assignee-chip {
+    font: inherit; cursor: pointer; border-radius: 999px; border: 1px solid #3a3a3c;
+    background: #2c2c2e; color: var(--ink-muted); padding: 5px 12px; font-size: 12.5px; font-weight: 600;
+  }
+  .assignee-chip:hover { border-color: var(--accent); color: var(--ink); }
+  .assignee-chip.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+
   .progress-wrap { display: flex; align-items: center; gap: 10px; margin-bottom: 20px; }
   .progress-track { flex: 1; height: 6px; border-radius: 3px; background: #2c2c2e; overflow: hidden; }
   .progress-fill { height: 100%; background: var(--accent); transition: width 0.2s ease; }
@@ -193,6 +201,7 @@
         <button type="button" id="search-clear" class="search-clear-btn" aria-label="Clear search">✕</button>
       </div>
     </div>
+    <div class="assignee-filter" id="assignee-filter"></div>
     <div class="progress-wrap">
       <div class="progress-track"><div class="progress-fill" id="progress-fill" style="width:0%"></div></div>
       <div class="progress-label" id="progress-label">0 / 0</div>
@@ -294,7 +303,21 @@
 
   let currentItems = {};
   let searchQuery = "";
+  let assigneeFilters = new Set();
   let collapsedCats = new Set(JSON.parse(localStorage.getItem("packing-clear-collapsed-cats") || "[]"));
+
+  function renderAssigneeFilter(names) {
+    const el = document.getElementById("assignee-filter");
+    el.innerHTML = names.map(n => `
+      <button type="button" class="assignee-chip${assigneeFilters.has(n) ? " active" : ""}" data-assignee-filter="${escapeAttr(n)}">${escapeHtml(n)}</button>`).join("");
+  }
+  document.getElementById("assignee-filter").addEventListener("click", e => {
+    const chip = e.target.closest("[data-assignee-filter]");
+    if (!chip) return;
+    const name = chip.dataset.assigneeFilter;
+    if (assigneeFilters.has(name)) assigneeFilters.delete(name); else assigneeFilters.add(name);
+    render();
+  });
   function saveCollapsed() { localStorage.setItem("packing-clear-collapsed-cats", JSON.stringify([...collapsedCats])); }
 
   // ---------- Undo / redo ----------
@@ -688,7 +711,9 @@
     renderCatOptions(categoryOrder);
 
     const usedAssignees = [...new Set(Object.values(currentItems).map(i => i.assignee).filter(Boolean))].sort();
-    renderAssigneeOptions([...new Set([...PRESET_ASSIGNEES, ...usedAssignees])]);
+    const allAssignees = [...new Set([...PRESET_ASSIGNEES, ...usedAssignees])];
+    renderAssigneeOptions(allAssignees);
+    renderAssigneeFilter(allAssignees);
 
     if (Object.keys(currentItems).length === 0) {
       root.innerHTML = '<div class="empty-state">No items yet. Tap + to add one.</div>';
@@ -704,6 +729,7 @@
 
       let visibleItems = items;
       if (searchQuery) visibleItems = visibleItems.filter(i => i.name.toLowerCase().includes(searchQuery));
+      if (assigneeFilters.size > 0) visibleItems = visibleItems.filter(i => assigneeFilters.has(i.assignee));
       if (visibleItems.length === 0) return;
       anySectionShown = true;
 
@@ -747,7 +773,10 @@
     });
 
     if (Object.keys(currentItems).length > 0 && !anySectionShown) {
-      root.innerHTML = `<div class="empty-state">No items match "${escapeHtml(searchInput.value.trim())}".</div>`;
+      const q = searchInput.value.trim();
+      root.innerHTML = q
+        ? `<div class="empty-state">No items match "${escapeHtml(q)}".</div>`
+        : `<div class="empty-state">No items match this filter.</div>`;
     }
 
     document.getElementById("progress-fill").style.width = total ? (checkedCount / total * 100) + "%" : "0%";
