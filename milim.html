@@ -1,0 +1,1456 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>Milim</title>
+<link rel="apple-touch-icon" href="icon-milim.png">
+<style>
+  :root {
+    --bg: #14110c;
+    --panel: #201a12;
+    --panel-2: #2b2317;
+    --accent: #c9a227;
+    --accent-2: #b4432f;
+    --text: #f5eee0;
+    --text-dim: #a89878;
+    --border: #3a2f1e;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; padding: 0; height: 100%;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    -webkit-tap-highlight-color: transparent;
+  }
+  #app {
+    max-width: 560px;
+    margin: 0 auto;
+    min-height: 100vh;
+    min-height: 100dvh;
+    display: flex;
+    flex-direction: column;
+    padding: 20px 16px 40px;
+  }
+  @media (min-width: 700px) { #app { max-width: 760px; } }
+  @media (min-width: 1000px) { #app { max-width: 900px; } }
+  h1 { font-size: 1.6rem; margin: 4px 0 2px; letter-spacing: 0.5px; }
+  h1 span { color: var(--accent); }
+  .hebrew { font-family: 'David Libre', 'Frank Ruhl Libre', 'Noto Serif Hebrew', 'Times New Roman', serif; }
+  .subtitle { color: var(--text-dim); font-size: 0.85rem; margin-bottom: 18px; }
+  .top-link { color: var(--text-dim); font-size: 0.8rem; text-decoration: none; }
+  .top-link:hover { color: var(--accent); }
+  .screen { display: none; flex-direction: column; gap: 14px; flex: 1; }
+  .screen.active { display: flex; }
+  .card { background: var(--panel); border: 1px solid var(--border); border-radius: 14px; padding: 16px; }
+  label { display: block; font-size: 0.8rem; color: var(--text-dim); margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.06em; }
+  input[type="text"], input[type="number"] {
+    width: 100%; background: var(--panel-2); border: 1px solid var(--border);
+    color: var(--text); padding: 12px; border-radius: 10px; font-size: 1rem;
+  }
+  input:focus { outline: 2px solid var(--accent); }
+  .target-score-row { display: flex; align-items: stretch; gap: 8px; }
+  input.target-score-field {
+    flex: 1; font-size: 2rem; font-weight: 800; text-align: center; padding: 16px; color: var(--accent);
+    -moz-appearance: textfield;
+  }
+  input.target-score-field::-webkit-outer-spin-button,
+  input.target-score-field::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+  .stepper-btn {
+    flex: none; width: 56px; background: var(--panel-2); border: 1px solid var(--border);
+    color: var(--accent); font-size: 1.8rem; font-weight: 700; border-radius: 10px; cursor: pointer; line-height: 1;
+  }
+  .stepper-btn:active { transform: scale(0.96); }
+  .player-row { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 8px; align-items: center; }
+  .player-row input[type="text"] { flex: 1; min-width: 90px; }
+  .icon-btn {
+    background: var(--panel-2); border: 1px solid var(--border); color: var(--text-dim);
+    border-radius: 10px; width: 44px; height: 44px; font-size: 1.1rem; cursor: pointer; flex: none;
+  }
+  .icon-btn:active { transform: scale(0.95); }
+  button.primary {
+    background: var(--accent); color: #241a02; border: none; padding: 15px; border-radius: 12px;
+    font-size: 1.05rem; font-weight: 700; cursor: pointer; width: 100%;
+  }
+  button.primary:active { transform: scale(0.98); }
+  button.secondary {
+    background: transparent; color: var(--text); border: 1px solid var(--border);
+    padding: 13px; border-radius: 12px; font-size: 0.95rem; cursor: pointer; width: 100%;
+  }
+  button.danger { background: var(--accent-2); color: #2c0805; }
+  button:disabled { opacity: 0.4; cursor: not-allowed; }
+  .chip-group { display: flex; flex-wrap: wrap; gap: 8px; }
+  .chip {
+    padding: 10px 16px; border-radius: 12px; border: 1px solid var(--border);
+    background: var(--panel-2); color: var(--text); font-size: 0.95rem; cursor: pointer; user-select: none;
+    flex: 1 1 auto; text-align: center; min-width: 42%;
+  }
+  .chip.selected { background: var(--accent); color: #241a02; border-color: var(--accent); font-weight: 700; }
+  .chip.static { cursor: default; }
+  .center { text-align: center; }
+  .category-label { color: var(--text-dim); font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.06em; }
+  .big-name { font-size: 1.8rem; font-weight: 800; margin: 6px 0; }
+  .timer-display {
+    font-size: 1.7rem; font-weight: 800; font-variant-numeric: tabular-nums;
+    color: var(--accent); margin: 4px 0;
+  }
+  .timer-display.low { color: var(--accent-2); }
+  .hebrew-question { font-size: clamp(2rem, 9vw, 2.8rem); font-weight: 700; margin: 14px 0; line-height: 1.3; direction: rtl; }
+  .answer-text { font-size: 1.7rem; font-weight: 800; color: var(--accent); margin: 10px 0; }
+  .answer-text-hebrew { font-size: 1.2rem; color: var(--text-dim); margin: 0 0 6px; direction: rtl; }
+  .row { display: flex; gap: 8px; }
+  .row > * { flex: 1; }
+  .pass-icon { font-size: 3rem; margin: 10px 0; }
+  .judge-row {
+    display: flex; justify-content: space-between; align-items: center; gap: 10px;
+    padding: 10px 12px; border-radius: 10px; background: var(--panel-2); border: 1px solid var(--border);
+    margin-bottom: 8px; cursor: pointer; user-select: none;
+  }
+  .judge-row.correct { background: rgba(201,162,39,0.18); border-color: var(--accent); }
+  .judge-row .pname { font-weight: 600; }
+  .judge-row .given-answer { color: var(--text-dim); font-size: 0.85rem; }
+  .judge-row .mark { font-size: 1.2rem; color: var(--text-dim); flex: none; }
+  .judge-row.correct .mark { color: var(--accent); }
+  .scoreboard { display: flex; flex-direction: column; gap: 6px; }
+  .score-row { display: flex; justify-content: space-between; padding: 6px 4px; }
+  .target-score-line {
+    text-align: center; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border);
+    color: var(--text-dim); font-size: 0.95rem;
+  }
+  .target-score-line strong { color: var(--accent); font-size: 1.1rem; }
+  small.hint { color: var(--text-dim); display: block; margin-top: 4px; font-size: 0.78rem; }
+  button.link {
+    background: none; border: none; color: var(--text-dim); text-decoration: underline;
+    font-size: 0.8rem; cursor: pointer; padding: 6px;
+  }
+  .room-code { font-size: 2.6rem; font-weight: 800; letter-spacing: 0.2em; text-align: center; color: var(--accent); margin: 8px 0; }
+  .player-chip-list { display: flex; flex-wrap: wrap; gap: 8px; }
+  .player-chip { background: var(--panel-2); border: 1px solid var(--border); border-radius: 999px; padding: 7px 14px; font-size: 0.85rem; }
+  .host-badge { color: var(--accent); font-size: 0.7rem; margin-left: 4px; }
+  .waiting-text { color: var(--text-dim); text-align: center; padding: 16px 0; }
+  .footer-nav { display: flex; gap: 8px; margin-top: auto; padding-top: 10px; }
+  .footer-nav button { flex: 1; }
+
+  #chat-toggle {
+    position: fixed; right: 16px; bottom: 16px; z-index: 40;
+    width: 52px; height: 52px; border-radius: 50%;
+    background: var(--accent); color: #241a02; border: none;
+    font-size: 1.4rem; cursor: pointer;
+    box-shadow: 0 4px 14px rgba(0,0,0,0.35);
+    display: none; align-items: center; justify-content: center;
+  }
+  #chat-toggle:active { transform: scale(0.94); }
+  @keyframes chat-bounce {
+    0%, 100% { transform: translateY(0); }
+    25% { transform: translateY(-7px); }
+    50% { transform: translateY(0); }
+  }
+  #chat-toggle.has-unread { background: var(--accent-2); animation: chat-bounce 0.6s ease-in-out infinite; }
+  #chat-badge {
+    position: absolute; top: -2px; right: -2px;
+    background: var(--accent-2); color: #fff;
+    border-radius: 999px; min-width: 18px; height: 18px;
+    font-size: 0.68rem; font-weight: 800; line-height: 18px;
+    text-align: center; padding: 0 4px; display: none;
+  }
+  #chat-panel {
+    position: fixed; right: 16px; bottom: 78px; z-index: 40;
+    width: min(320px, calc(100vw - 32px)); max-height: min(440px, calc(100vh - 140px));
+    background: var(--panel); border: 1px solid var(--border); border-radius: 16px;
+    display: none; flex-direction: column; overflow: hidden;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.45);
+  }
+  #chat-panel.open { display: flex; }
+  #chat-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 10px 12px; border-bottom: 1px solid var(--border);
+    font-size: 0.85rem; font-weight: 700; color: var(--text-dim);
+    text-transform: uppercase; letter-spacing: 0.06em;
+  }
+  #chat-close { background: none; border: none; color: var(--text-dim); font-size: 1rem; cursor: pointer; padding: 2px 6px; }
+  #chat-messages { flex: 1; overflow-y: auto; padding: 10px 12px; display: flex; flex-direction: column; gap: 8px; }
+  .chat-msg { font-size: 0.85rem; line-height: 1.35; }
+  .chat-msg .chat-name { font-weight: 700; color: var(--accent); }
+  .chat-msg.chat-mine .chat-name { color: var(--accent-2); }
+  #chat-input-row { display: flex; gap: 6px; padding: 10px; border-top: 1px solid var(--border); }
+  #chat-input {
+    flex: 1; background: var(--panel-2); border: 1px solid var(--border);
+    color: var(--text); padding: 9px 10px; border-radius: 10px; font-size: 0.9rem;
+  }
+  #chat-send {
+    background: var(--accent); color: #241a02; border: none;
+    border-radius: 10px; padding: 0 14px; font-weight: 700; cursor: pointer; font-size: 0.85rem;
+  }
+  #home-toggle {
+    position: fixed; left: 16px; bottom: 16px; z-index: 40;
+    width: 52px; height: 52px; border-radius: 50%;
+    background: var(--panel-2); color: var(--text); border: 1px solid var(--border);
+    font-size: 1.3rem; cursor: pointer;
+    box-shadow: 0 4px 14px rgba(0,0,0,0.35);
+    display: none; align-items: center; justify-content: center;
+  }
+  #home-toggle:active { transform: scale(0.94); }
+  .rules-link-row { text-align: center; margin: -8px 0 14px; }
+  .rules-link-btn {
+    background: none; border: none; color: var(--text-dim); font-size: 0.8rem;
+    text-decoration: underline; cursor: pointer; padding: 4px 8px; font-family: inherit;
+  }
+  .rules-link-btn:hover { color: var(--accent); }
+  .rules-modal-backdrop {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.55);
+    display: none; align-items: center; justify-content: center; z-index: 300; padding: 20px;
+  }
+  .rules-modal-backdrop.show { display: flex; }
+  .rules-modal {
+    background: var(--panel); border: 1px solid var(--border); border-radius: 14px;
+    max-width: 440px; width: 100%; max-height: 82vh; overflow-y: auto;
+    padding: 22px; color: var(--text);
+  }
+  .rules-modal h2 { margin: 0 0 14px; font-size: 1.15rem; }
+  .rules-modal .rules-section { margin-bottom: 14px; line-height: 1.6; font-size: 0.9rem; color: var(--text-dim); }
+  .rules-modal .rules-section strong { color: var(--text); }
+  .rules-modal .rules-section-label {
+    text-transform: uppercase; font-size: 0.72rem; letter-spacing: 0.05em;
+    color: var(--accent); font-weight: 600; margin-bottom: 4px;
+  }
+  .rules-modal-close { width: 100%; margin-top: 6px; }
+</style>
+</head>
+<body>
+<div id="app">
+  <div class="row" style="align-items:center; margin-bottom:4px;">
+    <h1 style="margin:0;">📖 <span class="hebrew">מלים</span> · Milim</h1>
+  </div>
+  <div class="subtitle">Guess the meaning — first to the target score wins &middot; <a class="top-link" href="index.html">&larr; all games</a></div>
+  <div class="rules-link-row"><button type="button" class="rules-link-btn" id="rules-btn">Rules</button></div>
+  <div class="rules-modal-backdrop" id="rules-modal-backdrop">
+    <div class="rules-modal">
+      <h2>📖 How to Play</h2>
+      <div class="rules-section">
+        <div class="rules-section-label">Each round</div>
+        A Hebrew or Aramaic word from the deck is shown to everyone at once. Pick what you think it means from four choices.
+      </div>
+      <div class="rules-section">
+        <div class="rules-section-label">Scoring</div>
+        A correct guess earns <strong>+1 point</strong>. Wrong guesses don't cost you anything — just get the next one.
+      </div>
+      <div class="rules-section">
+        <div class="rules-section-label">Winning</div>
+        First player to reach the target score (set before the game starts) wins. The host can extend the game afterward if everyone wants a rematch.
+      </div>
+      <button class="secondary rules-modal-close" id="rules-modal-close" type="button">Got it</button>
+    </div>
+  </div>
+
+  <button id="chat-toggle" type="button" aria-label="Room chat">💬<span id="chat-badge"></span></button>
+  <div id="chat-panel">
+    <div id="chat-header">
+      <span>Room Chat</span>
+      <button id="chat-close" type="button" aria-label="Close chat">✕</button>
+    </div>
+    <div id="chat-messages"></div>
+    <div id="chat-input-row">
+      <input type="text" id="chat-input" placeholder="Message..." maxlength="200">
+      <button id="chat-send" type="button">Send</button>
+    </div>
+  </div>
+  <button id="home-toggle" type="button" aria-label="Back to start screen">🏠</button>
+
+  <!-- HOME: play locally, or create/join a room -->
+  <div class="screen active" id="screen-home">
+    <div class="card">
+      <button class="primary" id="btn-local-mode" type="button">Play on One Device</button>
+      <small class="hint">Pass the phone around the table — classic pass-and-play.</small>
+    </div>
+    <div class="center" style="color:var(--text-dim);font-size:0.8rem;">— or play across devices —</div>
+    <div class="card">
+      <label>Your name</label>
+      <input type="text" id="input-name" maxlength="20" placeholder="Enter your name">
+    </div>
+    <div class="card">
+      <button class="secondary" id="btn-create-room" type="button">Create Room</button>
+    </div>
+    <div class="card">
+      <label>Join a room</label>
+      <input type="text" id="input-join-name" maxlength="20" placeholder="Your name">
+      <button class="secondary" id="btn-join-room" type="button" style="margin-top:10px">Join Room</button>
+    </div>
+    <div class="center" id="home-status" style="color:var(--text-dim);font-size:0.85rem;"></div>
+  </div>
+
+  <!-- JOIN: room code -->
+  <div class="screen" id="screen-join-code">
+    <div class="card">
+      <label>Room code</label>
+      <input type="text" id="input-join-code" maxlength="4" placeholder="4-letter room code">
+      <button class="primary" id="btn-join-code-submit" type="button" style="margin-top:10px">Join Room</button>
+    </div>
+    <div class="center" id="join-code-status" style="color:var(--text-dim);font-size:0.85rem;"></div>
+    <button class="link" id="btn-join-code-back" type="button">Back</button>
+  </div>
+
+  <!-- MULTIPLAYER LOBBY -->
+  <div class="screen" id="screen-lobby">
+    <div class="card center">
+      <label>Room code — share with players</label>
+      <div class="room-code" id="lobby-code"></div>
+      <small class="hint">Everyone opens this page on their own device and enters this code to join.</small>
+    </div>
+    <div class="card">
+      <label>Players</label>
+      <div class="player-chip-list" id="lobby-players"></div>
+    </div>
+    <div class="card" id="lobby-settings-card">
+      <label>Points to Win</label>
+      <div class="target-score-row">
+        <button class="stepper-btn" id="btn-target-down" type="button" aria-label="Decrease">&minus;</button>
+        <input type="number" id="target-score-input" class="target-score-field" min="1" max="99" value="20">
+        <button class="stepper-btn" id="btn-target-up" type="button" aria-label="Increase">+</button>
+      </div>
+    </div>
+    <button class="primary" id="btn-start-game" type="button">Start Game</button>
+    <div class="waiting-text" id="lobby-waiting" style="display:none">Waiting for the host to start the game…</div>
+    <button class="link" id="btn-leave-room" type="button">Leave room</button>
+  </div>
+
+  <!-- MULTIPLAYER: ANSWERING -->
+  <div class="screen" id="screen-answer-input">
+    <div class="card center" style="padding:10px 16px;">
+      <span class="category-label">Word <span id="round-word-num"></span></span>
+      <div class="timer-display" id="input-timer">0:20</div>
+    </div>
+    <div class="card center">
+      <div class="hebrew-question hebrew" id="input-question"></div>
+      <label>What does it mean?</label>
+      <div class="chip-group" id="input-choice-options"></div>
+    </div>
+    <button class="primary" id="btn-submit-answer" type="button" disabled>Lock In Answer</button>
+    <div class="waiting-text" id="round-waiting" style="display:none">Waiting for other players…</div>
+    <div class="card">
+      <label>Who's Answered</label>
+      <div id="round-status-list"></div>
+    </div>
+  </div>
+
+  <!-- MULTIPLAYER: REVEAL -->
+  <div class="screen" id="screen-reveal">
+    <div class="card center">
+      <span class="category-label">The word was</span>
+      <div class="answer-text-hebrew hebrew" id="reveal-hebrew-text"></div>
+      <div class="answer-text" id="reveal-answer-text"></div>
+    </div>
+    <div class="card">
+      <label>Who got it right?</label>
+      <div id="judge-list"></div>
+    </div>
+    <div class="footer-nav" id="reveal-host-nav" style="display:none">
+      <button class="primary" id="btn-next-round" type="button">Next Round</button>
+    </div>
+    <div class="waiting-text" id="reveal-waiting" style="display:none">Waiting for host…</div>
+  </div>
+
+  <!-- MULTIPLAYER: SCOREBOARD -->
+  <div class="screen" id="screen-scores">
+    <div class="card">
+      <label>Scoreboard</label>
+      <div class="scoreboard" id="scoreboard"></div>
+      <div class="target-score-line">Playing to <strong id="scoreboard-target"></strong> points</div>
+    </div>
+    <div class="footer-nav" id="scores-host-nav" style="display:none">
+      <button class="secondary" id="btn-back-to-round" type="button">Continue Playing</button>
+      <button class="danger" id="btn-end-game" type="button">End Game</button>
+    </div>
+    <div class="waiting-text" id="scores-waiting" style="display:none">Waiting for host…</div>
+  </div>
+
+  <!-- MULTIPLAYER: GAME WON -->
+  <div class="screen" id="screen-game-won">
+    <div class="card center">
+      <div class="pass-icon">🏆</div>
+      <div class="big-name" id="winner-name"></div>
+      <div>wins the game!</div>
+    </div>
+    <div class="card">
+      <label>Final Scores</label>
+      <div class="scoreboard" id="winner-scoreboard"></div>
+    </div>
+    <div class="card center" id="mp-extend-game-form" style="display:none;">
+      <label>New points to win</label>
+      <div class="target-score-row">
+        <button class="stepper-btn" id="btn-mp-extend-down" type="button" aria-label="Decrease">&minus;</button>
+        <input type="number" id="mp-extend-target-input" class="target-score-field" min="1" max="99">
+        <button class="stepper-btn" id="btn-mp-extend-up" type="button" aria-label="Increase">+</button>
+      </div>
+      <small class="hint">Only continue if everyone agrees to keep playing!</small>
+      <button class="secondary" id="btn-mp-confirm-extend" type="button" style="margin-top:10px;">Everyone Agrees — Keep Playing</button>
+    </div>
+    <div class="footer-nav" id="won-host-nav" style="display:none">
+      <button class="secondary" id="btn-mp-extend-game" type="button">Extend the Game</button>
+      <button class="primary" id="btn-new-game" type="button">New Game</button>
+    </div>
+    <div class="waiting-text" id="won-waiting" style="display:none">Waiting for host…</div>
+  </div>
+
+  <!-- LOCAL SETUP -->
+  <div class="screen" id="local-screen-setup">
+    <div class="card" id="local-refresh-resume-banner" style="display:none;">
+      <div class="row" style="align-items:center; gap:10px;">
+        <div style="flex:1;">Looks like the page was refreshed mid-game. Want to keep playing?</div>
+      </div>
+      <div class="row" style="margin-top:10px;">
+        <button class="secondary" id="local-btn-refresh-startnew" type="button">Start New Game</button>
+        <button class="primary" id="local-btn-refresh-continue" type="button">Continue Game</button>
+      </div>
+    </div>
+    <div class="card">
+      <label>Players (1–10)</label>
+      <div id="local-player-list"></div>
+      <button class="secondary" id="local-btn-add-player" type="button">+ Add player</button>
+      <small class="hint">Playing solo? Remove a row with ✕ — you don't need more than one.</small>
+    </div>
+    <div class="card">
+      <label>Points to Win</label>
+      <div class="target-score-row">
+        <button class="stepper-btn" id="local-btn-target-down" type="button" aria-label="Decrease">&minus;</button>
+        <input type="number" id="local-target-score-input" class="target-score-field" min="1" max="99" value="20">
+        <button class="stepper-btn" id="local-btn-target-up" type="button" aria-label="Increase">+</button>
+      </div>
+      <small class="hint">First to reach this score wins.</small>
+    </div>
+    <button class="primary" id="local-btn-start-game" type="button">Start Game</button>
+    <button class="link" id="local-btn-back-home" type="button">Back to home</button>
+  </div>
+
+  <!-- LOCAL: PASS TO PLAYER -->
+  <div class="screen" id="local-screen-pass-turn">
+    <div class="card center">
+      <div class="pass-icon">📱➡️👀</div>
+      <div>Pass the device to</div>
+      <div class="big-name" id="local-pass-name"></div>
+      <small class="hint">Only <span id="local-pass-name-2"></span> should look at the screen — everyone else, look away! Your 20 seconds starts once you tap ready.</small>
+    </div>
+    <button class="primary" id="local-btn-ready-to-answer" type="button">I'm ready to answer</button>
+  </div>
+
+  <!-- LOCAL: ANSWER INPUT -->
+  <div class="screen" id="local-screen-answer-input">
+    <div class="card center" style="padding:10px 16px;">
+      <span class="category-label">Answering as</span>
+      <div class="big-name" id="local-input-name" style="font-size:1.3rem; margin:2px 0;"></div>
+      <div class="timer-display" id="local-input-timer">0:20</div>
+    </div>
+    <div class="card center">
+      <div class="hebrew-question hebrew" id="local-input-question"></div>
+      <label>What does it mean?</label>
+      <div class="chip-group" id="local-input-choice-options"></div>
+    </div>
+    <button class="primary" id="local-btn-submit-answer" type="button" disabled>Lock In Answer</button>
+  </div>
+
+  <!-- LOCAL: READY TO REVEAL -->
+  <div class="screen" id="local-screen-ready-reveal">
+    <div class="card center">
+      <div class="pass-icon">🙌</div>
+      <div>Everyone's answered!</div>
+      <div class="big-name" style="font-size:1.3rem;">Put the device in the middle so everyone can see.</div>
+    </div>
+    <button class="primary" id="local-btn-show-answer" type="button">Show the Answer</button>
+  </div>
+
+  <!-- LOCAL: REVEAL -->
+  <div class="screen" id="local-screen-reveal">
+    <div class="card center">
+      <span class="category-label">The word was</span>
+      <div class="answer-text-hebrew hebrew" id="local-reveal-hebrew-text"></div>
+      <div class="answer-text" id="local-reveal-answer-text"></div>
+    </div>
+    <div class="card">
+      <label>Who got it right?</label>
+      <div id="local-judge-list"></div>
+    </div>
+    <button class="primary" id="local-btn-next-round" type="button">Next Round</button>
+  </div>
+
+  <!-- LOCAL: SCOREBOARD -->
+  <div class="screen" id="local-screen-scores">
+    <div class="card">
+      <label>Scoreboard</label>
+      <div class="scoreboard" id="local-scoreboard"></div>
+      <div class="target-score-line">Playing to <strong id="local-scoreboard-target"></strong> points</div>
+    </div>
+    <div class="card center" id="local-end-game-confirm" style="display:none;">
+      <div>End the game and return to the start screen?</div>
+      <div class="row" style="margin-top:10px;">
+        <button class="secondary" id="local-btn-cancel-end-game" type="button">Cancel</button>
+        <button class="danger" id="local-btn-confirm-end-game" type="button">Yes, End Game</button>
+      </div>
+    </div>
+    <div class="row">
+      <button class="secondary" id="local-btn-back-to-round" type="button">Continue Playing</button>
+      <button class="danger" id="local-btn-end-game" type="button">End Game</button>
+    </div>
+  </div>
+
+  <!-- LOCAL: GAME WON -->
+  <div class="screen" id="local-screen-game-won">
+    <div class="card center">
+      <div class="pass-icon">🏆</div>
+      <div class="big-name" id="local-winner-name"></div>
+      <div>wins the game!</div>
+    </div>
+    <div class="card">
+      <label>Final Scores</label>
+      <div class="scoreboard" id="local-winner-scoreboard"></div>
+    </div>
+    <div class="card center" id="local-extend-game-form" style="display:none;">
+      <label>New points to win</label>
+      <div class="target-score-row">
+        <button class="stepper-btn" id="local-btn-extend-down" type="button" aria-label="Decrease">&minus;</button>
+        <input type="number" id="local-extend-target-input" class="target-score-field" min="1" max="99">
+        <button class="stepper-btn" id="local-btn-extend-up" type="button" aria-label="Increase">+</button>
+      </div>
+      <small class="hint">Only continue if everyone agrees to keep playing!</small>
+      <button class="secondary" id="local-btn-confirm-extend" type="button" style="margin-top:10px;">Everyone Agrees — Keep Playing</button>
+    </div>
+    <button class="secondary" id="local-btn-extend-game" type="button">Extend the Game</button>
+    <button class="primary" id="local-btn-new-game" type="button">New Game</button>
+  </div>
+
+</div>
+
+<script type="module">
+import { firebaseConfig } from "./firebase-config.js";
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+import { getDatabase, ref, set, get, update, onValue, push } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
+
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getDatabase(app);
+
+var ROUND_TIME = 20;
+
+// Word bank: [number, hebrew, english]
+var WORDS = [[1,"מַתְנִי׳ · מַתְנִיתִין · מִשְׁנָה","Mishna"],[2,"גְמ׳ · גְּמָרָא · תַּלְמוּד","Talmud"],[3,"אָחִיךָ","Your brother / Fellow Jew"],[4,"גּוֹי · גּוֹיִם","Non-Jew(s) * Nation(s)"],[5,"שׁוֹר","Ox / Bull (same word for plural)"],[6,"חֲמוֹר · חֲמוֹרִים","Donkey * Donkeys"],[7,"שֶׂה","Sheep / Lamb"],[8,"שִׂמְלָה","Garment"],[9,"אֲבָל","But"],[10,"הָשֵׁב","Return"],[11,"הָשֵׁב תְּשִׁיבֵם לְאָחִיךָ · הֲשָׁבַת אֲבֵידָה שֶׁל מִצְוַת עֲשֵׂה","You should surely return it to your brother / Returning a lost object is a positive command"],[12,"קָרוֹב","Close - Near"],[13,"עַד","Until"],[14,"אִם","If"],[15,"דִּבְרֵי","Words of / These are the words of"],[16,"דָּבָר · דְּבָרִים","Word(s) * Thing(s)"],[17,"אֲבֵידָה","Lost object"],[18,"מְצִיאָה · מְצִיאוֹת","Found object(s) * Finding(s)"],[19,"מָצָא","Found"],[20,"מִמֶּנּוּ","From him / From it / From us"],[21,"אֵלּוּ","These"],[22,"אֶלָּא","But / Only / Rather / Except"],[23,"וְכֵן","And yes / And so / And also / And similarly"],[24,"חַיָּיב","Obligated"],[25,"פָּטוּר","Exempt"],[26,"לְהַכְרִיז","To announce"],[27,"לְהַחֲזִיר","To return"],[28,"פֵּירוֹת","Produce / Fruits / Grain"],[29,"מְפוּזָּר · מְפוּזָּרִין · מְפוּזָּרוֹת","Scattered"],[30,"מָעוֹת","Coins / Money"],[31,"כְּרִיכוֹת","Small sheaves"],[32,"אֲלוּמוֹת","Big sheaves"],[33,"[בְּ]רְשׁוּת הָרַבִּים · בְּרה״ר","[In] Public property - Area"],[34,"[בְּ]רְשׁוּת הַיָּחִיד · בְּרה״י","[In] Private property - Area"],[35,"בָּשָׂר","Meat / Flesh"],[36,"לֹא תוּכַל לְהִתְעַלֵּם · הֲשָׁבַת אֲבֵידָה שֶׁל מִצְוַת עֲשֵׂה לֹא תַעֲשֶׂה","You are not allowed to hide / ignore [a lost object] — also a prohibition"],[37,"דָּג · דָּגִים","Fish"],[38,"מְדִינָה · מְדִינוֹת","Country * Countries"],[39,"עִיר · עָרִים","City * Cities"],[40,"תְּנַן","We learned in a Mishnah"],[41,"תַּנְיָא","We learned in a Braisa"],[42,"הֲרֵי אֵלּוּ שֶׁלּוֹ","These are his"],[43,"חַיָּיב לְהַכְרִיז","Obligated to announce"],[44,"כִּכָּר · כִּכָּרוֹת","Loaf * Loaves of bread"],[45,"כֵּיצַד","How / How so / When"],[46,"שִׁנּוּי","Unusual / Different"],[47,"כְּלִי","Vessel / Utensil"],[48,"כְּלִי · כֵּלִים","Vessels * Utensils"],[49,"לָשׁוֹן · לְשׁוֹנוֹת","Tongue(s) * Term(s) * Language(s)"],[50,"סִימָן · סִימָנִים","Identifying mark(s) * Sign(s)"],[51,"יֵאוּשׁ","Give up hope"],[52,"תּוֹךְ","Midst (middle)"],[53,"קֶשֶׁר","Knot / Tie"],[54,"הֶפְקֵר","Ownerless"],[55,"הוֹאִיל","Since"],[56,"טַעַם","Reason / Taste"],[57,"טַעֲמָא","Reason"],[58,"מַאי טַעֲמָא · טַעֲמָא מַאי","What's the reason?"],[59,"בֵּי · בַּיִת · בָּתִּים","House * Houses"],[60,"בַּעֲה״ב · בַּעַל הַבַּיִת","Houseowner"],[61,"בַּעֲלֵי בָּתִּים","Houseowners"],[62,"בַּעַל · בַּעֲלִים","Owner * Owners"],[63,"שָׁוֶה · שָׁוִין","Equal * Same"],[64,"שְׁאָר","Rest (remaining)"],[65,"לְאַפּוּקֵי","To exclude"],[66,"לְאַתּוּיֵי","To include"],[67,"רֵישָׁא","Beginning / First case"],[68,"סֵיפָא","End / Last case"],[69,"אִי","If"],[70,"מְפָרֵשׁ","Explain"],[71,"כַּמָּה","How many - How much"],[72,"ה״ד · הֵיכִי דָמֵי","What's this case like / Wassup"],[73,"דֶּרֶךְ · דְּרָכִים","Way(s) * Road(s) * Path(s)"],[74,"אֲפִילוּ","Even / Even though"],[75,"טוּבָא","More"],[76,"נַמֵי","Also"],[77,"הֵינוּחַ","Placed"],[78,"הָכִי","Like this / Like so"],[79,"הָכָא","Here"],[80,"הָתָם","There"],[81,"אֲשֶׁר","That / Which"],[82,"עַסְקִינָן","We are talking about / We are dealing with"],[83,"טְרַח","Bother / Effort"],[84,"אִינִשׁ","Man / Person"],[85,"הָדָר","Return / Beautiful / RH"],[86,"שָׁקִיל","Take"],[87,"לֵיהּ","Him / To him"],[88,"לְהוּ","Them / To them"],[89,"בָּעֵי","Need / Want / Ask (an informational question)"],[90,"נִיכָּר","Recognizable"],[91,"כֵּיוָן","Since"],[92,"אוֹ","Or"],[93,"דִּלְמָא","Maybe - Perhaps"],[94,"אוֹ דִלְמָא","Or maybe"],[95,"טְפֵי","Bigger"],[96,"חָשׁוּב","Considered / Important"],[97,"הָוֵי","It is (considered)"],[98,"מִשׁוּם","Because / In the name of"],[99,"כ״ש · כָּל שֶׁכֵּן","Certainly / All the more so / For sure x3"],[100,"תֵּיקוּ · תִּשְׁבִּי יְתָרֵץ קֻשְׁיוֹת וְאִבַּעְיוֹת (אֵלִיָּהוּ הַנָּבִיא יַעֲנֶה כְּשֶׁיָּבוֹא מָשִׁיחַ)","Let it stand / *Bag* — Eliyahu HaNavi will answer when Moshiach comes"],[101,"א״ל · אָמַר לֵיהּ","He said to him"],[102,"א״ל · אָמַר לְהוּ","He said to them"],[103,"א״ל · אָמְרוּ לֵיהּ","They said to him"],[104,"מַאי","What / What's the halacha?"],[105,"בְּמַאי","With what?"],[106,"בְּמַאי עַסְקִינָן","With what are we dealing? / With what are we talking about?"],[107,"הַב״ע · הָכָא בְּמַאי עַסְקִינָן","With what are we dealing here? With what are we talking about here?"],[108,"שְׁקוֹל · שָׁקִיל","Take"],[109,"הֲשָׁבַת אֲבֵידָה","Returning a lost object"],[110,"מוֹצֵא","Find / Finder"],[111,"מַהוּ","What / What's the halacha?"],[112,"מִיהוּ","However"],[113,"וא״ת · וְאִם תֹּאמַר","And Tosfos asks"],[114,"וי״ל · וְיֵשׁ לוֹמַר","And Tosfos answers"],[115,"א״נ · אִי נַמֵי","Or else / Another answer"],[116,"תִּימָה · תִּימָא","Tosfos asks a BOMB question"],[117,"אִיכָּא","There is / There are"],[118,"לֵיכָּא","There isn't / There aren't"],[119,"כְּלָל · כְּלָלָא","Rule / General rule"],[120,"כְּגוֹן","For example / For instance"],[121,"אִיתְּמַר","It was stated / said (by Amoraim)"],[122,"כ״ע · כּוּלֵּי עָלְמָא","Everybody / The whole world"],[123,"כּוּלֵּי עָלְמָא לָא פְּלִיגִי","Everybody doesn't argue / Everybody agrees"],[124,"פְּלִיגִי","Argues"],[125,"אֲתָא","It came / He came"],[126,"דַּעַת","Knowledge"],[127,"עֵד · עֵדִים","Witness * Witnesses"],[128,"מָקוֹם","ה׳ / Place"],[129,"אע״פ · אַף עַל פִּי","Even though"],[130,"אע״ג · אַף עַל גַּב","Even though"],[131,"אָסוּר","Forbidden / Not allowed / Prohibited"],[132,"מוּתָּר","Permitted / Allowed"],[133,"אִית לִי","I have"],[134,"לֵית לִי","I don't have"],[135,"נָהָר · נְהָרוֹת","River * Rivers"],[136,"רַחֲמָנָא","Torah / The Merciful One"],[137,"שָׁרֵי · שַׁרְיָא · שַׁרְיֵיהּ","Permits - Permitted"],[138,"אֲבֵידָה מִדַּעַת","A knowingly lost object"],[139,"יֵאוּשׁ מִדַּעַת","Giving up hope with knowledge"],[140,"רַחֲמָנָא שַׁרְיֵיהּ","The Torah permits"],[141,"לְקַמָּן","*Later on (Later on)"],[142,"לְקַמֵּיהּ","*Later on (Right away)"],[143,"הַשְׁתָּא","Now"],[144,"סְתָם","Regular / Normal"],[145,"עֲדַיִן","Yet / Still / More"],[146,"נָפַל","Fell"],[147,"אַגַּב","Since"],[148,"בַּגְמ׳ (בַּגְּמָרָא) מְפָרֵשׁ","In the Gemara it will explain it"],[149,"ת״ש · תָּא שְׁמַע","Come and listen / Come and hear (Proof)"],[150,"אַמַּאי","Why?"],[151,"לִפְנֵי","Before / In front of"],[152,"אַחַר","After (Immediately)"],[153,"אַחֲרֵי","After (A while later)"],[154,"אַחֵר","Other / Another / Different"],[155,"חוּץ","Outside / Except"],[156,"כִּי","Because / That / When / If"],[157,"ה״נ · הָכָא נַמֵי","Here also"],[158,"ה״נ · הָתָם נַמֵי","There also"],[159,"ה״נ · הָכִי נַמֵי","Like this also"],[160,"כִּיס","Purse / Pocket"],[161,"שָׁעָה","Time / Hour"],[162,"אַנְב","Since"],[163,"יָחִיד","Singular / Individual"],[164,"רַבִּים","Plural / Many"],[165,"דָּבָר שֶׁיֵּשׁ בּוֹ סִימָן","Something that has an identifying mark on it"],[166,"קוֹדֶם","Before"],[167,"שָׂדֶה","Field"],[168,"בִּשְׁלָמָא","It is understandable / I could understand"],[169,"זָקֵן · זְקֵנִים","Old person * Elders"],[170,"תַּרְגְּמָהּ","Explain / Interpret"],[171,"מָתַי","When"],[172,"אֵימָתַי","When"],[173,"מֵאֵימָתַי","From when"],[174,"עָנִי · עֲנִיִּים","Poor person * Poor people"],[175,"עָשִׁיר · עֲשִׁירִים","Rich person * Rich people"],[176,"קַמָּא","First"],[177,"מְצִיעָא","Middle"],[178,"בַּתְרָא","Last"],[179,"בָּתַר","After"],[180,"זִיל","Go"],[181,"אָזִיל","Goes / Went"],[182,"נְהִי","It is true / Granted"],[183,"דּוּכְתָּא","Place"],[184,"הָנָךְ","Those"],[185,"מֵעִיקָּרָא","From the beginning"],[186,"צַד","Side / Next to"],[187,"גֶּזֶל","Theft"],[188,"גַּנָּב","Sneaky thief"],[189,"גַּזְלָן","Armed robber"],[190,"דָּבָר שֶׁאֵין בּוֹ סִימָן","Something that doesn't have an identifying mark on it"],[191,"מִפְּנֵי","Because"],[192,"קֻשְׁיָא · קָשֶׁה","[Challenge - Attack] Question / Difficulty"],[193,"תֵּירוּץ","Answer"],[194,"שְׁאֵלָה","[Informational] Question"],[195,"תְּשׁוּבָה","Answer / Return"],[196,"שַׁאנִי","Different"],[197,"א״ה · אִי הָכִי","If so?"],[198,"חֲדָא · חַד","1"],[199,"תְּרֵי","2"],[200,"תְּלָתָא · תְּלָת","3"],[201,"סוּגְיָא","Topic / Discussion"],[202,"עִנְיָן","Topic"],[203,"מַחְלוֹקֶת","Argument / Disagreement"],[204,"הו״א · הֲוָה אָמִינָא","Assumption / [I] would've thought"],[205,"מַסְקָנָא","Conclusion / Final answer"],[206,"מֵימְרָא","Statement"],[207,"רְאָיָה","ProoPH (Proof)"],[208,"נ״מ · נַפְקָא מִינָה","Practical difference"],[209,"מַאי נַפְקָא מִינָה","What's the practical difference?"],[210,"שַׁאנִי הָכָא","It's different here"],[211,"שַׁאנִי הָתָם","It's different there"],[212,"רָמֵי · וְרַמִינְהוּ · וּרְמִינְהִי","Contradiction / And I'll ask you a contradiction"],[213,"אֵצֶל","Near / Next to"],[214,"דּוֹמֶה · דּוֹמְיָא","Similar"],[215,"בֵּין","Between / Whether"],[216,"בֵּין כָּךְ וּבֵין כָּךְ","Whether this or whether that"],[217,"תְּיוּבְתָּא","Disproved / Shlugged up"],[218,"הִלְכְתָא","The Halacha"],[219,"הָנֵי","These"],[220,"מִילֵי","Words"],[221,"ה״מ · הָנֵי מִילֵי","These words / When do these words apply"],[222,"אִיכָּא לְמֵימַר","You can say"],[223,"לֵיכָּא לְמֵימַר","You can't say / Don't say"],[224,"[מ][ד]אוֹרַיְיתָא","[From] {The} Torah"],[225,"[מ][ד]רַבָּנָן","[From] {The} Rabbis"],[226,"דִּין","Law / Judgement"],[227,"חֲזִי · חֲזָא","See / Saw"],[228,"חַזְיֵיהּ","He saw"],[229,"בְּתוֹךְ","In the midst / middle"],[230,"אֵימָא","I would say / I could say"],[231,"לֵימָא","Let us say / Should we say"],[232,"נֵימָא","We could say / We would say"],[233,"תֵּימָא","You would say / You could say"],[234,"רְשׁוּת","Permission / Property"],[235,"מִנְיָן","Number"],[236,"מְנַיִן","From where do we know"],[237,"שָׁלִיחַ","Messenger"],[238,"ס״ד · סָלְקָא דַּעְתָּךְ","You think / We think"],[239,"אס״ד · אִי סָלְקָא דַּעְתָּךְ","If you want to think"],[240,"סד״א · סָלְקָא דַּעְתָּךְ אָמִינָא","I would've thought"],[241,"קס״ד · קָא סָלְקָא דַּעְתָּךְ","You would think"],[242,"סָבַר","Holds (His opinion)"],[243,"סְבָרָא","Logic"],[244,"מִסְתַּבְּרָא","It is logical"],[245,"עִידִּית","One's best quality produce"],[246,"בֵּינוֹנִית","One's medium quality produce"],[247,"זִיבּוּרִית","One's worst quality produce"],[248,"שָׁכַח","Forgot"],[249,"אַשְׁכַּח","Found"],[250,"הִלְכָּךְ","Therefore"],[251,"תַּנָּא · תַּנָּאִים","Teacher(s) / Author(s) / Sage(s)"],[252,"אָמוֹרָא · אָמוֹרָאִים","Interpreter * Interpreters"],[253,"רִאשׁוֹן · רִאשׁוֹנִים","First */* Early commentator(s)"],[254,"אַחֲרוֹן · אַחֲרוֹנִים","Last */* Later commentator(s)"],[255,"קְרָא","(Word(s) in a Pasuk)"],[256,"עֲשֵׂה","Do / Positive commandment"],[257,"לָאו · מִצְוַת לֹא תַעֲשֶׂה","Don't do / Prohibition"],[258,"דִּכְתִיב","That it's written (in a Pasuk)"],[259,"שֶׁנֶּאֱמַר","Like it says (in a Pasuk)"],[260,"שִׁיעוּר","Measurement / Lesson"],[261,"פְּלוּגְתָּא","Argument"],[262,"שְׁלוּחוֹ שֶׁל אָדָם כְּמוֹתוֹ","A messenger of a person is like himself"],[263,"בְּעִידְנָא","At the time"],[264,"יְתֵירָא","Extra"],[265,"לָאו","No / Not"],[266,"נִיחָא","Good / Fine / Acceptable"],[267,"עוֹד","Again / Yet / Still / More"],[268,"אַלְמָא","We see / (It proves)"],[269,"מָר","Master / Bitter"],[270,"יָתוֹם · יְתוֹמִים","Orphan * Orphans"],[271,"ל״ש · לָא שְׁנָא","There is no difference"],[272,"ל״ש · לָא שָׁנוּ","They didn't teach / We didn't learn"],[273,"נָכְרִי · נָכְרִים","Non Jew * Non Jews"],[274,"ת״ק · תַּנָּא קַמָּא","The first Tanna"],[275,"מִשְּׁמֵיהּ","In the name of"],[276,"שָׁכִיחַ","Common"],[277,"כְּבָר","Already"],[278,"בָּעוּ","They asked"],[279,"אוֹת · אוֹתוֹת","Sign(s) / Letter(s)"],[280,"כֶּסֶף","Silver / Money"],[281,"זָהָב","Gold"],[282,"נְחוֹשֶׁת","Copper"],[283,"מִדָּה · מִדּוֹת","Measurement(s) / Character trait(s)"],[284,"מִשְׁקָל · מִשְׁקָלוֹת","Weight * Weights"],[285,"גּוּפָא","Let's go back to what was stated previously"],[286,"גּוּפָהּ","Itself"],[287,"כַּד · כַּדֵּי · כַּדִּים","Pitcher * Pitchers"],[288,"חָבִית · חָבִיּוֹת","Barrel * Barrels"],[289,"יַיִן · יֵינוֹת","Wine * Wines"],[290,"שֶׁמֶן · שְׁמָנִים","Oil * Oils"],[291,"תְּבוּאָה · תְּבוּאוֹת","Produce / Grain (S & P)"],[292,"תָּמָר · תְּמָרִים","Date * Dates"],[293,"תְּאֵנָה · תְּאֵנִים","Fig * Figs"],[294,"רִמּוֹן · רִמּוֹנִים","Pomegranate * Pomegranates"],[295,"זַיִת · זֵיתִים","Olive * Olives"],[296,"מִכְּלָל","It implies / We see from here / From here we see"],[297,"אֲפִילוּ תֵּימָא","You could even say"],[298,"כָּאן","Here"],[299,"אִידֵי","This"],[300,"אִידֵי וְאִידֵי","This and this / This and that"],[301,"חָבֵר · חֲבֵרִים","Friend * Friends"],[302,"אִיכָּא דְאָמְרִי","There are [those] that say"],[303,"גַּבְרָא","Man"],[304,"הַהוּא גַּבְרָא","There was a man"],[305,"זִיל שְׁקוֹל לְנַפְשָׁךְ","Go and take [it] for yourself"],[306,"חָדָשׁ","New"],[307,"חוֹדֶשׁ","Month"],[308,"עַיִן · עֵינַיִם","Eye * Eyes"],[309,"לְעוֹלָם","Really I'll tell you / Forever"],[310,"ת״ר · תָּנוּ רַבָּנָן · בְּרַיְיתָא","Our Rabbis taught in a Braisa"],[311,"סְפִינָה","Ship"],[312,"ש״מ · שְׁמַע מִינָה","We see from here / We hear from this"],[313,"פַּעַם","Time"],[314,"פַּעֲמַיִם","2 Times"],[315,"פְּעָמִים","Times"],[316,"פְּלוֹנִי","So and so / Such and such / Variable / X"],[317,"ה״ה · הוּא הַדִּין","The same law applies"],[318,"גַּבֵּי","Concerning / On top of"],[319,"בָּשָׂר שֶׁנִּתְעַלֵּם מִן הָעַיִן","Meat that was hidden from the eye"],[320,"עָדִיף · עֲדִיפָא","Better"],[321,"בֶּגֶד · בְּגָדִים","Clothes - Clothing"],[322,"וַדַּאי","Certainly"],[323,"סָפֵק","Doubt"],[324,"שַׁפִּיר","Good / Beautiful / RH"],[325,"דִּיּוּק","Infer - Inference"],[326,"צִבּוּר · צִבּוּרֵי","Pile * Piles"],[327,"מְיַירֵי","We are talking about / It is talking about"],[328,"עַל גַּב","On top"],[329,"רַק","Only"],[330,"רֵק","Empty"],[331,"קְצָת · מִקְצָת","Part - Partial / A little / Some"],[332,"קַרְקַע","Ground / Land"],[333,"אִי בָּעֵית אֵימָא","If you want, I can say (Answer)"],[334,"ה״ג · הָכִי גַּרְסִינָן","Like this is the correct text"],[335,"דַּוְקָא","Specifically"],[336,"מַטְבֵּעַ","Coin"],[337,"מָמוֹן","Money"],[338,"זוּז","Currency"],[339,"דִּינָר","Currency"],[340,"סֶלַע","Currency / Rock"],[341,"פְּרוּטָה","Currency (Lowest Halachic amount)"],[342,"שָׁוֶה פְּרוּטָה","The worth of a Perutah"],[343,"ע״ז · עֲבוֹדָה זָרָה","Idol worship"],[344,"עכו״ם · עוֹבֵד כּוֹכָבִים וּמַזָּלוֹת","Idol worship (Lit. one who serves stars and constellations)"],[345,"פָּשׁוּט · פְּשִׁיטָא","Obvious / Simple"],[346,"רוֹב · רוּבָּא","Majority"],[347,"הוֹלְכִים אַחַר הָרוֹב","We follow the majority"],[348,"א״כ · אִם כֵּן","If so"],[349,"רָגִיל · רְגִילוּת","Regular / Common"],[350,"לְעֵיל","Earlier / Before / Above"],[351,"רש״י · רַבִּי שְׁלֹמֹה יִצְחָקִי · רַבָּן שֶׁל יִשְׂרָאֵל","Rashi (BFF) / The rabbi of Bnei Yisrael"],[352,"ר״ת · רַבֵּינוּ תָּם (בַּעֲלֵי תוֹסָפוֹת) — נֶכֶד שֶׁל רש״י","One of the Baalei Tosfos (also a grandson of Rashi)"],[353,"פרש״י · פֵּירוּשׁ רש״י","Rashi explains"],[354,"אָז","Then"],[355,"הַיְינוּ","That is"],[356,"חוֹשֵׁשׁ · חַיְישִׁי","Suspect"],[357,"חַיְישִׁינָן","We suspect"],[358,"מוֹדֶה","Admits / Agrees / Thanks"],[359,"מ״מ · מִכָּל מָקוֹם","However / Nevertheless"],[360,"אֵין הָכִי נַמֵי","Yes, it is like this (you are correct)"],[361,"אוֹבֵד","Loser"],[362,"מ״ד · מַאן דְּאָמַר","The one that said"],[363,"לְפִיכָךְ","Therefore"],[364,"נָקַט","Chose / Took"],[365,"כְּמוֹ","Like / As"],[366,"אֶרֶץ","Land / Earth"],[367,"אַף","Even / Even though / Also"],[368,"בְּנֵי אָדָם","People"],[369,"צָרִיךְ","Need / Necessary"],[370,"צְרִיכִי","It is needed / It is necessary"],[371,"פָּחוֹת","Less"],[372,"יוֹתֵר","More"],[373,"כְּלוּם","Nothing"],[374,"זֶה · זוֹ","This"],[375,"אִילָן · אִילָנוֹת","Tree * Trees"],[376,"בַּעַל אֲבֵידָה","The person who lost the object (Lit. owner of the lost object)"],[377,"לְפִיכָךְ","Therefore"],[378,"וכו׳ · וְכוּלֵי","Etc. (not from Tanach)"],[379,"וגו׳ · וְגוֹמֵר","Etc. (from Tanach)"],[380,"נָטַל","Took"],[381,"נוֹטֵל","Take"],[382,"אֱמֶת","Truth"],[383,"שֶׁקֶר","Lie / Falsehood"],[384,"עַתָּה · עַכְשָׁיו","Now"],[385,"נ״ב · נִרְאֶה בְּעֵינַי","It appears in my eyes (It appears to me)"],[386,"יֵשׁ","There is"],[387,"אֵין","There isn't"],[388,"סוֹמֵךְ","Support / Rely"],[389,"בְּהֵמָה · בְּהֵמוֹת","(Domesticated) Animal * Animals"],[390,"חַיָּה · חַיּוֹת","(Wild) Animal * Animals"],[391,"כְּלוֹמַר","In other words / It means to say"],[392,"אֶבֶן · אֲבָנִים","Stone * Stones"],[393,"מְנָלָן","From where do we know"],[394,"אֶפְשָׁר","Possible"],[395,"מוֹכֵר","Seller"],[396,"צוּרְבָא מֵרַבָּנָן","Talmid Chochom"],[397,"אַיְידֵי","Since"],[398,"הָא","This"],[399,"הָא וְהָא","This and that"],[400,"תַּנְיָא נַמֵי הָכִי","We also learned in a Braisa like this"],[401,"תּוֹבֵעַ · תּוֹבְעִין","Claimer * Claimers"],[402,"לָמָּה · מַדּוּעַ","Why"],[403,"בַּגְמ׳ (בַּגְּמָרָא) מְפָרֵשׁ לָהּ","In the Gemara it will explain it"],[404,"ל״ל · לָמָּה לִי","Why do I need it?"],[405,"רֹאשׁ","Head / Top / Beginning"],[406,"סוֹף","End"],[407,"בּוֹר","Pit"],[408,"דְּרָשָׁה","Expound(ing) / (To teach)"],[409,"שֵׂעָר","Hair"],[410,"סַגֵּי","Enough"],[411,"אֲנָא","I"],[412,"אֲנָן","We"],[413,"אֲפִילוּ הָכִי","Even so"],[414,"{בְּ}שַׁעַת","{At} The time"],[415,"פְּרָט","(To) Exclude"],[416,"בֵּינַיְיהוּ","Between them"],[417,"מַאי בֵּינַיְיהוּ","What's [the difference] between them"],[418,"אִיכָּא בֵּינַיְיהוּ","This is [the difference] between them"],[419,"אִידָךְ","Other"],[420,"אִיבַּעְיָא לְהוּ","They asked them (in the Beis Midrash)"],[421,"פָּרִיךְ","Ask"],[422,"[וּ]פָרְכִינָן","[And] We ask"],[423,"א״י · אֶרֶץ יִשְׂרָאֵל","The Land of Israel"],[424,"שֶׁמָּא","Maybe - Perhaps"],[425,"דִּבְרֵי הַכֹּל","Lit. The words of all *According to everybody*"],[426,"גֶּשֶׁם · מָטָר","Rain"],[427,"טַל","Dew"],[428,"יוֹמָא · יְמָמָא","Day"],[429,"לֵילְיָא","Night"],[430,"שָׁכֵן","Neighbor"],[431,"אִיפְּכָא מִסְתַּבְּרָא","The opposite is more logical"],[432,"חוּרְבָּן","Destruction"],[433,"תַּקָּנָה","Decree"],[434,"הִתְקִינוּ","They decreed"],[435,"ב״ד · בֵּית דִּין","Court - Courthouse"],[436,"שָׂם","Put / Place"],[437,"שֵׁם","Name"],[438,"שָׁם","There"],[439,"מָלֵא","Full"],[440,"חָסֵר","Missing"],[441,"עִם","With"],[442,"עַם · עַמִּים","Nation * Nations"],[443,"גַּם","Also"],[444,"דַּי (דַּיֵּינוּ)","Enough"],[445,"ק״ו · קַל וָחוֹמֶר","(We learn) Light from the heavy"],[446,"רַמַּאי","Fraud"],[447,"גָּבוֹהַּ","High"],[448,"קמ״ל · קָא מַשְׁמַע לָן","It comes to teach us"],[449,"מַלְכָּא","King"],[450,"חז״ל · חֲכָמֵינוּ זִכְרוֹנָם לִבְרָכָה","Our Sages of Blessed Memory"]]
+;
+
+function $(id) { return document.getElementById(id); }
+
+function showScreen(id) {
+  document.querySelectorAll(".screen").forEach(function (s) { s.classList.remove("active"); });
+  $(id).classList.add("active");
+  var homeBtn = $("home-toggle");
+  if (homeBtn) homeBtn.style.display = (id === "screen-home") ? "none" : "flex";
+}
+
+$("home-toggle").addEventListener("click", function () {
+  if (!confirm("Back to the start screen? This leaves your current game.")) return;
+  localStorage.removeItem("milim_room");
+  location.reload();
+});
+$("rules-btn").addEventListener("click", function () { $("rules-modal-backdrop").classList.add("show"); });
+$("rules-modal-close").addEventListener("click", function () { $("rules-modal-backdrop").classList.remove("show"); });
+$("rules-modal-backdrop").addEventListener("click", function (e) { if (e.target === this) this.classList.remove("show"); });
+
+function pickRandom(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
+function shuffle(arr) {
+  var a = arr.slice();
+  for (var i = a.length - 1; i > 0; i--) {
+    var j = Math.floor(Math.random() * (i + 1));
+    var tmp = a[i]; a[i] = a[j]; a[j] = tmp;
+  }
+  return a;
+}
+
+// Builds 4 shuffled choices (1 correct + 3 distractors) for a word, keyed by
+// word index so it can be regenerated identically from stored round state.
+function buildChoiceOptions(word) {
+  var correct = word[2];
+  var seen = {};
+  seen[correct] = true;
+  var pool = shuffle(WORDS.filter(function (w) { return w[0] !== word[0]; }));
+  var distractors = [];
+  for (var i = 0; i < pool.length && distractors.length < 3; i++) {
+    var en = pool[i][2];
+    if (seen[en]) continue;
+    seen[en] = true;
+    distractors.push(en);
+  }
+  return shuffle(distractors.concat([correct]));
+}
+
+// =========================================================================
+// MULTIPLAYER MODE
+// =========================================================================
+
+var CODE_CHARS = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+
+var mp = {
+  uid: null,
+  name: "",
+  roomCode: null,
+  isHost: false,
+  room: null,
+  choiceSelected: null,
+  timerHandle: null,
+  timerRemaining: 0,
+  timerRoundKey: null
+};
+
+function roomRef(code) { return ref(db, "rooms/" + code); }
+function generateRoomCode() {
+  var out = "";
+  for (var i = 0; i < 4; i++) out += CODE_CHARS[Math.floor(Math.random() * CODE_CHARS.length)];
+  return out;
+}
+function roundKey(round) { return String(round.wordNum); }
+
+signInAnonymously(auth).catch(function (err) {
+  $("home-status").textContent = "Couldn't connect: " + err.message;
+});
+
+onAuthStateChanged(auth, function (user) {
+  if (!user) return;
+  mp.uid = user.uid;
+  tryAutoRejoin();
+});
+
+function tryAutoRejoin() {
+  var saved = null;
+  try { saved = JSON.parse(localStorage.getItem("milim_room") || "null"); } catch (e) {}
+  if (!saved || !saved.code || !saved.name) return;
+  $("input-name").value = saved.name;
+  get(roomRef(saved.code)).then(function (snap) {
+    if (!snap.exists()) { localStorage.removeItem("milim_room"); return; }
+    var roomVal = snap.val();
+    if (roomVal.players && roomVal.players[mp.uid]) {
+      mp.roomCode = saved.code;
+      mp.name = saved.name;
+      mp.isHost = roomVal.hostUid === mp.uid;
+      subscribeRoom(saved.code);
+    }
+  });
+}
+
+$("btn-create-room").addEventListener("click", function () {
+  var name = $("input-name").value.trim();
+  if (!name) { $("home-status").textContent = "Enter your name first."; return; }
+  if (!mp.uid) { $("home-status").textContent = "Still connecting, try again in a moment."; return; }
+  createRoomFlow(name);
+});
+
+var pendingJoinName = "";
+
+$("btn-join-room").addEventListener("click", function () {
+  var name = $("input-join-name").value.trim();
+  if (!name) { $("home-status").textContent = "Enter your name first."; return; }
+  if (!mp.uid) { $("home-status").textContent = "Still connecting, try again in a moment."; return; }
+  pendingJoinName = name;
+  $("input-join-code").value = "";
+  $("join-code-status").textContent = "";
+  showScreen("screen-join-code");
+});
+
+$("btn-join-code-back").addEventListener("click", function () { showScreen("screen-home"); });
+
+$("btn-join-code-submit").addEventListener("click", function () {
+  var code = $("input-join-code").value.trim().toUpperCase();
+  if (!code) { $("join-code-status").textContent = "Enter a room code."; return; }
+  joinRoomFlow(code, pendingJoinName);
+});
+
+async function createRoomFlow(name) {
+  $("home-status").textContent = "Creating room…";
+  var code;
+  do { code = generateRoomCode(); } while ((await get(roomRef(code))).exists());
+  var uid = mp.uid;
+  await set(roomRef(code), {
+    createdAt: Date.now(),
+    hostUid: uid,
+    phase: "lobby",
+    settings: { targetScore: 20 },
+    players: { [uid]: { name: name, joinedAt: Date.now() } },
+    scores: { [uid]: 0 },
+    usedWords: {}
+  });
+  mp.roomCode = code;
+  mp.name = name;
+  mp.isHost = true;
+  localStorage.setItem("milim_room", JSON.stringify({ code: code, name: name }));
+  subscribeRoom(code);
+}
+
+async function joinRoomFlow(code, name) {
+  $("join-code-status").textContent = "Joining…";
+  var snap = await get(roomRef(code));
+  if (!snap.exists()) { $("join-code-status").textContent = "Room not found."; return; }
+  var uid = mp.uid;
+  var val = snap.val();
+  await update(ref(db, "rooms/" + code + "/players/" + uid), { name: name, joinedAt: Date.now() });
+  if (!val.scores || val.scores[uid] === undefined) {
+    await update(ref(db, "rooms/" + code + "/scores"), (function () { var o = {}; o[uid] = 0; return o; })());
+  }
+  mp.roomCode = code;
+  mp.name = name;
+  mp.isHost = val.hostUid === uid;
+  localStorage.setItem("milim_room", JSON.stringify({ code: code, name: name }));
+  subscribeRoom(code);
+}
+
+$("btn-leave-room").addEventListener("click", function () {
+  if (!confirm("Leave this room?")) return;
+  localStorage.removeItem("milim_room");
+  location.reload();
+});
+
+function subscribeRoom(code) {
+  onValue(roomRef(code), function (snap) {
+    mp.room = snap.val();
+    if (!mp.room) {
+      localStorage.removeItem("milim_room");
+      showScreen("screen-home");
+      $("home-status").textContent = "Room closed.";
+      $("chat-toggle").style.display = "none";
+      $("chat-panel").classList.remove("open");
+      return;
+    }
+    mp.isHost = mp.room.hostUid === mp.uid;
+    render();
+  });
+  subscribeChat(code);
+  $("chat-toggle").style.display = "flex";
+}
+
+// ---------- Room chat ----------
+var chatSeenCount = 0;
+var chatUnread = 0;
+
+function subscribeChat(code) {
+  onValue(ref(db, "rooms/" + code + "/chat"), function (snap) {
+    var val = snap.val() || {};
+    var messages = Object.keys(val).map(function (key) { return val[key]; })
+      .sort(function (a, b) { return a.ts - b.ts; });
+
+    var wrap = $("chat-messages");
+    wrap.innerHTML = "";
+    messages.forEach(function (m) {
+      var row = document.createElement("div");
+      row.className = "chat-msg" + (m.uid === mp.uid ? " chat-mine" : "");
+      var nameSpan = document.createElement("span");
+      nameSpan.className = "chat-name";
+      nameSpan.textContent = (m.uid === mp.uid ? "You" : m.name) + ": ";
+      row.appendChild(nameSpan);
+      row.appendChild(document.createTextNode(m.text));
+      wrap.appendChild(row);
+    });
+    wrap.scrollTop = wrap.scrollHeight;
+
+    if (messages.length > chatSeenCount) {
+      if (!$("chat-panel").classList.contains("open")) {
+        chatUnread += messages.length - chatSeenCount;
+        var badge = $("chat-badge");
+        badge.textContent = chatUnread > 9 ? "9+" : String(chatUnread);
+        badge.style.display = "block";
+        $("chat-toggle").classList.add("has-unread");
+      }
+    }
+    chatSeenCount = messages.length;
+  });
+}
+
+$("chat-toggle").addEventListener("click", function () {
+  $("chat-panel").classList.add("open");
+  chatUnread = 0;
+  $("chat-badge").style.display = "none";
+  $("chat-toggle").classList.remove("has-unread");
+  $("chat-input").focus();
+});
+$("chat-close").addEventListener("click", function () { $("chat-panel").classList.remove("open"); });
+
+function sendChatMessage() {
+  var text = $("chat-input").value.trim();
+  if (!text || !mp.roomCode) return;
+  push(ref(db, "rooms/" + mp.roomCode + "/chat"), {
+    uid: mp.uid, name: mp.name, text: text.slice(0, 200), ts: Date.now()
+  });
+  $("chat-input").value = "";
+}
+$("chat-send").addEventListener("click", sendChatMessage);
+$("chat-input").addEventListener("keydown", function (e) {
+  if (e.key === "Enter") { e.preventDefault(); sendChatMessage(); }
+});
+
+function render() {
+  var room = mp.room;
+  if (!room) return;
+  if (room.phase === "lobby") renderLobby();
+  else if (room.phase === "round") renderRound();
+  else if (room.phase === "reveal") renderRevealScreen();
+  else if (room.phase === "scores") renderScoresScreen();
+  else if (room.phase === "game-won") renderGameWonScreen();
+}
+
+function mpPlayerName(uid) {
+  return mp.room.players && mp.room.players[uid] ? mp.room.players[uid].name : "?";
+}
+function mpPlayerUids() { return mp.room.players ? Object.keys(mp.room.players) : []; }
+
+// ---------- Lobby ----------
+function renderLobby() {
+  var room = mp.room;
+  $("lobby-code").textContent = mp.roomCode;
+
+  var list = $("lobby-players");
+  list.innerHTML = "";
+  mpPlayerUids().forEach(function (uid) {
+    var chip = document.createElement("div");
+    chip.className = "player-chip";
+    chip.textContent = mpPlayerName(uid);
+    if (uid === room.hostUid) {
+      var badge = document.createElement("span");
+      badge.className = "host-badge";
+      badge.textContent = "HOST";
+      chip.appendChild(badge);
+    }
+    list.appendChild(chip);
+  });
+
+  var targetInput = $("target-score-input");
+  targetInput.value = room.settings.targetScore;
+  targetInput.disabled = !mp.isHost;
+  var setTarget = function (v) {
+    v = Math.max(1, Math.min(99, v));
+    update(ref(db, "rooms/" + mp.roomCode + "/settings"), { targetScore: v });
+  };
+  targetInput.onchange = function () { setTarget(parseInt(targetInput.value, 10) || 1); };
+  $("btn-target-down").onclick = function () { setTarget((room.settings.targetScore || 1) - 1); };
+  $("btn-target-up").onclick = function () { setTarget((room.settings.targetScore || 1) + 1); };
+  $("btn-target-down").disabled = !mp.isHost;
+  $("btn-target-up").disabled = !mp.isHost;
+
+  var startBtn = $("btn-start-game");
+  var waiting = $("lobby-waiting");
+  if (mp.isHost) {
+    startBtn.style.display = "";
+    waiting.style.display = "none";
+    startBtn.disabled = mpPlayerUids().length < 1;
+  } else {
+    startBtn.style.display = "none";
+    waiting.style.display = "";
+  }
+
+  showScreen("screen-lobby");
+}
+
+$("btn-start-game").addEventListener("click", function () {
+  if (!mp.isHost) return;
+  startMpRound();
+});
+
+function mpBuildPool(room) {
+  var used = room.usedWords || {};
+  var pool = WORDS.filter(function (w) { return !used[w[0]]; });
+  return pool;
+}
+
+async function startMpRound() {
+  var room = mp.room;
+  var pool = mpBuildPool(room);
+  var usedWords = room.usedWords || {};
+  if (pool.length === 0) { usedWords = {}; pool = WORDS; }
+  var word = pickRandom(pool);
+  usedWords = Object.assign({}, usedWords);
+  usedWords[word[0]] = true;
+
+  var options = buildChoiceOptions(word);
+
+  await update(roomRef(mp.roomCode), {
+    phase: "round",
+    usedWords: usedWords,
+    round: {
+      wordNum: word[0], he: word[1], en: word[2],
+      options: options, answers: {}, judged: {}
+    }
+  });
+}
+
+// ---------- Round (answering) ----------
+function renderRound() {
+  var room = mp.room;
+  var round = room.round;
+  var key = roundKey(round);
+  var myAnswer = round.answers ? round.answers[mp.uid] : undefined;
+
+  $("round-word-num").textContent = "#" + round.wordNum;
+  $("input-question").textContent = round.he;
+
+  if (myAnswer !== undefined) {
+    $("btn-submit-answer").style.display = "none";
+    $("round-waiting").style.display = "";
+    renderMpChoiceOptions(round.options, true);
+    stopMpTimer();
+  } else {
+    $("round-waiting").style.display = "none";
+    $("btn-submit-answer").style.display = "";
+    renderMpChoiceOptions(round.options, false);
+    if (mp.timerRoundKey !== key) {
+      mp.timerRoundKey = key;
+      mp.choiceSelected = null;
+      startMpTimer();
+    }
+  }
+
+  var statusList = $("round-status-list");
+  statusList.innerHTML = "";
+  mpPlayerUids().forEach(function (uid) {
+    var answered = round.answers && round.answers[uid] !== undefined;
+    var row = document.createElement("div");
+    row.className = "score-row";
+    row.innerHTML = "<span>" + (answered ? "✅" : "⏳") + " " + mpPlayerName(uid) + "</span>";
+    statusList.appendChild(row);
+  });
+
+  showScreen("screen-answer-input");
+
+  if (mp.isHost) {
+    var uids = mpPlayerUids();
+    var count = round.answers ? Object.keys(round.answers).length : 0;
+    if (count >= uids.length && uids.length > 0) finishMpRound();
+  }
+}
+
+function renderMpChoiceOptions(options, locked) {
+  var wrap = $("input-choice-options");
+  wrap.innerHTML = "";
+  options.forEach(function (opt) {
+    var chip = document.createElement("div");
+    chip.className = "chip" + (opt === mp.choiceSelected ? " selected" : "") + (locked ? " static" : "");
+    chip.textContent = opt;
+    if (!locked) {
+      chip.addEventListener("click", function () {
+        mp.choiceSelected = opt;
+        renderMpChoiceOptions(options, false);
+        $("btn-submit-answer").disabled = false;
+      });
+    }
+    wrap.appendChild(chip);
+  });
+  $("btn-submit-answer").disabled = locked ? true : !mp.choiceSelected;
+}
+
+function startMpTimer() {
+  stopMpTimer();
+  mp.timerRemaining = ROUND_TIME;
+  updateMpTimerDisplay();
+  mp.timerHandle = setInterval(function () {
+    mp.timerRemaining--;
+    updateMpTimerDisplay();
+    if (mp.timerRemaining <= 0) {
+      stopMpTimer();
+      submitMpAnswer();
+    }
+  }, 1000);
+}
+function stopMpTimer() {
+  if (mp.timerHandle) { clearInterval(mp.timerHandle); mp.timerHandle = null; }
+}
+function updateMpTimerDisplay() {
+  var m = Math.floor(mp.timerRemaining / 60);
+  var s = mp.timerRemaining % 60;
+  var el = $("input-timer");
+  el.textContent = m + ":" + (s < 10 ? "0" : "") + s;
+  el.classList.toggle("low", mp.timerRemaining <= 10);
+}
+
+function submitMpAnswer() {
+  var answer = mp.choiceSelected || "";
+  update(ref(db, "rooms/" + mp.roomCode + "/round/answers"), (function () { var o = {}; o[mp.uid] = answer; return o; })());
+}
+
+$("btn-submit-answer").addEventListener("click", submitMpAnswer);
+
+async function finishMpRound() {
+  var room = mp.room;
+  var round = room.round;
+  var judged = {};
+  mpPlayerUids().forEach(function (uid) {
+    judged[uid] = round.answers[uid] === round.en;
+  });
+  await update(roomRef(mp.roomCode), { phase: "reveal", round: Object.assign({}, round, { judged: judged }) });
+}
+
+// ---------- Reveal ----------
+function renderRevealScreen() {
+  var room = mp.room;
+  var round = room.round;
+  $("reveal-hebrew-text").textContent = round.he;
+  $("reveal-answer-text").textContent = round.en;
+
+  var wrap = $("judge-list");
+  wrap.innerHTML = "";
+  mpPlayerUids().forEach(function (uid) {
+    var correct = round.judged[uid];
+    var row = document.createElement("div");
+    row.className = "judge-row" + (correct ? " correct" : "");
+    var left = document.createElement("div");
+    var pname = document.createElement("div");
+    pname.className = "pname";
+    pname.textContent = mpPlayerName(uid);
+    var given = document.createElement("div");
+    given.className = "given-answer";
+    given.textContent = round.answers[uid] ? "Answered: \"" + round.answers[uid] + "\"" : "No answer given";
+    left.appendChild(pname);
+    left.appendChild(given);
+    var mark = document.createElement("span");
+    mark.className = "mark";
+    mark.textContent = correct ? "✓" : "✗";
+    row.appendChild(left);
+    row.appendChild(mark);
+    if (mp.isHost) {
+      row.addEventListener("click", function () {
+        var next = Object.assign({}, round.judged);
+        next[uid] = !next[uid];
+        update(ref(db, "rooms/" + mp.roomCode + "/round"), { judged: next });
+      });
+    }
+    wrap.appendChild(row);
+  });
+
+  var hostNav = $("reveal-host-nav");
+  var waiting = $("reveal-waiting");
+  if (mp.isHost) { hostNav.style.display = "flex"; waiting.style.display = "none"; }
+  else { hostNav.style.display = "none"; waiting.style.display = ""; }
+  showScreen("screen-reveal");
+}
+
+$("btn-next-round").addEventListener("click", function () {
+  if (!mp.isHost) return;
+  var room = mp.room;
+  var round = room.round;
+  var scoreUpdates = {};
+  mpPlayerUids().forEach(function (uid) {
+    var score = room.scores[uid] || 0;
+    if (round.judged[uid]) score += 1;
+    scoreUpdates[uid] = score;
+  });
+
+  var sorted = mpPlayerUids().slice().sort(function (a, b) { return scoreUpdates[b] - scoreUpdates[a]; });
+  var topScore = scoreUpdates[sorted[0]] || 0;
+  var winnerUid = null;
+  if (topScore >= room.settings.targetScore) {
+    var topPlayers = sorted.filter(function (uid) { return scoreUpdates[uid] === topScore; });
+    if (topPlayers.length === 1) winnerUid = topPlayers[0];
+  }
+
+  if (winnerUid) {
+    update(roomRef(mp.roomCode), { phase: "game-won", scores: scoreUpdates, winnerUid: winnerUid });
+  } else {
+    update(roomRef(mp.roomCode), { phase: "scores", scores: scoreUpdates });
+  }
+});
+
+// ---------- Scoreboard ----------
+function renderScoresScreen() {
+  var room = mp.room;
+  var scoresByName = {};
+  mpPlayerUids().forEach(function (uid) { scoresByName[mpPlayerName(uid)] = room.scores[uid] || 0; });
+  renderScoreboardInto($("scoreboard"), scoresByName);
+  $("scoreboard-target").textContent = room.settings.targetScore;
+
+  var hostNav = $("scores-host-nav");
+  var waiting = $("scores-waiting");
+  if (mp.isHost) { hostNav.style.display = "flex"; waiting.style.display = "none"; }
+  else { hostNav.style.display = "none"; waiting.style.display = ""; }
+  showScreen("screen-scores");
+}
+
+$("btn-back-to-round").addEventListener("click", function () {
+  if (!mp.isHost) return;
+  startMpRound();
+});
+$("btn-end-game").addEventListener("click", function () {
+  if (!mp.isHost) return;
+  if (!confirm("End the game and return everyone to the lobby?")) return;
+  update(roomRef(mp.roomCode), { phase: "lobby", round: null });
+});
+
+// ---------- Game won ----------
+function renderGameWonScreen() {
+  var room = mp.room;
+  $("winner-name").textContent = mpPlayerName(room.winnerUid);
+  var scoresByName = {};
+  mpPlayerUids().forEach(function (uid) { scoresByName[mpPlayerName(uid)] = room.scores[uid] || 0; });
+  renderScoreboardInto($("winner-scoreboard"), scoresByName);
+
+  var hostNav = $("won-host-nav");
+  var waiting = $("won-waiting");
+  $("mp-extend-game-form").style.display = "none";
+  if (mp.isHost) { hostNav.style.display = "flex"; waiting.style.display = "none"; }
+  else { hostNav.style.display = "none"; waiting.style.display = ""; }
+  showScreen("screen-game-won");
+}
+
+$("btn-new-game").addEventListener("click", function () {
+  if (!mp.isHost) return;
+  update(roomRef(mp.roomCode), { phase: "lobby", round: null, usedWords: {} });
+});
+
+$("btn-mp-extend-game").addEventListener("click", function () {
+  if (!mp.isHost) return;
+  var floor = (mp.room.scores[mp.room.winnerUid] || 0) + 1;
+  $("mp-extend-target-input").min = floor;
+  $("mp-extend-target-input").value = floor + 9;
+  $("mp-extend-game-form").style.display = "";
+});
+$("btn-mp-extend-down").addEventListener("click", function () {
+  var floor = (mp.room.scores[mp.room.winnerUid] || 0) + 1;
+  $("mp-extend-target-input").value = Math.max(floor, (parseInt($("mp-extend-target-input").value, 10) || floor) - 1);
+});
+$("btn-mp-extend-up").addEventListener("click", function () {
+  $("mp-extend-target-input").value = Math.min(99, (parseInt($("mp-extend-target-input").value, 10) || 1) + 1);
+});
+$("btn-mp-confirm-extend").addEventListener("click", async function () {
+  if (!mp.isHost) return;
+  var floor = (mp.room.scores[mp.room.winnerUid] || 0) + 1;
+  var newTarget = parseInt($("mp-extend-target-input").value, 10);
+  if (!(newTarget >= floor)) newTarget = floor + 9;
+  await update(ref(db, "rooms/" + mp.roomCode + "/settings"), { targetScore: newTarget });
+  $("mp-extend-game-form").style.display = "none";
+  startMpRound();
+});
+
+function renderScoreboardInto(el, scores) {
+  el.innerHTML = "";
+  var entries = Object.keys(scores).map(function (name) { return { name: name, score: scores[name] }; });
+  entries.sort(function (a, b) { return b.score - a.score; });
+  entries.forEach(function (e) {
+    var row = document.createElement("div");
+    row.className = "score-row";
+    row.innerHTML = "<span>" + e.name + "</span><strong>" + e.score + "</strong>";
+    el.appendChild(row);
+  });
+}
+
+// =========================================================================
+// LOCAL PASS-AND-PLAY MODE
+// =========================================================================
+
+$("btn-local-mode").addEventListener("click", function () {
+  localCheckResumeBanners();
+  localRenderPlayerList();
+  showScreen("local-screen-setup");
+});
+$("local-btn-back-home").addEventListener("click", function () { showScreen("screen-home"); });
+
+var LOCAL_SAVE_KEY = "milimPartySave";
+
+var localState = {
+  players: ["", ""],
+  targetScore: 20,
+  scores: {},
+  usedWords: {},
+  turnOrder: [],
+  turnIndex: 0,
+  roundAnswers: {},
+  roundJudged: {},
+  currentWord: null,
+  currentOptions: null,
+  choiceSelected: null,
+  timerHandle: null,
+  timerRemaining: 0
+};
+
+function localRenderPlayerList() {
+  var wrap = $("local-player-list");
+  wrap.innerHTML = "";
+  localState.players.forEach(function (name, i) {
+    var row = document.createElement("div");
+    row.className = "player-row";
+    var input = document.createElement("input");
+    input.type = "text";
+    input.maxLength = 20;
+    input.placeholder = "Player " + (i + 1);
+    input.value = name;
+    input.addEventListener("input", function () { localState.players[i] = input.value; });
+    row.appendChild(input);
+    if (localState.players.length > 1) {
+      var rm = document.createElement("button");
+      rm.type = "button";
+      rm.className = "icon-btn";
+      rm.textContent = "✕";
+      rm.addEventListener("click", function () {
+        localState.players.splice(i, 1);
+        localRenderPlayerList();
+      });
+      row.appendChild(rm);
+    }
+    wrap.appendChild(row);
+  });
+}
+$("local-btn-add-player").addEventListener("click", function () {
+  if (localState.players.length >= 10) return;
+  localState.players.push("");
+  localRenderPlayerList();
+});
+
+var localTargetInput = $("local-target-score-input");
+function localSetTarget(v) {
+  v = Math.max(1, Math.min(99, v));
+  localState.targetScore = v;
+  localTargetInput.value = v;
+}
+localTargetInput.addEventListener("change", function () { localSetTarget(parseInt(localTargetInput.value, 10) || 1); });
+$("local-btn-target-down").addEventListener("click", function () { localSetTarget(localState.targetScore - 1); });
+$("local-btn-target-up").addEventListener("click", function () { localSetTarget(localState.targetScore + 1); });
+
+$("local-btn-start-game").addEventListener("click", function () {
+  var names = localState.players.map(function (n) { return n.trim(); }).filter(Boolean);
+  if (names.length < 1) { alert("Enter at least one player name."); return; }
+  localState.players = names;
+  localState.scores = {};
+  names.forEach(function (n) { localState.scores[n] = 0; });
+  localState.usedWords = {};
+  localTurnOrderNewRound();
+  localSaveCheckpoint("local-screen-setup");
+  localGoToPassTurn();
+});
+
+function localTurnOrderNewRound() {
+  localState.turnOrder = localState.players.slice();
+  localState.turnIndex = 0;
+  localState.roundAnswers = {};
+  localState.roundJudged = {};
+
+  var pool = WORDS.filter(function (w) { return !localState.usedWords[w[0]]; });
+  if (pool.length === 0) { localState.usedWords = {}; pool = WORDS; }
+  var word = pickRandom(pool);
+  localState.usedWords[word[0]] = true;
+  localState.currentWord = word;
+  localState.currentOptions = buildChoiceOptions(word);
+}
+
+function localGoToPassTurn() {
+  if (localState.turnIndex >= localState.turnOrder.length) {
+    showScreen("local-screen-ready-reveal");
+    return;
+  }
+  var name = localState.turnOrder[localState.turnIndex];
+  $("local-pass-name").textContent = name;
+  $("local-pass-name-2").textContent = name;
+  showScreen("local-screen-pass-turn");
+}
+
+$("local-btn-ready-to-answer").addEventListener("click", function () {
+  var name = localState.turnOrder[localState.turnIndex];
+  $("local-input-name").textContent = name;
+  $("local-input-question").textContent = localState.currentWord[1];
+  localState.choiceSelected = null;
+  localRenderLocalChoiceOptions();
+  localStartTimer();
+  showScreen("local-screen-answer-input");
+});
+
+function localRenderLocalChoiceOptions() {
+  var wrap = $("local-input-choice-options");
+  wrap.innerHTML = "";
+  localState.currentOptions.forEach(function (opt) {
+    var chip = document.createElement("div");
+    chip.className = "chip" + (opt === localState.choiceSelected ? " selected" : "");
+    chip.textContent = opt;
+    chip.addEventListener("click", function () {
+      localState.choiceSelected = opt;
+      localRenderLocalChoiceOptions();
+      $("local-btn-submit-answer").disabled = false;
+    });
+    wrap.appendChild(chip);
+  });
+  $("local-btn-submit-answer").disabled = !localState.choiceSelected;
+}
+
+function localStartTimer() {
+  localStopTimer();
+  localState.timerRemaining = ROUND_TIME;
+  localUpdateTimerDisplay();
+  localState.timerHandle = setInterval(function () {
+    localState.timerRemaining--;
+    localUpdateTimerDisplay();
+    if (localState.timerRemaining <= 0) {
+      localStopTimer();
+      localSubmitAnswer();
+    }
+  }, 1000);
+}
+function localStopTimer() {
+  if (localState.timerHandle) { clearInterval(localState.timerHandle); localState.timerHandle = null; }
+}
+function localUpdateTimerDisplay() {
+  var m = Math.floor(localState.timerRemaining / 60);
+  var s = localState.timerRemaining % 60;
+  var el = $("local-input-timer");
+  el.textContent = m + ":" + (s < 10 ? "0" : "") + s;
+  el.classList.toggle("low", localState.timerRemaining <= 10);
+}
+
+function localSubmitAnswer() {
+  localStopTimer();
+  var name = localState.turnOrder[localState.turnIndex];
+  localState.roundAnswers[name] = localState.choiceSelected || "";
+  localState.turnIndex++;
+  localGoToPassTurn();
+}
+$("local-btn-submit-answer").addEventListener("click", localSubmitAnswer);
+
+$("local-btn-show-answer").addEventListener("click", function () {
+  var word = localState.currentWord;
+  localState.players.forEach(function (name) {
+    localState.roundJudged[name] = localState.roundAnswers[name] === word[2];
+  });
+  $("local-reveal-hebrew-text").textContent = word[1];
+  $("local-reveal-answer-text").textContent = word[2];
+  localRenderJudgeList();
+  showScreen("local-screen-reveal");
+});
+
+function localRenderJudgeList() {
+  var wrap = $("local-judge-list");
+  wrap.innerHTML = "";
+  localState.players.forEach(function (name) {
+    var correct = localState.roundJudged[name];
+    var row = document.createElement("div");
+    row.className = "judge-row" + (correct ? " correct" : "");
+    var left = document.createElement("div");
+    var pname = document.createElement("div");
+    pname.className = "pname";
+    pname.textContent = name;
+    var given = document.createElement("div");
+    given.className = "given-answer";
+    given.textContent = localState.roundAnswers[name] ? "Answered: \"" + localState.roundAnswers[name] + "\"" : "No answer given";
+    left.appendChild(pname);
+    left.appendChild(given);
+    var mark = document.createElement("span");
+    mark.className = "mark";
+    mark.textContent = correct ? "✓" : "✗";
+    row.appendChild(left);
+    row.appendChild(mark);
+    row.addEventListener("click", function () {
+      localState.roundJudged[name] = !localState.roundJudged[name];
+      localRenderJudgeList();
+    });
+    wrap.appendChild(row);
+  });
+}
+
+$("local-btn-next-round").addEventListener("click", function () {
+  localState.players.forEach(function (name) {
+    if (localState.roundJudged[name]) localState.scores[name] = (localState.scores[name] || 0) + 1;
+  });
+
+  var sorted = localState.players.slice().sort(function (a, b) { return (localState.scores[b] || 0) - (localState.scores[a] || 0); });
+  var topScore = localState.scores[sorted[0]] || 0;
+  var winner = null;
+  if (topScore >= localState.targetScore) {
+    var topPlayers = sorted.filter(function (n) { return (localState.scores[n] || 0) === topScore; });
+    if (topPlayers.length === 1) winner = topPlayers[0];
+  }
+
+  if (winner) {
+    localState.winner = winner;
+    localRenderGameWon();
+    localStorage.removeItem(LOCAL_SAVE_KEY);
+    showScreen("local-screen-game-won");
+  } else {
+    localRenderScores();
+    localSaveCheckpoint("local-screen-scores");
+    showScreen("local-screen-scores");
+  }
+});
+
+function localRenderScores() {
+  renderScoreboardInto($("local-scoreboard"), localState.scores);
+  $("local-scoreboard-target").textContent = localState.targetScore;
+  $("local-end-game-confirm").style.display = "none";
+}
+
+$("local-btn-back-to-round").addEventListener("click", function () {
+  localTurnOrderNewRound();
+  localSaveCheckpoint("local-screen-setup-inround");
+  localGoToPassTurn();
+});
+$("local-btn-end-game").addEventListener("click", function () { $("local-end-game-confirm").style.display = ""; });
+$("local-btn-cancel-end-game").addEventListener("click", function () { $("local-end-game-confirm").style.display = "none"; });
+$("local-btn-confirm-end-game").addEventListener("click", function () {
+  localStorage.removeItem(LOCAL_SAVE_KEY);
+  showScreen("screen-home");
+});
+
+function localRenderGameWon() {
+  $("local-winner-name").textContent = localState.winner;
+  renderScoreboardInto($("local-winner-scoreboard"), localState.scores);
+  $("local-extend-game-form").style.display = "none";
+}
+
+$("local-btn-new-game").addEventListener("click", function () {
+  localStorage.removeItem(LOCAL_SAVE_KEY);
+  showScreen("local-screen-setup");
+  localRenderPlayerList();
+});
+$("local-btn-extend-game").addEventListener("click", function () {
+  var floor = (localState.scores[localState.winner] || 0) + 1;
+  $("local-extend-target-input").min = floor;
+  $("local-extend-target-input").value = floor + 9;
+  $("local-extend-game-form").style.display = "";
+});
+$("local-btn-extend-down").addEventListener("click", function () {
+  var floor = (localState.scores[localState.winner] || 0) + 1;
+  $("local-extend-target-input").value = Math.max(floor, (parseInt($("local-extend-target-input").value, 10) || floor) - 1);
+});
+$("local-btn-extend-up").addEventListener("click", function () {
+  $("local-extend-target-input").value = Math.min(99, (parseInt($("local-extend-target-input").value, 10) || 1) + 1);
+});
+$("local-btn-confirm-extend").addEventListener("click", function () {
+  var floor = (localState.scores[localState.winner] || 0) + 1;
+  var newTarget = parseInt($("local-extend-target-input").value, 10);
+  if (!(newTarget >= floor)) newTarget = floor + 9;
+  localState.targetScore = newTarget;
+  $("local-extend-game-form").style.display = "none";
+  localTurnOrderNewRound();
+  localGoToPassTurn();
+});
+
+// ---------- Local resume-after-refresh checkpoint ----------
+function localSaveCheckpoint(screenId) {
+  try {
+    var snapshot = {
+      screen: screenId,
+      localState: {
+        players: localState.players, targetScore: localState.targetScore,
+        scores: localState.scores, usedWords: localState.usedWords
+      }
+    };
+    localStorage.setItem(LOCAL_SAVE_KEY, JSON.stringify(snapshot));
+  } catch (e) { /* private browsing */ }
+}
+
+function localCheckResumeBanners() {
+  $("local-refresh-resume-banner").style.display = "none";
+  var saved = null;
+  try { saved = JSON.parse(localStorage.getItem(LOCAL_SAVE_KEY) || "null"); } catch (e) {}
+  if (saved) {
+    $("local-refresh-resume-banner").style.display = "";
+    $("local-btn-refresh-continue").onclick = function () {
+      Object.assign(localState, saved.localState);
+      localTurnOrderNewRound();
+      $("local-refresh-resume-banner").style.display = "none";
+      localGoToPassTurn();
+    };
+    $("local-btn-refresh-startnew").onclick = function () {
+      localStorage.removeItem(LOCAL_SAVE_KEY);
+      $("local-refresh-resume-banner").style.display = "none";
+    };
+  }
+}
+
+</script>
+</body>
+</html>
