@@ -1,0 +1,1463 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>Don't Copy Me</title>
+<link rel="apple-touch-icon" href="icon-dontcopyme.png">
+<style>
+  :root {
+    --bg: #fbeee0;
+    --panel: #fffaf2;
+    --panel-2: #f3ddc0;
+    --accent: #e0592f;
+    --accent-2: #b32d3f;
+    --text: #2a1c14;
+    --text-dim: #7a6552;
+    --border: #e6cba3;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; padding: 0; height: 100%;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    -webkit-tap-highlight-color: transparent;
+  }
+  #app {
+    max-width: 560px;
+    margin: 0 auto;
+    min-height: 100vh;
+    min-height: 100dvh;
+    display: flex;
+    flex-direction: column;
+    padding: 20px 16px 40px;
+  }
+  @media (min-width: 700px) { #app { max-width: 760px; } }
+  @media (min-width: 1000px) { #app { max-width: 900px; } }
+  h1 { font-size: 1.6rem; margin: 4px 0 2px; letter-spacing: 0.5px; }
+  .subtitle { color: var(--text-dim); font-size: 0.85rem; margin-bottom: 18px; }
+  .top-link { color: var(--text-dim); font-size: 0.8rem; text-decoration: none; }
+  .top-link:hover { color: var(--accent); }
+  .screen { display: none; flex-direction: column; gap: 14px; flex: 1; }
+  .screen.active { display: flex; }
+  .card { background: var(--panel); border: 1px solid var(--border); border-radius: 14px; padding: 16px; }
+  label { display: block; font-size: 0.8rem; color: var(--text-dim); margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.06em; }
+  input[type="text"], input[type="number"] {
+    width: 100%; background: var(--panel-2); border: 1px solid var(--border);
+    color: var(--text); padding: 12px; border-radius: 10px; font-size: 1rem;
+  }
+  input:focus { outline: 2px solid var(--accent); }
+  .target-score-row { display: flex; align-items: stretch; gap: 8px; }
+  input.target-score-field {
+    flex: 1; font-size: 2rem; font-weight: 800; text-align: center; padding: 16px; color: var(--accent);
+    -moz-appearance: textfield;
+  }
+  input.target-score-field::-webkit-outer-spin-button,
+  input.target-score-field::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+  .stepper-btn {
+    flex: none; width: 56px; background: var(--panel-2); border: 1px solid var(--border);
+    color: var(--accent); font-size: 1.8rem; font-weight: 700; border-radius: 10px; cursor: pointer; line-height: 1;
+  }
+  .stepper-btn:active { transform: scale(0.96); }
+  .player-row { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 8px; align-items: center; }
+  .player-row input[type="text"] { flex: 1; min-width: 90px; }
+  .icon-btn {
+    background: var(--panel-2); border: 1px solid var(--border); color: var(--text-dim);
+    border-radius: 10px; width: 44px; height: 44px; font-size: 1.1rem; cursor: pointer; flex: none;
+  }
+  .icon-btn:active { transform: scale(0.95); }
+  button.primary {
+    background: var(--accent); color: #2a0f02; border: none; padding: 15px; border-radius: 12px;
+    font-size: 1.05rem; font-weight: 700; cursor: pointer; width: 100%;
+  }
+  button.primary:active { transform: scale(0.98); }
+  button.secondary {
+    background: transparent; color: var(--text); border: 1px solid var(--border);
+    padding: 13px; border-radius: 12px; font-size: 0.95rem; cursor: pointer; width: 100%;
+  }
+  button.danger { background: var(--accent-2); color: #fff0ec; }
+  button:disabled { opacity: 0.4; cursor: not-allowed; }
+  .chip-group { display: flex; flex-wrap: wrap; gap: 8px; }
+  .chip {
+    padding: 10px 16px; border-radius: 12px; border: 1px solid var(--border);
+    background: var(--panel-2); color: var(--text); font-size: 0.95rem; cursor: pointer; user-select: none;
+    flex: 1 1 auto; text-align: center; min-width: 42%;
+  }
+  .chip.selected { background: var(--accent); color: #2a0f02; border-color: var(--accent); font-weight: 700; }
+  .chip.static { cursor: default; }
+  .center { text-align: center; }
+  .category-label { color: var(--text-dim); font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.06em; }
+  .big-name { font-size: 1.8rem; font-weight: 800; margin: 6px 0; }
+  .timer-display {
+    font-size: 1.7rem; font-weight: 800; font-variant-numeric: tabular-nums;
+    color: var(--accent); margin: 4px 0;
+  }
+  .timer-display.low { color: var(--accent-2); }
+  .prompt-text { font-size: clamp(1.6rem, 7vw, 2.4rem); font-weight: 800; margin: 14px 0; line-height: 1.3; }
+  .row { display: flex; gap: 8px; }
+  .row > * { flex: 1; }
+  .pass-icon { font-size: 3rem; margin: 10px 0; }
+  .roster-line { font-size: 0.85rem; color: var(--text-dim); margin: 2px 0; }
+  .roster-line strong { color: var(--text); }
+  .wipe-banner {
+    background: rgba(179,45,63,0.12); border: 1px solid var(--accent-2); color: var(--accent-2);
+    border-radius: 10px; padding: 10px 12px; text-align: center; font-weight: 700; font-size: 0.9rem;
+  }
+  .round-winner-banner {
+    background: rgba(224,89,47,0.14); border: 1px solid var(--accent); border-radius: 12px;
+    padding: 14px; text-align: center;
+  }
+  .round-winner-banner .big-name { color: var(--accent); }
+  .judge-row {
+    display: flex; justify-content: space-between; align-items: center; gap: 10px;
+    padding: 10px 12px; border-radius: 10px; background: var(--panel-2); border: 1px solid var(--border);
+    margin-bottom: 8px; cursor: pointer; user-select: none;
+  }
+  .judge-row.correct { background: rgba(70,140,90,0.18); border-color: #468c5a; }
+  .judge-row.out { background: rgba(179,45,63,0.14); border-color: var(--accent-2); }
+  .judge-row .pname { font-weight: 600; }
+  .judge-row .given-answer { color: var(--text-dim); font-size: 0.85rem; }
+  .judge-row .mark { font-size: 0.85rem; font-weight: 800; color: var(--text-dim); flex: none; }
+  .judge-row.correct .mark { color: #468c5a; }
+  .judge-row.out .mark { color: var(--accent-2); }
+  .scoreboard { display: flex; flex-direction: column; gap: 6px; }
+  .score-row { display: flex; justify-content: space-between; padding: 6px 4px; }
+  .target-score-line {
+    text-align: center; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border);
+    color: var(--text-dim); font-size: 0.95rem;
+  }
+  .target-score-line strong { color: var(--accent); font-size: 1.1rem; }
+  small.hint { color: var(--text-dim); display: block; margin-top: 4px; font-size: 0.78rem; }
+  button.link {
+    background: none; border: none; color: var(--text-dim); text-decoration: underline;
+    font-size: 0.8rem; cursor: pointer; padding: 6px;
+  }
+  .room-code { font-size: 2.6rem; font-weight: 800; letter-spacing: 0.2em; text-align: center; color: var(--accent); margin: 8px 0; }
+  .player-chip-list { display: flex; flex-wrap: wrap; gap: 8px; }
+  .player-chip { background: var(--panel-2); border: 1px solid var(--border); border-radius: 999px; padding: 7px 14px; font-size: 0.85rem; }
+  .host-badge { color: var(--accent); font-size: 0.7rem; margin-left: 4px; }
+  .waiting-text { color: var(--text-dim); text-align: center; padding: 16px 0; }
+  .footer-nav { display: flex; gap: 8px; margin-top: auto; padding-top: 10px; }
+  .footer-nav button { flex: 1; }
+
+  #chat-toggle {
+    position: fixed; right: 16px; bottom: 16px; z-index: 40;
+    width: 52px; height: 52px; border-radius: 50%;
+    background: var(--accent); color: #2a0f02; border: none;
+    font-size: 1.4rem; cursor: pointer;
+    box-shadow: 0 4px 14px rgba(0,0,0,0.35);
+    display: none; align-items: center; justify-content: center;
+  }
+  #chat-toggle:active { transform: scale(0.94); }
+  @keyframes chat-bounce {
+    0%, 100% { transform: translateY(0); }
+    25% { transform: translateY(-7px); }
+    50% { transform: translateY(0); }
+  }
+  #chat-toggle.has-unread { background: var(--accent-2); animation: chat-bounce 0.6s ease-in-out infinite; }
+  #chat-badge {
+    position: absolute; top: -2px; right: -2px;
+    background: var(--accent-2); color: #fff;
+    border-radius: 999px; min-width: 18px; height: 18px;
+    font-size: 0.68rem; font-weight: 800; line-height: 18px;
+    text-align: center; padding: 0 4px; display: none;
+  }
+  #chat-panel {
+    position: fixed; right: 16px; bottom: 78px; z-index: 40;
+    width: min(320px, calc(100vw - 32px)); max-height: min(440px, calc(100vh - 140px));
+    background: var(--panel); border: 1px solid var(--border); border-radius: 16px;
+    display: none; flex-direction: column; overflow: hidden;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.45);
+  }
+  #chat-panel.open { display: flex; }
+  #chat-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 10px 12px; border-bottom: 1px solid var(--border);
+    font-size: 0.85rem; font-weight: 700; color: var(--text-dim);
+    text-transform: uppercase; letter-spacing: 0.06em;
+  }
+  #chat-close { background: none; border: none; color: var(--text-dim); font-size: 1rem; cursor: pointer; padding: 2px 6px; }
+  #chat-messages { flex: 1; overflow-y: auto; padding: 10px 12px; display: flex; flex-direction: column; gap: 8px; }
+  .chat-msg { font-size: 0.85rem; line-height: 1.35; }
+  .chat-msg .chat-name { font-weight: 700; color: var(--accent); }
+  .chat-msg.chat-mine .chat-name { color: var(--accent-2); }
+  #chat-input-row { display: flex; gap: 6px; padding: 10px; border-top: 1px solid var(--border); }
+  #chat-input {
+    flex: 1; background: var(--panel-2); border: 1px solid var(--border);
+    color: var(--text); padding: 9px 10px; border-radius: 10px; font-size: 0.9rem;
+  }
+  #chat-send {
+    background: var(--accent); color: #2a0f02; border: none;
+    border-radius: 10px; padding: 0 14px; font-weight: 700; cursor: pointer; font-size: 0.85rem;
+  }
+  #home-toggle {
+    position: fixed; left: 16px; bottom: 16px; z-index: 40;
+    width: 52px; height: 52px; border-radius: 50%;
+    background: var(--panel-2); color: var(--text); border: 1px solid var(--border);
+    font-size: 1.3rem; cursor: pointer;
+    box-shadow: 0 4px 14px rgba(0,0,0,0.35);
+    display: none; align-items: center; justify-content: center;
+  }
+  #home-toggle:active { transform: scale(0.94); }
+  .rules-link-row { text-align: center; margin: -8px 0 14px; }
+  .rules-link-btn {
+    background: none; border: none; color: var(--text-dim); font-size: 0.8rem;
+    text-decoration: underline; cursor: pointer; padding: 4px 8px; font-family: inherit;
+  }
+  .rules-link-btn:hover { color: var(--accent); }
+  .rules-modal-backdrop {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.55);
+    display: none; align-items: center; justify-content: center; z-index: 300; padding: 20px;
+  }
+  .rules-modal-backdrop.show { display: flex; }
+  .rules-modal {
+    background: var(--panel); border: 1px solid var(--border); border-radius: 14px;
+    max-width: 440px; width: 100%; max-height: 82vh; overflow-y: auto;
+    padding: 22px; color: var(--text);
+  }
+  .rules-modal h2 { margin: 0 0 14px; font-size: 1.15rem; }
+  .rules-modal .rules-section { margin-bottom: 14px; line-height: 1.6; font-size: 0.9rem; color: var(--text-dim); }
+  .rules-modal .rules-section strong { color: var(--text); }
+  .rules-modal .rules-section-label {
+    text-transform: uppercase; font-size: 0.72rem; letter-spacing: 0.05em;
+    color: var(--accent); font-weight: 600; margin-bottom: 4px;
+  }
+  .rules-modal-close { width: 100%; margin-top: 6px; }
+</style>
+</head>
+<body>
+<div id="app">
+  <div class="row" style="align-items:center; margin-bottom:4px;">
+    <h1 style="margin:0;">📢 Don't Copy Me</h1>
+  </div>
+  <div class="subtitle">Shout it out — don't match anyone else &middot; <a class="top-link" href="index.html">&larr; all games</a></div>
+  <div class="rules-link-row"><button type="button" class="rules-link-btn" id="rules-btn">Rules</button></div>
+  <div class="rules-modal-backdrop" id="rules-modal-backdrop">
+    <div class="rules-modal">
+      <h2>📢 How to Play</h2>
+      <div class="rules-section">
+        <div class="rules-section-label">Each turn</div>
+        The app shows everyone the same prompt (like "an Italian restaurant" or "a scary movie"). <strong>Playing on one device:</strong> everyone shouts their answer out loud at the same time, then the group marks who matched. <strong>Playing across devices:</strong> everyone privately types an answer and locks it in — once everybody's locked in, matches are revealed automatically. Answers are compared after trimming spacing, punctuation and capitalization, so "A Dog" and "a dog." count as the same answer.
+      </div>
+      <div class="rules-section">
+        <div class="rules-section-label">Elimination</div>
+        Anyone whose answer matches another still-in player's answer is <strong>out for the round</strong> — both/all of them, not just one. Didn't lock in an answer in time? You're out too. Survivors get a fresh prompt and go again. If a prompt somehow eliminates <strong>everyone</strong> left, nobody's actually out — a new prompt is drawn and you try again.
+      </div>
+      <div class="rules-section">
+        <div class="rules-section-label">Winning</div>
+        The last player standing in a round wins it and earns <strong>1 point</strong>. Everyone's back in for the next round. First to reach the target score (set before the game starts) wins the game.
+      </div>
+      <button class="secondary rules-modal-close" id="rules-modal-close" type="button">Got it</button>
+    </div>
+  </div>
+
+  <button id="chat-toggle" type="button" aria-label="Room chat">💬<span id="chat-badge"></span></button>
+  <div id="chat-panel">
+    <div id="chat-header">
+      <span>Room Chat</span>
+      <button id="chat-close" type="button" aria-label="Close chat">✕</button>
+    </div>
+    <div id="chat-messages"></div>
+    <div id="chat-input-row">
+      <input type="text" id="chat-input" placeholder="Message..." maxlength="200">
+      <button id="chat-send" type="button">Send</button>
+    </div>
+  </div>
+  <button id="home-toggle" type="button" aria-label="Back to start screen">🏠</button>
+
+  <!-- HOME: play locally, or create/join a room -->
+  <div class="screen active" id="screen-home">
+    <div class="card">
+      <button class="primary" id="btn-local-mode" type="button">Play on One Device</button>
+      <small class="hint">Everyone shouts out loud together — the device just calls the prompts and keeps score.</small>
+    </div>
+    <div class="center" style="color:var(--text-dim);font-size:0.8rem;">— or play across devices —</div>
+    <div class="card">
+      <label>Your name</label>
+      <input type="text" id="input-name" maxlength="20" placeholder="Enter your name">
+    </div>
+    <div class="card">
+      <button class="secondary" id="btn-create-room" type="button">Create Room</button>
+    </div>
+    <div class="card">
+      <label>Join a room</label>
+      <input type="text" id="input-join-name" maxlength="20" placeholder="Your name">
+      <button class="secondary" id="btn-join-room" type="button" style="margin-top:10px">Join Room</button>
+    </div>
+    <div class="center" id="home-status" style="color:var(--text-dim);font-size:0.85rem;"></div>
+  </div>
+
+  <!-- JOIN: room code -->
+  <div class="screen" id="screen-join-code">
+    <div class="card">
+      <label>Room code</label>
+      <input type="text" id="input-join-code" maxlength="4" placeholder="4-letter room code">
+      <button class="primary" id="btn-join-code-submit" type="button" style="margin-top:10px">Join Room</button>
+    </div>
+    <div class="center" id="join-code-status" style="color:var(--text-dim);font-size:0.85rem;"></div>
+    <button class="link" id="btn-join-code-back" type="button">Back</button>
+  </div>
+
+  <!-- MULTIPLAYER LOBBY -->
+  <div class="screen" id="screen-lobby">
+    <div class="card center">
+      <label>Room code — share with players</label>
+      <div class="room-code" id="lobby-code"></div>
+      <small class="hint">Everyone opens this page on their own device and enters this code to join.</small>
+    </div>
+    <div class="card">
+      <label>Players</label>
+      <div class="player-chip-list" id="lobby-players"></div>
+    </div>
+    <div class="card" id="lobby-settings-card">
+      <label>Points to Win</label>
+      <div class="target-score-row">
+        <button class="stepper-btn" id="btn-target-down" type="button" aria-label="Decrease">&minus;</button>
+        <input type="number" id="target-score-input" class="target-score-field" min="1" max="99" value="10">
+        <button class="stepper-btn" id="btn-target-up" type="button" aria-label="Increase">+</button>
+      </div>
+    </div>
+    <button class="primary" id="btn-start-game" type="button">Start Game</button>
+    <div class="waiting-text" id="lobby-waiting" style="display:none">Waiting for the host to start the game…</div>
+    <button class="link" id="btn-leave-room" type="button">Leave room</button>
+  </div>
+
+  <!-- MULTIPLAYER: TURN (answer or spectate) -->
+  <div class="screen" id="screen-turn">
+    <div class="card center" style="padding:10px 16px;">
+      <span class="category-label" id="turn-round-label"></span>
+    </div>
+    <div class="wipe-banner" id="turn-wipe-banner" style="display:none;">😅 Everyone matched last time — nobody's out! New prompt:</div>
+    <div class="card center">
+      <span class="category-label">The prompt is</span>
+      <div class="prompt-text" id="turn-prompt-text"></div>
+    </div>
+    <div class="card" id="turn-active-card">
+      <div class="timer-display center" id="turn-timer">0:15</div>
+      <label>Shout it — then type what you said</label>
+      <input type="text" id="turn-answer-field" placeholder="Type your answer..." maxlength="60">
+      <button class="primary" id="btn-turn-submit" type="button" style="margin-top:10px;">Lock In Answer</button>
+      <div class="waiting-text" id="turn-waiting" style="display:none">Waiting for other players…</div>
+    </div>
+    <div class="card center" id="turn-spectator-card" style="display:none;">
+      <div class="pass-icon">🙊</div>
+      <div>You're out for this round — spectate and cheer!</div>
+    </div>
+    <div class="card">
+      <div class="roster-line">Still in: <strong id="turn-stillin-list"></strong></div>
+      <div class="roster-line" id="turn-out-row" style="display:none;">Already out this round: <span id="turn-out-list"></span></div>
+      <label style="margin-top:8px;">Who's Locked In</label>
+      <div id="turn-status-list"></div>
+    </div>
+  </div>
+
+  <!-- MULTIPLAYER: TURN REVEAL -->
+  <div class="screen" id="screen-turn-reveal">
+    <div class="card center">
+      <span class="category-label">The prompt was</span>
+      <div class="prompt-text" id="reveal-prompt-text"></div>
+    </div>
+    <div class="card">
+      <label>What everyone said</label>
+      <div id="turn-reveal-list"></div>
+    </div>
+    <div class="footer-nav" id="turn-reveal-host-nav" style="display:none">
+      <button class="primary" id="btn-turn-continue" type="button">Continue</button>
+    </div>
+    <div class="waiting-text" id="turn-reveal-waiting" style="display:none">Waiting for host…</div>
+  </div>
+
+  <!-- MULTIPLAYER: SCOREBOARD -->
+  <div class="screen" id="screen-scores">
+    <div class="round-winner-banner" id="scores-round-winner-banner" style="display:none;">
+      <div>🏆</div>
+      <div class="big-name" id="scores-round-winner-name"></div>
+      <div>won the round — +1 point!</div>
+    </div>
+    <div class="card">
+      <label>Scoreboard</label>
+      <div class="scoreboard" id="scoreboard"></div>
+      <div class="target-score-line">Playing to <strong id="scoreboard-target"></strong> points</div>
+    </div>
+    <div class="footer-nav" id="scores-host-nav" style="display:none">
+      <button class="secondary" id="btn-back-to-round" type="button">Continue Playing</button>
+      <button class="danger" id="btn-end-game" type="button">End Game</button>
+    </div>
+    <div class="waiting-text" id="scores-waiting" style="display:none">Waiting for host…</div>
+  </div>
+
+  <!-- MULTIPLAYER: GAME WON -->
+  <div class="screen" id="screen-game-won">
+    <div class="card center">
+      <div class="pass-icon">🏆</div>
+      <div class="big-name" id="winner-name"></div>
+      <div>wins the game!</div>
+    </div>
+    <div class="card">
+      <label>Final Scores</label>
+      <div class="scoreboard" id="winner-scoreboard"></div>
+    </div>
+    <div class="card center" id="mp-extend-game-form" style="display:none;">
+      <label>New points to win</label>
+      <div class="target-score-row">
+        <button class="stepper-btn" id="btn-mp-extend-down" type="button" aria-label="Decrease">&minus;</button>
+        <input type="number" id="mp-extend-target-input" class="target-score-field" min="1" max="99">
+        <button class="stepper-btn" id="btn-mp-extend-up" type="button" aria-label="Increase">+</button>
+      </div>
+      <small class="hint">Only continue if everyone agrees to keep playing!</small>
+      <button class="secondary" id="btn-mp-confirm-extend" type="button" style="margin-top:10px;">Everyone Agrees — Keep Playing</button>
+    </div>
+    <div class="footer-nav" id="won-host-nav" style="display:none">
+      <button class="secondary" id="btn-mp-extend-game" type="button">Extend the Game</button>
+      <button class="primary" id="btn-new-game" type="button">New Game</button>
+    </div>
+    <div class="waiting-text" id="won-waiting" style="display:none">Waiting for host…</div>
+  </div>
+
+  <!-- LOCAL SETUP -->
+  <div class="screen" id="local-screen-setup">
+    <div class="card" id="local-refresh-resume-banner" style="display:none;">
+      <div class="row" style="align-items:center; gap:10px;">
+        <div style="flex:1;">Looks like the page was refreshed mid-game. Want to keep playing?</div>
+      </div>
+      <div class="row" style="margin-top:10px;">
+        <button class="secondary" id="local-btn-refresh-startnew" type="button">Start New Game</button>
+        <button class="primary" id="local-btn-refresh-continue" type="button">Continue Game</button>
+      </div>
+    </div>
+    <div class="card">
+      <label>Players (2–10)</label>
+      <div id="local-player-list"></div>
+      <button class="secondary" id="local-btn-add-player" type="button">+ Add player</button>
+      <small class="hint">You need at least 2 players — there's no one to match against solo.</small>
+    </div>
+    <div class="card">
+      <label>Points to Win</label>
+      <div class="target-score-row">
+        <button class="stepper-btn" id="local-btn-target-down" type="button" aria-label="Decrease">&minus;</button>
+        <input type="number" id="local-target-score-input" class="target-score-field" min="1" max="99" value="10">
+        <button class="stepper-btn" id="local-btn-target-up" type="button" aria-label="Increase">+</button>
+      </div>
+      <small class="hint">First to reach this score wins.</small>
+    </div>
+    <button class="primary" id="local-btn-start-game" type="button">Start Game</button>
+    <button class="link" id="local-btn-back-home" type="button">Back to home</button>
+  </div>
+
+  <!-- LOCAL: TURN (show prompt, everyone shouts in person) -->
+  <div class="screen" id="local-screen-turn">
+    <div class="card center" style="padding:10px 16px;">
+      <span class="category-label" id="local-turn-round-label"></span>
+    </div>
+    <div class="wipe-banner" id="local-turn-wipe-banner" style="display:none;">😅 Everyone matched last time — nobody's out! New prompt:</div>
+    <div class="card center">
+      <span class="category-label">The prompt is</span>
+      <div class="prompt-text" id="local-turn-prompt-text"></div>
+      <small class="hint">On the count of three, everyone shouts an answer at the same time!</small>
+    </div>
+    <div class="card">
+      <div class="roster-line">Still in: <strong id="local-turn-stillin-list"></strong></div>
+      <div class="roster-line" id="local-turn-out-row" style="display:none;">Already out this round: <span id="local-turn-out-list"></span></div>
+    </div>
+    <button class="primary" id="local-btn-judge" type="button">Everyone shouted — judge it →</button>
+  </div>
+
+  <!-- LOCAL: JUDGE (mark who matched) -->
+  <div class="screen" id="local-screen-judge">
+    <div class="card center">
+      <span class="category-label">The prompt was</span>
+      <div class="prompt-text" id="local-judge-prompt-text"></div>
+      <small class="hint">Tap anyone whose answer matched someone else's — they're out this turn.</small>
+    </div>
+    <div class="card">
+      <label>Mark eliminations</label>
+      <div id="local-judge-list"></div>
+    </div>
+    <button class="primary" id="local-btn-judge-continue" type="button">Continue</button>
+  </div>
+
+  <!-- LOCAL: SCOREBOARD -->
+  <div class="screen" id="local-screen-scores">
+    <div class="round-winner-banner" id="local-scores-round-winner-banner" style="display:none;">
+      <div>🏆</div>
+      <div class="big-name" id="local-scores-round-winner-name"></div>
+      <div>won the round — +1 point!</div>
+    </div>
+    <div class="card">
+      <label>Scoreboard</label>
+      <div class="scoreboard" id="local-scoreboard"></div>
+      <div class="target-score-line">Playing to <strong id="local-scoreboard-target"></strong> points</div>
+    </div>
+    <div class="card center" id="local-end-game-confirm" style="display:none;">
+      <div>End the game and return to the start screen?</div>
+      <div class="row" style="margin-top:10px;">
+        <button class="secondary" id="local-btn-cancel-end-game" type="button">Cancel</button>
+        <button class="danger" id="local-btn-confirm-end-game" type="button">Yes, End Game</button>
+      </div>
+    </div>
+    <div class="row">
+      <button class="secondary" id="local-btn-back-to-round" type="button">Continue Playing</button>
+      <button class="danger" id="local-btn-end-game" type="button">End Game</button>
+    </div>
+  </div>
+
+  <!-- LOCAL: GAME WON -->
+  <div class="screen" id="local-screen-game-won">
+    <div class="card center">
+      <div class="pass-icon">🏆</div>
+      <div class="big-name" id="local-winner-name"></div>
+      <div>wins the game!</div>
+    </div>
+    <div class="card">
+      <label>Final Scores</label>
+      <div class="scoreboard" id="local-winner-scoreboard"></div>
+    </div>
+    <div class="card center" id="local-extend-game-form" style="display:none;">
+      <label>New points to win</label>
+      <div class="target-score-row">
+        <button class="stepper-btn" id="local-btn-extend-down" type="button" aria-label="Decrease">&minus;</button>
+        <input type="number" id="local-extend-target-input" class="target-score-field" min="1" max="99">
+        <button class="stepper-btn" id="local-btn-extend-up" type="button" aria-label="Increase">+</button>
+      </div>
+      <small class="hint">Only continue if everyone agrees to keep playing!</small>
+      <button class="secondary" id="local-btn-confirm-extend" type="button" style="margin-top:10px;">Everyone Agrees — Keep Playing</button>
+    </div>
+    <button class="secondary" id="local-btn-extend-game" type="button">Extend the Game</button>
+    <button class="primary" id="local-btn-new-game" type="button">New Game</button>
+  </div>
+
+</div>
+
+<script type="module">
+import { firebaseConfig } from "./firebase-config.js";
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+import { getDatabase, ref, set, get, update, onValue, push } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
+
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getDatabase(app);
+
+var ROUND_TIME = 15;
+
+var PROMPTS = [
+  "a scary movie","an Italian restaurant","a pizza topping","a U.S. state","a country",
+  "a breakfast food","a superhero","a Disney movie","a dog breed","a fruit",
+  "a vegetable","a color","a sport","a city you'd want to visit","a car brand",
+  "a type of pasta","a cartoon character","a dessert","a holiday","a month of the year",
+  "a day of the week","a fast food chain","a type of sandwich","a board game","a video game",
+  "a boy's name","a girl's name","a celebrity","a type of music","a musical instrument",
+  "a type of dance","a body of water","a tree","a flower","a bird",
+  "a farm animal","a zoo animal","a bug","a season","a type of weather",
+  "a type of shoe","a piece of furniture","a kitchen appliance","a school subject","a job or profession",
+  "a type of doctor","a social media app","a TV show","a late-night snack","an ice cream flavor",
+  "a candy bar","a soda brand","a cereal brand","a type of soup","a sandwich topping",
+  "a type of cheese","a breed of cat","a Pixar movie","a superhero movie","a theme park",
+  "a type of hat","a type of pants","a sneaker brand","a game show","a magic trick",
+  "a circus act","a type of party","a birthday gift","a wedding gift","a thing you'd find at the beach",
+  "a thing you'd find in a junk drawer","a thing you'd find in a garage","a thing you'd pack for a camping trip","a thing that's sticky","a thing that's slippery",
+  "a thing that's loud","a thing that's tiny","a thing that's expensive","a thing you'd find in a doctor's office","a thing you'd find in a classroom",
+  "a thing you'd find on a pirate ship","a thing a superhero would wear","a thing you'd bring on a road trip","a thing you'd find at a wedding","a word that rhymes with \"day\"",
+  "a word that rhymes with \"cat\"","a word that means \"happy\"","a word that means \"tired\"","a two-syllable word","a word that starts with the letter S",
+  "a national park","a famous landmark","a planet","a constellation","a type of cloud",
+  "a type of rock","a dinosaur","a sea creature","a reptile","an insect",
+  "a historical figure","a fairy tale character","a shoe brand","a soft drink","a breakfast cereal mascot",
+  "a superpower","a movie villain","a pirate word","a cowboy word","a hairstyle",
+  "a dance move","a yoga pose","a karate move","a type of exercise","a piece of gym equipment",
+  "a winter sport","a summer sport","an Olympic sport","a card game","a type of puzzle",
+  "a toy","a childhood game","a piece of playground equipment","a school supply","a type of pen",
+  "an app on your phone","a thing you charge overnight","a thing with batteries","a kitchen utensil","a spice",
+  "an herb","a type of bread","a type of nut","a type of bean","a grain",
+  "a Mexican food","a Chinese food","a Japanese food","an Indian food","a French food",
+  "a dessert topping","a pizza chain","a coffee drink","a type of tea","a type of juice",
+  "a gas station snack","a road trip snack","a movie genre","a TV genre","a book genre",
+  "a wedding song","a song you'd sing in the shower","a karaoke song","a one-hit wonder","a rock band"
+];
+
+function $(id) { return document.getElementById(id); }
+
+function showScreen(id) {
+  document.querySelectorAll(".screen").forEach(function (s) { s.classList.remove("active"); });
+  $(id).classList.add("active");
+  var homeBtn = $("home-toggle");
+  if (homeBtn) homeBtn.style.display = (id === "screen-home") ? "none" : "flex";
+}
+
+$("home-toggle").addEventListener("click", function () {
+  if (!confirm("Back to the start screen? This leaves your current game.")) return;
+  localStorage.removeItem("dontcopyme_room");
+  location.reload();
+});
+$("rules-btn").addEventListener("click", function () { $("rules-modal-backdrop").classList.add("show"); });
+$("rules-modal-close").addEventListener("click", function () { $("rules-modal-backdrop").classList.remove("show"); });
+$("rules-modal-backdrop").addEventListener("click", function (e) { if (e.target === this) this.classList.remove("show"); });
+
+function pickRandom(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
+
+function normalizeAnswer(s) {
+  return (s || "").toLowerCase().trim().replace(/^(a|an|the)\s+/, "").replace(/[^a-z0-9 ]/g, "").replace(/\s+/g, " ");
+}
+
+// Groups a set of still-in players' answers and decides who's eliminated:
+// anyone whose normalized answer matches another still-in player's is out
+// ("matched"), anyone with no usable answer is out ("timeout"), everyone
+// else survives.
+function computeEliminations(stillIn, answers) {
+  var groups = {};
+  var eliminated = {};
+  var reason = {};
+  stillIn.forEach(function (uid) {
+    var raw = answers ? answers[uid] : undefined;
+    if (raw === undefined || raw === null || normalizeAnswer(raw) === "") {
+      eliminated[uid] = true;
+      reason[uid] = "timeout";
+      return;
+    }
+    var norm = normalizeAnswer(raw);
+    if (!groups[norm]) groups[norm] = [];
+    groups[norm].push(uid);
+  });
+  Object.keys(groups).forEach(function (norm) {
+    var uids = groups[norm];
+    if (uids.length >= 2) {
+      uids.forEach(function (uid) { eliminated[uid] = true; reason[uid] = "matched"; });
+    } else {
+      eliminated[uids[0]] = false;
+    }
+  });
+  return { eliminated: eliminated, reason: reason };
+}
+
+function renderScoreboardInto(el, scores) {
+  el.innerHTML = "";
+  var entries = Object.keys(scores).map(function (name) { return { name: name, score: scores[name] }; });
+  entries.sort(function (a, b) { return b.score - a.score; });
+  entries.forEach(function (e) {
+    var row = document.createElement("div");
+    row.className = "score-row";
+    row.innerHTML = "<span>" + e.name + "</span><strong>" + e.score + "</strong>";
+    el.appendChild(row);
+  });
+}
+
+// =========================================================================
+// MULTIPLAYER MODE
+// =========================================================================
+
+var CODE_CHARS = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+
+var mp = {
+  uid: null,
+  name: "",
+  roomCode: null,
+  isHost: false,
+  room: null,
+  timerHandle: null,
+  timerRemaining: 0,
+  timerRoundKey: null
+};
+
+function roomRef(code) { return ref(db, "rooms/" + code); }
+function generateRoomCode() {
+  var out = "";
+  for (var i = 0; i < 4; i++) out += CODE_CHARS[Math.floor(Math.random() * CODE_CHARS.length)];
+  return out;
+}
+
+signInAnonymously(auth).catch(function (err) {
+  $("home-status").textContent = "Couldn't connect: " + err.message;
+});
+
+onAuthStateChanged(auth, function (user) {
+  if (!user) return;
+  mp.uid = user.uid;
+  tryAutoRejoin();
+});
+
+function tryAutoRejoin() {
+  var saved = null;
+  try { saved = JSON.parse(localStorage.getItem("dontcopyme_room") || "null"); } catch (e) {}
+  if (!saved || !saved.code || !saved.name) return;
+  $("input-name").value = saved.name;
+  get(roomRef(saved.code)).then(function (snap) {
+    if (!snap.exists()) { localStorage.removeItem("dontcopyme_room"); return; }
+    var roomVal = snap.val();
+    if (roomVal.players && roomVal.players[mp.uid]) {
+      mp.roomCode = saved.code;
+      mp.name = saved.name;
+      mp.isHost = roomVal.hostUid === mp.uid;
+      subscribeRoom(saved.code);
+    }
+  });
+}
+
+$("btn-create-room").addEventListener("click", function () {
+  var name = $("input-name").value.trim();
+  if (!name) { $("home-status").textContent = "Enter your name first."; return; }
+  if (!mp.uid) { $("home-status").textContent = "Still connecting, try again in a moment."; return; }
+  createRoomFlow(name);
+});
+
+var pendingJoinName = "";
+
+$("btn-join-room").addEventListener("click", function () {
+  var name = $("input-join-name").value.trim();
+  if (!name) { $("home-status").textContent = "Enter your name first."; return; }
+  if (!mp.uid) { $("home-status").textContent = "Still connecting, try again in a moment."; return; }
+  pendingJoinName = name;
+  $("input-join-code").value = "";
+  $("join-code-status").textContent = "";
+  showScreen("screen-join-code");
+});
+
+$("btn-join-code-back").addEventListener("click", function () { showScreen("screen-home"); });
+
+$("btn-join-code-submit").addEventListener("click", function () {
+  var code = $("input-join-code").value.trim().toUpperCase();
+  if (!code) { $("join-code-status").textContent = "Enter a room code."; return; }
+  joinRoomFlow(code, pendingJoinName);
+});
+
+async function createRoomFlow(name) {
+  $("home-status").textContent = "Creating room…";
+  var code;
+  do { code = generateRoomCode(); } while ((await get(roomRef(code))).exists());
+  var uid = mp.uid;
+  await set(roomRef(code), {
+    createdAt: Date.now(),
+    hostUid: uid,
+    phase: "lobby",
+    settings: { targetScore: 10 },
+    players: { [uid]: { name: name, joinedAt: Date.now() } },
+    scores: { [uid]: 0 },
+    usedPrompts: {}
+  });
+  mp.roomCode = code;
+  mp.name = name;
+  mp.isHost = true;
+  localStorage.setItem("dontcopyme_room", JSON.stringify({ code: code, name: name }));
+  subscribeRoom(code);
+}
+
+async function joinRoomFlow(code, name) {
+  $("join-code-status").textContent = "Joining…";
+  var snap = await get(roomRef(code));
+  if (!snap.exists()) { $("join-code-status").textContent = "Room not found."; return; }
+  var uid = mp.uid;
+  var val = snap.val();
+  await update(ref(db, "rooms/" + code + "/players/" + uid), { name: name, joinedAt: Date.now() });
+  if (!val.scores || val.scores[uid] === undefined) {
+    await update(ref(db, "rooms/" + code + "/scores"), (function () { var o = {}; o[uid] = 0; return o; })());
+  }
+  mp.roomCode = code;
+  mp.name = name;
+  mp.isHost = val.hostUid === uid;
+  localStorage.setItem("dontcopyme_room", JSON.stringify({ code: code, name: name }));
+  subscribeRoom(code);
+}
+
+$("btn-leave-room").addEventListener("click", function () {
+  if (!confirm("Leave this room?")) return;
+  localStorage.removeItem("dontcopyme_room");
+  location.reload();
+});
+
+function subscribeRoom(code) {
+  onValue(roomRef(code), function (snap) {
+    mp.room = snap.val();
+    if (!mp.room) {
+      localStorage.removeItem("dontcopyme_room");
+      showScreen("screen-home");
+      $("home-status").textContent = "Room closed.";
+      $("chat-toggle").style.display = "none";
+      $("chat-panel").classList.remove("open");
+      return;
+    }
+    mp.isHost = mp.room.hostUid === mp.uid;
+    render();
+  });
+  subscribeChat(code);
+  $("chat-toggle").style.display = "flex";
+}
+
+// ---------- Room chat ----------
+var chatSeenCount = 0;
+var chatUnread = 0;
+
+function subscribeChat(code) {
+  onValue(ref(db, "rooms/" + code + "/chat"), function (snap) {
+    var val = snap.val() || {};
+    var messages = Object.keys(val).map(function (key) { return val[key]; })
+      .sort(function (a, b) { return a.ts - b.ts; });
+
+    var wrap = $("chat-messages");
+    wrap.innerHTML = "";
+    messages.forEach(function (m) {
+      var row = document.createElement("div");
+      row.className = "chat-msg" + (m.uid === mp.uid ? " chat-mine" : "");
+      var nameSpan = document.createElement("span");
+      nameSpan.className = "chat-name";
+      nameSpan.textContent = (m.uid === mp.uid ? "You" : m.name) + ": ";
+      row.appendChild(nameSpan);
+      row.appendChild(document.createTextNode(m.text));
+      wrap.appendChild(row);
+    });
+    wrap.scrollTop = wrap.scrollHeight;
+
+    if (messages.length > chatSeenCount) {
+      if (!$("chat-panel").classList.contains("open")) {
+        chatUnread += messages.length - chatSeenCount;
+        var badge = $("chat-badge");
+        badge.textContent = chatUnread > 9 ? "9+" : String(chatUnread);
+        badge.style.display = "block";
+        $("chat-toggle").classList.add("has-unread");
+      }
+    }
+    chatSeenCount = messages.length;
+  });
+}
+
+$("chat-toggle").addEventListener("click", function () {
+  $("chat-panel").classList.add("open");
+  chatUnread = 0;
+  $("chat-badge").style.display = "none";
+  $("chat-toggle").classList.remove("has-unread");
+  $("chat-input").focus();
+});
+$("chat-close").addEventListener("click", function () { $("chat-panel").classList.remove("open"); });
+
+function sendChatMessage() {
+  var text = $("chat-input").value.trim();
+  if (!text || !mp.roomCode) return;
+  push(ref(db, "rooms/" + mp.roomCode + "/chat"), {
+    uid: mp.uid, name: mp.name, text: text.slice(0, 200), ts: Date.now()
+  });
+  $("chat-input").value = "";
+}
+$("chat-send").addEventListener("click", sendChatMessage);
+$("chat-input").addEventListener("keydown", function (e) {
+  if (e.key === "Enter") { e.preventDefault(); sendChatMessage(); }
+});
+
+function render() {
+  var room = mp.room;
+  if (!room) return;
+  if (room.phase === "lobby") renderLobby();
+  else if (room.phase === "turn") renderTurn();
+  else if (room.phase === "turn-reveal") renderTurnReveal();
+  else if (room.phase === "scores") renderScoresScreen();
+  else if (room.phase === "game-won") renderGameWonScreen();
+}
+
+function mpPlayerName(uid) {
+  return mp.room.players && mp.room.players[uid] ? mp.room.players[uid].name : "?";
+}
+function mpPlayerUids() { return mp.room.players ? Object.keys(mp.room.players) : []; }
+
+// ---------- Lobby ----------
+function renderLobby() {
+  var room = mp.room;
+  $("lobby-code").textContent = mp.roomCode;
+
+  var list = $("lobby-players");
+  list.innerHTML = "";
+  mpPlayerUids().forEach(function (uid) {
+    var chip = document.createElement("div");
+    chip.className = "player-chip";
+    chip.textContent = mpPlayerName(uid);
+    if (uid === room.hostUid) {
+      var badge = document.createElement("span");
+      badge.className = "host-badge";
+      badge.textContent = "HOST";
+      chip.appendChild(badge);
+    }
+    list.appendChild(chip);
+  });
+
+  var targetInput = $("target-score-input");
+  targetInput.value = room.settings.targetScore;
+  targetInput.disabled = !mp.isHost;
+  var setTarget = function (v) {
+    v = Math.max(1, Math.min(99, v));
+    update(ref(db, "rooms/" + mp.roomCode + "/settings"), { targetScore: v });
+  };
+  targetInput.onchange = function () { setTarget(parseInt(targetInput.value, 10) || 1); };
+  $("btn-target-down").onclick = function () { setTarget((room.settings.targetScore || 1) - 1); };
+  $("btn-target-up").onclick = function () { setTarget((room.settings.targetScore || 1) + 1); };
+  $("btn-target-down").disabled = !mp.isHost;
+  $("btn-target-up").disabled = !mp.isHost;
+
+  var startBtn = $("btn-start-game");
+  var waiting = $("lobby-waiting");
+  if (mp.isHost) {
+    startBtn.style.display = "";
+    waiting.style.display = "none";
+    startBtn.disabled = mpPlayerUids().length < 2;
+  } else {
+    startBtn.style.display = "none";
+    waiting.style.display = "";
+  }
+
+  showScreen("screen-lobby");
+}
+
+$("btn-start-game").addEventListener("click", function () {
+  if (!mp.isHost || mpPlayerUids().length < 2) return;
+  mpGoToTurn(mpPlayerUids(), 1, 1, [], false);
+});
+
+function mpPickPrompt(room) {
+  var used = room.usedPrompts || {};
+  var pool = PROMPTS.filter(function (p) { return !used[p]; });
+  if (pool.length === 0) { used = {}; pool = PROMPTS; }
+  var prompt = pickRandom(pool);
+  var usedPrompts = Object.assign({}, used);
+  usedPrompts[prompt] = true;
+  return { prompt: prompt, usedPrompts: usedPrompts };
+}
+
+async function mpGoToTurn(stillIn, roundNum, turnNum, outThisRound, wasWipe) {
+  var room = mp.room;
+  var picked = mpPickPrompt(room);
+  await update(roomRef(mp.roomCode), {
+    phase: "turn",
+    usedPrompts: picked.usedPrompts,
+    round: {
+      roundNum: roundNum, turnNum: turnNum,
+      stillIn: stillIn, outThisRound: outThisRound || [],
+      prompt: picked.prompt, answers: {}, turnEliminated: null, turnReason: null,
+      wipe: !!wasWipe, roundWinnerUid: null
+    }
+  });
+}
+
+// ---------- Turn (answering / spectating) ----------
+function renderTurn() {
+  var room = mp.room;
+  var round = room.round;
+  var key = round.roundNum + "-" + round.turnNum;
+  var amIIn = round.stillIn.indexOf(mp.uid) !== -1;
+  var myAnswer = round.answers ? round.answers[mp.uid] : undefined;
+
+  $("turn-round-label").textContent = "Round " + round.roundNum + (round.turnNum > 1 ? " · Turn " + round.turnNum : "");
+  $("turn-prompt-text").textContent = round.prompt;
+  $("turn-wipe-banner").style.display = round.wipe ? "" : "none";
+
+  $("turn-stillin-list").textContent = round.stillIn.map(mpPlayerName).join(", ");
+  var outNames = (round.outThisRound || []).map(mpPlayerName);
+  $("turn-out-row").style.display = outNames.length ? "" : "none";
+  $("turn-out-list").textContent = outNames.join(", ");
+
+  if (!amIIn) {
+    $("turn-active-card").style.display = "none";
+    $("turn-spectator-card").style.display = "";
+    stopMpTimer();
+  } else if (myAnswer !== undefined) {
+    $("turn-active-card").style.display = "";
+    $("turn-spectator-card").style.display = "none";
+    $("turn-answer-field").value = myAnswer;
+    $("turn-answer-field").disabled = true;
+    $("btn-turn-submit").style.display = "none";
+    $("turn-waiting").style.display = "";
+    stopMpTimer();
+  } else {
+    $("turn-active-card").style.display = "";
+    $("turn-spectator-card").style.display = "none";
+    $("turn-answer-field").disabled = false;
+    $("btn-turn-submit").style.display = "";
+    $("turn-waiting").style.display = "none";
+    if (mp.timerRoundKey !== key) {
+      mp.timerRoundKey = key;
+      $("turn-answer-field").value = "";
+      startMpTimer();
+    }
+  }
+
+  var statusList = $("turn-status-list");
+  statusList.innerHTML = "";
+  round.stillIn.forEach(function (uid) {
+    var answered = round.answers && round.answers[uid] !== undefined;
+    var row = document.createElement("div");
+    row.className = "score-row";
+    row.innerHTML = "<span>" + (answered ? "✅" : "⏳") + " " + mpPlayerName(uid) + "</span>";
+    statusList.appendChild(row);
+  });
+
+  showScreen("screen-turn");
+
+  if (mp.isHost) {
+    var count = round.answers ? Object.keys(round.answers).length : 0;
+    if (count >= round.stillIn.length && round.stillIn.length > 0) finishMpTurn();
+  }
+}
+
+function startMpTimer() {
+  stopMpTimer();
+  mp.timerRemaining = ROUND_TIME;
+  updateMpTimerDisplay();
+  mp.timerHandle = setInterval(function () {
+    mp.timerRemaining--;
+    updateMpTimerDisplay();
+    if (mp.timerRemaining <= 0) {
+      stopMpTimer();
+      submitMpAnswer();
+    }
+  }, 1000);
+}
+function stopMpTimer() {
+  if (mp.timerHandle) { clearInterval(mp.timerHandle); mp.timerHandle = null; }
+}
+function updateMpTimerDisplay() {
+  var el = $("turn-timer");
+  el.textContent = "0:" + (mp.timerRemaining < 10 ? "0" : "") + mp.timerRemaining;
+  el.classList.toggle("low", mp.timerRemaining <= 5);
+}
+
+function submitMpAnswer() {
+  var round = mp.room.round;
+  if (!round || round.stillIn.indexOf(mp.uid) === -1) return;
+  if (round.answers && round.answers[mp.uid] !== undefined) return;
+  var answer = $("turn-answer-field").value.trim();
+  update(ref(db, "rooms/" + mp.roomCode + "/round/answers"), (function () { var o = {}; o[mp.uid] = answer; return o; })());
+}
+$("btn-turn-submit").addEventListener("click", function () { stopMpTimer(); submitMpAnswer(); });
+
+async function finishMpTurn() {
+  var room = mp.room;
+  var round = room.round;
+  var result = computeEliminations(round.stillIn, round.answers || {});
+  await update(roomRef(mp.roomCode), {
+    phase: "turn-reveal",
+    round: Object.assign({}, round, { turnEliminated: result.eliminated, turnReason: result.reason })
+  });
+}
+
+// ---------- Turn reveal ----------
+function renderTurnReveal() {
+  var room = mp.room;
+  var round = room.round;
+  $("reveal-prompt-text").textContent = round.prompt;
+
+  var wrap = $("turn-reveal-list");
+  wrap.innerHTML = "";
+  round.stillIn.forEach(function (uid) {
+    var out = !!round.turnEliminated[uid];
+    var reasonText = round.turnReason[uid] === "timeout" ? "Didn't answer in time" : (out ? "Matched another answer" : "Unique answer!");
+    var row = document.createElement("div");
+    row.className = "judge-row " + (out ? "out" : "correct");
+    var left = document.createElement("div");
+    var pname = document.createElement("div");
+    pname.className = "pname";
+    pname.textContent = mpPlayerName(uid);
+    var given = document.createElement("div");
+    given.className = "given-answer";
+    given.textContent = (round.answers[uid] ? "\"" + round.answers[uid] + "\" — " : "") + reasonText;
+    left.appendChild(pname);
+    left.appendChild(given);
+    var mark = document.createElement("span");
+    mark.className = "mark";
+    mark.textContent = out ? "OUT" : "SAFE";
+    row.appendChild(left);
+    row.appendChild(mark);
+    if (mp.isHost) {
+      row.addEventListener("click", function () {
+        var next = Object.assign({}, round.turnEliminated);
+        next[uid] = !next[uid];
+        update(ref(db, "rooms/" + mp.roomCode + "/round"), { turnEliminated: next });
+      });
+    }
+    wrap.appendChild(row);
+  });
+
+  var survivors = round.stillIn.filter(function (uid) { return !round.turnEliminated[uid]; });
+  var btn = $("btn-turn-continue");
+  if (survivors.length === 1) btn.textContent = "See the Round Winner";
+  else if (survivors.length === 0) btn.textContent = "Everyone Matched — Try Again";
+  else btn.textContent = "Next Prompt (" + survivors.length + " left)";
+
+  var hostNav = $("turn-reveal-host-nav");
+  var waiting = $("turn-reveal-waiting");
+  if (mp.isHost) { hostNav.style.display = "flex"; waiting.style.display = "none"; }
+  else { hostNav.style.display = "none"; waiting.style.display = ""; }
+  showScreen("screen-turn-reveal");
+}
+
+$("btn-turn-continue").addEventListener("click", async function () {
+  if (!mp.isHost) return;
+  var room = mp.room;
+  var round = room.round;
+  var survivors = round.stillIn.filter(function (uid) { return !round.turnEliminated[uid]; });
+  if (survivors.length === 1) {
+    await mpFinishRoundWin(survivors[0], round);
+  } else if (survivors.length === 0) {
+    await mpGoToTurn(round.stillIn, round.roundNum, round.turnNum + 1, round.outThisRound, true);
+  } else {
+    var justOut = round.stillIn.filter(function (uid) { return round.turnEliminated[uid]; });
+    var newOut = (round.outThisRound || []).concat(justOut);
+    await mpGoToTurn(survivors, round.roundNum, round.turnNum + 1, newOut, false);
+  }
+});
+
+async function mpFinishRoundWin(winnerUid, round) {
+  var room = mp.room;
+  var newScore = (room.scores[winnerUid] || 0) + 1;
+  var scores = Object.assign({}, room.scores);
+  scores[winnerUid] = newScore;
+  var reachedTarget = newScore >= room.settings.targetScore;
+  var updatedRound = Object.assign({}, round, { roundWinnerUid: winnerUid });
+  if (reachedTarget) {
+    await update(roomRef(mp.roomCode), { phase: "game-won", scores: scores, winnerUid: winnerUid, round: updatedRound });
+  } else {
+    await update(roomRef(mp.roomCode), { phase: "scores", scores: scores, round: updatedRound });
+  }
+}
+
+// ---------- Scoreboard ----------
+function renderScoresScreen() {
+  var room = mp.room;
+  var scoresByName = {};
+  mpPlayerUids().forEach(function (uid) { scoresByName[mpPlayerName(uid)] = room.scores[uid] || 0; });
+  renderScoreboardInto($("scoreboard"), scoresByName);
+  $("scoreboard-target").textContent = room.settings.targetScore;
+
+  var banner = $("scores-round-winner-banner");
+  if (room.round && room.round.roundWinnerUid) {
+    banner.style.display = "";
+    $("scores-round-winner-name").textContent = mpPlayerName(room.round.roundWinnerUid);
+  } else {
+    banner.style.display = "none";
+  }
+
+  var hostNav = $("scores-host-nav");
+  var waiting = $("scores-waiting");
+  if (mp.isHost) { hostNav.style.display = "flex"; waiting.style.display = "none"; }
+  else { hostNav.style.display = "none"; waiting.style.display = ""; }
+  showScreen("screen-scores");
+}
+
+$("btn-back-to-round").addEventListener("click", function () {
+  if (!mp.isHost) return;
+  var room = mp.room;
+  mpGoToTurn(mpPlayerUids(), (room.round ? room.round.roundNum : 0) + 1, 1, [], false);
+});
+$("btn-end-game").addEventListener("click", function () {
+  if (!mp.isHost) return;
+  if (!confirm("End the game and return everyone to the lobby?")) return;
+  update(roomRef(mp.roomCode), { phase: "lobby", round: null });
+});
+
+// ---------- Game won ----------
+function renderGameWonScreen() {
+  var room = mp.room;
+  $("winner-name").textContent = mpPlayerName(room.winnerUid);
+  var scoresByName = {};
+  mpPlayerUids().forEach(function (uid) { scoresByName[mpPlayerName(uid)] = room.scores[uid] || 0; });
+  renderScoreboardInto($("winner-scoreboard"), scoresByName);
+
+  var hostNav = $("won-host-nav");
+  var waiting = $("won-waiting");
+  $("mp-extend-game-form").style.display = "none";
+  if (mp.isHost) { hostNav.style.display = "flex"; waiting.style.display = "none"; }
+  else { hostNav.style.display = "none"; waiting.style.display = ""; }
+  showScreen("screen-game-won");
+}
+
+$("btn-new-game").addEventListener("click", function () {
+  if (!mp.isHost) return;
+  update(roomRef(mp.roomCode), { phase: "lobby", round: null, usedPrompts: {} });
+});
+
+$("btn-mp-extend-game").addEventListener("click", function () {
+  if (!mp.isHost) return;
+  var floor = (mp.room.scores[mp.room.winnerUid] || 0) + 1;
+  $("mp-extend-target-input").min = floor;
+  $("mp-extend-target-input").value = floor + 9;
+  $("mp-extend-game-form").style.display = "";
+});
+$("btn-mp-extend-down").addEventListener("click", function () {
+  var floor = (mp.room.scores[mp.room.winnerUid] || 0) + 1;
+  $("mp-extend-target-input").value = Math.max(floor, (parseInt($("mp-extend-target-input").value, 10) || floor) - 1);
+});
+$("btn-mp-extend-up").addEventListener("click", function () {
+  $("mp-extend-target-input").value = Math.min(99, (parseInt($("mp-extend-target-input").value, 10) || 1) + 1);
+});
+$("btn-mp-confirm-extend").addEventListener("click", async function () {
+  if (!mp.isHost) return;
+  var floor = (mp.room.scores[mp.room.winnerUid] || 0) + 1;
+  var newTarget = parseInt($("mp-extend-target-input").value, 10);
+  if (!(newTarget >= floor)) newTarget = floor + 9;
+  await update(ref(db, "rooms/" + mp.roomCode + "/settings"), { targetScore: newTarget });
+  $("mp-extend-game-form").style.display = "none";
+  mpGoToTurn(mpPlayerUids(), (mp.room.round ? mp.room.round.roundNum : 0) + 1, 1, [], false);
+});
+
+// =========================================================================
+// LOCAL PASS-AND-PLAY MODE
+// =========================================================================
+
+$("btn-local-mode").addEventListener("click", function () {
+  localCheckResumeBanners();
+  localRenderPlayerList();
+  showScreen("local-screen-setup");
+});
+$("local-btn-back-home").addEventListener("click", function () { showScreen("screen-home"); });
+
+var LOCAL_SAVE_KEY = "dontCopyMePartySave";
+
+var localState = {
+  players: ["", ""],
+  targetScore: 10,
+  scores: {},
+  usedPrompts: {},
+  roundNum: 0,
+  turnNum: 0,
+  stillIn: [],
+  outThisRound: [],
+  currentPrompt: null,
+  wipe: false,
+  turnMarkedOut: {},
+  winner: null
+};
+
+function localRenderPlayerList() {
+  var wrap = $("local-player-list");
+  wrap.innerHTML = "";
+  localState.players.forEach(function (name, i) {
+    var row = document.createElement("div");
+    row.className = "player-row";
+    var input = document.createElement("input");
+    input.type = "text";
+    input.maxLength = 20;
+    input.placeholder = "Player " + (i + 1);
+    input.value = name;
+    input.addEventListener("input", function () { localState.players[i] = input.value; });
+    row.appendChild(input);
+    if (localState.players.length > 2) {
+      var rm = document.createElement("button");
+      rm.type = "button";
+      rm.className = "icon-btn";
+      rm.textContent = "✕";
+      rm.addEventListener("click", function () {
+        localState.players.splice(i, 1);
+        localRenderPlayerList();
+      });
+      row.appendChild(rm);
+    }
+    wrap.appendChild(row);
+  });
+}
+$("local-btn-add-player").addEventListener("click", function () {
+  if (localState.players.length >= 10) return;
+  localState.players.push("");
+  localRenderPlayerList();
+});
+
+var localTargetInput = $("local-target-score-input");
+function localSetTarget(v) {
+  v = Math.max(1, Math.min(99, v));
+  localState.targetScore = v;
+  localTargetInput.value = v;
+}
+localTargetInput.addEventListener("change", function () { localSetTarget(parseInt(localTargetInput.value, 10) || 1); });
+$("local-btn-target-down").addEventListener("click", function () { localSetTarget(localState.targetScore - 1); });
+$("local-btn-target-up").addEventListener("click", function () { localSetTarget(localState.targetScore + 1); });
+
+$("local-btn-start-game").addEventListener("click", function () {
+  var names = localState.players.map(function (n) { return n.trim(); }).filter(Boolean);
+  if (names.length < 2) { alert("Add at least 2 players — you need someone to compete against!"); return; }
+  localState.players = names;
+  localState.scores = {};
+  names.forEach(function (n) { localState.scores[n] = 0; });
+  localState.usedPrompts = {};
+  localState.roundNum = 0;
+  localState.outThisRound = [];
+  localStartNewLocalRound();
+});
+
+function localPickPrompt() {
+  var pool = PROMPTS.filter(function (p) { return !localState.usedPrompts[p]; });
+  if (pool.length === 0) { localState.usedPrompts = {}; pool = PROMPTS; }
+  var prompt = pickRandom(pool);
+  localState.usedPrompts[prompt] = true;
+  return prompt;
+}
+
+function localStartNewLocalRound() {
+  localState.roundNum += 1;
+  localState.turnNum = 1;
+  localState.stillIn = localState.players.slice();
+  localState.outThisRound = [];
+  localGoToLocalTurn(localState.stillIn, false);
+}
+
+function localGoToLocalTurn(stillIn, wasWipe) {
+  localState.stillIn = stillIn;
+  localState.wipe = wasWipe;
+  localState.currentPrompt = localPickPrompt();
+
+  $("local-turn-round-label").textContent = "Round " + localState.roundNum + (localState.turnNum > 1 ? " · Turn " + localState.turnNum : "");
+  $("local-turn-prompt-text").textContent = localState.currentPrompt;
+  $("local-turn-wipe-banner").style.display = wasWipe ? "" : "none";
+  $("local-turn-stillin-list").textContent = localState.stillIn.join(", ");
+  $("local-turn-out-row").style.display = localState.outThisRound.length ? "" : "none";
+  $("local-turn-out-list").textContent = localState.outThisRound.join(", ");
+
+  localSaveCheckpoint();
+  showScreen("local-screen-turn");
+}
+
+$("local-btn-judge").addEventListener("click", function () {
+  localState.turnMarkedOut = {};
+  localState.stillIn.forEach(function (name) { localState.turnMarkedOut[name] = false; });
+  $("local-judge-prompt-text").textContent = localState.currentPrompt;
+  localRenderJudgeList();
+  showScreen("local-screen-judge");
+});
+
+function localRenderJudgeList() {
+  var wrap = $("local-judge-list");
+  wrap.innerHTML = "";
+  localState.stillIn.forEach(function (name) {
+    var out = localState.turnMarkedOut[name];
+    var row = document.createElement("div");
+    row.className = "judge-row " + (out ? "out" : "correct");
+    var pname = document.createElement("div");
+    pname.className = "pname";
+    pname.textContent = name;
+    var mark = document.createElement("span");
+    mark.className = "mark";
+    mark.textContent = out ? "OUT" : "SAFE";
+    row.appendChild(pname);
+    row.appendChild(mark);
+    row.addEventListener("click", function () {
+      localState.turnMarkedOut[name] = !localState.turnMarkedOut[name];
+      localRenderJudgeList();
+    });
+    wrap.appendChild(row);
+  });
+}
+
+$("local-btn-judge-continue").addEventListener("click", function () {
+  var survivors = localState.stillIn.filter(function (name) { return !localState.turnMarkedOut[name]; });
+  if (survivors.length === 1) {
+    localFinishRoundWin(survivors[0]);
+  } else if (survivors.length === 0) {
+    localState.turnNum += 1;
+    localGoToLocalTurn(localState.stillIn, true);
+  } else {
+    var justOut = localState.stillIn.filter(function (name) { return localState.turnMarkedOut[name]; });
+    localState.outThisRound = localState.outThisRound.concat(justOut);
+    localState.turnNum += 1;
+    localGoToLocalTurn(survivors, false);
+  }
+});
+
+function localFinishRoundWin(winnerName) {
+  localState.scores[winnerName] = (localState.scores[winnerName] || 0) + 1;
+  var reached = localState.scores[winnerName] >= localState.targetScore;
+  if (reached) {
+    localState.winner = winnerName;
+    localRenderGameWon();
+    localStorage.removeItem(LOCAL_SAVE_KEY);
+    showScreen("local-screen-game-won");
+  } else {
+    localRenderScores(winnerName);
+    localSaveCheckpoint();
+    showScreen("local-screen-scores");
+  }
+}
+
+function localRenderScores(roundWinnerName) {
+  renderScoreboardInto($("local-scoreboard"), localState.scores);
+  $("local-scoreboard-target").textContent = localState.targetScore;
+  $("local-end-game-confirm").style.display = "none";
+  var banner = $("local-scores-round-winner-banner");
+  if (roundWinnerName) {
+    banner.style.display = "";
+    $("local-scores-round-winner-name").textContent = roundWinnerName;
+  } else {
+    banner.style.display = "none";
+  }
+}
+
+$("local-btn-back-to-round").addEventListener("click", function () {
+  localStartNewLocalRound();
+});
+$("local-btn-end-game").addEventListener("click", function () { $("local-end-game-confirm").style.display = ""; });
+$("local-btn-cancel-end-game").addEventListener("click", function () { $("local-end-game-confirm").style.display = "none"; });
+$("local-btn-confirm-end-game").addEventListener("click", function () {
+  localStorage.removeItem(LOCAL_SAVE_KEY);
+  showScreen("screen-home");
+});
+
+function localRenderGameWon() {
+  $("local-winner-name").textContent = localState.winner;
+  renderScoreboardInto($("local-winner-scoreboard"), localState.scores);
+  $("local-extend-game-form").style.display = "none";
+}
+
+$("local-btn-new-game").addEventListener("click", function () {
+  localStorage.removeItem(LOCAL_SAVE_KEY);
+  showScreen("local-screen-setup");
+  localRenderPlayerList();
+});
+$("local-btn-extend-game").addEventListener("click", function () {
+  var floor = (localState.scores[localState.winner] || 0) + 1;
+  $("local-extend-target-input").min = floor;
+  $("local-extend-target-input").value = floor + 9;
+  $("local-extend-game-form").style.display = "";
+});
+$("local-btn-extend-down").addEventListener("click", function () {
+  var floor = (localState.scores[localState.winner] || 0) + 1;
+  $("local-extend-target-input").value = Math.max(floor, (parseInt($("local-extend-target-input").value, 10) || floor) - 1);
+});
+$("local-btn-extend-up").addEventListener("click", function () {
+  $("local-extend-target-input").value = Math.min(99, (parseInt($("local-extend-target-input").value, 10) || 1) + 1);
+});
+$("local-btn-confirm-extend").addEventListener("click", function () {
+  var floor = (localState.scores[localState.winner] || 0) + 1;
+  var newTarget = parseInt($("local-extend-target-input").value, 10);
+  if (!(newTarget >= floor)) newTarget = floor + 9;
+  localState.targetScore = newTarget;
+  $("local-extend-game-form").style.display = "none";
+  localStartNewLocalRound();
+});
+
+// ---------- Local resume-after-refresh checkpoint ----------
+function localSaveCheckpoint() {
+  try {
+    var snapshot = {
+      players: localState.players, targetScore: localState.targetScore,
+      scores: localState.scores, usedPrompts: localState.usedPrompts
+    };
+    localStorage.setItem(LOCAL_SAVE_KEY, JSON.stringify(snapshot));
+  } catch (e) { /* private browsing */ }
+}
+
+function localCheckResumeBanners() {
+  $("local-refresh-resume-banner").style.display = "none";
+  var saved = null;
+  try { saved = JSON.parse(localStorage.getItem(LOCAL_SAVE_KEY) || "null"); } catch (e) {}
+  if (saved) {
+    $("local-refresh-resume-banner").style.display = "";
+    $("local-btn-refresh-continue").onclick = function () {
+      localState.players = saved.players;
+      localState.targetScore = saved.targetScore;
+      localState.scores = saved.scores;
+      localState.usedPrompts = saved.usedPrompts;
+      localState.roundNum = 0;
+      localState.outThisRound = [];
+      $("local-refresh-resume-banner").style.display = "none";
+      localStartNewLocalRound();
+    };
+    $("local-btn-refresh-startnew").onclick = function () {
+      localStorage.removeItem(LOCAL_SAVE_KEY);
+      $("local-refresh-resume-banner").style.display = "none";
+    };
+  }
+}
+
+</script>
+</body>
+</html>
