@@ -1,0 +1,520 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Niagara Packing List — Clear style</title>
+<style>
+  :root {
+    --bg: #0b0b0d;
+    --row-bg: #1c1c1e;
+    --row-bg-checked: #141416;
+    --ink: #f5f5f7;
+    --ink-muted: #9a9aa2;
+    --ink-faint: #5c5c62;
+    --complete: #34c759;
+    --delete: #ff3b30;
+    --shadow: 0 6px 18px rgba(0,0,0,0.35);
+  }
+
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { background: var(--bg); height: 100%; overflow: hidden; }
+  body { margin: 0; color: var(--ink); font-family: -apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif; font-size: 16px; line-height: 1.4; }
+  .scroll-container { height: 100%; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+  .wrap { max-width: 640px; margin: 0 auto; padding: calc(20px + env(safe-area-inset-top)) 14px calc(96px + env(safe-area-inset-bottom)); }
+
+  header { margin-bottom: 16px; }
+  header h1 { font-weight: 700; font-size: 26px; margin: 0 0 2px; letter-spacing: -0.01em; }
+  header p { margin: 0 0 12px; color: var(--ink-muted); font-size: 13px; }
+  header .back-link { color: var(--ink-muted); font-size: 13px; text-decoration: none; display: inline-block; margin-bottom: 10px; }
+  header .back-link:hover { color: var(--ink); }
+
+  .status-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 14px; }
+  .status { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--ink-muted); }
+  .status .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--ink-faint); flex: none; }
+  .status.synced .dot { background: var(--complete); }
+  .status.syncing .dot { background: #ff9500; animation: pulse 1s ease-in-out infinite; }
+  .status.error .dot { background: var(--delete); }
+  @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.35; } }
+
+  .progress-wrap { display: flex; align-items: center; gap: 10px; margin-bottom: 20px; }
+  .progress-track { flex: 1; height: 6px; border-radius: 3px; background: #2c2c2e; overflow: hidden; }
+  .progress-fill { height: 100%; background: var(--complete); transition: width 0.2s ease; }
+  .progress-label { font-size: 12px; color: var(--ink-muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+  .cat-section { margin-bottom: 22px; }
+  .cat-header {
+    display: flex; align-items: center; justify-content: space-between; gap: 8px;
+    padding: 10px 14px; border-radius: 10px; margin-bottom: 8px;
+    font-weight: 700; font-size: 13px; text-transform: uppercase; letter-spacing: 0.04em; color: #fff;
+    box-shadow: var(--shadow);
+  }
+  .cat-header .cat-count { font-size: 11px; font-weight: 600; opacity: 0.85; text-transform: none; letter-spacing: 0; white-space: nowrap; }
+
+  .row-list { display: flex; flex-direction: column; gap: 7px; }
+
+  .swipe-row { position: relative; border-radius: 12px; overflow: hidden; touch-action: pan-y; }
+  .swipe-bg {
+    position: absolute; inset: 0; display: flex; align-items: center; font-size: 20px; font-weight: 700; color: #fff;
+    opacity: 0;
+  }
+  .swipe-bg.bg-complete { background: var(--complete); justify-content: flex-start; padding-left: 20px; }
+  .swipe-bg.bg-delete { background: var(--delete); justify-content: flex-end; padding-right: 20px; }
+
+  .row-fg {
+    position: relative; display: flex; align-items: center; gap: 10px;
+    background: var(--row-bg); border-radius: 12px; padding: 13px 14px;
+  }
+  .row-fg.checked { background: var(--row-bg-checked); }
+  .row-fg.dragging, .row-fg.commit { will-change: transform; }
+  .row-fg.dragging { transition: none; }
+  .row-fg.snap { transition: transform 0.25s cubic-bezier(.2,.9,.3,1.3); }
+  .row-fg.commit { transition: transform 0.2s ease-out, opacity 0.2s ease-out; }
+
+  .row-check {
+    width: 22px; height: 22px; border-radius: 50%; border: 2px solid var(--ink-faint); flex: none;
+    display: flex; align-items: center; justify-content: center; font-size: 13px; color: transparent;
+  }
+  .row-fg.checked .row-check { background: var(--complete); border-color: var(--complete); color: #fff; }
+
+  .row-name { flex: 1; font-size: 16px; min-width: 0; overflow-wrap: break-word; }
+  .row-fg.checked .row-name { color: var(--ink-faint); text-decoration: line-through; }
+  .row-fg.na .row-name { color: var(--ink-faint); }
+
+  .row-na-tag {
+    font-size: 10px; font-weight: 700; letter-spacing: 0.03em; color: var(--ink-faint);
+    border: 1px solid var(--ink-faint); border-radius: 5px; padding: 2px 5px; flex: none;
+  }
+
+  .row-avatar {
+    width: 22px; height: 22px; border-radius: 50%; background: #48484a; color: #fff;
+    font-size: 10px; font-weight: 700; display: flex; align-items: center; justify-content: center; flex: none;
+  }
+
+  .empty-state { color: var(--ink-faint); font-size: 14px; text-align: center; padding: 40px 20px; }
+
+  .fab {
+    position: fixed; bottom: calc(22px + env(safe-area-inset-bottom)); right: 20px; width: 56px; height: 56px; border-radius: 50%;
+    background: #fff; color: #111; border: none; font-size: 28px; line-height: 1;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.4); cursor: pointer; z-index: 20;
+  }
+  .fab:active { transform: scale(0.94); }
+
+  .toast {
+    position: fixed; left: 50%; bottom: calc(24px + env(safe-area-inset-bottom));
+    transform: translateX(-50%) translateY(8px); background: #2c2c2e; color: #fff; border-radius: 10px;
+    padding: 10px 14px; font-size: 13px; display: flex; align-items: center; gap: 12px; box-shadow: var(--shadow);
+    opacity: 0; pointer-events: none; transition: opacity 0.15s ease, transform 0.15s ease; z-index: 30; max-width: calc(100vw - 40px);
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); pointer-events: auto; }
+  .toast button { font: inherit; font-weight: 700; color: #0a84ff; background: none; border: none; cursor: pointer; padding: 2px; flex: none; }
+
+  .modal-backdrop {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.55); display: none;
+    align-items: flex-end; justify-content: center; z-index: 25;
+  }
+  .modal-backdrop.show { display: flex; }
+  .modal {
+    background: #1c1c1e; border-radius: 16px 16px 0 0; padding: 18px 18px calc(18px + env(safe-area-inset-bottom));
+    width: 100%; max-width: 640px; box-shadow: 0 -6px 24px rgba(0,0,0,0.5);
+  }
+  .modal h3 { margin: 0 0 14px; font-size: 16px; }
+  .modal label { display: block; font-size: 11px; color: var(--ink-muted); text-transform: uppercase; letter-spacing: 0.05em; margin: 12px 0 5px; }
+  .modal label:first-of-type { margin-top: 0; }
+  .modal input, .modal select {
+    width: 100%; background: #2c2c2e; border: 1px solid #3a3a3c; border-radius: 8px;
+    padding: 10px 11px; color: var(--ink); font-size: 15px; font-family: inherit;
+  }
+  .modal-actions { display: flex; gap: 10px; margin-top: 18px; }
+  .modal-actions button {
+    flex: 1; font: inherit; cursor: pointer; border-radius: 9px; border: none; padding: 12px 14px; font-size: 15px; font-weight: 600;
+  }
+  .modal-actions .btn-cancel { background: #2c2c2e; color: var(--ink); }
+  .modal-actions .btn-save { background: #fff; color: #111; }
+</style>
+</head>
+<body>
+
+<div class="scroll-container">
+<div class="wrap">
+  <header>
+    <a class="back-link" href="../packing-list/">&larr; Regular view</a>
+    <h1>Niagara Packing List</h1>
+    <p>Swipe right to pack, swipe left to delete. Same list as the regular view — changes appear on both, instantly.</p>
+    <div class="status-row">
+      <span class="status" id="status"><span class="dot"></span><span id="status-text">Connecting…</span></span>
+    </div>
+    <div class="progress-wrap">
+      <div class="progress-track"><div class="progress-fill" id="progress-fill" style="width:0%"></div></div>
+      <div class="progress-label" id="progress-label">0 / 0</div>
+    </div>
+  </header>
+
+  <div id="list-root"></div>
+</div>
+</div>
+
+<button type="button" id="fab-add" class="fab" aria-label="Add an item">+</button>
+
+<div class="toast" id="toast">
+  <span id="toast-text"></span>
+  <button type="button" id="toast-undo">Undo</button>
+</div>
+
+<div class="modal-backdrop" id="add-modal">
+  <div class="modal">
+    <h3>Add item</h3>
+    <form id="add-form">
+      <label for="ci-name">Item</label>
+      <input type="text" id="ci-name" placeholder="Add anything" required>
+      <label for="ci-cat">Category</label>
+      <select id="ci-cat"></select>
+      <div id="ci-cat-new-wrap" style="display:none;">
+        <label for="ci-cat-new">New category name</label>
+        <input type="text" id="ci-cat-new" placeholder="e.g. Beach house">
+      </div>
+      <label for="ci-assignee">Assign to</label>
+      <select id="ci-assignee"></select>
+      <div id="ci-assignee-new-wrap" style="display:none;">
+        <label for="ci-assignee-new">Name</label>
+        <input type="text" id="ci-assignee-new" placeholder="e.g. Elana">
+      </div>
+      <div class="modal-actions">
+        <button type="button" class="btn-cancel" id="add-cancel">Cancel</button>
+        <button type="submit" class="btn-save">Add</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
+  import {
+    getFirestore, doc, updateDoc, deleteField, onSnapshot
+  } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
+
+  // Same Firebase project + same document as docs/packing-list/index.html — this view mirrors that list.
+  const firebaseConfig = {
+    apiKey: "AIzaSyDFJ_4r2c5P2w4F3TJg4CRNHP-yiDsRiRQ",
+    authDomain: "packing-list-3c532.firebaseapp.com",
+    projectId: "packing-list-3c532",
+    storageBucket: "packing-list-3c532.firebasestorage.app",
+    messagingSenderId: "209304705485",
+    appId: "1:209304705485:web:20c59e9f08465822c58c84"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const db = getFirestore(app);
+  const listRef = doc(db, "packingLists", "family");
+
+  const CUSTOM_CATEGORIES = [
+    "To do in the week before", "Before we leave", "Questions to resolve", "Documents & border", "Electronics & chargers",
+    "Clothing", "Toiletries & meds", "Judaica", "Food & snacks", "Kitchen & dining",
+    "Kids", "Beach & pool", "Bags & practical"
+  ];
+  const PRESET_ASSIGNEES = ["Dad", "Mom", "Mo", "Shmu", "Daniel"];
+
+  const CATEGORY_COLORS = [
+    "#FF3B30", "#FF9500", "#FFCC00", "#34C759", "#00C7BE", "#30B0C7", "#007AFF",
+    "#5856D6", "#AF52DE", "#FF2D55", "#A2845E", "#8E8E93", "#FF6B6B", "#4ECDC4"
+  ];
+  function colorForCat(catName, categoryOrder) {
+    const idx = categoryOrder.indexOf(catName);
+    return CATEGORY_COLORS[(idx < 0 ? 0 : idx) % CATEGORY_COLORS.length];
+  }
+
+  function uid() { return Math.random().toString(36).slice(2, 10); }
+  function escapeHtml(s) { return String(s).replace(/[&<>"]/g, c => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;" }[c])); }
+  function escapeAttr(s) { return String(s).replace(/"/g, "&quot;"); }
+
+  const statusEl = document.getElementById("status");
+  const statusText = document.getElementById("status-text");
+  function setStatus(kind, text) {
+    statusEl.className = "status " + kind;
+    statusText.textContent = text;
+  }
+
+  let currentItems = {};
+
+  // ---------- Add-item modal ----------
+  const addModal = document.getElementById("add-modal");
+  const addForm = document.getElementById("add-form");
+  const ciName = document.getElementById("ci-name");
+  const ciCat = document.getElementById("ci-cat");
+  const ciCatNewWrap = document.getElementById("ci-cat-new-wrap");
+  const ciCatNew = document.getElementById("ci-cat-new");
+  const ciAssignee = document.getElementById("ci-assignee");
+  const ciAssigneeNewWrap = document.getElementById("ci-assignee-new-wrap");
+  const ciAssigneeNew = document.getElementById("ci-assignee-new");
+  const NEW_CAT_VALUE = "__new__";
+  const NEW_ASSIGNEE_VALUE = "__new_assignee__";
+
+  function renderCatOptions(categories) {
+    const prevValue = ciCat.value;
+    ciCat.innerHTML = "";
+    categories.forEach(c => {
+      const opt = document.createElement("option");
+      opt.value = c; opt.textContent = c;
+      ciCat.appendChild(opt);
+    });
+    const newOpt = document.createElement("option");
+    newOpt.value = NEW_CAT_VALUE;
+    newOpt.textContent = "+ New category…";
+    ciCat.appendChild(newOpt);
+    if (categories.includes(prevValue) || prevValue === NEW_CAT_VALUE) ciCat.value = prevValue;
+  }
+  ciCat.addEventListener("change", () => {
+    const isNew = ciCat.value === NEW_CAT_VALUE;
+    ciCatNewWrap.style.display = isNew ? "" : "none";
+    ciCatNew.required = isNew;
+    if (isNew) ciCatNew.focus();
+  });
+
+  function renderAssigneeOptions(names) {
+    const prevValue = ciAssignee.value;
+    ciAssignee.innerHTML = `<option value="">Unassigned</option>` +
+      names.map(n => `<option value="${escapeAttr(n)}">${escapeHtml(n)}</option>`).join("") +
+      `<option value="${NEW_ASSIGNEE_VALUE}">+ Someone else…</option>`;
+    if (names.includes(prevValue) || prevValue === NEW_ASSIGNEE_VALUE || prevValue === "") ciAssignee.value = prevValue;
+  }
+  ciAssignee.addEventListener("change", () => {
+    const isNew = ciAssignee.value === NEW_ASSIGNEE_VALUE;
+    ciAssigneeNewWrap.style.display = isNew ? "" : "none";
+    if (isNew) ciAssigneeNew.focus();
+  });
+
+  document.getElementById("fab-add").addEventListener("click", () => {
+    addModal.classList.add("show");
+    ciName.value = "";
+    ciName.focus();
+  });
+  document.getElementById("add-cancel").addEventListener("click", () => addModal.classList.remove("show"));
+  addModal.addEventListener("click", e => { if (e.target === addModal) addModal.classList.remove("show"); });
+
+  addForm.addEventListener("submit", async e => {
+    e.preventDefault();
+    const name = ciName.value.trim();
+    const assignee = ciAssignee.value === NEW_ASSIGNEE_VALUE ? ciAssigneeNew.value.trim() : ciAssignee.value;
+    const cat = ciCat.value === NEW_CAT_VALUE ? ciCatNew.value.trim() : ciCat.value;
+    if (!name || !cat) return;
+    const id = uid();
+    const maxOrder = Math.max(0, ...Object.values(currentItems).map(it => it.order ?? 0));
+    const itemData = { cat, name, assignee, checked: false, order: maxOrder + 1 };
+    addModal.classList.remove("show");
+    setStatus("syncing", "Saving…");
+    try {
+      await updateDoc(listRef, { [`items.${id}`]: itemData });
+    } catch (err) {
+      console.error(err);
+      setStatus("error", "Couldn't save");
+    }
+  });
+
+  // ---------- Toast with undo (for swipe-delete) ----------
+  const toastEl = document.getElementById("toast");
+  const toastText = document.getElementById("toast-text");
+  const toastUndoBtn = document.getElementById("toast-undo");
+  let toastTimer = null;
+  let lastDeleted = null; // { id, item }
+
+  function showUndoToast(name, id, item) {
+    lastDeleted = { id, item };
+    toastText.textContent = `Deleted "${name}"`;
+    toastEl.classList.add("show");
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => toastEl.classList.remove("show"), 5000);
+  }
+  toastUndoBtn.addEventListener("click", async () => {
+    if (!lastDeleted) return;
+    const { id, item } = lastDeleted;
+    lastDeleted = null;
+    toastEl.classList.remove("show");
+    setStatus("syncing", "Restoring…");
+    try {
+      await updateDoc(listRef, { [`items.${id}`]: item });
+      setStatus("synced", "Synced");
+    } catch (err) {
+      console.error(err);
+      setStatus("error", "Couldn't restore");
+    }
+  });
+
+  // ---------- Swipe actions on a row ----------
+  const SWIPE_COMMIT_PX = 84;
+
+  async function toggleChecked(id) {
+    const item = currentItems[id];
+    if (!item) return;
+    setStatus("syncing", "Saving…");
+    try {
+      await updateDoc(listRef, { [`items.${id}.checked`]: !item.checked });
+    } catch (err) {
+      console.error(err);
+      setStatus("error", "Couldn't save");
+    }
+  }
+
+  async function deleteItem(id) {
+    const item = currentItems[id];
+    if (!item) return;
+    setStatus("syncing", "Saving…");
+    try {
+      await updateDoc(listRef, { [`items.${id}`]: deleteField() });
+      showUndoToast(item.name, id, item);
+    } catch (err) {
+      console.error(err);
+      setStatus("error", "Couldn't save");
+    }
+  }
+
+  function attachSwipe(swipeRow, id) {
+    const rowFg = swipeRow.querySelector(".row-fg");
+    const bgComplete = swipeRow.querySelector(".bg-complete");
+    const bgDelete = swipeRow.querySelector(".bg-delete");
+    let startX = 0, startY = 0, dx = 0, dragging = null; // dragging: null=undetermined, true=horizontal, false=vertical(ignore)
+    let pointerId = null;
+
+    function resetBg() {
+      bgComplete.style.opacity = "0";
+      bgDelete.style.opacity = "0";
+    }
+
+    rowFg.addEventListener("pointerdown", e => {
+      if (e.button !== undefined && e.button !== 0) return;
+      startX = e.clientX; startY = e.clientY; dx = 0; dragging = null;
+      pointerId = e.pointerId;
+      rowFg.classList.remove("snap", "commit");
+    });
+
+    rowFg.addEventListener("pointermove", e => {
+      if (pointerId === null || e.pointerId !== pointerId) return;
+      const curDx = e.clientX - startX;
+      const curDy = e.clientY - startY;
+      if (dragging === null) {
+        if (Math.abs(curDx) < 6 && Math.abs(curDy) < 6) return;
+        dragging = Math.abs(curDx) > Math.abs(curDy);
+        if (dragging) {
+          if (rowFg.setPointerCapture) rowFg.setPointerCapture(pointerId);
+          rowFg.classList.add("dragging");
+        }
+      }
+      if (!dragging) return;
+      e.preventDefault();
+      dx = curDx;
+      rowFg.style.transform = `translateX(${dx}px)`;
+      const progress = Math.min(1, Math.abs(dx) / SWIPE_COMMIT_PX);
+      if (dx > 0) { bgComplete.style.opacity = String(progress); bgDelete.style.opacity = "0"; }
+      else if (dx < 0) { bgDelete.style.opacity = String(progress); bgComplete.style.opacity = "0"; }
+      else resetBg();
+    });
+
+    function endDrag() {
+      if (pointerId === null) return;
+      pointerId = null;
+      if (!dragging) { dragging = null; return; }
+      rowFg.classList.remove("dragging");
+      if (dx > SWIPE_COMMIT_PX) {
+        rowFg.classList.add("commit");
+        rowFg.style.transform = `translateX(100%)`;
+        rowFg.style.opacity = "0";
+        setTimeout(() => toggleChecked(id), 150);
+      } else if (dx < -SWIPE_COMMIT_PX) {
+        rowFg.classList.add("commit");
+        rowFg.style.transform = `translateX(-100%)`;
+        rowFg.style.opacity = "0";
+        setTimeout(() => deleteItem(id), 150);
+      } else {
+        rowFg.classList.add("snap");
+        rowFg.style.transform = `translateX(0)`;
+        resetBg();
+      }
+      dragging = null;
+    }
+
+    rowFg.addEventListener("pointerup", endDrag);
+    rowFg.addEventListener("pointercancel", endDrag);
+  }
+
+  // ---------- Render ----------
+  function render() {
+    const root = document.getElementById("list-root");
+    root.innerHTML = "";
+    let total = 0, checkedCount = 0;
+
+    const byCat = {};
+    Object.entries(currentItems).forEach(([id, it]) => {
+      (byCat[it.cat] = byCat[it.cat] || []).push({ id, ...it });
+    });
+    Object.values(byCat).forEach(arr => arr.sort((a, b) => {
+      const rank = it => it.na ? 2 : (it.checked ? 1 : 0);
+      const ra = rank(a), rb = rank(b);
+      if (ra !== rb) return ra - rb;
+      return (a.order ?? 0) - (b.order ?? 0);
+    }));
+
+    const extraCats = Object.keys(byCat).filter(c => !CUSTOM_CATEGORIES.includes(c)).sort();
+    const categoryOrder = [...CUSTOM_CATEGORIES, ...extraCats];
+    renderCatOptions(categoryOrder);
+
+    const usedAssignees = [...new Set(Object.values(currentItems).map(i => i.assignee).filter(Boolean))].sort();
+    renderAssigneeOptions([...new Set([...PRESET_ASSIGNEES, ...usedAssignees])]);
+
+    if (Object.keys(currentItems).length === 0) {
+      root.innerHTML = '<div class="empty-state">No items yet. Tap + to add one.</div>';
+    }
+
+    categoryOrder.forEach(catName => {
+      const items = byCat[catName];
+      if (!items || items.length === 0) return;
+      total += items.length;
+      checkedCount += items.filter(i => i.checked).length;
+
+      const section = document.createElement("div");
+      section.className = "cat-section";
+
+      const header = document.createElement("div");
+      header.className = "cat-header";
+      header.style.background = colorForCat(catName, categoryOrder);
+      const doneCount = items.filter(i => i.checked).length;
+      header.innerHTML = `<span>${escapeHtml(catName)}</span><span class="cat-count">${doneCount} / ${items.length}</span>`;
+      section.appendChild(header);
+
+      const list = document.createElement("div");
+      list.className = "row-list";
+
+      items.forEach(item => {
+        const row = document.createElement("div");
+        row.className = "swipe-row";
+        row.innerHTML = `
+          <div class="swipe-bg bg-complete">✓</div>
+          <div class="swipe-bg bg-delete">🗑</div>
+          <div class="row-fg${item.checked ? " checked" : ""}${item.na ? " na" : ""}">
+            <span class="row-check">✓</span>
+            <span class="row-name">${escapeHtml(item.name)}</span>
+            ${item.na ? '<span class="row-na-tag">N/A</span>' : ""}
+            ${item.assignee ? `<span class="row-avatar">${escapeHtml(item.assignee.slice(0, 1).toUpperCase())}</span>` : ""}
+          </div>`;
+        list.appendChild(row);
+        attachSwipe(row, item.id);
+      });
+
+      section.appendChild(list);
+      root.appendChild(section);
+    });
+
+    document.getElementById("progress-fill").style.width = total ? (checkedCount / total * 100) + "%" : "0%";
+    document.getElementById("progress-label").textContent = `${checkedCount} / ${total}`;
+  }
+
+  onSnapshot(listRef, snap => {
+    if (!snap.exists()) return;
+    currentItems = snap.data().items || {};
+    setStatus("synced", "Synced");
+    render();
+  }, err => {
+    console.error(err);
+    setStatus("error", "Connection error");
+  });
+</script>
+</body>
+</html>
