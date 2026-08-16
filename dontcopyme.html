@@ -238,7 +238,7 @@
       <h2>📢 How to Play</h2>
       <div class="rules-section">
         <div class="rules-section-label">Each turn</div>
-        The app shows everyone the same prompt (like "an Italian restaurant" or "a scary movie"). <strong>Playing on one device:</strong> everyone shouts their answer out loud at the same time, then the group marks who matched. <strong>Playing across devices:</strong> everyone privately types an answer and locks it in — once everybody's locked in, matches are revealed automatically. Answers are compared after trimming spacing, punctuation and capitalization, so "A Dog" and "a dog." count as the same answer.
+        The app shows everyone the same prompt (like "an Italian restaurant" or "a scary movie"). Then everyone answers it in secret, without seeing anyone else's answer. <strong>Playing on one device:</strong> pass it around — each player privately types their answer, then hands it to the next player. <strong>Playing across devices:</strong> everyone types on their own phone at once. Either way, once everybody's locked in, all the answers are revealed together. Answers are compared after trimming spacing, punctuation and capitalization, so "A Dog" and "a dog." count as the same answer.
       </div>
       <div class="rules-section">
         <div class="rules-section-label">Elimination</div>
@@ -270,7 +270,7 @@
   <div class="screen active" id="screen-home">
     <div class="card">
       <button class="primary" id="btn-local-mode" type="button">Play on One Device</button>
-      <small class="hint">Everyone shouts out loud together — the device just calls the prompts and keeps score.</small>
+      <small class="hint">Pass the device around — each player secretly types their own answer.</small>
     </div>
     <div class="center" style="color:var(--text-dim);font-size:0.8rem;">— or play across devices —</div>
     <div class="card">
@@ -445,8 +445,8 @@
     <button class="link" id="local-btn-back-home" type="button">Back to home</button>
   </div>
 
-  <!-- LOCAL: TURN (show prompt, everyone shouts in person) -->
-  <div class="screen" id="local-screen-turn">
+  <!-- LOCAL: TURN INTRO (show the prompt to everyone before passing the device around) -->
+  <div class="screen" id="local-screen-turn-prompt">
     <div class="card center" style="padding:10px 16px;">
       <span class="category-label" id="local-turn-round-label"></span>
     </div>
@@ -454,27 +454,64 @@
     <div class="card center">
       <span class="category-label">The prompt is</span>
       <div class="prompt-text" id="local-turn-prompt-text"></div>
-      <small class="hint">On the count of three, everyone shouts an answer at the same time!</small>
+      <small class="hint">Everyone can see this. Now pass the device around — each player secretly types their own answer.</small>
     </div>
     <div class="card">
       <div class="roster-line">Still in: <strong id="local-turn-stillin-list"></strong></div>
       <div class="roster-line" id="local-turn-out-row" style="display:none;">Already out this round: <span id="local-turn-out-list"></span></div>
     </div>
-    <button class="primary" id="local-btn-judge" type="button">Everyone shouted — judge it →</button>
+    <button class="primary" id="local-btn-turn-begin" type="button">Start passing the device</button>
   </div>
 
-  <!-- LOCAL: JUDGE (mark who matched) -->
-  <div class="screen" id="local-screen-judge">
+  <!-- LOCAL: PASS TO PLAYER -->
+  <div class="screen" id="local-screen-pass-turn">
+    <div class="card center">
+      <div class="pass-icon">📱➡️👀</div>
+      <div>Pass the device to</div>
+      <div class="big-name" id="local-pass-name"></div>
+      <small class="hint">Only <span id="local-pass-name-2"></span> should look at the screen — everyone else, look away!</small>
+    </div>
+    <button class="primary" id="local-btn-ready-to-answer" type="button">I'm ready to answer</button>
+  </div>
+
+  <!-- LOCAL: ANSWER INPUT -->
+  <div class="screen" id="local-screen-answer-input">
+    <div class="card center" style="padding:10px 16px;">
+      <span class="category-label">Answering as</span>
+      <div class="big-name" id="local-input-name" style="font-size:1.3rem; margin:2px 0;"></div>
+      <div class="timer-display" id="local-input-timer">0:15</div>
+    </div>
+    <div class="card center">
+      <span class="category-label">The prompt is</span>
+      <div class="prompt-text" id="local-input-prompt-text"></div>
+      <label>Your answer</label>
+      <input type="text" id="local-input-answer-field" placeholder="Type your answer..." maxlength="60">
+    </div>
+    <button class="primary" id="local-btn-submit-answer" type="button">Lock In Answer</button>
+  </div>
+
+  <!-- LOCAL: READY TO REVEAL -->
+  <div class="screen" id="local-screen-ready-reveal">
+    <div class="card center">
+      <div class="pass-icon">🙌</div>
+      <div>Everyone's answered!</div>
+      <div class="big-name" style="font-size:1.3rem;">Put the device in the middle so everyone can see.</div>
+    </div>
+    <button class="primary" id="local-btn-show-results" type="button">Show the Results</button>
+  </div>
+
+  <!-- LOCAL: TURN REVEAL (auto-matched, tap to override) -->
+  <div class="screen" id="local-screen-turn-reveal">
     <div class="card center">
       <span class="category-label">The prompt was</span>
-      <div class="prompt-text" id="local-judge-prompt-text"></div>
-      <small class="hint">Tap anyone whose answer matched someone else's — they're out this turn.</small>
+      <div class="prompt-text" id="local-reveal-prompt-text"></div>
     </div>
     <div class="card">
-      <label>Mark eliminations</label>
-      <div id="local-judge-list"></div>
+      <label>What everyone said</label>
+      <div id="local-turn-reveal-list"></div>
+      <small class="hint">Tap anyone to flip a call the matcher got wrong.</small>
     </div>
-    <button class="primary" id="local-btn-judge-continue" type="button">Continue</button>
+    <button class="primary" id="local-btn-turn-continue" type="button">Continue</button>
   </div>
 
   <!-- LOCAL: SCOREBOARD -->
@@ -1216,7 +1253,13 @@ var localState = {
   outThisRound: [],
   currentPrompt: null,
   wipe: false,
-  turnMarkedOut: {},
+  turnOrder: [],
+  turnIndex: 0,
+  roundAnswers: {},
+  turnEliminated: {},
+  turnReason: {},
+  timerHandle: null,
+  timerRemaining: 0,
   winner: null
 };
 
@@ -1304,49 +1347,115 @@ function localGoToLocalTurn(stillIn, wasWipe) {
   $("local-turn-out-list").textContent = localState.outThisRound.join(", ");
 
   localSaveCheckpoint();
-  showScreen("local-screen-turn");
+  showScreen("local-screen-turn-prompt");
 }
 
-$("local-btn-judge").addEventListener("click", function () {
-  localState.turnMarkedOut = {};
-  localState.stillIn.forEach(function (name) { localState.turnMarkedOut[name] = false; });
-  $("local-judge-prompt-text").textContent = localState.currentPrompt;
-  localRenderJudgeList();
-  showScreen("local-screen-judge");
+$("local-btn-turn-begin").addEventListener("click", function () {
+  localState.turnOrder = localState.stillIn.slice();
+  localState.turnIndex = 0;
+  localState.roundAnswers = {};
+  localGoToPassTurn();
 });
 
-function localRenderJudgeList() {
-  var wrap = $("local-judge-list");
+function localGoToPassTurn() {
+  if (localState.turnIndex >= localState.turnOrder.length) {
+    showScreen("local-screen-ready-reveal");
+    return;
+  }
+  var name = localState.turnOrder[localState.turnIndex];
+  $("local-pass-name").textContent = name;
+  $("local-pass-name-2").textContent = name;
+  showScreen("local-screen-pass-turn");
+}
+
+$("local-btn-ready-to-answer").addEventListener("click", function () {
+  $("local-input-name").textContent = localState.turnOrder[localState.turnIndex];
+  $("local-input-prompt-text").textContent = localState.currentPrompt;
+  $("local-input-answer-field").value = "";
+  localStartTimer();
+  showScreen("local-screen-answer-input");
+});
+
+function localStartTimer() {
+  localStopTimer();
+  localState.timerRemaining = ROUND_TIME;
+  localUpdateTimerDisplay();
+  localState.timerHandle = setInterval(function () {
+    localState.timerRemaining--;
+    localUpdateTimerDisplay();
+    if (localState.timerRemaining <= 0) {
+      localStopTimer();
+      localSubmitAnswer();
+    }
+  }, 1000);
+}
+function localStopTimer() {
+  if (localState.timerHandle) { clearInterval(localState.timerHandle); localState.timerHandle = null; }
+}
+function localUpdateTimerDisplay() {
+  var el = $("local-input-timer");
+  el.textContent = "0:" + (localState.timerRemaining < 10 ? "0" : "") + localState.timerRemaining;
+  el.classList.toggle("low", localState.timerRemaining <= 5);
+}
+
+function localSubmitAnswer() {
+  localStopTimer();
+  var name = localState.turnOrder[localState.turnIndex];
+  localState.roundAnswers[name] = $("local-input-answer-field").value.trim();
+  localState.turnIndex += 1;
+  localGoToPassTurn();
+}
+$("local-btn-submit-answer").addEventListener("click", localSubmitAnswer);
+
+$("local-btn-show-results").addEventListener("click", function () {
+  var result = computeEliminations(localState.turnOrder, localState.roundAnswers);
+  localState.turnEliminated = result.eliminated;
+  localState.turnReason = result.reason;
+  $("local-reveal-prompt-text").textContent = localState.currentPrompt;
+  localRenderTurnRevealList();
+  showScreen("local-screen-turn-reveal");
+});
+
+function localRenderTurnRevealList() {
+  var wrap = $("local-turn-reveal-list");
   wrap.innerHTML = "";
-  localState.stillIn.forEach(function (name) {
-    var out = localState.turnMarkedOut[name];
+  localState.turnOrder.forEach(function (name) {
+    var out = !!localState.turnEliminated[name];
+    var reasonText = localState.turnReason[name] === "timeout" ? "Didn't answer in time" : (out ? "Matched another answer" : "Unique answer!");
+    var answer = localState.roundAnswers[name];
     var row = document.createElement("div");
     row.className = "judge-row " + (out ? "out" : "correct");
+    var left = document.createElement("div");
     var pname = document.createElement("div");
     pname.className = "pname";
     pname.textContent = name;
+    var given = document.createElement("div");
+    given.className = "given-answer";
+    given.textContent = (answer ? "\"" + answer + "\" — " : "") + reasonText;
+    left.appendChild(pname);
+    left.appendChild(given);
     var mark = document.createElement("span");
     mark.className = "mark";
     mark.textContent = out ? "OUT" : "SAFE";
-    row.appendChild(pname);
+    row.appendChild(left);
     row.appendChild(mark);
     row.addEventListener("click", function () {
-      localState.turnMarkedOut[name] = !localState.turnMarkedOut[name];
-      localRenderJudgeList();
+      localState.turnEliminated[name] = !localState.turnEliminated[name];
+      localRenderTurnRevealList();
     });
     wrap.appendChild(row);
   });
 }
 
-$("local-btn-judge-continue").addEventListener("click", function () {
-  var survivors = localState.stillIn.filter(function (name) { return !localState.turnMarkedOut[name]; });
+$("local-btn-turn-continue").addEventListener("click", function () {
+  var survivors = localState.turnOrder.filter(function (name) { return !localState.turnEliminated[name]; });
   if (survivors.length === 1) {
     localFinishRoundWin(survivors[0]);
   } else if (survivors.length === 0) {
     localState.turnNum += 1;
     localGoToLocalTurn(localState.stillIn, true);
   } else {
-    var justOut = localState.stillIn.filter(function (name) { return localState.turnMarkedOut[name]; });
+    var justOut = localState.turnOrder.filter(function (name) { return localState.turnEliminated[name]; });
     localState.outThisRound = localState.outThisRound.concat(justOut);
     localState.turnNum += 1;
     localGoToLocalTurn(survivors, false);
