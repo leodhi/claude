@@ -62,8 +62,12 @@
     display: flex; align-items: center; justify-content: space-between; gap: 8px;
     padding: 10px 14px; border-radius: 10px; margin-bottom: 8px;
     font-weight: 700; font-size: 13px; text-transform: uppercase; letter-spacing: 0.04em; color: #fff;
-    box-shadow: var(--shadow);
+    box-shadow: var(--shadow); cursor: pointer; user-select: none;
   }
+  .cat-header .cat-title-text { display: inline-flex; align-items: center; gap: 6px; }
+  .cat-header .cat-chevron { display: inline-block; font-size: 12px; transition: transform 0.15s ease; }
+  .cat-section.collapsed .cat-chevron { transform: rotate(-90deg); }
+  .cat-section.collapsed .row-list { display: none; }
   .cat-header .cat-count { font-size: 11px; font-weight: 600; opacity: 0.85; text-transform: none; letter-spacing: 0; white-space: nowrap; }
 
   .row-list { display: flex; flex-direction: column; gap: 9px; }
@@ -94,7 +98,7 @@
 
   .row-name { flex: 1; font-size: 21px; font-weight: 500; min-width: 0; overflow-wrap: break-word; }
   .row-fg.checked .row-name { color: var(--ink-faint); text-decoration: line-through; }
-  .row-fg.na .row-name { color: var(--ink-faint); }
+  .row-fg.na .row-name { color: var(--ink-faint); text-decoration: line-through; }
 
   .row-na-tag {
     font-size: 11px; font-weight: 700; letter-spacing: 0.03em; color: var(--ink-faint);
@@ -267,6 +271,17 @@
 
   let currentItems = {};
   let searchQuery = "";
+  let collapsedCats = new Set(JSON.parse(localStorage.getItem("packing-clear-collapsed-cats") || "[]"));
+  function saveCollapsed() { localStorage.setItem("packing-clear-collapsed-cats", JSON.stringify([...collapsedCats])); }
+
+  document.getElementById("list-root").addEventListener("click", e => {
+    const catHeader = e.target.closest("[data-cat-toggle]");
+    if (!catHeader) return;
+    const catName = catHeader.dataset.catToggle;
+    if (collapsedCats.has(catName)) collapsedCats.delete(catName); else collapsedCats.add(catName);
+    saveCollapsed();
+    render();
+  });
 
   // ---------- Search ----------
   const searchToggle = document.getElementById("search-toggle");
@@ -548,14 +563,16 @@
       if (visibleItems.length === 0) return;
       anySectionShown = true;
 
+      const isCollapsed = collapsedCats.has(catName);
       const section = document.createElement("div");
-      section.className = "cat-section";
+      section.className = "cat-section" + (isCollapsed ? " collapsed" : "");
 
       const header = document.createElement("div");
       header.className = "cat-header";
+      header.dataset.catToggle = catName;
       header.style.background = colorForCat(catName, categoryOrder);
       const doneCount = items.filter(i => i.checked).length;
-      header.innerHTML = `<span>${escapeHtml(catName)}</span><span class="cat-count">${doneCount} / ${items.length}</span>`;
+      header.innerHTML = `<span class="cat-title-text"><span class="cat-chevron">▾</span>${escapeHtml(catName)}</span><span class="cat-count">${doneCount} / ${items.length}</span>`;
       section.appendChild(header);
 
       const list = document.createElement("div");
