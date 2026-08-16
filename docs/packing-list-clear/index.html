@@ -19,9 +19,8 @@
   }
 
   * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-  html, body { background: var(--bg); height: 100%; overflow: hidden; }
+  html, body { background: var(--bg); }
   body { margin: 0; color: var(--ink); font-family: -apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif; font-size: 16px; line-height: 1.4; }
-  .scroll-container { height: 100%; overflow-y: auto; -webkit-overflow-scrolling: touch; }
   .wrap { max-width: 640px; margin: 0 auto; padding: calc(20px + env(safe-area-inset-top)) 14px calc(96px + env(safe-area-inset-bottom)); }
 
   header { margin-bottom: 16px; }
@@ -37,6 +36,21 @@
   .status.syncing .dot { background: #ff9500; animation: pulse 1s ease-in-out infinite; }
   .status.error .dot { background: var(--delete); }
   @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.35; } }
+
+  .icon-btn {
+    background: #2c2c2e; border: 1px solid #3a3a3c; color: var(--ink); border-radius: 50%;
+    width: 30px; height: 30px; font-size: 14px; cursor: pointer; flex: none;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .icon-btn:hover { border-color: var(--accent); }
+
+  .search-wrap { margin-bottom: 14px; display: none; }
+  .search-wrap.show { display: block; }
+  #search-input {
+    width: 100%; background: #1c1c1e; border: 1px solid #3a3a3c; border-radius: 10px;
+    padding: 10px 12px; color: var(--ink); font-size: 15px; font-family: inherit;
+  }
+  #search-input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 
   .progress-wrap { display: flex; align-items: center; gap: 10px; margin-bottom: 20px; }
   .progress-track { flex: 1; height: 6px; border-radius: 3px; background: #2c2c2e; overflow: hidden; }
@@ -101,6 +115,17 @@
   }
   .fab:active { transform: scale(0.94); }
 
+  .scroll-top-btn {
+    position: fixed; bottom: calc(22px + env(safe-area-inset-bottom)); left: 20px; width: 44px; height: 44px; border-radius: 50%;
+    background: #2c2c2e; color: #fff; border: 1px solid #3a3a3c; font-size: 18px; line-height: 1;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.35); cursor: pointer; z-index: 20;
+    display: flex; align-items: center; justify-content: center;
+    opacity: 0; pointer-events: none; transform: translateY(8px);
+    transition: opacity 0.15s ease, transform 0.15s ease;
+  }
+  .scroll-top-btn.show { opacity: 1; pointer-events: auto; transform: translateY(0); }
+  .scroll-top-btn:active { transform: scale(0.94); }
+
   .toast {
     position: fixed; left: 50%; bottom: calc(24px + env(safe-area-inset-bottom));
     transform: translateX(-50%) translateY(8px); background: #2c2c2e; color: #fff; border-radius: 10px;
@@ -144,6 +169,10 @@
     <p>Swipe right to pack, swipe left to delete. Same list as the regular view — changes appear on both, instantly.</p>
     <div class="status-row">
       <span class="status" id="status"><span class="dot"></span><span id="status-text">Connecting…</span></span>
+      <button type="button" id="search-toggle" class="icon-btn" aria-label="Search items">🔍</button>
+    </div>
+    <div class="search-wrap" id="search-wrap">
+      <input type="text" id="search-input" placeholder="Search items…" aria-label="Search items">
     </div>
     <div class="progress-wrap">
       <div class="progress-track"><div class="progress-fill" id="progress-fill" style="width:0%"></div></div>
@@ -156,6 +185,7 @@
 </div>
 
 <button type="button" id="fab-add" class="fab" aria-label="Add an item">+</button>
+<button type="button" id="scroll-top-btn" class="scroll-top-btn" aria-label="Scroll to top">↑</button>
 
 <div class="toast" id="toast">
   <span id="toast-text"></span>
@@ -236,6 +266,39 @@
   }
 
   let currentItems = {};
+  let searchQuery = "";
+
+  // ---------- Search ----------
+  const searchToggle = document.getElementById("search-toggle");
+  const searchWrap = document.getElementById("search-wrap");
+  const searchInput = document.getElementById("search-input");
+
+  searchToggle.addEventListener("click", () => {
+    const showing = searchWrap.classList.contains("show");
+    if (showing) {
+      searchWrap.classList.remove("show");
+      searchInput.value = "";
+      searchQuery = "";
+      searchToggle.textContent = "🔍";
+      render();
+    } else {
+      searchWrap.classList.add("show");
+      searchToggle.textContent = "✕";
+      searchInput.focus();
+    }
+  });
+  searchInput.addEventListener("input", () => {
+    searchQuery = searchInput.value.trim().toLowerCase();
+    render();
+  });
+
+  // ---------- Scroll to top ----------
+  const scrollTopBtn = document.getElementById("scroll-top-btn");
+  function updateScrollTopVisibility() {
+    scrollTopBtn.classList.toggle("show", window.scrollY > 400);
+  }
+  window.addEventListener("scroll", updateScrollTopVisibility, { passive: true });
+  scrollTopBtn.addEventListener("click", () => window.scrollTo({ top: 0, behavior: "smooth" }));
 
   // ---------- Add-item modal ----------
   const addModal = document.getElementById("add-modal");
@@ -472,11 +535,18 @@
       root.innerHTML = '<div class="empty-state">No items yet. Tap + to add one.</div>';
     }
 
+    let anySectionShown = false;
+
     categoryOrder.forEach(catName => {
       const items = byCat[catName];
       if (!items || items.length === 0) return;
       total += items.length;
       checkedCount += items.filter(i => i.checked).length;
+
+      let visibleItems = items;
+      if (searchQuery) visibleItems = visibleItems.filter(i => i.name.toLowerCase().includes(searchQuery));
+      if (visibleItems.length === 0) return;
+      anySectionShown = true;
 
       const section = document.createElement("div");
       section.className = "cat-section";
@@ -491,7 +561,7 @@
       const list = document.createElement("div");
       list.className = "row-list";
 
-      items.forEach(item => {
+      visibleItems.forEach(item => {
         const row = document.createElement("div");
         row.className = "swipe-row";
         row.innerHTML = `
@@ -510,6 +580,10 @@
       section.appendChild(list);
       root.appendChild(section);
     });
+
+    if (Object.keys(currentItems).length > 0 && !anySectionShown) {
+      root.innerHTML = `<div class="empty-state">No items match "${escapeHtml(searchInput.value.trim())}".</div>`;
+    }
 
     document.getElementById("progress-fill").style.width = total ? (checkedCount / total * 100) + "%" : "0%";
     document.getElementById("progress-label").textContent = `${checkedCount} / ${total}`;

@@ -45,6 +45,7 @@
   .undo-btn:not(:disabled):hover { border-color: var(--accent); color: var(--accent); }
   .undo-btn:disabled { opacity: 0.4; cursor: default; }
   .undo-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  a.undo-btn { text-decoration: none; display: inline-block; }
 
   .panel { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; box-shadow: var(--shadow); }
   .panel-head { display: flex; justify-content: space-between; align-items: center; padding: 16px 20px; border-bottom: 1px solid var(--border); }
@@ -287,6 +288,7 @@
       <button type="button" id="redo-btn" class="undo-btn" disabled>Redo</button>
       <button type="button" id="reset-btn" class="undo-btn">New trip</button>
       <button type="button" id="archives-btn" class="undo-btn">Archives</button>
+      <a href="../packing-list-clear/" class="undo-btn">Clear style →</a>
       <span class="status" id="status"><span class="dot"></span><span id="status-text">Connecting…</span></span>
     </div>
   </header>
