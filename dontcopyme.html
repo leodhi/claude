@@ -334,7 +334,7 @@
       <div class="prompt-text" id="turn-prompt-text"></div>
     </div>
     <div class="card" id="turn-active-card">
-      <div class="timer-display center" id="turn-timer">0:15</div>
+      <div class="timer-display center" id="turn-timer">0:45</div>
       <label>Shout it — then type what you said</label>
       <input type="text" id="turn-answer-field" placeholder="Type your answer..." maxlength="60">
       <button class="primary" id="btn-turn-submit" type="button" style="margin-top:10px;">Lock In Answer</button>
@@ -479,7 +479,7 @@
     <div class="card center" style="padding:10px 16px;">
       <span class="category-label">Answering as</span>
       <div class="big-name" id="local-input-name" style="font-size:1.3rem; margin:2px 0;"></div>
-      <div class="timer-display" id="local-input-timer">0:15</div>
+      <div class="timer-display" id="local-input-timer">0:45</div>
     </div>
     <div class="card center">
       <span class="category-label">The prompt is</span>
@@ -576,7 +576,7 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getDatabase(app);
 
-var ROUND_TIME = 15;
+var ROUND_TIME = 45;
 
 var PROMPTS = [
   "a scary movie","an Italian restaurant","a pizza topping","a U.S. state","a country",
