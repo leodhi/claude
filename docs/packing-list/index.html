@@ -87,7 +87,8 @@
   .item-row .edit-input:focus-visible { outline: none; }
   .item-row.editing { flex-wrap: wrap; row-gap: 6px; }
   .item-row .edit-input-name { flex: 1 1 140px; min-width: 100px; }
-  .item-row .edit-input-assignee { flex: 1 1 120px; min-width: 100px; margin-left: 27px; }
+  .item-row .edit-input-cat { flex: 1 1 120px; min-width: 100px; margin-left: 27px; }
+  .item-row .edit-input-assignee { flex: 1 1 120px; min-width: 100px; }
 
   form.add-form { display: grid; grid-template-columns: 1fr 1fr 1fr auto; gap: 8px; align-items: end; margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--border); }
   @media (max-width: 700px) { form.add-form { grid-template-columns: 1fr 1fr; } }
@@ -389,7 +390,7 @@
   const listRef = doc(db, "packingLists", "family");
 
   const CUSTOM_CATEGORIES = [
-    "Before we leave", "Questions to resolve", "Documents & border", "Electronics & chargers",
+    "To do in the week before", "Before we leave", "Questions to resolve", "Documents & border", "Electronics & chargers",
     "Clothing", "Toiletries & meds", "Judaica", "Food & snacks", "Kitchen & dining",
     "Kids", "Beach & pool", "Bags & practical"
   ];
@@ -570,6 +571,9 @@
     return `<option value="">Unassigned</option>` +
       names.map(n => `<option value="${escapeAttr(n)}"${n === selected ? " selected" : ""}>${escapeHtml(n)}</option>`).join("");
   }
+  function categoryOptionsHtml(categories, selected) {
+    return categories.map(c => `<option value="${escapeAttr(c)}"${c === selected ? " selected" : ""}>${escapeHtml(c)}</option>`).join("");
+  }
   function assigneeSelectOptionsHtml(names) {
     return basicAssigneeOptionsHtml(names) + `<option value="${NEW_ASSIGNEE_VALUE}">+ Someone else…</option>`;
   }
@@ -656,6 +660,7 @@
           row.innerHTML = `
             <input type="checkbox" id="${rowId}" data-id="${item.id}" ${item.checked ? "checked" : ""}>
             <input type="text" class="edit-input edit-input-name" data-edit-input="${item.id}" value="${escapeAttr(item.name)}">
+            <select class="edit-input edit-input-cat" data-edit-cat="${item.id}">${categoryOptionsHtml(categoryOrder, item.cat)}</select>
             <select class="edit-input edit-input-assignee" data-edit-assignee="${item.id}">${basicAssigneeOptionsHtml(allAssignees, item.assignee || "")}</select>
             ${naToggle}`;
         } else {
@@ -723,7 +728,7 @@
     } else if (action.type === "remove") {
       await updateDoc(listRef, { [`items.${action.id}`]: action.item });
     } else if (action.type === "edit") {
-      await updateDoc(listRef, { [`items.${action.id}.name`]: action.from.name, [`items.${action.id}.assignee`]: action.from.assignee });
+      await updateDoc(listRef, { [`items.${action.id}.name`]: action.from.name, [`items.${action.id}.cat`]: action.from.cat, [`items.${action.id}.assignee`]: action.from.assignee });
     } else if (action.type === "bulkAssign") {
       const updates = {};
       Object.entries(action.changes).forEach(([id, c]) => { updates[`items.${id}.assignee`] = c.from; });
@@ -742,7 +747,7 @@
     } else if (action.type === "remove") {
       await updateDoc(listRef, { [`items.${action.id}`]: deleteField() });
     } else if (action.type === "edit") {
-      await updateDoc(listRef, { [`items.${action.id}.name`]: action.to.name, [`items.${action.id}.assignee`]: action.to.assignee });
+      await updateDoc(listRef, { [`items.${action.id}.name`]: action.to.name, [`items.${action.id}.cat`]: action.to.cat, [`items.${action.id}.assignee`]: action.to.assignee });
     } else if (action.type === "bulkAssign") {
       const updates = {};
       Object.entries(action.changes).forEach(([id, c]) => { updates[`items.${id}.assignee`] = c.to; });
@@ -808,18 +813,21 @@
   async function commitEdit(id) {
     const item = currentItems[id];
     const nameInputEl = document.querySelector(`[data-edit-input="${id}"]`);
+    const catInputEl = document.querySelector(`[data-edit-cat="${id}"]`);
     const assigneeInputEl = document.querySelector(`[data-edit-assignee="${id}"]`);
     const newName = nameInputEl ? nameInputEl.value.trim() : (item ? item.name : "");
+    const newCat = catInputEl ? catInputEl.value : (item ? item.cat : "");
     const newAssignee = assigneeInputEl ? assigneeInputEl.value.trim() : (item ? (item.assignee || "") : "");
     const oldName = item ? item.name : "";
+    const oldCat = item ? item.cat : "";
     const oldAssignee = item ? (item.assignee || "") : "";
     endEdit();
-    if (!item || !newName) return;
-    if (newName === oldName && newAssignee === oldAssignee) return;
+    if (!item || !newName || !newCat) return;
+    if (newName === oldName && newCat === oldCat && newAssignee === oldAssignee) return;
     setStatus("syncing", "Saving…");
     try {
-      await updateDoc(listRef, { [`items.${id}.name`]: newName, [`items.${id}.assignee`]: newAssignee });
-      pushAction({ type: "edit", id, from: { name: oldName, assignee: oldAssignee }, to: { name: newName, assignee: newAssignee } });
+      await updateDoc(listRef, { [`items.${id}.name`]: newName, [`items.${id}.cat`]: newCat, [`items.${id}.assignee`]: newAssignee });
+      pushAction({ type: "edit", id, from: { name: oldName, cat: oldCat, assignee: oldAssignee }, to: { name: newName, cat: newCat, assignee: newAssignee } });
     } catch (err) {
       console.error(err);
       setStatus("error", "Couldn't save");
@@ -856,25 +864,26 @@
     }
   });
 
-  function editInputId(el) { return el.dataset.editInput || el.dataset.editAssignee; }
+  const EDIT_FIELD_SELECTOR = "[data-edit-input], [data-edit-cat], [data-edit-assignee]";
+  function editInputId(el) { return el.dataset.editInput || el.dataset.editCat || el.dataset.editAssignee; }
   function markEditRowCancelled(id) {
-    document.querySelectorAll(`[data-edit-input="${id}"], [data-edit-assignee="${id}"]`).forEach(el => { el.dataset.cancelled = "1"; });
+    document.querySelectorAll(`[data-edit-input="${id}"], [data-edit-cat="${id}"], [data-edit-assignee="${id}"]`).forEach(el => { el.dataset.cancelled = "1"; });
   }
 
   document.getElementById("list-grid").addEventListener("keydown", e => {
-    const input = e.target.closest("[data-edit-input], [data-edit-assignee]");
+    const input = e.target.closest(EDIT_FIELD_SELECTOR);
     if (!input) return;
     const id = editInputId(input);
     if (e.key === "Enter") { e.preventDefault(); commitEdit(id); }
     else if (e.key === "Escape") { e.preventDefault(); markEditRowCancelled(id); endEdit(); }
   });
   document.getElementById("list-grid").addEventListener("blur", e => {
-    const input = e.target.closest && e.target.closest("[data-edit-input], [data-edit-assignee]");
+    const input = e.target.closest && e.target.closest(EDIT_FIELD_SELECTOR);
     if (!input || input.dataset.cancelled) return;
     const id = editInputId(input);
     if (editingId !== id) return;
     const next = e.relatedTarget;
-    if (next && next.closest && next.closest("[data-edit-input], [data-edit-assignee]") && editInputId(next.closest("[data-edit-input], [data-edit-assignee]")) === id) return;
+    if (next && next.closest && next.closest(EDIT_FIELD_SELECTOR) && editInputId(next.closest(EDIT_FIELD_SELECTOR)) === id) return;
     commitEdit(id);
   }, true);
 
