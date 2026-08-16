@@ -549,6 +549,7 @@ const auth = getAuth(app);
 const db = getDatabase(app);
 
 var ROUND_TIME = 20;
+var TYPE_ROUND_TIME = 30;
 var WRONG_STREAK_PENALTY = 3;
 
 // Word bank: [number, hebrew, english]
@@ -629,19 +630,26 @@ function normalizeAnswer(s) {
   return (s || "").toLowerCase().trim().replace(/^(a|an|the)\s+/, "").replace(/[^a-z0-9 ]/g, "").replace(/\s+/g, " ");
 }
 
+// Damerau-Levenshtein (optimal string alignment): counts a transposed
+// pair of adjacent letters (e.g. "resaon" for "reason") as one edit
+// instead of two, since that's one of the most common typing typos and
+// plain Levenshtein was wrongly rejecting it at the tighter thresholds
+// used for short/medium words.
 function levenshtein(a, b) {
   var m = a.length, n = b.length;
-  var prev = [];
-  for (var j = 0; j <= n; j++) prev[j] = j;
+  var d = [];
+  for (var i = 0; i <= m; i++) { d[i] = new Array(n + 1).fill(0); d[i][0] = i; }
+  for (var j = 0; j <= n; j++) d[0][j] = j;
   for (var i = 1; i <= m; i++) {
-    var cur = [i];
-    for (var k = 1; k <= n; k++) {
-      var cost = a[i - 1] === b[k - 1] ? 0 : 1;
-      cur[k] = Math.min(prev[k] + 1, cur[k - 1] + 1, prev[k - 1] + cost);
+    for (var j = 1; j <= n; j++) {
+      var cost = a[i - 1] === b[j - 1] ? 0 : 1;
+      d[i][j] = Math.min(d[i - 1][j] + 1, d[i][j - 1] + 1, d[i - 1][j - 1] + cost);
+      if (i > 1 && j > 1 && a[i - 1] === b[j - 2] && a[i - 2] === b[j - 1]) {
+        d[i][j] = Math.min(d[i][j], d[i - 2][j - 2] + cost);
+      }
     }
-    prev = cur;
   }
-  return prev[n];
+  return d[m][n];
 }
 
 function isCloseToOne(given, candidate) {
@@ -650,7 +658,7 @@ function isCloseToOne(given, candidate) {
   if (!g) return false;
   if (g === a) return true;
   if (g.replace(/s$/, "") === a.replace(/s$/, "")) return true;
-  if (a.length >= 3 && (g.indexOf(a) !== -1 || a.indexOf(g) !== -1)) return true;
+  if (g.length >= 3 && a.length >= 3 && (g.indexOf(a) !== -1 || a.indexOf(g) !== -1)) return true;
   var maxLen = Math.max(g.length, a.length);
   var threshold = maxLen <= 4 ? 0 : (maxLen <= 6 ? 1 : 2);
   return levenshtein(g, a) <= threshold;
@@ -1015,7 +1023,7 @@ function renderRound() {
       mp.timerRoundKey = key;
       mp.choiceSelected = null;
       $("input-answer-field").value = "";
-      startMpTimer();
+      startMpTimer(mode === "choice" ? ROUND_TIME : TYPE_ROUND_TIME);
     }
   }
 
@@ -1057,9 +1065,9 @@ function renderMpChoiceOptions(options, locked) {
   $("btn-submit-answer").disabled = locked ? true : !mp.choiceSelected;
 }
 
-function startMpTimer() {
+function startMpTimer(duration) {
   stopMpTimer();
-  mp.timerRemaining = ROUND_TIME;
+  mp.timerRemaining = duration || ROUND_TIME;
   updateMpTimerDisplay();
   mp.timerHandle = setInterval(function () {
     mp.timerRemaining--;
@@ -1088,6 +1096,9 @@ function submitMpAnswer() {
 }
 
 $("btn-submit-answer").addEventListener("click", submitMpAnswer);
+$("input-answer-field").addEventListener("keydown", function (e) {
+  if (e.key === "Enter" && !$("btn-submit-answer").disabled) { e.preventDefault(); submitMpAnswer(); }
+});
 
 async function finishMpRound() {
   var room = mp.room;
@@ -1411,7 +1422,7 @@ $("local-btn-ready-to-answer").addEventListener("click", function () {
     $("local-input-answer-field").value = "";
     $("local-btn-submit-answer").disabled = false;
   }
-  localStartTimer();
+  localStartTimer(isChoice ? ROUND_TIME : TYPE_ROUND_TIME);
   showScreen("local-screen-answer-input");
 });
 
@@ -1432,9 +1443,9 @@ function localRenderLocalChoiceOptions() {
   $("local-btn-submit-answer").disabled = !localState.choiceSelected;
 }
 
-function localStartTimer() {
+function localStartTimer(duration) {
   localStopTimer();
-  localState.timerRemaining = ROUND_TIME;
+  localState.timerRemaining = duration || ROUND_TIME;
   localUpdateTimerDisplay();
   localState.timerHandle = setInterval(function () {
     localState.timerRemaining--;
@@ -1465,6 +1476,9 @@ function localSubmitAnswer() {
   localGoToPassTurn();
 }
 $("local-btn-submit-answer").addEventListener("click", localSubmitAnswer);
+$("local-input-answer-field").addEventListener("keydown", function (e) {
+  if (e.key === "Enter" && !$("local-btn-submit-answer").disabled) { e.preventDefault(); localSubmitAnswer(); }
+});
 
 $("local-btn-show-answer").addEventListener("click", function () {
   var word = localState.currentWord;
