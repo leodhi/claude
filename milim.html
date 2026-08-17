@@ -191,6 +191,37 @@
     display: none; align-items: center; justify-content: center;
   }
   #home-toggle:active { transform: scale(0.94); }
+  #history-toggle {
+    position: fixed; left: 16px; bottom: 78px; z-index: 40;
+    width: 52px; height: 52px; border-radius: 50%;
+    background: var(--panel-2); color: var(--text); border: 1px solid var(--border);
+    font-size: 1.3rem; cursor: pointer;
+    box-shadow: 0 4px 14px rgba(0,0,0,0.35);
+    display: none; align-items: center; justify-content: center;
+  }
+  #history-toggle:active { transform: scale(0.94); }
+  #history-panel {
+    position: fixed; left: 16px; bottom: 140px; z-index: 40;
+    width: min(320px, calc(100vw - 32px)); max-height: min(440px, calc(100vh - 200px));
+    background: var(--panel); border: 1px solid var(--border); border-radius: 16px;
+    display: none; flex-direction: column; overflow: hidden;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.45);
+  }
+  #history-panel.open { display: flex; }
+  #history-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 10px 12px; border-bottom: 1px solid var(--border);
+    font-size: 0.85rem; font-weight: 700; color: var(--text-dim);
+    text-transform: uppercase; letter-spacing: 0.06em;
+  }
+  #history-close { background: none; border: none; color: var(--text-dim); font-size: 1rem; cursor: pointer; padding: 2px 6px; }
+  #history-list { flex: 1; overflow-y: auto; padding: 6px 12px; display: flex; flex-direction: column; }
+  .history-empty { color: var(--text-dim); font-size: 0.85rem; padding: 14px 0; text-align: center; }
+  .history-row { padding: 9px 0; border-bottom: 1px solid var(--border); }
+  .history-row:last-child { border-bottom: none; }
+  .history-row .history-num { color: var(--text-dim); font-size: 0.72rem; }
+  .history-row .history-he { font-size: 1.05rem; direction: rtl; margin: 2px 0; }
+  .history-row .history-en { color: var(--accent); font-weight: 700; font-size: 0.9rem; }
   .rules-link-row { text-align: center; margin: -8px 0 14px; }
   .rules-link-btn {
     background: none; border: none; color: var(--text-dim); font-size: 0.8rem;
@@ -256,6 +287,14 @@
     </div>
   </div>
   <button id="home-toggle" type="button" aria-label="Back to start screen">🏠</button>
+  <button id="history-toggle" type="button" aria-label="Answer history">📜</button>
+  <div id="history-panel">
+    <div id="history-header">
+      <span>Answer History</span>
+      <button id="history-close" type="button" aria-label="Close answer history">✕</button>
+    </div>
+    <div id="history-list"></div>
+  </div>
 
   <!-- HOME: play locally, or create/join a room -->
   <div class="screen active" id="screen-home">
@@ -563,6 +602,11 @@ function showScreen(id) {
   $(id).classList.add("active");
   var homeBtn = $("home-toggle");
   if (homeBtn) homeBtn.style.display = (id === "screen-home") ? "none" : "flex";
+  var historyBtn = $("history-toggle");
+  if (historyBtn) {
+    if (id === "screen-home") { historyBtn.style.display = "none"; $("history-panel").classList.remove("open"); }
+    else if (historyLog.length > 0) { historyBtn.style.display = "flex"; }
+  }
   window.scrollTo(0, 0);
 }
 
@@ -584,6 +628,51 @@ function shuffle(arr) {
   }
   return a;
 }
+
+// ---------- Answer history (floating panel, both modes) ----------
+var historyLog = [];
+
+function pushHistory(word) {
+  historyLog.unshift({ num: word[0], he: word[1], en: word[2] });
+  renderHistoryList();
+  $("history-toggle").style.display = "flex";
+}
+
+function renderHistoryList() {
+  var wrap = $("history-list");
+  wrap.innerHTML = "";
+  if (historyLog.length === 0) {
+    var empty = document.createElement("div");
+    empty.className = "history-empty";
+    empty.textContent = "Revealed words will show up here as you play.";
+    wrap.appendChild(empty);
+    return;
+  }
+  historyLog.forEach(function (entry) {
+    var row = document.createElement("div");
+    row.className = "history-row";
+    var num = document.createElement("div");
+    num.className = "history-num";
+    num.textContent = "#" + entry.num;
+    var he = document.createElement("div");
+    he.className = "history-he hebrew";
+    he.textContent = entry.he;
+    var en = document.createElement("div");
+    en.className = "history-en";
+    en.textContent = entry.en;
+    row.appendChild(num);
+    row.appendChild(he);
+    row.appendChild(en);
+    wrap.appendChild(row);
+  });
+}
+
+$("history-toggle").addEventListener("click", function () {
+  $("history-panel").classList.add("open");
+});
+$("history-close").addEventListener("click", function () {
+  $("history-panel").classList.remove("open");
+});
 
 // Builds 4 shuffled choices (1 correct + 3 distractors) for a word, keyed by
 // word index so it can be regenerated identically from stored round state.
@@ -688,7 +777,8 @@ var mp = {
   choiceSelected: null,
   timerHandle: null,
   timerRemaining: 0,
-  timerRoundKey: null
+  timerRoundKey: null,
+  historyLoggedKey: null
 };
 
 function roomRef(code) { return ref(db, "rooms/" + code); }
@@ -1120,6 +1210,12 @@ function renderRevealScreen() {
   $("reveal-hebrew-text").textContent = round.he;
   $("reveal-answer-text").textContent = round.en;
 
+  var key = roundKey(round);
+  if (mp.historyLoggedKey !== key) {
+    mp.historyLoggedKey = key;
+    pushHistory([round.wordNum, round.he, round.en]);
+  }
+
   var wrap = $("judge-list");
   wrap.innerHTML = "";
   mpPlayerUids().forEach(function (uid) {
@@ -1491,6 +1587,7 @@ $("local-btn-show-answer").addEventListener("click", function () {
   $("local-reveal-hebrew-text").textContent = word[1];
   $("local-reveal-answer-text").textContent = word[2];
   localRenderJudgeList();
+  pushHistory(word);
   showScreen("local-screen-reveal");
 });
 
