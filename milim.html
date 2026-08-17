@@ -563,6 +563,7 @@ function showScreen(id) {
   $(id).classList.add("active");
   var homeBtn = $("home-toggle");
   if (homeBtn) homeBtn.style.display = (id === "screen-home") ? "none" : "flex";
+  window.scrollTo(0, 0);
 }
 
 $("home-toggle").addEventListener("click", function () {
