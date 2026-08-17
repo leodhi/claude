@@ -1834,7 +1834,11 @@ var SYNONYM_GROUPS = [
   ];
 
 function normalizeGuess(s) {
-    return s.toLowerCase().trim().replace(/[^a-z0-9 ]/g, "").replace(/\s+/g, " ");
+    // Fold accented characters to their plain equivalent (e.g. "piñata" ->
+    // "pinata") before stripping non-alphanumeric characters, so a guess
+    // typed without the accent still matches an answer like "Piñata".
+    return s.toLowerCase().trim().normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+      .replace(/[^a-z0-9 ]/g, "").replace(/\s+/g, " ");
   }
 
 function levenshtein(a, b) {
