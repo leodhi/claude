@@ -34,7 +34,10 @@
     min-height: 100dvh;
     display: flex;
     flex-direction: column;
-    padding: 20px 16px 40px;
+    /* Bottom padding needs to clear the fixed home/chat buttons (52px tall,
+       16px from the bottom = 68px), or the last card/button on a long
+       screen can end up scrolled underneath them and become untappable. */
+    padding: 20px 16px 100px;
   }
   @media (min-width: 700px) { #app { max-width: 760px; } }
   @media (min-width: 1000px) { #app { max-width: 900px; } }
@@ -1241,10 +1244,16 @@ async function finishMpTurn() {
 // Missing answers (anyone who hasn't locked in yet) are treated as a
 // timeout, exactly like the watchdog does.
 async function mpForceAdvanceTurn() {
-  if (!mp.isHost) return;
+  if (!mp.isHost) {
+    alert("Only the host can force the round forward.");
+    return;
+  }
   var room = mp.room;
-  var round = room.round;
-  if (!round || room.phase !== "turn") return;
+  var round = room && room.round;
+  if (!round || room.phase !== "turn") {
+    alert("Nothing to continue right now (the round already moved on, or hasn't started). Try again in a moment.");
+    return;
+  }
   var answers = Object.assign({}, round.answers || {});
   [round.judgeUid].concat(round.competitors).forEach(function (uid) {
     if (answers[uid] === undefined) answers[uid] = "";
