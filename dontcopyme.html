@@ -698,6 +698,229 @@ var PROMPTS = [
   "a popsicle flavor","a thing a leprechaun hides"
 ];
 
+// A genuinely on-topic set of common answers for each category above,
+// used so the AI picks something that actually fits the prompt (see
+// botPickWord/botAnswerPool below) instead of a random unrelated word.
+var BOT_ANSWERS_BY_PROMPT = {
+  "a scary movie": ["Halloween","Scream","IT","The Shining","Saw","Insidious","The Conjuring","Psycho","Get Out","Hereditary"],
+  "an Italian restaurant": ["Olive Garden","Carrabba's","Maggiano's","Buca di Beppo","Fazoli's","Romano's"],
+  "a pizza topping": ["Pepperoni","Mushroom","Sausage","Cheese","Olives","Onion","Bacon","Pineapple"],
+  "a U.S. state": ["California","Texas","Florida","New York","Ohio","Georgia","Nevada","Arizona"],
+  "a country": ["France","Japan","Canada","Brazil","Italy","Germany","Mexico","Spain"],
+  "a breakfast food": ["Pancakes","Waffles","Bacon","Eggs","Cereal","Oatmeal","Toast","Bagel"],
+  "a superhero": ["Batman","Superman","Spider-Man","Iron Man","Wonder Woman","Hulk","Thor","Flash"],
+  "a Disney movie": ["Frozen","Aladdin","Moana","Tangled","Cinderella","The Lion King","Mulan","Encanto"],
+  "a dog breed": ["Labrador","Poodle","Bulldog","Beagle","Chihuahua","Husky","Pug","Boxer"],
+  "a fruit": ["Apple","Banana","Orange","Grape","Strawberry","Mango","Pineapple","Watermelon"],
+  "a vegetable": ["Carrot","Broccoli","Potato","Corn","Spinach","Pepper","Cucumber","Celery"],
+  "a color": ["Red","Blue","Green","Yellow","Purple","Orange","Pink","Black"],
+  "a sport": ["Soccer","Basketball","Baseball","Football","Tennis","Golf","Hockey","Swimming"],
+  "a city you'd want to visit": ["Paris","Tokyo","New York","London","Rome","Sydney","Dubai","Barcelona"],
+  "a car brand": ["Toyota","Honda","Ford","BMW","Tesla","Chevrolet","Nissan","Audi"],
+  "a type of pasta": ["Spaghetti","Penne","Fettuccine","Ravioli","Lasagna","Macaroni","Linguine"],
+  "a cartoon character": ["Mickey Mouse","SpongeBob","Bugs Bunny","Homer Simpson","Scooby-Doo","Pikachu"],
+  "a dessert": ["Cake","Ice Cream","Cookies","Pie","Brownies","Pudding","Cheesecake","Donuts"],
+  "a holiday": ["Christmas","Thanksgiving","Halloween","Easter","Fourth of July","New Year's","Hanukkah"],
+  "a month of the year": ["January","March","June","July","October","December","May","September"],
+  "a day of the week": ["Monday","Friday","Saturday","Sunday","Wednesday","Tuesday","Thursday"],
+  "a fast food chain": ["McDonald's","Burger King","Wendy's","Taco Bell","Subway","Chick-fil-A","KFC"],
+  "a type of sandwich": ["BLT","Grilled Cheese","Turkey Club","Peanut Butter and Jelly","Reuben","Ham and Cheese"],
+  "a board game": ["Monopoly","Scrabble","Clue","Sorry","Risk","The Game of Life","Candy Land","Chess"],
+  "a video game": ["Minecraft","Fortnite","Mario Kart","Zelda","Pokemon","Roblox","Tetris"],
+  "a boy's name": ["Michael","James","David","Daniel","Matthew","Ryan","Ethan","Noah"],
+  "a girl's name": ["Emma","Sophia","Olivia","Ava","Isabella","Mia","Charlotte","Grace"],
+  "a celebrity": ["Taylor Swift","Tom Hanks","Beyonce","Will Smith","Dwayne Johnson","Oprah"],
+  "a type of music": ["Pop","Rock","Country","Jazz","Hip Hop","Classical","R&B","Reggae"],
+  "a musical instrument": ["Guitar","Piano","Drums","Violin","Trumpet","Flute","Saxophone","Bass"],
+  "a type of dance": ["Ballet","Salsa","Tap","Hip Hop","Ballroom","Breakdancing","Jazz","Waltz"],
+  "a body of water": ["Ocean","Lake","River","Pond","Sea","Bay","Stream","Gulf"],
+  "a tree": ["Oak","Maple","Pine","Willow","Palm","Birch","Redwood","Elm"],
+  "a flower": ["Rose","Tulip","Daisy","Sunflower","Lily","Orchid","Daffodil","Iris"],
+  "a bird": ["Eagle","Robin","Sparrow","Owl","Parrot","Penguin","Hawk","Flamingo"],
+  "a farm animal": ["Cow","Pig","Chicken","Horse","Sheep","Goat","Duck","Rooster"],
+  "a zoo animal": ["Lion","Elephant","Giraffe","Tiger","Monkey","Zebra","Panda","Gorilla"],
+  "a bug": ["Ant","Beetle","Ladybug","Spider","Grasshopper","Fly","Bee","Butterfly"],
+  "a season": ["Summer","Winter","Spring","Fall"],
+  "a type of weather": ["Sunny","Rainy","Snowy","Windy","Foggy","Stormy","Cloudy"],
+  "a type of shoe": ["Sneakers","Boots","Sandals","Flip Flops","Loafers","High Heels","Slippers"],
+  "a piece of furniture": ["Couch","Chair","Table","Bed","Dresser","Desk","Bookshelf","Ottoman"],
+  "a kitchen appliance": ["Refrigerator","Microwave","Toaster","Blender","Oven","Dishwasher","Mixer"],
+  "a school subject": ["Math","Science","English","History","Art","Music","Gym","Spanish"],
+  "a job or profession": ["Teacher","Doctor","Firefighter","Police Officer","Lawyer","Nurse","Chef","Engineer"],
+  "a type of doctor": ["Dentist","Pediatrician","Surgeon","Cardiologist","Dermatologist","Optometrist"],
+  "a social media app": ["Instagram","TikTok","Facebook","Snapchat","Twitter","YouTube","Pinterest"],
+  "a TV show": ["Friends","The Office","Stranger Things","Seinfeld","Breaking Bad","Modern Family"],
+  "a late-night snack": ["Chips","Ice Cream","Cookies","Popcorn","Cheese","Crackers","Pretzels"],
+  "an ice cream flavor": ["Vanilla","Chocolate","Strawberry","Mint Chocolate Chip","Cookie Dough","Rocky Road"],
+  "a candy bar": ["Snickers","Twix","Kit Kat","Milky Way","Hershey's","Reese's","M&Ms"],
+  "a soda brand": ["Coca-Cola","Pepsi","Sprite","Dr Pepper","Mountain Dew","Fanta","Root Beer"],
+  "a cereal brand": ["Cheerios","Frosted Flakes","Lucky Charms","Cinnamon Toast Crunch","Cocoa Puffs","Corn Flakes"],
+  "a type of soup": ["Chicken Noodle","Tomato","Minestrone","Clam Chowder","Vegetable Soup","Chili"],
+  "a sandwich topping": ["Lettuce","Tomato","Mayo","Mustard","Cheese","Pickles","Onion"],
+  "a type of cheese": ["Cheddar","Mozzarella","Swiss","Provolone","Parmesan","American","Brie"],
+  "a breed of cat": ["Siamese","Persian","Maine Coon","Tabby","Sphynx","Ragdoll","Bengal"],
+  "a Pixar movie": ["Toy Story","Finding Nemo","Up","Inside Out","Coco","Cars","Monsters Inc"],
+  "a superhero movie": ["The Avengers","Spider-Man","Batman","Iron Man","Wonder Woman","Black Panther"],
+  "a theme park": ["Disney World","Universal Studios","Six Flags","Disneyland","Cedar Point","Legoland"],
+  "a type of hat": ["Baseball Cap","Beanie","Cowboy Hat","Fedora","Sun Hat","Beret","Top Hat"],
+  "a type of pants": ["Jeans","Sweatpants","Khakis","Shorts","Leggings","Cargo Pants"],
+  "a sneaker brand": ["Nike","Adidas","Converse","Vans","Puma","New Balance","Reebok"],
+  "a game show": ["Jeopardy","Wheel of Fortune","Family Feud","The Price Is Right","Deal or No Deal"],
+  "a magic trick": ["Card Trick","Disappearing Act","Sawing Someone in Half","Pulling a Rabbit Out of a Hat","Mind Reading"],
+  "a circus act": ["Tightrope Walking","Trapeze","Juggling","Lion Taming","Clowns","Acrobats"],
+  "a type of party": ["Birthday Party","Costume Party","Pool Party","Slumber Party","Surprise Party","Dance Party"],
+  "a birthday gift": ["Toy","Gift Card","Video Game","Bike","Book","Phone"],
+  "a wedding gift": ["Blender","Toaster","Cash","Gift Card","Dishes","Picture Frame"],
+  "a thing you'd find at the beach": ["Sand","Towel","Umbrella","Seashell","Sunscreen","Surfboard","Beach Ball"],
+  "a thing you'd find in a junk drawer": ["Rubber Bands","Batteries","Tape","Scissors","Pens","Paperclips"],
+  "a thing you'd find in a garage": ["Tools","Bike","Ladder","Car","Lawn Mower","Boxes"],
+  "a thing you'd pack for a camping trip": ["Tent","Sleeping Bag","Flashlight","Marshmallows","Bug Spray","Cooler"],
+  "a thing that's sticky": ["Honey","Glue","Tape","Gum","Syrup","Slime"],
+  "a thing that's slippery": ["Ice","Soap","Oil","Fish","Banana Peel","Wet Floor"],
+  "a thing that's loud": ["Airplane","Alarm","Thunder","Fireworks","Siren","Drum"],
+  "a thing that's tiny": ["Ant","Grain of Sand","Pin","Crumb","Speck","Seed"],
+  "a thing that's expensive": ["Diamond","House","Car","Yacht","Mansion","Watch"],
+  "a thing you'd find in a doctor's office": ["Stethoscope","Thermometer","Bandage","Scale","Needle","Chart"],
+  "a thing you'd find in a classroom": ["Desk","Chalkboard","Pencil","Textbook","Backpack","Chair"],
+  "a thing you'd find on a pirate ship": ["Treasure Chest","Cannon","Parrot","Sword","Map","Anchor"],
+  "a thing a superhero would wear": ["Cape","Mask","Tights","Boots","Gloves","Belt"],
+  "a thing you'd bring on a road trip": ["Snacks","Phone Charger","Pillow","Map","Music","Water Bottle"],
+  "a thing you'd find at a wedding": ["Cake","Flowers","Rings","Bouquet","DJ","Tuxedo"],
+  "a word that rhymes with \"day\"": ["Play","Say","Way","Stay","Gray","May","Hay"],
+  "a word that rhymes with \"cat\"": ["Hat","Bat","Mat","Sat","Rat","Fat"],
+  "a word that means \"happy\"": ["Joyful","Glad","Cheerful","Content","Pleased","Elated"],
+  "a word that means \"tired\"": ["Sleepy","Exhausted","Weary","Drowsy","Fatigued"],
+  "a two-syllable word": ["Table","Water","Pencil","Basket","Window","Garden"],
+  "a word that starts with the letter S": ["Sun","Star","Snake","Shoe","Sock","Spoon"],
+  "a national park": ["Yellowstone","Yosemite","Grand Canyon","Zion","Glacier","Acadia"],
+  "a famous landmark": ["Eiffel Tower","Statue of Liberty","Great Wall of China","Big Ben","Golden Gate Bridge"],
+  "a planet": ["Earth","Mars","Jupiter","Saturn","Venus","Neptune","Mercury"],
+  "a constellation": ["Orion","Big Dipper","Little Dipper","Cassiopeia","Leo","Scorpio"],
+  "a type of cloud": ["Cumulus","Cirrus","Stratus","Nimbus"],
+  "a type of rock": ["Granite","Limestone","Marble","Sandstone","Quartz","Obsidian"],
+  "a dinosaur": ["T-Rex","Triceratops","Velociraptor","Brontosaurus","Stegosaurus","Pterodactyl"],
+  "a sea creature": ["Shark","Whale","Dolphin","Octopus","Jellyfish","Starfish","Crab"],
+  "a reptile": ["Snake","Lizard","Turtle","Alligator","Crocodile","Iguana"],
+  "an insect": ["Ant","Bee","Butterfly","Ladybug","Grasshopper","Beetle"],
+  "a historical figure": ["George Washington","Abraham Lincoln","Albert Einstein","Cleopatra","Martin Luther King"],
+  "a fairy tale character": ["Cinderella","Snow White","Sleeping Beauty","Rapunzel","Little Red Riding Hood"],
+  "a shoe brand": ["Nike","Adidas","Converse","Vans","Skechers","Crocs"],
+  "a soft drink": ["Coke","Pepsi","Sprite","Root Beer","Ginger Ale","Fanta"],
+  "a breakfast cereal mascot": ["Tony the Tiger","Toucan Sam","Cap'n Crunch","Lucky the Leprechaun","Snap Crackle and Pop"],
+  "a superpower": ["Flying","Invisibility","Super Strength","Mind Reading","Super Speed","Teleportation"],
+  "a movie villain": ["Darth Vader","The Joker","Voldemort","Thanos","The Grinch","Maleficent"],
+  "a pirate word": ["Arrr","Matey","Ahoy","Treasure","Booty","Landlubber"],
+  "a cowboy word": ["Howdy","Yeehaw","Partner","Rustler","Saddle","Ranch"],
+  "a hairstyle": ["Ponytail","Braid","Bun","Mohawk","Bangs","Afro"],
+  "a dance move": ["Moonwalk","Spin","Split","Fist Pump","Robot","Floss"],
+  "a yoga pose": ["Downward Dog","Tree Pose","Warrior Pose","Child's Pose","Lotus","Cobra"],
+  "a karate move": ["Kick","Punch","Chop","Roundhouse Kick","Block","Uppercut"],
+  "a type of exercise": ["Push-Ups","Sit-Ups","Squats","Running","Jumping Jacks","Lunges"],
+  "a piece of gym equipment": ["Treadmill","Dumbbell","Barbell","Jump Rope","Yoga Mat","Exercise Bike"],
+  "a winter sport": ["Skiing","Snowboarding","Ice Skating","Hockey","Sledding","Curling"],
+  "a summer sport": ["Swimming","Volleyball","Baseball","Tennis","Surfing","Water Polo"],
+  "an Olympic sport": ["Swimming","Gymnastics","Track and Field","Basketball","Diving","Fencing"],
+  "a card game": ["Poker","Uno","Go Fish","Blackjack","War","Rummy"],
+  "a type of puzzle": ["Jigsaw Puzzle","Crossword","Sudoku","Rubik's Cube","Word Search"],
+  "a toy": ["Doll","Yo-Yo","Action Figure","Puzzle","Blocks","Kite"],
+  "a childhood game": ["Tag","Hide and Seek","Hopscotch","Duck Duck Goose","Red Light Green Light","Simon Says"],
+  "a piece of playground equipment": ["Slide","Swing","Monkey Bars","Seesaw","Sandbox","Jungle Gym"],
+  "a school supply": ["Pencil","Notebook","Backpack","Eraser","Crayons","Scissors"],
+  "a type of pen": ["Ballpoint Pen","Gel Pen","Fountain Pen","Highlighter","Marker"],
+  "an app on your phone": ["Instagram","TikTok","YouTube","Spotify","Snapchat","Netflix"],
+  "a thing you charge overnight": ["Phone","Laptop","Tablet","Electric Toothbrush","Smart Watch"],
+  "a thing with batteries": ["Remote Control","Flashlight","Toy","Clock","Smoke Detector"],
+  "a kitchen utensil": ["Spatula","Whisk","Ladle","Spoon","Fork","Tongs"],
+  "a spice": ["Cinnamon","Pepper","Paprika","Cumin","Nutmeg","Turmeric"],
+  "an herb": ["Basil","Oregano","Parsley","Mint","Thyme","Rosemary"],
+  "a type of bread": ["White Bread","Sourdough","Rye Bread","Baguette","Pita","Wheat Bread"],
+  "a type of nut": ["Almond","Cashew","Peanut","Walnut","Pecan","Pistachio"],
+  "a type of bean": ["Black Bean","Kidney Bean","Pinto Bean","Lima Bean","Green Bean"],
+  "a grain": ["Rice","Wheat","Oats","Corn","Barley","Quinoa"],
+  "a Mexican food": ["Taco","Burrito","Quesadilla","Enchilada","Guacamole","Nachos"],
+  "a Chinese food": ["Fried Rice","Lo Mein","Egg Roll","Dumplings","Kung Pao Chicken","General Tso's Chicken"],
+  "a Japanese food": ["Sushi","Ramen","Teriyaki","Tempura","Miso Soup","Udon"],
+  "an Indian food": ["Curry","Naan","Samosa","Tikka Masala","Biryani"],
+  "a French food": ["Croissant","Baguette","Crepe","Escargot","Quiche"],
+  "a dessert topping": ["Whipped Cream","Sprinkles","Chocolate Sauce","Caramel","Cherries"],
+  "a pizza chain": ["Domino's","Pizza Hut","Papa John's","Little Caesars","Papa Murphy's"],
+  "a coffee drink": ["Latte","Cappuccino","Espresso","Mocha","Americano","Cold Brew"],
+  "a type of tea": ["Green Tea","Black Tea","Chamomile","Herbal Tea","Iced Tea"],
+  "a type of juice": ["Orange Juice","Apple Juice","Grape Juice","Cranberry Juice","Lemonade"],
+  "a gas station snack": ["Chips","Beef Jerky","Slim Jim","Candy Bar","Sunflower Seeds"],
+  "a road trip snack": ["Chips","Trail Mix","Pretzels","Crackers","Beef Jerky"],
+  "a movie genre": ["Comedy","Horror","Action","Romance","Drama","Sci-Fi"],
+  "a TV genre": ["Sitcom","Drama","Reality TV","Game Show","Documentary"],
+  "a book genre": ["Mystery","Romance","Fantasy","Sci-Fi","Biography","Horror"],
+  "a wedding song": ["At Last","Perfect","Marry You","A Thousand Years","Can't Help Falling in Love"],
+  "a song you'd sing in the shower": ["Bohemian Rhapsody","Happy Birthday","Livin' on a Prayer","Don't Stop Believin'"],
+  "a karaoke song": ["Livin' on a Prayer","Sweet Caroline","Don't Stop Believin'","I Will Survive","My Way"],
+  "a one-hit wonder": ["Macarena","Ice Ice Baby","Rico Suave","Blue","Tubthumping"],
+  "a rock band": ["Queen","The Beatles","Led Zeppelin","AC/DC","Aerosmith","Guns N' Roses"],
+  "a Disney princess": ["Cinderella","Belle","Ariel","Snow White","Elsa","Jasmine","Aurora","Moana"],
+  "a cartoon show for little kids": ["Paw Patrol","Bluey","Peppa Pig","Sesame Street","Blue's Clues","Mickey Mouse Clubhouse"],
+  "a LEGO set theme": ["City","Star Wars","Ninjago","Harry Potter","Friends","Technic"],
+  "a Minecraft item": ["Diamond","Pickaxe","Creeper","Sword","Enderman","TNT"],
+  "a Roblox game": ["Adopt Me","Brookhaven","Blox Fruits","Piggy","Bloxburg"],
+  "a video game character": ["Mario","Sonic","Pikachu","Link","Kirby","Luigi"],
+  "a video game console": ["Nintendo Switch","PlayStation","Xbox","Wii","Game Boy"],
+  "a thing you'd find in a lunchbox": ["Sandwich","Apple","Juice Box","Chips","Cookie","Granola Bar"],
+  "a thing you'd bring to show and tell": ["Toy","Pet Photo","Trophy","Rock Collection","Book","Stuffed Animal"],
+  "a recess game": ["Tag","Four Square","Jump Rope","Kickball","Hopscotch","Freeze Tag"],
+  "a playground game": ["Tag","Hide and Seek","Red Rover","Duck Duck Goose","Freeze Tag"],
+  "a birthday party game": ["Pin the Tail on the Donkey","Musical Chairs","Pinata","Simon Says","Freeze Dance"],
+  "a kind of birthday cake": ["Chocolate Cake","Vanilla Cake","Ice Cream Cake","Funfetti Cake","Red Velvet Cake"],
+  "a thing a kid collects": ["Stickers","Trading Cards","Rocks","Coins","Pokemon Cards"],
+  "a stuffed animal": ["Teddy Bear","Bunny","Puppy","Elephant","Unicorn","Panda"],
+  "a bath toy": ["Rubber Duck","Boat","Bubbles","Squirt Gun","Bath Crayons"],
+  "a thing in a toy box": ["Blocks","Doll","Action Figure","Puzzle","Toy Car"],
+  "a thing Santa brings": ["Presents","Toys","Candy Canes","Stocking Stuffers","Coal"],
+  "a thing the Tooth Fairy leaves": ["Money","A Dollar","A Coin","A Note","A Prize"],
+  "a Halloween costume": ["Witch","Superhero","Ghost","Vampire","Princess","Pirate"],
+  "a Halloween candy": ["Candy Corn","Skittles","Snickers","Reese's","M&Ms","Kit Kat"],
+  "an Easter basket item": ["Chocolate Bunny","Jelly Beans","Peeps","Egg","Candy"],
+  "a thing you build with blocks": ["Tower","House","Castle","Bridge","Robot"],
+  "a kind of slime": ["Glitter Slime","Butter Slime","Fluffy Slime","Cloud Slime","Glow in the Dark Slime"],
+  "a thing you'd find in a treehouse": ["Rope Ladder","Flashlight","Pillow","Books","Binoculars"],
+  "a chore a kid hates doing": ["Cleaning Their Room","Doing Dishes","Taking Out the Trash","Making the Bed","Folding Laundry"],
+  "a thing a teacher says a lot": ["Quiet Down","Raise Your Hand","Pay Attention","Line Up","Good Job"],
+  "a school lunch food": ["Pizza","Chicken Nuggets","Grilled Cheese","Tater Tots","Mac and Cheese"],
+  "a recess snack": ["Goldfish Crackers","Fruit Snacks","Pretzels","Apple Slices","Granola Bar"],
+  "a thing you'd find in a backpack": ["Notebook","Pencil","Lunchbox","Water Bottle","Homework"],
+  "a summer camp activity": ["Swimming","Campfire","Archery","Canoeing","Arts and Crafts"],
+  "a thing at a carnival": ["Ferris Wheel","Cotton Candy","Ring Toss","Funnel Cake","Roller Coaster"],
+  "a ride at an amusement park": ["Roller Coaster","Ferris Wheel","Bumper Cars","Carousel","Log Flume"],
+  "a superhero sidekick": ["Robin","Bucky","Falcon","Kid Flash","Speedy","War Machine"],
+  "a villain's evil plan": ["Take Over the World","Steal All the Money","Destroy the City","Get Revenge","Build a Death Ray"],
+  "a magic spell": ["Abracadabra","Alakazam","Expelliarmus","Wingardium Leviosa","Bibbidi Bobbidi Boo"],
+  "a fairy tale creature": ["Dragon","Unicorn","Troll","Fairy","Giant","Witch"],
+  "a thing a wizard casts": ["Spell","Curse","Charm","Potion","Hex"],
+  "a mermaid's power": ["Breathing Underwater","Talking to Fish","Swimming Super Fast","Singing Enchanting Songs"],
+  "a dragon's power": ["Breathing Fire","Flying","Super Strength","Scales that Block Swords"],
+  "a unicorn's magic power": ["Healing","Flying","Granting Wishes","Rainbow Magic"],
+  "a thing a pirate searches for": ["Treasure","Gold","A Map","Buried Treasure","Jewels"],
+  "a thing an astronaut brings to space": ["Space Suit","Helmet","Food","Camera","Flag"],
+  "a thing an alien looks like": ["Green Skin","Big Eyes","Antennae","Little Body","Big Head"],
+  "a robot's job": ["Cleaning","Building Cars","Cooking","Fighting Crime","Delivering Packages"],
+  "a thing a genie grants": ["Wishes","Gold","A Palace","Riches","Anything You Want"],
+  "a nursery rhyme character": ["Jack and Jill","Humpty Dumpty","Little Miss Muffet","Old MacDonald","Mary"],
+  "a bedtime story": ["Goodnight Moon","The Three Little Pigs","Cinderella","Goldilocks","The Tortoise and the Hare"],
+  "a lullaby": ["Twinkle Twinkle Little Star","Rock a Bye Baby","Hush Little Baby","You Are My Sunshine"],
+  "a thing you do at a sleepover": ["Watch Movies","Tell Ghost Stories","Eat Popcorn","Play Games","Stay Up Late"],
+  "a snow day activity": ["Building a Snowman","Sledding","Snowball Fight","Making Snow Angels","Hot Chocolate"],
+  "a thing you build in the snow": ["Snowman","Snow Fort","Snow Angel","Igloo","Snowball"],
+  "a game you play with siblings": ["Tag","Hide and Seek","Video Games","Board Games","Wrestling"],
+  "a thing a kid yells when excited": ["Yay","Woohoo","Awesome","Yippee","No Way"],
+  "a cartoon sound effect": ["Boing","Pow","Bam","Splat","Zap","Honk"],
+  "an emoji": ["Laughing Face","Heart","Thumbs Up","Fire","Smiley Face","Crying Laughing Face"],
+  "a Thanksgiving food": ["Turkey","Mashed Potatoes","Stuffing","Cranberry Sauce","Pumpkin Pie"],
+  "a Fourth of July activity": ["Fireworks","BBQ","Parade","Swimming","Watching Fireworks"],
+  "a thing you do on your birthday": ["Blow Out Candles","Open Presents","Eat Cake","Have a Party","Make a Wish"],
+  "a kind of cookie": ["Chocolate Chip","Oatmeal Raisin","Sugar Cookie","Peanut Butter Cookie","Snickerdoodle"],
+  "a popsicle flavor": ["Cherry","Grape","Orange","Blue Raspberry","Lemon","Strawberry"],
+  "a thing a leprechaun hides": ["Gold","A Pot of Gold","Treasure","Rainbow","Coins"]
+};
+
 function $(id) { return document.getElementById(id); }
 
 function showScreen(id) {
@@ -719,12 +942,12 @@ $("rules-modal-backdrop").addEventListener("click", function (e) { if (e.target 
 function pickRandom(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
 
 // ---------- AI players ----------
-// The AI doesn't understand the category — there's no way to generate a
-// genuinely on-topic answer without a huge per-category word bank — so it
-// just picks a word from its own vocabulary. Difficulty controls how big
-// that vocabulary is: a small pool of very common words is more likely to
-// accidentally collide with what a human (or another AI) picks, while a
-// big pool of more unusual words is less likely to.
+// A genuinely on-topic answer for every one of the 217 categories below, so
+// the AI says something that actually fits the prompt (e.g. an actual
+// fruit for "a fruit") instead of a random unrelated word. This generic
+// pool is only a fallback for a prompt that somehow isn't in the bank
+// (shouldn't normally happen, but keeps the game from crashing if it ever
+// does).
 var BOT_WORD_POOL = [
   "dog", "cat", "pizza", "coffee", "blue", "car", "house", "book", "tree", "phone",
   "chair", "water", "mountain", "guitar", "banana", "robot", "ocean", "candle", "bicycle", "spaceship",
@@ -734,13 +957,20 @@ var BOT_WORD_POOL = [
   "narwhal", "typewriter", "tsunami", "chameleon", "telescope", "earthquake", "porcupine", "saxophone", "hedgehog", "periscope",
   "blizzard", "flamingo", "harpsichord", "stalactite", "pangolin", "gyroscope", "monsoon", "alpaca", "seismograph", "mongoose"
 ];
-var BOT_WORD_POOLS = {
-  easy: BOT_WORD_POOL.slice(0, 10),
-  medium: BOT_WORD_POOL.slice(0, 30),
-  hard: BOT_WORD_POOL
-};
-function botPickWord(difficulty) {
-  return pickRandom(BOT_WORD_POOLS[difficulty] || BOT_WORD_POOLS.medium);
+
+// Difficulty controls how big a slice of that category's answers the AI
+// draws from: a small slice of only the most obvious answers is more
+// likely to accidentally collide with what a human (or another AI) also
+// picks, while the full list of less-obvious options is less likely to.
+function botAnswerPool(prompt, difficulty) {
+  var full = (prompt && BOT_ANSWERS_BY_PROMPT[prompt]) || BOT_WORD_POOL;
+  if (difficulty === "hard") return full;
+  var fraction = difficulty === "easy" ? 0.4 : 0.7;
+  var count = Math.max(2, Math.ceil(full.length * fraction));
+  return full.slice(0, count);
+}
+function botPickWord(difficulty, prompt) {
+  return pickRandom(botAnswerPool(prompt, difficulty));
 }
 
 function normalizeAnswer(s) {
@@ -1371,7 +1601,7 @@ function runBotAnswers(room, round) {
       if (mp.room.round.roundNum !== round.roundNum || mp.room.round.turnNum !== round.turnNum) return;
       if (mp.room.round.answers && mp.room.round.answers[uid] !== undefined) return;
       var difficulty = mp.room.players[uid].difficulty;
-      var answer = botPickWord(difficulty);
+      var answer = botPickWord(difficulty, mp.room.round.prompt);
       update(ref(db, "rooms/" + mp.roomCode + "/round/answers"), (function () { var o = {}; o[uid] = answer; return o; })())
         .catch(function (err) { mpReportError("having the AI answer", err); });
     }, 1500, 4000);
@@ -1894,7 +2124,7 @@ function localGoToLocalTurn(competitors) {
 
 $("local-btn-turn-begin").addEventListener("click", function () {
   if (localState.judgeBotDifficulty) {
-    localState.judgeSecretAnswer = botPickWord(localState.judgeBotDifficulty);
+    localState.judgeSecretAnswer = botPickWord(localState.judgeBotDifficulty, localState.currentPrompt);
     localState.turnOrder = localState.competitors.slice();
     localState.turnIndex = 0;
     localState.roundAnswers = {};
@@ -1917,7 +2147,7 @@ function localGoToPassTurn() {
     var botName = localState.turnOrder[localState.turnIndex];
     var botDiff = localBotDifficultyForName(botName);
     if (!botDiff) break;
-    localState.roundAnswers[botName] = botPickWord(botDiff);
+    localState.roundAnswers[botName] = botPickWord(botDiff, localState.currentPrompt);
     localState.turnIndex++;
   }
   if (localState.turnIndex >= localState.turnOrder.length) {
