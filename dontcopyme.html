@@ -642,6 +642,15 @@ var ROUND_TIME = 45;
 // survivors after all 5, nobody scores that round (a "wash").
 var MAX_TURNS_PER_ROUND = 5;
 
+// What the "Continue" button on the reveal screen should say -- nobody
+// scores until the Judge's categories run out, so a lone survivor mid-round
+// just moves on to the next category rather than "winning" right away.
+function revealContinueLabel(survivorCount, turnNum) {
+  if (survivorCount === 0) return "The Judge Wins the Round!";
+  if (turnNum < MAX_TURNS_PER_ROUND) return "Next Category (" + survivorCount + " left)";
+  return survivorCount === 1 ? "See the Round Winner" : "See Final Results";
+}
+
 var PROMPTS = [
   "a scary movie","an Italian restaurant","a pizza topping","a U.S. state","a country",
   "a breakfast food","a superhero","a Disney movie","a dog breed","a fruit",
@@ -1136,14 +1145,17 @@ $("btn-start-game").addEventListener("click", function () {
   mpGoToTurn(competitors, 1, 1, [], judgeUid, 0);
 });
 
+// Tracks used prompts by INDEX, not by the prompt text itself -- Firebase
+// keys can't contain ".", "#", "$", "/", "[", or "]", and a prompt like
+// "a U.S. state" would break as a key even though it's fine as a value.
 function mpPickPrompt(room) {
   var used = room.usedPrompts || {};
-  var pool = PROMPTS.filter(function (p) { return !used[p]; });
-  if (pool.length === 0) { used = {}; pool = PROMPTS; }
-  var prompt = pickRandom(pool);
+  var pool = PROMPTS.map(function (p, i) { return i; }).filter(function (i) { return !used[i]; });
+  if (pool.length === 0) { used = {}; pool = PROMPTS.map(function (p, i) { return i; }); }
+  var idx = pickRandom(pool);
   var usedPrompts = Object.assign({}, used);
-  usedPrompts[prompt] = true;
-  return { prompt: prompt, usedPrompts: usedPrompts };
+  usedPrompts[idx] = true;
+  return { prompt: PROMPTS[idx], usedPrompts: usedPrompts };
 }
 
 // Any write that's expected to make the game progress (advancing a turn,
@@ -1469,10 +1481,7 @@ function renderTurnReveal() {
   });
 
   var survivors = round.competitors.filter(function (uid) { return !turnEliminated[uid]; });
-  var btn = $("btn-turn-continue");
-  if (survivors.length === 1) btn.textContent = "See the Round Winner";
-  else if (survivors.length === 0) btn.textContent = "The Judge Wins the Round!";
-  else btn.textContent = "Next Prompt (" + survivors.length + " left)";
+  $("btn-turn-continue").textContent = revealContinueLabel(survivors.length, round.turnNum);
 
   // Host decides when to move on -- same as every other game in this
   // family (Milim, Trivia, etc.) -- so there's no timer racing people
@@ -1776,11 +1785,11 @@ $("local-btn-start-game").addEventListener("click", function () {
 });
 
 function localPickPrompt() {
-  var pool = PROMPTS.filter(function (p) { return !localState.usedPrompts[p]; });
-  if (pool.length === 0) { localState.usedPrompts = {}; pool = PROMPTS; }
-  var prompt = pickRandom(pool);
-  localState.usedPrompts[prompt] = true;
-  return prompt;
+  var pool = PROMPTS.map(function (p, i) { return i; }).filter(function (i) { return !localState.usedPrompts[i]; });
+  if (pool.length === 0) { localState.usedPrompts = {}; pool = PROMPTS.map(function (p, i) { return i; }); }
+  var idx = pickRandom(pool);
+  localState.usedPrompts[idx] = true;
+  return PROMPTS[idx];
 }
 
 function localStartNewLocalRound() {
@@ -1915,6 +1924,8 @@ $("local-btn-show-results").addEventListener("click", function () {
   $("local-reveal-prompt-text").textContent = localState.currentPrompt;
   $("local-reveal-judge-answer").textContent = localState.judgeSecretAnswer || "(no answer given)";
   localRenderTurnRevealList();
+  var survivorCount = localState.competitors.filter(function (name) { return !localState.turnEliminated[name]; }).length;
+  $("local-btn-turn-continue").textContent = revealContinueLabel(survivorCount, localState.turnNum);
   showScreen("local-screen-turn-reveal");
 });
 
