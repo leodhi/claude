@@ -95,15 +95,17 @@
   }
   .timer-display.low { color: var(--accent-2); }
   .prompt-text { font-size: clamp(1.6rem, 7vw, 2.4rem); font-weight: 800; margin: 14px 0; line-height: 1.3; }
+  .judge-secret-text { font-size: 1.4rem; font-weight: 800; color: var(--accent-2); margin: 4px 0; }
+  .judge-banner {
+    background: rgba(179,45,63,0.1); border: 1px solid var(--accent-2); border-radius: 12px;
+    padding: 12px 14px; text-align: center;
+  }
+  .judge-banner .big-name { color: var(--accent-2); margin: 2px 0; }
   .row { display: flex; gap: 8px; }
   .row > * { flex: 1; }
   .pass-icon { font-size: 3rem; margin: 10px 0; }
   .roster-line { font-size: 0.85rem; color: var(--text-dim); margin: 2px 0; }
   .roster-line strong { color: var(--text); }
-  .wipe-banner {
-    background: rgba(179,45,63,0.12); border: 1px solid var(--accent-2); color: var(--accent-2);
-    border-radius: 10px; padding: 10px 12px; text-align: center; font-weight: 700; font-size: 0.9rem;
-  }
   .round-winner-banner {
     background: rgba(224,89,47,0.14); border: 1px solid var(--accent); border-radius: 12px;
     padding: 14px; text-align: center;
@@ -237,16 +239,20 @@
     <div class="rules-modal">
       <h2>📢 How to Play</h2>
       <div class="rules-section">
-        <div class="rules-section-label">Each turn</div>
-        The app shows everyone the same prompt (like "an Italian restaurant" or "a scary movie"). Then everyone answers it in secret, without seeing anyone else's answer. <strong>Playing on one device:</strong> pass it around — each player privately types their answer, then hands it to the next player. <strong>Playing across devices:</strong> everyone types on their own phone at once. Either way, once everybody's locked in, all the answers are revealed together. Answers are compared after trimming spacing, punctuation and capitalization, so "A Dog" and "a dog." count as the same answer.
+        <div class="rules-section-label">The Judge</div>
+        One player is the <strong>Judge</strong> each round (it rotates). The Judge sees the same category prompt as everyone else (like "an Italian restaurant") but doesn't compete that round — instead they secretly pick their own answer to try to trip everyone up.
+      </div>
+      <div class="rules-section">
+        <div class="rules-section-label">Everyone else</div>
+        The other players answer the prompt in secret, without seeing anyone else's answer or the Judge's. <strong>Playing on one device:</strong> pass it around — the Judge locks in their secret answer first, then each other player privately types theirs. <strong>Playing across devices:</strong> everyone types on their own phone at once. Once everybody's locked in, all the answers reveal together. Answers are compared after trimming spacing, punctuation and capitalization, so "A Dog" and "a dog." count as the same answer.
       </div>
       <div class="rules-section">
         <div class="rules-section-label">Elimination</div>
-        Anyone whose answer matches another still-in player's answer is <strong>out for the round</strong> — both/all of them, not just one. Didn't lock in an answer in time? You're out too. Survivors get a fresh prompt and go again. If a prompt somehow eliminates <strong>everyone</strong> left, nobody's actually out — a new prompt is drawn and you try again.
+        You're <strong>out for the round</strong> if your answer matches another competing player's answer, or if it matches the <strong>Judge's secret answer</strong> — both/all of you, not just one. Didn't lock in an answer in time? You're out too. Survivors get a fresh prompt (same Judge, new secret answer) and go again.
       </div>
       <div class="rules-section">
-        <div class="rules-section-label">Winning</div>
-        The last player standing in a round wins it and earns <strong>1 point</strong>. Everyone's back in for the next round. First to reach the target score (set before the game starts) wins the game.
+        <div class="rules-section-label">Winning the round</div>
+        If exactly one competitor survives, they win the round. If the Judge manages to eliminate <strong>everyone</strong>, the Judge wins the round instead. Either way the winner earns <strong>1 point</strong>, the Judge role passes to the next player, and everyone's back in for the next round. First to reach the target score (set before the game starts) wins the game.
       </div>
       <button class="secondary rules-modal-close" id="rules-modal-close" type="button">Got it</button>
     </div>
@@ -323,12 +329,40 @@
     <button class="link" id="btn-leave-room" type="button">Leave room</button>
   </div>
 
-  <!-- MULTIPLAYER: TURN (answer or spectate) -->
+  <!-- MULTIPLAYER: JUDGE TURN (the judge secretly picks an answer) -->
+  <div class="screen" id="screen-judge-turn">
+    <div class="card center" style="padding:10px 16px;">
+      <span class="category-label" id="judge-turn-round-label"></span>
+    </div>
+    <div class="judge-banner">
+      <span class="category-label">Judge this round</span>
+      <div class="big-name" id="judge-turn-judge-name"></div>
+    </div>
+    <div class="card center">
+      <span class="category-label">The prompt is</span>
+      <div class="prompt-text" id="judge-turn-prompt-text"></div>
+    </div>
+    <div class="card" id="judge-turn-active-card" style="display:none;">
+      <div class="timer-display center" id="judge-turn-timer">0:45</div>
+      <label>Your SECRET answer (try to trip everyone up!)</label>
+      <input type="text" id="judge-turn-answer-field" placeholder="Type your secret answer..." maxlength="60">
+      <button class="primary" id="btn-judge-turn-submit" type="button" style="margin-top:10px;">Lock In Secret Answer</button>
+    </div>
+    <div class="card center" id="judge-turn-waiting-card">
+      <div class="pass-icon">🕵️</div>
+      <div>The Judge is secretly picking an answer to trip everyone up…</div>
+    </div>
+    <div class="card">
+      <div class="roster-line">Competing: <strong id="judge-turn-competitors-list"></strong></div>
+      <div class="roster-line" id="judge-turn-out-row" style="display:none;">Already out this round: <span id="judge-turn-out-list"></span></div>
+    </div>
+  </div>
+
+  <!-- MULTIPLAYER: TURN (competitors answer, judge spectates) -->
   <div class="screen" id="screen-turn">
     <div class="card center" style="padding:10px 16px;">
       <span class="category-label" id="turn-round-label"></span>
     </div>
-    <div class="wipe-banner" id="turn-wipe-banner" style="display:none;">😅 Everyone matched last time — nobody's out! New prompt:</div>
     <div class="card center">
       <span class="category-label">The prompt is</span>
       <div class="prompt-text" id="turn-prompt-text"></div>
@@ -344,11 +378,11 @@
       </div>
     </div>
     <div class="card center" id="turn-spectator-card" style="display:none;">
-      <div class="pass-icon">🙊</div>
-      <div>You're out for this round — spectate and cheer!</div>
+      <div class="pass-icon" id="turn-spectator-icon">🙊</div>
+      <div id="turn-spectator-text">You're out for this round — spectate and cheer!</div>
     </div>
     <div class="card">
-      <div class="roster-line">Still in: <strong id="turn-stillin-list"></strong></div>
+      <div class="roster-line">Competing: <strong id="turn-stillin-list"></strong></div>
       <div class="roster-line" id="turn-out-row" style="display:none;">Already out this round: <span id="turn-out-list"></span></div>
       <label style="margin-top:8px;">Who's Locked In</label>
       <div id="turn-status-list"></div>
@@ -360,6 +394,10 @@
     <div class="card center">
       <span class="category-label">The prompt was</span>
       <div class="prompt-text" id="reveal-prompt-text"></div>
+    </div>
+    <div class="card center">
+      <span class="category-label">The Judge's secret answer was</span>
+      <div class="judge-secret-text" id="reveal-judge-answer"></div>
     </div>
     <div class="card">
       <label>What everyone said</label>
@@ -450,25 +488,28 @@
     <button class="link" id="local-btn-back-home" type="button">Back to home</button>
   </div>
 
-  <!-- LOCAL: TURN INTRO (show the prompt to everyone before passing the device around) -->
+  <!-- LOCAL: TURN INTRO (show the judge + prompt to everyone first) -->
   <div class="screen" id="local-screen-turn-prompt">
     <div class="card center" style="padding:10px 16px;">
       <span class="category-label" id="local-turn-round-label"></span>
     </div>
-    <div class="wipe-banner" id="local-turn-wipe-banner" style="display:none;">😅 Everyone matched last time — nobody's out! New prompt:</div>
+    <div class="judge-banner">
+      <span class="category-label">Judge this round</span>
+      <div class="big-name" id="local-judge-name-display"></div>
+    </div>
     <div class="card center">
       <span class="category-label">The prompt is</span>
       <div class="prompt-text" id="local-turn-prompt-text"></div>
-      <small class="hint">Everyone can see this. Now pass the device around — each player secretly types their own answer.</small>
+      <small class="hint">Everyone can see this. First, pass the device to the Judge to secretly pick their own answer — then everyone else answers without seeing it.</small>
     </div>
     <div class="card">
-      <div class="roster-line">Still in: <strong id="local-turn-stillin-list"></strong></div>
+      <div class="roster-line">Competing: <strong id="local-turn-stillin-list"></strong></div>
       <div class="roster-line" id="local-turn-out-row" style="display:none;">Already out this round: <span id="local-turn-out-list"></span></div>
     </div>
-    <button class="primary" id="local-btn-turn-begin" type="button">Start passing the device</button>
+    <button class="primary" id="local-btn-turn-begin" type="button">Pass to the Judge</button>
   </div>
 
-  <!-- LOCAL: PASS TO PLAYER -->
+  <!-- LOCAL: PASS TO PLAYER (judge or competitor) -->
   <div class="screen" id="local-screen-pass-turn">
     <div class="card center">
       <div class="pass-icon">📱➡️👀</div>
@@ -479,17 +520,17 @@
     <button class="primary" id="local-btn-ready-to-answer" type="button">I'm ready to answer</button>
   </div>
 
-  <!-- LOCAL: ANSWER INPUT -->
+  <!-- LOCAL: ANSWER INPUT (judge's secret answer, or a competitor's answer) -->
   <div class="screen" id="local-screen-answer-input">
     <div class="card center" style="padding:10px 16px;">
-      <span class="category-label">Answering as</span>
+      <span class="category-label" id="local-input-role-label">Answering as</span>
       <div class="big-name" id="local-input-name" style="font-size:1.3rem; margin:2px 0;"></div>
       <div class="timer-display" id="local-input-timer">0:45</div>
     </div>
     <div class="card center">
       <span class="category-label">The prompt is</span>
       <div class="prompt-text" id="local-input-prompt-text"></div>
-      <label>Your answer</label>
+      <label id="local-input-answer-label">Your answer</label>
       <input type="text" id="local-input-answer-field" placeholder="Type your answer..." maxlength="60">
     </div>
     <button class="primary" id="local-btn-submit-answer" type="button">Lock In Answer</button>
@@ -510,6 +551,10 @@
     <div class="card center">
       <span class="category-label">The prompt was</span>
       <div class="prompt-text" id="local-reveal-prompt-text"></div>
+    </div>
+    <div class="card center">
+      <span class="category-label">The Judge's secret answer was</span>
+      <div class="judge-secret-text" id="local-reveal-judge-answer"></div>
     </div>
     <div class="card">
       <label>What everyone said</label>
@@ -641,15 +686,17 @@ function normalizeAnswer(s) {
   return (s || "").toLowerCase().trim().replace(/^(a|an|the)\s+/, "").replace(/[^a-z0-9 ]/g, "").replace(/\s+/g, " ");
 }
 
-// Groups a set of still-in players' answers and decides who's eliminated:
-// anyone whose normalized answer matches another still-in player's is out
-// ("matched"), anyone with no usable answer is out ("timeout"), everyone
-// else survives.
-function computeEliminations(stillIn, answers) {
+// Decides who's eliminated among the competitors (everyone but the Judge)
+// for one turn: anyone whose normalized answer matches another still-in
+// competitor's is out ("matched"), anyone whose answer matches the Judge's
+// secret answer is out ("judge"), anyone with no usable answer is out
+// ("timeout"), everyone else survives.
+function computeEliminations(competitors, answers, judgeAnswer) {
   var groups = {};
   var eliminated = {};
   var reason = {};
-  stillIn.forEach(function (uid) {
+  var normJudge = judgeAnswer ? normalizeAnswer(judgeAnswer) : "";
+  competitors.forEach(function (uid) {
     var raw = answers ? answers[uid] : undefined;
     if (raw === undefined || raw === null || normalizeAnswer(raw) === "") {
       eliminated[uid] = true;
@@ -657,6 +704,11 @@ function computeEliminations(stillIn, answers) {
       return;
     }
     var norm = normalizeAnswer(raw);
+    if (normJudge && norm === normJudge) {
+      eliminated[uid] = true;
+      reason[uid] = "judge";
+      return;
+    }
     if (!groups[norm]) groups[norm] = [];
     groups[norm].push(uid);
   });
@@ -783,7 +835,9 @@ async function createRoomFlow(name) {
     settings: { targetScore: 10 },
     players: { [uid]: { name: name, joinedAt: Date.now() } },
     scores: { [uid]: 0 },
-    usedPrompts: {}
+    usedPrompts: {},
+    playerOrder: [uid],
+    judgeIndex: 0
   });
   mp.roomCode = code;
   mp.name = name;
@@ -801,6 +855,10 @@ async function joinRoomFlow(code, name) {
   await update(ref(db, "rooms/" + code + "/players/" + uid), { name: name, joinedAt: Date.now() });
   if (!val.scores || val.scores[uid] === undefined) {
     await update(ref(db, "rooms/" + code + "/scores"), (function () { var o = {}; o[uid] = 0; return o; })());
+  }
+  var existingOrder = val.playerOrder || [];
+  if (existingOrder.indexOf(uid) === -1) {
+    await update(roomRef(code), { playerOrder: existingOrder.concat([uid]) });
   }
   mp.roomCode = code;
   mp.name = name;
@@ -899,6 +957,7 @@ function render() {
   var room = mp.room;
   if (!room) return;
   if (room.phase === "lobby") renderLobby();
+  else if (room.phase === "judge-turn") renderJudgeTurn();
   else if (room.phase === "turn") renderTurn();
   else if (room.phase === "turn-reveal") renderTurnReveal();
   else if (room.phase === "scores") renderScoresScreen();
@@ -913,10 +972,24 @@ function mpPlayerLabel(uid) {
 }
 function mpPlayerUids() { return mp.room.players ? Object.keys(mp.room.players) : []; }
 
+// Stable rotation order for the Judge role: playerOrder (join order),
+// filtered down to players still actually in the room.
+function mpActiveOrder(room) {
+  var order = room.playerOrder || mpPlayerUids();
+  return order.filter(function (uid) { return room.players && room.players[uid]; });
+}
+function mpJudgeForIndex(room, judgeIndex) {
+  var order = mpActiveOrder(room);
+  if (order.length === 0) return null;
+  return order[judgeIndex % order.length];
+}
+
 // ---------- Lobby ----------
 function renderLobby() {
   stopMpWatchdog();
   mp.watchdogRoundKey = null;
+  stopMpJudgeWatchdog();
+  mp.judgeWatchdogRoundKey = null;
   var room = mp.room;
   $("lobby-code").textContent = mp.roomCode;
 
@@ -964,7 +1037,10 @@ function renderLobby() {
 
 $("btn-start-game").addEventListener("click", function () {
   if (!mp.isHost || mpPlayerUids().length < 2) return;
-  mpGoToTurn(mpPlayerUids(), 1, 1, [], false);
+  var room = mp.room;
+  var judgeUid = mpJudgeForIndex(room, 0);
+  var competitors = mpActiveOrder(room).filter(function (uid) { return uid !== judgeUid; });
+  mpGoToJudgeTurn(competitors, 1, 1, [], judgeUid, 0);
 });
 
 function mpPickPrompt(room) {
@@ -989,23 +1065,27 @@ function mpReportError(action, err) {
   alert("Something went wrong (" + action + "): " + code + " — " + message + "\n\nPlease screenshot this and report it.");
 }
 
-async function mpGoToTurn(stillIn, roundNum, turnNum, outThisRound, wasWipe) {
+// Starts a turn with the Judge picking a fresh secret answer for a fresh
+// prompt — happens at the start of every turn, not just the first in a round.
+async function mpGoToJudgeTurn(competitors, roundNum, turnNum, outThisRound, judgeUid, judgeIndex) {
   var room = mp.room;
   var picked = mpPickPrompt(room);
   try {
     await update(roomRef(mp.roomCode), {
-      phase: "turn",
+      phase: "judge-turn",
       usedPrompts: picked.usedPrompts,
+      judgeIndex: judgeIndex,
       round: {
         roundNum: roundNum, turnNum: turnNum,
-        stillIn: stillIn, outThisRound: outThisRound || [],
-        prompt: picked.prompt, answers: {}, turnEliminated: null, turnReason: null,
-        wipe: !!wasWipe, roundWinnerUid: null,
-        // A shared deadline (not tied to any one player's own device) so the
-        // round can still finish even if someone's answer never comes because
-        // their tab is closed, dead, or was never really there — not just
-        // when the current player is slow to answer.
-        turnDeadline: Date.now() + ROUND_TIME * 1000
+        judgeUid: judgeUid,
+        competitors: competitors, outThisRound: outThisRound || [],
+        prompt: picked.prompt, judgeSecretAnswer: null, answers: {},
+        turnEliminated: null, turnReason: null, roundWinnerUid: null,
+        // A shared deadline (not tied to the judge's own device) so the
+        // round can still move on even if the judge's tab is closed, dead,
+        // or was never really there.
+        judgeDeadline: Date.now() + ROUND_TIME * 1000,
+        turnDeadline: null
       }
     });
   } catch (err) {
@@ -1013,50 +1093,142 @@ async function mpGoToTurn(stillIn, roundNum, turnNum, outThisRound, wasWipe) {
   }
 }
 
-// Any client on the turn screen runs this watchdog. If the shared deadline
-// has passed and someone in stillIn still has no answer on record, force
-// their answer to empty (a normal timeout) so the round isn't stuck waiting
-// on a player who may not even be connected anymore.
-function startMpWatchdog() {
-  stopMpWatchdog();
-  mp.watchdogHandle = setInterval(function () {
-    var room = mp.room;
-    if (!room || room.phase !== "turn" || !room.round || !room.round.turnDeadline) return;
-    if (Date.now() < room.round.turnDeadline) return;
-    var round = room.round;
-    var missing = round.stillIn.filter(function (uid) { return !round.answers || round.answers[uid] === undefined; });
-    if (missing.length === 0) return;
-    var patch = {};
-    missing.forEach(function (uid) { patch[uid] = ""; });
-    update(ref(db, "rooms/" + mp.roomCode + "/round/answers"), patch).catch(function (err) {
-      mpReportError("force-timing out a missing answer", err);
-    });
-  }, 2000);
-}
-function stopMpWatchdog() {
-  if (mp.watchdogHandle) { clearInterval(mp.watchdogHandle); mp.watchdogHandle = null; }
-}
-
-// ---------- Turn (answering / spectating) ----------
-function renderTurn() {
+// Atomically locks in the Judge's secret answer (from the Judge's own submit,
+// or from the watchdog force-filling an empty one) and moves to the
+// competitor-answering phase. Guarded so only one caller actually does it.
+function mpFinishJudgeTurn(answer) {
   var room = mp.room;
   var round = room.round;
   var key = round.roundNum + "-" + round.turnNum;
-  var amIIn = round.stillIn.indexOf(mp.uid) !== -1;
+  if (mp.finishingJudgeKey === key) return;
+  mp.finishingJudgeKey = key;
+  update(roomRef(mp.roomCode), {
+    phase: "turn",
+    round: Object.assign({}, round, {
+      judgeSecretAnswer: answer,
+      turnDeadline: Date.now() + ROUND_TIME * 1000
+    })
+  }).catch(function (err) {
+    mpReportError("locking in the secret answer", err);
+  }).finally(function () {
+    if (mp.finishingJudgeKey === key) mp.finishingJudgeKey = null;
+  });
+}
+
+// Any client on the judge-turn screen runs this. If the Judge doesn't submit
+// within the deadline (their device might be the one that's gone), force an
+// empty secret answer so the round can still move on to the competitors.
+function startMpJudgeWatchdog() {
+  stopMpJudgeWatchdog();
+  mp.judgeWatchdogHandle = setInterval(function () {
+    var room = mp.room;
+    if (!room || room.phase !== "judge-turn" || !room.round || !room.round.judgeDeadline) return;
+    if (Date.now() < room.round.judgeDeadline) return;
+    mpFinishJudgeTurn("");
+  }, 2000);
+}
+function stopMpJudgeWatchdog() {
+  if (mp.judgeWatchdogHandle) { clearInterval(mp.judgeWatchdogHandle); mp.judgeWatchdogHandle = null; }
+}
+
+// ---------- Judge turn (the Judge secretly picks an answer) ----------
+function renderJudgeTurn() {
+  stopMpWatchdog();
+  mp.watchdogRoundKey = null;
+  var room = mp.room;
+  var round = room.round;
+  var key = round.roundNum + "-" + round.turnNum;
+  var amIJudge = mp.uid === round.judgeUid;
+
+  $("judge-turn-round-label").textContent = "Round " + round.roundNum + (round.turnNum > 1 ? " · Turn " + round.turnNum : "");
+  $("judge-turn-judge-name").textContent = mpPlayerName(round.judgeUid);
+  $("judge-turn-prompt-text").textContent = round.prompt;
+  $("judge-turn-competitors-list").textContent = round.competitors.map(mpPlayerLabel).join(", ");
+  var outNames = (round.outThisRound || []).map(mpPlayerName);
+  $("judge-turn-out-row").style.display = outNames.length ? "" : "none";
+  $("judge-turn-out-list").textContent = outNames.join(", ");
+
+  if (amIJudge) {
+    $("judge-turn-active-card").style.display = "";
+    $("judge-turn-waiting-card").style.display = "none";
+    if (mp.judgeTimerRoundKey !== key) {
+      mp.judgeTimerRoundKey = key;
+      $("judge-turn-answer-field").value = "";
+      startMpJudgeTimer();
+    }
+  } else {
+    $("judge-turn-active-card").style.display = "none";
+    $("judge-turn-waiting-card").style.display = "";
+    stopMpJudgeTimer();
+  }
+
+  showScreen("screen-judge-turn");
+
+  if (mp.judgeWatchdogRoundKey !== key) {
+    mp.judgeWatchdogRoundKey = key;
+    startMpJudgeWatchdog();
+  }
+}
+
+function startMpJudgeTimer() {
+  stopMpJudgeTimer();
+  mp.judgeTimerRemaining = ROUND_TIME;
+  updateMpJudgeTimerDisplay();
+  mp.judgeTimerHandle = setInterval(function () {
+    mp.judgeTimerRemaining--;
+    updateMpJudgeTimerDisplay();
+    if (mp.judgeTimerRemaining <= 0) {
+      stopMpJudgeTimer();
+      submitMpJudgeAnswer();
+    }
+  }, 1000);
+}
+function stopMpJudgeTimer() {
+  if (mp.judgeTimerHandle) { clearInterval(mp.judgeTimerHandle); mp.judgeTimerHandle = null; }
+}
+function updateMpJudgeTimerDisplay() {
+  var el = $("judge-turn-timer");
+  el.textContent = "0:" + (mp.judgeTimerRemaining < 10 ? "0" : "") + mp.judgeTimerRemaining;
+  el.classList.toggle("low", mp.judgeTimerRemaining <= 5);
+}
+function submitMpJudgeAnswer() {
+  var round = mp.room.round;
+  if (!round || round.judgeUid !== mp.uid || round.judgeSecretAnswer !== null) return;
+  var answer = $("judge-turn-answer-field").value.trim();
+  mpFinishJudgeTurn(answer);
+}
+$("btn-judge-turn-submit").addEventListener("click", function () { stopMpJudgeTimer(); submitMpJudgeAnswer(); });
+
+// ---------- Turn (competitors answer, Judge spectates) ----------
+function renderTurn() {
+  stopMpJudgeWatchdog();
+  mp.judgeWatchdogRoundKey = null;
+  var room = mp.room;
+  var round = room.round;
+  var key = round.roundNum + "-" + round.turnNum;
+  var amIJudge = mp.uid === round.judgeUid;
+  var amICompeting = round.competitors.indexOf(mp.uid) !== -1;
   var myAnswer = round.answers ? round.answers[mp.uid] : undefined;
 
   $("turn-round-label").textContent = "Round " + round.roundNum + (round.turnNum > 1 ? " · Turn " + round.turnNum : "");
   $("turn-prompt-text").textContent = round.prompt;
-  $("turn-wipe-banner").style.display = round.wipe ? "" : "none";
 
-  $("turn-stillin-list").textContent = round.stillIn.map(mpPlayerLabel).join(", ");
+  $("turn-stillin-list").textContent = round.competitors.map(mpPlayerLabel).join(", ");
   var outNames = (round.outThisRound || []).map(mpPlayerName);
   $("turn-out-row").style.display = outNames.length ? "" : "none";
   $("turn-out-list").textContent = outNames.join(", ");
 
-  if (!amIIn) {
+  if (amIJudge) {
     $("turn-active-card").style.display = "none";
     $("turn-spectator-card").style.display = "";
+    $("turn-spectator-icon").textContent = "🕵️";
+    $("turn-spectator-text").textContent = "You're the Judge this round — waiting for everyone to answer…";
+    stopMpTimer();
+  } else if (!amICompeting) {
+    $("turn-active-card").style.display = "none";
+    $("turn-spectator-card").style.display = "";
+    $("turn-spectator-icon").textContent = "🙊";
+    $("turn-spectator-text").textContent = "You're out for this round — spectate and cheer!";
     stopMpTimer();
   } else if (myAnswer !== undefined) {
     $("turn-active-card").style.display = "";
@@ -1081,7 +1253,7 @@ function renderTurn() {
 
   var statusList = $("turn-status-list");
   statusList.innerHTML = "";
-  round.stillIn.forEach(function (uid) {
+  round.competitors.forEach(function (uid) {
     var answered = round.answers && round.answers[uid] !== undefined;
     var row = document.createElement("div");
     row.className = "score-row";
@@ -1102,7 +1274,7 @@ function renderTurn() {
   // not just the host — so the round can't get stuck if the host's own
   // client is slow to notice (or if hostUid ever falls out of sync).
   var count = round.answers ? Object.keys(round.answers).length : 0;
-  if (count >= round.stillIn.length && round.stillIn.length > 0 && !mp.finishingTurnKey) {
+  if (count >= round.competitors.length && round.competitors.length > 0 && !mp.finishingTurnKey) {
     var finishKey = round.roundNum + "-" + round.turnNum;
     mp.finishingTurnKey = finishKey;
     finishMpTurn().finally(function () {
@@ -1133,9 +1305,35 @@ function updateMpTimerDisplay() {
   el.classList.toggle("low", mp.timerRemaining <= 5);
 }
 
+// Any client on the turn screen runs this. If a competitor never answers
+// (their device might be the one that's gone — closed tab, dead battery),
+// force-fill an empty answer once the shared deadline passes so the round
+// can't hang forever waiting on someone who's never coming back.
+function startMpWatchdog() {
+  stopMpWatchdog();
+  mp.watchdogHandle = setInterval(function () {
+    var room = mp.room;
+    if (!room || room.phase !== "turn" || !room.round || !room.round.turnDeadline) return;
+    if (Date.now() < room.round.turnDeadline) return;
+    var round = room.round;
+    var answers = Object.assign({}, round.answers || {});
+    var changed = false;
+    round.competitors.forEach(function (uid) {
+      if (answers[uid] === undefined) { answers[uid] = ""; changed = true; }
+    });
+    if (changed) {
+      update(ref(db, "rooms/" + mp.roomCode + "/round/answers"), answers)
+        .catch(function (err) { mpReportError("timing out a missing answer", err); });
+    }
+  }, 2000);
+}
+function stopMpWatchdog() {
+  if (mp.watchdogHandle) { clearInterval(mp.watchdogHandle); mp.watchdogHandle = null; }
+}
+
 function submitMpAnswer() {
   var round = mp.room.round;
-  if (!round || round.stillIn.indexOf(mp.uid) === -1) return;
+  if (!round || round.competitors.indexOf(mp.uid) === -1) return;
   if (round.answers && round.answers[mp.uid] !== undefined) return;
   var answer = $("turn-answer-field").value.trim();
   update(ref(db, "rooms/" + mp.roomCode + "/round/answers"), (function () { var o = {}; o[mp.uid] = answer; return o; })())
@@ -1146,7 +1344,7 @@ $("btn-turn-submit").addEventListener("click", function () { stopMpTimer(); subm
 async function finishMpTurn() {
   var room = mp.room;
   var round = room.round;
-  var result = computeEliminations(round.stillIn, round.answers || {});
+  var result = computeEliminations(round.competitors, round.answers || {}, round.judgeSecretAnswer);
   try {
     await update(roomRef(mp.roomCode), {
       phase: "turn-reveal",
@@ -1161,15 +1359,20 @@ async function finishMpTurn() {
 function renderTurnReveal() {
   stopMpWatchdog();
   mp.watchdogRoundKey = null;
+  stopMpJudgeWatchdog();
+  mp.judgeWatchdogRoundKey = null;
   var room = mp.room;
   var round = room.round;
   $("reveal-prompt-text").textContent = round.prompt;
+  $("reveal-judge-answer").textContent = round.judgeSecretAnswer || "(no answer given)";
 
   var wrap = $("turn-reveal-list");
   wrap.innerHTML = "";
-  round.stillIn.forEach(function (uid) {
+  round.competitors.forEach(function (uid) {
     var out = !!round.turnEliminated[uid];
-    var reasonText = round.turnReason[uid] === "timeout" ? "Didn't answer in time" : (out ? "Matched another answer" : "Unique answer!");
+    var reasonText = round.turnReason[uid] === "timeout" ? "Didn't answer in time"
+      : round.turnReason[uid] === "judge" ? "Matched the Judge's secret answer!"
+      : out ? "Matched another answer" : "Unique answer!";
     var row = document.createElement("div");
     row.className = "judge-row " + (out ? "out" : "correct");
     var left = document.createElement("div");
@@ -1196,10 +1399,10 @@ function renderTurnReveal() {
     wrap.appendChild(row);
   });
 
-  var survivors = round.stillIn.filter(function (uid) { return !round.turnEliminated[uid]; });
+  var survivors = round.competitors.filter(function (uid) { return !round.turnEliminated[uid]; });
   var btn = $("btn-turn-continue");
   if (survivors.length === 1) btn.textContent = "See the Round Winner";
-  else if (survivors.length === 0) btn.textContent = "Everyone Matched — Try Again";
+  else if (survivors.length === 0) btn.textContent = "The Judge Wins the Round!";
   else btn.textContent = "Next Prompt (" + survivors.length + " left)";
 
   $("turn-reveal-host-nav").style.display = "flex";
@@ -1227,15 +1430,15 @@ function renderTurnReveal() {
 async function mpContinueFromReveal() {
   var room = mp.room;
   var round = room.round;
-  var survivors = round.stillIn.filter(function (uid) { return !round.turnEliminated[uid]; });
+  var survivors = round.competitors.filter(function (uid) { return !round.turnEliminated[uid]; });
   if (survivors.length === 1) {
     await mpFinishRoundWin(survivors[0], round);
   } else if (survivors.length === 0) {
-    await mpGoToTurn(round.stillIn, round.roundNum, round.turnNum + 1, round.outThisRound, true);
+    await mpFinishRoundWin(round.judgeUid, round);
   } else {
-    var justOut = round.stillIn.filter(function (uid) { return round.turnEliminated[uid]; });
+    var justOut = round.competitors.filter(function (uid) { return round.turnEliminated[uid]; });
     var newOut = (round.outThisRound || []).concat(justOut);
-    await mpGoToTurn(survivors, round.roundNum, round.turnNum + 1, newOut, false);
+    await mpGoToJudgeTurn(survivors, round.roundNum, round.turnNum + 1, newOut, round.judgeUid, room.judgeIndex);
   }
 }
 
@@ -1251,11 +1454,12 @@ async function mpFinishRoundWin(winnerUid, round) {
   scores[winnerUid] = newScore;
   var reachedTarget = newScore >= room.settings.targetScore;
   var updatedRound = Object.assign({}, round, { roundWinnerUid: winnerUid });
+  var nextJudgeIndex = (room.judgeIndex || 0) + 1;
   try {
     if (reachedTarget) {
-      await update(roomRef(mp.roomCode), { phase: "game-won", scores: scores, winnerUid: winnerUid, round: updatedRound });
+      await update(roomRef(mp.roomCode), { phase: "game-won", scores: scores, winnerUid: winnerUid, round: updatedRound, judgeIndex: nextJudgeIndex });
     } else {
-      await update(roomRef(mp.roomCode), { phase: "scores", scores: scores, round: updatedRound });
+      await update(roomRef(mp.roomCode), { phase: "scores", scores: scores, round: updatedRound, judgeIndex: nextJudgeIndex });
     }
   } catch (err) {
     mpReportError("finishing the round", err);
@@ -1266,6 +1470,8 @@ async function mpFinishRoundWin(winnerUid, round) {
 function renderScoresScreen() {
   stopMpWatchdog();
   mp.watchdogRoundKey = null;
+  stopMpJudgeWatchdog();
+  mp.judgeWatchdogRoundKey = null;
   var room = mp.room;
   var scoresByName = {};
   mpPlayerUids().forEach(function (uid) { scoresByName[mpPlayerName(uid)] = room.scores[uid] || 0; });
@@ -1286,7 +1492,10 @@ function renderScoresScreen() {
 
 $("btn-back-to-round").addEventListener("click", function () {
   var room = mp.room;
-  mpGoToTurn(mpPlayerUids(), (room.round ? room.round.roundNum : 0) + 1, 1, [], false);
+  var judgeIndex = room.judgeIndex || 0;
+  var judgeUid = mpJudgeForIndex(room, judgeIndex);
+  var competitors = mpActiveOrder(room).filter(function (uid) { return uid !== judgeUid; });
+  mpGoToJudgeTurn(competitors, (room.round ? room.round.roundNum : 0) + 1, 1, [], judgeUid, judgeIndex);
 });
 $("btn-end-game").addEventListener("click", function () {
   if (!mp.isHost) return;
@@ -1298,6 +1507,8 @@ $("btn-end-game").addEventListener("click", function () {
 function renderGameWonScreen() {
   stopMpWatchdog();
   mp.watchdogRoundKey = null;
+  stopMpJudgeWatchdog();
+  mp.judgeWatchdogRoundKey = null;
   var room = mp.room;
   $("winner-name").textContent = mpPlayerName(room.winnerUid);
   var scoresByName = {};
@@ -1338,7 +1549,11 @@ $("btn-mp-confirm-extend").addEventListener("click", async function () {
   if (!(newTarget >= floor)) newTarget = floor + 9;
   await update(ref(db, "rooms/" + mp.roomCode + "/settings"), { targetScore: newTarget });
   $("mp-extend-game-form").style.display = "none";
-  mpGoToTurn(mpPlayerUids(), (mp.room.round ? mp.room.round.roundNum : 0) + 1, 1, [], false);
+  var room = mp.room;
+  var judgeIndex = room.judgeIndex || 0;
+  var judgeUid = mpJudgeForIndex(room, judgeIndex);
+  var competitors = mpActiveOrder(room).filter(function (uid) { return uid !== judgeUid; });
+  mpGoToJudgeTurn(competitors, (room.round ? room.round.roundNum : 0) + 1, 1, [], judgeUid, judgeIndex);
 });
 
 // =========================================================================
@@ -1361,10 +1576,13 @@ var localState = {
   usedPrompts: {},
   roundNum: 0,
   turnNum: 0,
-  stillIn: [],
+  judgeIndex: 0,
+  judgeName: null,
+  competitors: [],
   outThisRound: [],
   currentPrompt: null,
-  wipe: false,
+  judgeSecretAnswer: null,
+  answeringAsJudge: false,
   turnOrder: [],
   turnIndex: 0,
   roundAnswers: {},
@@ -1426,7 +1644,7 @@ $("local-btn-start-game").addEventListener("click", function () {
   names.forEach(function (n) { localState.scores[n] = 0; });
   localState.usedPrompts = {};
   localState.roundNum = 0;
-  localState.outThisRound = [];
+  localState.judgeIndex = 0;
   localStartNewLocalRound();
 });
 
@@ -1441,20 +1659,23 @@ function localPickPrompt() {
 function localStartNewLocalRound() {
   localState.roundNum += 1;
   localState.turnNum = 1;
-  localState.stillIn = localState.players.slice();
+  localState.judgeName = localState.players[localState.judgeIndex % localState.players.length];
+  localState.competitors = localState.players.filter(function (p) { return p !== localState.judgeName; });
   localState.outThisRound = [];
-  localGoToLocalTurn(localState.stillIn, false);
+  localGoToLocalTurn(localState.competitors);
 }
 
-function localGoToLocalTurn(stillIn, wasWipe) {
-  localState.stillIn = stillIn;
-  localState.wipe = wasWipe;
+// Every turn (not just the first in a round) starts with the same Judge
+// picking a fresh secret answer for a fresh prompt, then the competitors go.
+function localGoToLocalTurn(competitors) {
+  localState.competitors = competitors;
   localState.currentPrompt = localPickPrompt();
+  localState.judgeSecretAnswer = null;
 
   $("local-turn-round-label").textContent = "Round " + localState.roundNum + (localState.turnNum > 1 ? " · Turn " + localState.turnNum : "");
+  $("local-judge-name-display").textContent = localState.judgeName;
   $("local-turn-prompt-text").textContent = localState.currentPrompt;
-  $("local-turn-wipe-banner").style.display = wasWipe ? "" : "none";
-  $("local-turn-stillin-list").textContent = localState.stillIn.join(", ");
+  $("local-turn-stillin-list").textContent = localState.competitors.join(", ");
   $("local-turn-out-row").style.display = localState.outThisRound.length ? "" : "none";
   $("local-turn-out-list").textContent = localState.outThisRound.join(", ");
 
@@ -1463,10 +1684,10 @@ function localGoToLocalTurn(stillIn, wasWipe) {
 }
 
 $("local-btn-turn-begin").addEventListener("click", function () {
-  localState.turnOrder = localState.stillIn.slice();
-  localState.turnIndex = 0;
-  localState.roundAnswers = {};
-  localGoToPassTurn();
+  localState.answeringAsJudge = true;
+  $("local-pass-name").textContent = localState.judgeName;
+  $("local-pass-name-2").textContent = localState.judgeName;
+  showScreen("local-screen-pass-turn");
 });
 
 function localGoToPassTurn() {
@@ -1481,7 +1702,15 @@ function localGoToPassTurn() {
 }
 
 $("local-btn-ready-to-answer").addEventListener("click", function () {
-  $("local-input-name").textContent = localState.turnOrder[localState.turnIndex];
+  if (localState.answeringAsJudge) {
+    $("local-input-role-label").textContent = "You're the Judge";
+    $("local-input-name").textContent = localState.judgeName;
+    $("local-input-answer-label").textContent = "Your SECRET answer (try to trip everyone up!)";
+  } else {
+    $("local-input-role-label").textContent = "Answering as";
+    $("local-input-name").textContent = localState.turnOrder[localState.turnIndex];
+    $("local-input-answer-label").textContent = "Your answer";
+  }
   $("local-input-prompt-text").textContent = localState.currentPrompt;
   $("local-input-answer-field").value = "";
   localStartTimer();
@@ -1512,18 +1741,27 @@ function localUpdateTimerDisplay() {
 
 function localSubmitAnswer() {
   localStopTimer();
-  var name = localState.turnOrder[localState.turnIndex];
-  localState.roundAnswers[name] = $("local-input-answer-field").value.trim();
-  localState.turnIndex += 1;
+  if (localState.answeringAsJudge) {
+    localState.judgeSecretAnswer = $("local-input-answer-field").value.trim();
+    localState.answeringAsJudge = false;
+    localState.turnOrder = localState.competitors.slice();
+    localState.turnIndex = 0;
+    localState.roundAnswers = {};
+  } else {
+    var name = localState.turnOrder[localState.turnIndex];
+    localState.roundAnswers[name] = $("local-input-answer-field").value.trim();
+    localState.turnIndex += 1;
+  }
   localGoToPassTurn();
 }
 $("local-btn-submit-answer").addEventListener("click", localSubmitAnswer);
 
 $("local-btn-show-results").addEventListener("click", function () {
-  var result = computeEliminations(localState.turnOrder, localState.roundAnswers);
+  var result = computeEliminations(localState.competitors, localState.roundAnswers, localState.judgeSecretAnswer);
   localState.turnEliminated = result.eliminated;
   localState.turnReason = result.reason;
   $("local-reveal-prompt-text").textContent = localState.currentPrompt;
+  $("local-reveal-judge-answer").textContent = localState.judgeSecretAnswer || "(no answer given)";
   localRenderTurnRevealList();
   showScreen("local-screen-turn-reveal");
 });
@@ -1531,9 +1769,11 @@ $("local-btn-show-results").addEventListener("click", function () {
 function localRenderTurnRevealList() {
   var wrap = $("local-turn-reveal-list");
   wrap.innerHTML = "";
-  localState.turnOrder.forEach(function (name) {
+  localState.competitors.forEach(function (name) {
     var out = !!localState.turnEliminated[name];
-    var reasonText = localState.turnReason[name] === "timeout" ? "Didn't answer in time" : (out ? "Matched another answer" : "Unique answer!");
+    var reasonText = localState.turnReason[name] === "timeout" ? "Didn't answer in time"
+      : localState.turnReason[name] === "judge" ? "Matched the Judge's secret answer!"
+      : out ? "Matched another answer" : "Unique answer!";
     var answer = localState.roundAnswers[name];
     var row = document.createElement("div");
     row.className = "judge-row " + (out ? "out" : "correct");
@@ -1560,22 +1800,22 @@ function localRenderTurnRevealList() {
 }
 
 $("local-btn-turn-continue").addEventListener("click", function () {
-  var survivors = localState.turnOrder.filter(function (name) { return !localState.turnEliminated[name]; });
+  var survivors = localState.competitors.filter(function (name) { return !localState.turnEliminated[name]; });
   if (survivors.length === 1) {
     localFinishRoundWin(survivors[0]);
   } else if (survivors.length === 0) {
-    localState.turnNum += 1;
-    localGoToLocalTurn(localState.stillIn, true);
+    localFinishRoundWin(localState.judgeName);
   } else {
-    var justOut = localState.turnOrder.filter(function (name) { return localState.turnEliminated[name]; });
+    var justOut = localState.competitors.filter(function (name) { return localState.turnEliminated[name]; });
     localState.outThisRound = localState.outThisRound.concat(justOut);
     localState.turnNum += 1;
-    localGoToLocalTurn(survivors, false);
+    localGoToLocalTurn(survivors);
   }
 });
 
 function localFinishRoundWin(winnerName) {
   localState.scores[winnerName] = (localState.scores[winnerName] || 0) + 1;
+  localState.judgeIndex += 1;
   var reached = localState.scores[winnerName] >= localState.targetScore;
   if (reached) {
     localState.winner = winnerName;
@@ -1650,7 +1890,8 @@ function localSaveCheckpoint() {
   try {
     var snapshot = {
       players: localState.players, targetScore: localState.targetScore,
-      scores: localState.scores, usedPrompts: localState.usedPrompts
+      scores: localState.scores, usedPrompts: localState.usedPrompts,
+      judgeIndex: localState.judgeIndex
     };
     localStorage.setItem(LOCAL_SAVE_KEY, JSON.stringify(snapshot));
   } catch (e) { /* private browsing */ }
@@ -1667,6 +1908,7 @@ function localCheckResumeBanners() {
       localState.targetScore = saved.targetScore;
       localState.scores = saved.scores;
       localState.usedPrompts = saved.usedPrompts;
+      localState.judgeIndex = saved.judgeIndex || 0;
       localState.roundNum = 0;
       localState.outThisRound = [];
       $("local-refresh-resume-banner").style.display = "none";
