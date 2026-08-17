@@ -368,6 +368,7 @@
     <div class="footer-nav" id="turn-reveal-host-nav" style="display:none">
       <button class="primary" id="btn-turn-continue" type="button">Continue</button>
     </div>
+    <small class="hint" style="text-align:center;display:block;">Moving on automatically in a few seconds…</small>
     <div class="waiting-text" id="turn-reveal-waiting" style="display:none">Waiting for host…</div>
   </div>
 
@@ -704,7 +705,9 @@ var mp = {
   timerRoundKey: null,
   finishingTurnKey: null,
   watchdogHandle: null,
-  watchdogRoundKey: null
+  watchdogRoundKey: null,
+  revealAdvanceHandle: null,
+  revealAdvanceKey: null
 };
 
 function roomRef(code) { return ref(db, "rooms/" + code); }
@@ -1202,9 +1205,26 @@ function renderTurnReveal() {
   $("turn-reveal-host-nav").style.display = "flex";
   $("turn-reveal-waiting").style.display = "none";
   showScreen("screen-turn-reveal");
+
+  // Snaps straight to the next prompt/round on its own a beat after the
+  // reveal shows — no one has to remember to tap Continue. Any client can
+  // fire this (matching the rest of the game's "any connected client can
+  // move things along" pattern), and the manual button still works
+  // instantly for anyone who doesn't want to wait even that long.
+  var revealKey = round.roundNum + "-" + round.turnNum;
+  if (mp.revealAdvanceKey !== revealKey) {
+    mp.revealAdvanceKey = revealKey;
+    clearTimeout(mp.revealAdvanceHandle);
+    mp.revealAdvanceHandle = setTimeout(function () {
+      if (mp.room && mp.room.phase === "turn-reveal" && mp.room.round &&
+          mp.room.round.roundNum === round.roundNum && mp.room.round.turnNum === round.turnNum) {
+        mpContinueFromReveal();
+      }
+    }, 3000);
+  }
 }
 
-$("btn-turn-continue").addEventListener("click", async function () {
+async function mpContinueFromReveal() {
   var room = mp.room;
   var round = room.round;
   var survivors = round.stillIn.filter(function (uid) { return !round.turnEliminated[uid]; });
@@ -1217,6 +1237,11 @@ $("btn-turn-continue").addEventListener("click", async function () {
     var newOut = (round.outThisRound || []).concat(justOut);
     await mpGoToTurn(survivors, round.roundNum, round.turnNum + 1, newOut, false);
   }
+}
+
+$("btn-turn-continue").addEventListener("click", function () {
+  clearTimeout(mp.revealAdvanceHandle);
+  mpContinueFromReveal();
 });
 
 async function mpFinishRoundWin(winnerUid, round) {
