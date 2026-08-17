@@ -363,6 +363,9 @@
       <label style="margin-top:8px;">Who's Locked In</label>
       <div id="turn-status-list"></div>
     </div>
+    <div class="footer-nav" id="turn-host-nav" style="display:none">
+      <button class="secondary" id="btn-turn-force-advance" type="button">Everyone's Answered — Continue</button>
+    </div>
   </div>
 
   <!-- MULTIPLAYER: TURN REVEAL -->
@@ -1128,6 +1131,11 @@ function renderTurn() {
     statusList.appendChild(row);
   });
 
+  // Backup for the host: if the auto-advance somehow doesn't fire (a missed
+  // realtime update, a spotty connection), the host can force the round
+  // forward by hand instead of everyone being stuck staring at this screen.
+  $("turn-host-nav").style.display = mp.isHost ? "flex" : "none";
+
   showScreen("screen-turn");
 
   if (mp.watchdogRoundKey !== key) {
@@ -1223,6 +1231,35 @@ async function finishMpTurn() {
     mpReportError("revealing the round", err);
   }
 }
+
+// Manual backup for the host: if the automatic "everyone's answered" advance
+// somehow doesn't fire on anyone's device (a missed realtime update, a
+// spotty connection), the host can push the round to the reveal by hand.
+// Missing answers (anyone who hasn't locked in yet) are treated as a
+// timeout, exactly like the watchdog does.
+async function mpForceAdvanceTurn() {
+  if (!mp.isHost) return;
+  var room = mp.room;
+  var round = room.round;
+  if (!round || room.phase !== "turn") return;
+  var answers = Object.assign({}, round.answers || {});
+  [round.judgeUid].concat(round.competitors).forEach(function (uid) {
+    if (answers[uid] === undefined) answers[uid] = "";
+  });
+  var judgeSecretAnswer = answers[round.judgeUid];
+  var result = computeEliminations(round.competitors, answers, judgeSecretAnswer);
+  try {
+    await update(roomRef(mp.roomCode), {
+      phase: "turn-reveal",
+      round: Object.assign({}, round, {
+        answers: answers, turnEliminated: result.eliminated, turnReason: result.reason, judgeSecretAnswer: judgeSecretAnswer
+      })
+    });
+  } catch (err) {
+    mpReportError("forcing the round to continue", err);
+  }
+}
+$("btn-turn-force-advance").addEventListener("click", function () { stopMpTimer(); mpForceAdvanceTurn(); });
 
 // ---------- Turn reveal ----------
 function renderTurnReveal() {
