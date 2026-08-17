@@ -338,7 +338,10 @@
       <label>Your answer</label>
       <input type="text" id="turn-answer-field" placeholder="Type your answer..." maxlength="60">
       <button class="primary" id="btn-turn-submit" type="button" style="margin-top:10px;">Lock In Answer</button>
-      <div class="waiting-text" id="turn-waiting" style="display:none">Waiting for other players…</div>
+      <div class="waiting-text" id="turn-waiting" style="display:none">
+        Waiting for other players…
+        <small class="hint" style="display:block;margin-top:4px;">If someone's device has dropped, this resolves on its own within about 45 seconds.</small>
+      </div>
     </div>
     <div class="card center" id="turn-spectator-card" style="display:none;">
       <div class="pass-icon">🙊</div>
@@ -971,24 +974,40 @@ function mpPickPrompt(room) {
   return { prompt: prompt, usedPrompts: usedPrompts };
 }
 
+// Any write that's expected to make the game progress (advancing a turn,
+// force-timing someone out, etc.) reports here on failure. This is meant to
+// turn a silent, invisible stall — e.g. a rejected write — into something
+// visible enough to actually diagnose, since these calls are fire-and-forget
+// from most call sites.
+function mpReportError(action, err) {
+  console.error("dontcopyme: " + action + " failed:", err);
+  var code = (err && err.code) || "unknown";
+  var message = (err && err.message) || String(err);
+  alert("Something went wrong (" + action + "): " + code + " — " + message + "\n\nPlease screenshot this and report it.");
+}
+
 async function mpGoToTurn(stillIn, roundNum, turnNum, outThisRound, wasWipe) {
   var room = mp.room;
   var picked = mpPickPrompt(room);
-  await update(roomRef(mp.roomCode), {
-    phase: "turn",
-    usedPrompts: picked.usedPrompts,
-    round: {
-      roundNum: roundNum, turnNum: turnNum,
-      stillIn: stillIn, outThisRound: outThisRound || [],
-      prompt: picked.prompt, answers: {}, turnEliminated: null, turnReason: null,
-      wipe: !!wasWipe, roundWinnerUid: null,
-      // A shared deadline (not tied to any one player's own device) so the
-      // round can still finish even if someone's answer never comes because
-      // their tab is closed, dead, or was never really there — not just
-      // when the current player is slow to answer.
-      turnDeadline: Date.now() + ROUND_TIME * 1000
-    }
-  });
+  try {
+    await update(roomRef(mp.roomCode), {
+      phase: "turn",
+      usedPrompts: picked.usedPrompts,
+      round: {
+        roundNum: roundNum, turnNum: turnNum,
+        stillIn: stillIn, outThisRound: outThisRound || [],
+        prompt: picked.prompt, answers: {}, turnEliminated: null, turnReason: null,
+        wipe: !!wasWipe, roundWinnerUid: null,
+        // A shared deadline (not tied to any one player's own device) so the
+        // round can still finish even if someone's answer never comes because
+        // their tab is closed, dead, or was never really there — not just
+        // when the current player is slow to answer.
+        turnDeadline: Date.now() + ROUND_TIME * 1000
+      }
+    });
+  } catch (err) {
+    mpReportError("starting the next prompt", err);
+  }
 }
 
 // Any client on the turn screen runs this watchdog. If the shared deadline
@@ -1006,7 +1025,9 @@ function startMpWatchdog() {
     if (missing.length === 0) return;
     var patch = {};
     missing.forEach(function (uid) { patch[uid] = ""; });
-    update(ref(db, "rooms/" + mp.roomCode + "/round/answers"), patch);
+    update(ref(db, "rooms/" + mp.roomCode + "/round/answers"), patch).catch(function (err) {
+      mpReportError("force-timing out a missing answer", err);
+    });
   }, 2000);
 }
 function stopMpWatchdog() {
@@ -1114,7 +1135,8 @@ function submitMpAnswer() {
   if (!round || round.stillIn.indexOf(mp.uid) === -1) return;
   if (round.answers && round.answers[mp.uid] !== undefined) return;
   var answer = $("turn-answer-field").value.trim();
-  update(ref(db, "rooms/" + mp.roomCode + "/round/answers"), (function () { var o = {}; o[mp.uid] = answer; return o; })());
+  update(ref(db, "rooms/" + mp.roomCode + "/round/answers"), (function () { var o = {}; o[mp.uid] = answer; return o; })())
+    .catch(function (err) { mpReportError("locking in your answer", err); });
 }
 $("btn-turn-submit").addEventListener("click", function () { stopMpTimer(); submitMpAnswer(); });
 
@@ -1122,10 +1144,14 @@ async function finishMpTurn() {
   var room = mp.room;
   var round = room.round;
   var result = computeEliminations(round.stillIn, round.answers || {});
-  await update(roomRef(mp.roomCode), {
-    phase: "turn-reveal",
-    round: Object.assign({}, round, { turnEliminated: result.eliminated, turnReason: result.reason })
-  });
+  try {
+    await update(roomRef(mp.roomCode), {
+      phase: "turn-reveal",
+      round: Object.assign({}, round, { turnEliminated: result.eliminated, turnReason: result.reason })
+    });
+  } catch (err) {
+    mpReportError("revealing the round", err);
+  }
 }
 
 // ---------- Turn reveal ----------
@@ -1200,10 +1226,14 @@ async function mpFinishRoundWin(winnerUid, round) {
   scores[winnerUid] = newScore;
   var reachedTarget = newScore >= room.settings.targetScore;
   var updatedRound = Object.assign({}, round, { roundWinnerUid: winnerUid });
-  if (reachedTarget) {
-    await update(roomRef(mp.roomCode), { phase: "game-won", scores: scores, winnerUid: winnerUid, round: updatedRound });
-  } else {
-    await update(roomRef(mp.roomCode), { phase: "scores", scores: scores, round: updatedRound });
+  try {
+    if (reachedTarget) {
+      await update(roomRef(mp.roomCode), { phase: "game-won", scores: scores, winnerUid: winnerUid, round: updatedRound });
+    } else {
+      await update(roomRef(mp.roomCode), { phase: "scores", scores: scores, round: updatedRound });
+    }
+  } catch (err) {
+    mpReportError("finishing the round", err);
   }
 }
 
