@@ -391,6 +391,7 @@
       <label>Who got it right?</label>
       <div id="judge-list"></div>
     </div>
+    <button class="secondary" id="btn-repeat-word" type="button" style="display:none;">🔁 Repeat this word within 5 rounds</button>
     <div class="footer-nav" id="reveal-host-nav" style="display:none">
       <button class="primary" id="btn-next-round" type="button">Next Round</button>
     </div>
@@ -527,6 +528,7 @@
       <label>Who got it right?</label>
       <div id="local-judge-list"></div>
     </div>
+    <button class="secondary" id="local-btn-repeat-word" type="button" style="display:none;">🔁 Repeat this word within 5 rounds</button>
     <button class="primary" id="local-btn-next-round" type="button">Next Round</button>
   </div>
 
@@ -702,6 +704,24 @@ var mpGuessModes = [
 // asides like "(considered)" or trailing notes after an em dash). Splits
 // that into a clean list of standalone phrases a typed answer can match
 // against, rather than requiring the whole gloss verbatim.
+// Hand-picked, individually-verified synonyms for entries whose gloss is a
+// single plain-English word or phrase, keyed by word number. Kept small and
+// deliberate rather than a general thesaurus: with 450 real Talmudic/Aramaic
+// terms in the deck, a careless synonym can make two genuinely different
+// entries accept each other's answer, which would undermine the whole point
+// of the game. Each of these was checked against the full deck (see the
+// repo's dev history) before being added.
+var SYNONYMS = {
+  2: ["Gemara"],
+  10: ["Give back"],
+  17: ["Lost item"],
+  24: ["Required", "Liable"],
+  25: ["Excused"],
+  187: ["Stealing"],
+  250: ["Thus", "Hence"],
+  382: ["True"]
+};
+
 function acceptableAnswers(word) {
   var raw = word[2].split(" — ")[0];
   var pieces = raw.split(/[\/*]/);
@@ -712,6 +732,9 @@ function acceptableAnswers(word) {
     if (!cleaned || seen[cleaned]) return;
     seen[cleaned] = true;
     out.push(cleaned);
+  });
+  (SYNONYMS[word[0]] || []).forEach(function (syn) {
+    if (!seen[syn]) { seen[syn] = true; out.push(syn); }
   });
   return out.length ? out : [word[2]];
 }
@@ -750,7 +773,7 @@ function isCloseToOne(given, candidate) {
   if (g.replace(/s$/, "") === a.replace(/s$/, "")) return true;
   if (g.length >= 3 && a.length >= 3 && (g.indexOf(a) !== -1 || a.indexOf(g) !== -1)) return true;
   var maxLen = Math.max(g.length, a.length);
-  var threshold = maxLen <= 4 ? 0 : (maxLen <= 6 ? 1 : 2);
+  var threshold = maxLen <= 4 ? 0 : (maxLen <= 6 ? 1 : (maxLen <= 10 ? 2 : 3));
   return levenshtein(g, a) <= threshold;
 }
 
@@ -856,7 +879,9 @@ async function createRoomFlow(name) {
     players: { [uid]: { name: name, joinedAt: Date.now() } },
     scores: { [uid]: 0 },
     wrongStreaks: { [uid]: 0 },
-    usedWords: {}
+    usedWords: {},
+    roundsPlayed: 0,
+    repeatQueue: []
   });
   mp.roomCode = code;
   mp.name = name;
@@ -1053,14 +1078,39 @@ function mpBuildPool(room) {
   return pool;
 }
 
-async function startMpRound() {
-  var room = mp.room;
-  var pool = mpBuildPool(room);
-  var usedWords = room.usedWords || {};
+// Picks the next word, honoring any word the host queued for a forced
+// repeat (via the reveal screen's "Repeat this word" button) once its
+// 5-round deadline has arrived. Returns { word, usedWords, roundsPlayed,
+// repeatQueue } so the caller can write everything atomically.
+function mpPickWord(room) {
+  var roundsPlayed = (room.roundsPlayed || 0) + 1;
+  var repeatQueue = (room.repeatQueue || []).slice();
+  var usedWords = Object.assign({}, room.usedWords || {});
+
+  for (var i = 0; i < repeatQueue.length; i++) {
+    if (repeatQueue[i].dueRound <= roundsPlayed) {
+      var due = repeatQueue.splice(i, 1)[0];
+      var dueWord = WORDS.filter(function (w) { return w[0] === due.wordNum; })[0];
+      if (dueWord) {
+        usedWords[dueWord[0]] = true;
+        return { word: dueWord, usedWords: usedWords, roundsPlayed: roundsPlayed, repeatQueue: repeatQueue };
+      }
+      break;
+    }
+  }
+
+  var pool = mpBuildPool({ usedWords: usedWords });
   if (pool.length === 0) { usedWords = {}; pool = WORDS; }
   var word = pickRandom(pool);
-  usedWords = Object.assign({}, usedWords);
   usedWords[word[0]] = true;
+  repeatQueue = repeatQueue.filter(function (q) { return q.wordNum !== word[0]; });
+  return { word: word, usedWords: usedWords, roundsPlayed: roundsPlayed, repeatQueue: repeatQueue };
+}
+
+async function startMpRound() {
+  var room = mp.room;
+  var picked = mpPickWord(room);
+  var word = picked.word;
 
   var roundGuessMode = room.settings.guessMode === "mix"
     ? ((Math.random() < 0.5) ? "type" : "choice")
@@ -1069,7 +1119,9 @@ async function startMpRound() {
 
   await update(roomRef(mp.roomCode), {
     phase: "round",
-    usedWords: usedWords,
+    usedWords: picked.usedWords,
+    roundsPlayed: picked.roundsPlayed,
+    repeatQueue: picked.repeatQueue,
     round: {
       wordNum: word[0], he: word[1], en: word[2],
       roundGuessMode: roundGuessMode, options: options, answers: {}, judged: {}
@@ -1250,8 +1302,32 @@ function renderRevealScreen() {
   var waiting = $("reveal-waiting");
   if (mp.isHost) { hostNav.style.display = "flex"; waiting.style.display = "none"; }
   else { hostNav.style.display = "none"; waiting.style.display = ""; }
+
+  var repeatBtn = $("btn-repeat-word");
+  var anyWrong = mpPlayerUids().some(function (uid) { return !round.judged[uid]; });
+  var alreadyQueued = (room.repeatQueue || []).some(function (q) { return q.wordNum === round.wordNum; });
+  if (mp.isHost && anyWrong && !alreadyQueued) {
+    repeatBtn.style.display = "";
+    repeatBtn.textContent = "🔁 Repeat this word within 5 rounds";
+    repeatBtn.disabled = false;
+  } else if (mp.isHost && alreadyQueued) {
+    repeatBtn.style.display = "";
+    repeatBtn.textContent = "Queued — it'll come back within 5 rounds ✓";
+    repeatBtn.disabled = true;
+  } else {
+    repeatBtn.style.display = "none";
+  }
   showScreen("screen-reveal");
 }
+
+$("btn-repeat-word").addEventListener("click", function () {
+  if (!mp.isHost) return;
+  var room = mp.room;
+  var round = room.round;
+  var repeatQueue = (room.repeatQueue || []).slice();
+  repeatQueue.push({ wordNum: round.wordNum, dueRound: (room.roundsPlayed || 0) + 5 });
+  update(roomRef(mp.roomCode), { repeatQueue: repeatQueue });
+});
 
 $("btn-next-round").addEventListener("click", function () {
   if (!mp.isHost) return;
@@ -1334,7 +1410,7 @@ function renderGameWonScreen() {
 
 $("btn-new-game").addEventListener("click", function () {
   if (!mp.isHost) return;
-  update(roomRef(mp.roomCode), { phase: "lobby", round: null, usedWords: {} });
+  update(roomRef(mp.roomCode), { phase: "lobby", round: null, usedWords: {}, roundsPlayed: 0, repeatQueue: [] });
 });
 
 $("btn-mp-extend-game").addEventListener("click", function () {
@@ -1394,6 +1470,8 @@ var localState = {
   scores: {},
   wrongStreaks: {},
   usedWords: {},
+  roundsPlayed: 0,
+  repeatQueue: [],
   turnOrder: [],
   turnIndex: 0,
   roundAnswers: {},
@@ -1472,10 +1550,37 @@ $("local-btn-start-game").addEventListener("click", function () {
   localState.wrongStreaks = {};
   names.forEach(function (n) { localState.scores[n] = 0; localState.wrongStreaks[n] = 0; });
   localState.usedWords = {};
+  localState.roundsPlayed = 0;
+  localState.repeatQueue = [];
   localTurnOrderNewRound();
   localSaveCheckpoint("local-screen-setup");
   localGoToPassTurn();
 });
+
+// Picks the next word, honoring any word a host queued for a forced repeat
+// (via the reveal screen's "Repeat this word" button) once its 5-round
+// deadline has arrived. If a queued word happens to come up on its own
+// first, the queue entry is considered satisfied and dropped.
+function localPickWord() {
+  localState.roundsPlayed += 1;
+  for (var i = 0; i < localState.repeatQueue.length; i++) {
+    if (localState.repeatQueue[i].dueRound <= localState.roundsPlayed) {
+      var due = localState.repeatQueue.splice(i, 1)[0];
+      var dueWord = WORDS.filter(function (w) { return w[0] === due.wordNum; })[0];
+      if (dueWord) {
+        localState.usedWords[dueWord[0]] = true;
+        return dueWord;
+      }
+      break;
+    }
+  }
+  var pool = WORDS.filter(function (w) { return !localState.usedWords[w[0]]; });
+  if (pool.length === 0) { localState.usedWords = {}; pool = WORDS; }
+  var word = pickRandom(pool);
+  localState.usedWords[word[0]] = true;
+  localState.repeatQueue = localState.repeatQueue.filter(function (q) { return q.wordNum !== word[0]; });
+  return word;
+}
 
 function localTurnOrderNewRound() {
   localState.turnOrder = localState.players.slice();
@@ -1483,10 +1588,7 @@ function localTurnOrderNewRound() {
   localState.roundAnswers = {};
   localState.roundJudged = {};
 
-  var pool = WORDS.filter(function (w) { return !localState.usedWords[w[0]]; });
-  if (pool.length === 0) { localState.usedWords = {}; pool = WORDS; }
-  var word = pickRandom(pool);
-  localState.usedWords[word[0]] = true;
+  var word = localPickWord();
   localState.currentWord = word;
   localState.currentMode = localState.guessMode === "mix"
     ? ((Math.random() < 0.5) ? "type" : "choice")
@@ -1580,15 +1682,33 @@ $("local-input-answer-field").addEventListener("keydown", function (e) {
 $("local-btn-show-answer").addEventListener("click", function () {
   var word = localState.currentWord;
   var isChoice = localState.currentMode === "choice";
+  var anyWrong = false;
   localState.players.forEach(function (name) {
     var given = localState.roundAnswers[name];
-    localState.roundJudged[name] = isChoice ? (given === word[2]) : isCloseAnswer(given, word);
+    var correct = isChoice ? (given === word[2]) : isCloseAnswer(given, word);
+    localState.roundJudged[name] = correct;
+    if (!correct) anyWrong = true;
   });
   $("local-reveal-hebrew-text").textContent = word[1];
   $("local-reveal-answer-text").textContent = word[2];
   localRenderJudgeList();
   pushHistory(word);
+
+  var repeatBtn = $("local-btn-repeat-word");
+  var alreadyQueued = localState.repeatQueue.some(function (q) { return q.wordNum === word[0]; });
+  repeatBtn.style.display = (anyWrong && !alreadyQueued) ? "" : "none";
+  repeatBtn.textContent = "🔁 Repeat this word within 5 rounds";
+  repeatBtn.disabled = false;
+
   showScreen("local-screen-reveal");
+});
+
+$("local-btn-repeat-word").addEventListener("click", function () {
+  var word = localState.currentWord;
+  localState.repeatQueue.push({ wordNum: word[0], dueRound: localState.roundsPlayed + 5 });
+  var btn = $("local-btn-repeat-word");
+  btn.textContent = "Queued — it'll come back within 5 rounds ✓";
+  btn.disabled = true;
 });
 
 function localRenderJudgeList() {
@@ -1718,7 +1838,8 @@ function localSaveCheckpoint(screenId) {
       screen: screenId,
       localState: {
         players: localState.players, targetScore: localState.targetScore, guessMode: localState.guessMode,
-        scores: localState.scores, wrongStreaks: localState.wrongStreaks, usedWords: localState.usedWords
+        scores: localState.scores, wrongStreaks: localState.wrongStreaks, usedWords: localState.usedWords,
+        roundsPlayed: localState.roundsPlayed, repeatQueue: localState.repeatQueue
       }
     };
     localStorage.setItem(LOCAL_SAVE_KEY, JSON.stringify(snapshot));
