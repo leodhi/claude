@@ -1,0 +1,1274 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>Climbers</title>
+<style>
+  :root {
+    --bg: #0d1b2a;
+    --panel: #16283d;
+    --panel-2: #1f3a52;
+    --accent: #ffb703;
+    --accent-2: #e63946;
+    --text: #eef4f8;
+    --text-dim: #8fa6bd;
+    --border: #2c4863;
+  }
+  * { box-sizing: border-box; }
+  html { font-size: 16px; }
+  html, body {
+    margin: 0; padding: 0; height: 100%;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    -webkit-tap-highlight-color: transparent;
+  }
+  #app {
+    max-width: 560px;
+    margin: 0 auto;
+    min-height: 100vh;
+    min-height: 100dvh;
+    display: flex;
+    flex-direction: column;
+    padding: 20px 16px 40px;
+  }
+  @media (min-width: 700px) {
+    html { font-size: 18px; }
+    #app { max-width: 700px; padding: 32px 24px 56px; }
+  }
+  @media (min-width: 1000px) {
+    html { font-size: 20px; }
+    #app { max-width: 860px; padding: 40px 32px 64px; }
+  }
+  h1 { font-size: 1.5rem; margin: 4px 0 2px; letter-spacing: 0.3px; }
+  h1 span { color: var(--accent); }
+  .subtitle { color: var(--text-dim); font-size: 0.85rem; margin-bottom: 18px; }
+  .screen { display: none; flex-direction: column; gap: 14px; flex: 1; }
+  .screen.active { display: flex; }
+  .card { background: var(--panel); border: 1px solid var(--border); border-radius: 14px; padding: 16px; box-shadow: 0 1px 2px rgba(0,0,0,0.2); }
+  label { display: block; font-size: 0.8rem; color: var(--text-dim); margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.06em; }
+  input[type="text"], input[type="number"] {
+    width: 100%; background: var(--panel-2); border: 1px solid var(--border);
+    color: var(--text); padding: 12px; border-radius: 10px; font-size: 1rem;
+  }
+  input:focus { outline: 2px solid var(--accent); }
+  .player-row { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 8px; align-items: center; }
+  .player-row input[type="text"] { flex: 1; min-width: 90px; }
+  .icon-btn {
+    background: var(--panel-2); border: 1px solid var(--border); color: var(--text-dim);
+    border-radius: 10px; width: 44px; height: 44px; font-size: 1.1rem; cursor: pointer; flex: none;
+  }
+  .icon-btn:active { transform: scale(0.95); }
+  button.primary {
+    background: var(--accent); color: #1a1200; border: none; padding: 15px; border-radius: 12px;
+    font-size: 1.05rem; font-weight: 700; cursor: pointer; width: 100%;
+  }
+  button.primary:active { transform: scale(0.98); }
+  button.secondary {
+    background: transparent; color: var(--text); border: 1px solid var(--border);
+    padding: 13px; border-radius: 12px; font-size: 0.95rem; cursor: pointer; width: 100%;
+  }
+  button.danger { background: var(--accent-2); color: #fff; border: none; }
+  button:disabled { opacity: 0.4; cursor: not-allowed; }
+  button.link {
+    background: none; border: none; color: var(--text-dim); text-decoration: underline;
+    font-size: 0.8rem; cursor: pointer; padding: 6px;
+  }
+  .center { text-align: center; }
+  .row { display: flex; gap: 8px; }
+  .row > * { flex: 1; }
+  .footer-nav { display: flex; gap: 8px; margin-top: auto; padding-top: 10px; }
+  .footer-nav button { flex: 1; }
+  small.hint { color: var(--text-dim); display: block; margin-top: 4px; font-size: 0.78rem; }
+  .room-code { font-size: 2.6rem; font-weight: 800; letter-spacing: 0.2em; text-align: center; color: var(--accent); margin: 8px 0; }
+  .player-chip-list { display: flex; flex-wrap: wrap; gap: 8px; }
+  .player-chip { background: var(--panel-2); border: 1px solid var(--border); border-radius: 999px; padding: 7px 14px; font-size: 0.85rem; display: flex; align-items: center; gap: 6px; }
+  .player-color-dot { width: 10px; height: 10px; border-radius: 50%; flex: none; }
+  .host-badge { color: var(--accent); font-size: 0.7rem; margin-left: 4px; }
+  .waiting-text { color: var(--text-dim); text-align: center; padding: 16px 0; }
+
+  .rules-link-row { text-align: center; margin: -8px 0 14px; }
+  .rules-link-btn {
+    background: none; border: none; color: var(--text-dim); font-size: 0.8rem;
+    text-decoration: underline; cursor: pointer; padding: 4px 8px; font-family: inherit;
+  }
+  .rules-link-btn:hover { color: var(--accent); }
+  .rules-modal-backdrop {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.6);
+    display: none; align-items: center; justify-content: center; z-index: 300; padding: 20px;
+  }
+  .rules-modal-backdrop.show { display: flex; }
+  .rules-modal {
+    background: var(--panel); border: 1px solid var(--border); border-radius: 14px;
+    max-width: 460px; width: 100%; max-height: 82vh; overflow-y: auto;
+    padding: 22px; color: var(--text);
+  }
+  .rules-modal h2 { margin: 0 0 14px; font-size: 1.15rem; }
+  .rules-modal .rules-section { margin-bottom: 14px; line-height: 1.6; font-size: 0.9rem; color: var(--text-dim); }
+  .rules-modal .rules-section strong { color: var(--text); }
+  .rules-modal .rules-section-label {
+    text-transform: uppercase; font-size: 0.72rem; letter-spacing: 0.05em;
+    color: var(--accent); font-weight: 600; margin-bottom: 4px;
+  }
+  .rules-modal-close { width: 100%; margin-top: 6px; }
+
+  /* ---- board ---- */
+  .turn-banner {
+    display: flex; align-items: center; justify-content: space-between; gap: 10px;
+    background: var(--panel); border: 1px solid var(--border); border-radius: 14px; padding: 12px 14px;
+  }
+  .turn-banner-name { font-weight: 800; font-size: 1.05rem; display: flex; align-items: center; gap: 8px; }
+  .turn-banner.my-turn { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent) inset; }
+  .board-wrap {
+    background: var(--panel); border: 1px solid var(--border); border-radius: 14px; padding: 8px;
+  }
+  .board-grid {
+    display: grid; gap: 3px; width: 100%; aspect-ratio: 1;
+  }
+  .board-cell {
+    position: relative; border-radius: 6px; border: 1px solid rgba(0,0,0,0.25);
+    display: flex; align-items: center; justify-content: center;
+    cursor: default; padding: 0; font-family: inherit;
+  }
+  .board-cell.cell-neutral { background: #46586e; }
+  .board-cell.targetable { cursor: pointer; box-shadow: 0 0 0 2px var(--accent) inset; }
+  .board-cell.targetable:active { transform: scale(0.94); }
+  .cell-height {
+    position: absolute; top: 2px; left: 3px; font-size: 0.55rem; font-weight: 700;
+    color: rgba(255,255,255,0.75); text-shadow: 0 1px 1px rgba(0,0,0,0.5);
+  }
+  .cell-seed-mark {
+    position: absolute; bottom: 2px; left: 3px; font-size: 0.5rem; color: rgba(255,255,255,0.6);
+  }
+  .cell-disk {
+    position: absolute; bottom: 1px; right: 2px; font-size: 0.7rem; line-height: 1;
+  }
+  .cell-pawn {
+    width: 62%; height: 62%; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+    font-size: 0.62rem; font-weight: 800; color: #fff; text-shadow: 0 1px 1px rgba(0,0,0,0.4);
+    border: 2px solid rgba(255,255,255,0.85);
+  }
+  .action-toolbar { display: flex; flex-wrap: wrap; gap: 8px; }
+  .action-btn {
+    flex: 1 1 calc(50% - 8px); min-width: 120px; background: var(--panel-2); border: 1px solid var(--border);
+    color: var(--text); padding: 11px 8px; border-radius: 10px; font-size: 0.85rem; cursor: pointer; font-weight: 600;
+  }
+  .action-btn.on { background: var(--accent); color: #1a1200; border-color: var(--accent); }
+  .action-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+  .legend { display: flex; flex-wrap: wrap; gap: 10px; font-size: 0.78rem; color: var(--text-dim); }
+  .legend-item { display: flex; align-items: center; gap: 5px; }
+  .legend-dot { width: 12px; height: 12px; border-radius: 50%; flex: none; }
+  .action-status { color: var(--text-dim); font-size: 0.82rem; min-height: 1.2em; text-align: center; }
+  .winner-banner { font-size: 1.3rem; font-weight: 800; text-align: center; }
+  .winner-banner span { color: var(--accent); }
+
+  #chat-toggle {
+    position: fixed; right: 16px; bottom: 16px; z-index: 40;
+    width: 52px; height: 52px; border-radius: 50%;
+    background: var(--accent); color: #1a1200; border: none;
+    font-size: 1.4rem; cursor: pointer;
+    box-shadow: 0 4px 14px rgba(0,0,0,0.35);
+    display: none; align-items: center; justify-content: center;
+  }
+  #chat-toggle:active { transform: scale(0.94); }
+  @keyframes chat-bounce {
+    0%, 100% { transform: translateY(0); }
+    25% { transform: translateY(-7px); }
+    50% { transform: translateY(0); }
+  }
+  #chat-toggle.has-unread { background: var(--accent-2); color: #fff; animation: chat-bounce 0.6s ease-in-out infinite; }
+  #chat-badge {
+    position: absolute; top: -2px; right: -2px;
+    background: var(--accent-2); color: #fff;
+    border-radius: 999px; min-width: 18px; height: 18px;
+    font-size: 0.68rem; font-weight: 800; line-height: 18px;
+    text-align: center; padding: 0 4px; display: none;
+  }
+  #chat-panel {
+    position: fixed; right: 16px; bottom: 78px; z-index: 40;
+    width: min(320px, calc(100vw - 32px)); max-height: min(440px, calc(100vh - 140px));
+    background: var(--panel); border: 1px solid var(--border); border-radius: 16px;
+    display: none; flex-direction: column; overflow: hidden;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.45);
+  }
+  #chat-panel.open { display: flex; }
+  #chat-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 10px 12px; border-bottom: 1px solid var(--border);
+    font-size: 0.85rem; font-weight: 700; color: var(--text-dim);
+    text-transform: uppercase; letter-spacing: 0.06em;
+  }
+  #chat-close {
+    background: none; border: none; color: var(--text-dim);
+    font-size: 1rem; cursor: pointer; padding: 2px 6px;
+  }
+  #chat-messages { flex: 1; overflow-y: auto; padding: 10px 12px; display: flex; flex-direction: column; gap: 8px; }
+  .chat-msg { font-size: 0.85rem; line-height: 1.35; }
+  .chat-msg .chat-name { font-weight: 700; color: var(--accent); }
+  .chat-msg.chat-mine .chat-name { color: var(--accent-2); }
+  #chat-input-row { display: flex; gap: 6px; padding: 10px; border-top: 1px solid var(--border); }
+  #chat-input {
+    flex: 1; background: var(--panel-2); border: 1px solid var(--border);
+    color: var(--text); padding: 9px 10px; border-radius: 10px; font-size: 0.9rem;
+  }
+  #chat-send {
+    background: var(--accent); color: #1a1200; border: none;
+    border-radius: 10px; padding: 0 14px; font-weight: 700; cursor: pointer; font-size: 0.85rem;
+  }
+  #home-toggle {
+    position: fixed; left: 16px; bottom: 16px; z-index: 40;
+    width: 52px; height: 52px; border-radius: 50%;
+    background: var(--panel-2); color: var(--text); border: 1px solid var(--border);
+    font-size: 1.3rem; cursor: pointer;
+    box-shadow: 0 4px 14px rgba(0,0,0,0.35);
+    display: none; align-items: center; justify-content: center;
+  }
+  #home-toggle:active { transform: scale(0.94); }
+</style>
+</head>
+<body>
+<div id="app">
+  <h1>The <span>Climbers</span></h1>
+  <div class="subtitle">Race to the peak &mdash; climb your own colored path or the shared neutral stones, reshape the mountain as you go &middot; <a class="top-link" href="index.html" style="color:var(--text-dim);font-size:0.8rem;">&larr; all games</a></div>
+  <div class="rules-link-row"><button type="button" class="rules-link-btn" id="rules-btn">Rules</button></div>
+  <div class="rules-modal-backdrop" id="rules-modal-backdrop">
+    <div class="rules-modal">
+      <h2>How to Play</h2>
+      <div class="rules-section">
+        <div class="rules-section-label">A note on this version</div>
+        This is a browser adaptation of the physical board game "The Climbers" (Capstone Games). Instead of stacking real 3D blocks, the mountain is a 7&times;7 grid where every square has a color and a height. The rules below describe exactly what this version does &mdash; a few numbers (ladder reach, board shape) were chosen to make it work well on screen.
+      </div>
+      <div class="rules-section">
+        <div class="rules-section-label">The goal</div>
+        Everyone starts at their own low, home-colored square at the edge of the grid. Be the highest climber left standing when the game ends.
+      </div>
+      <div class="rules-section">
+        <div class="rules-section-label">Moving</div>
+        On your turn you may move to one neighboring square (including diagonals) if it's your own color <strong>or</strong> the shared gray neutral color, nobody else is standing there, it isn't blocked, and it's no more than one level higher than where you are (you can also move sideways or to a lower square of the same height &mdash; never down to a lower one).
+      </div>
+      <div class="rules-section">
+        <div class="rules-section-label">Ladders</div>
+        Each player has one short and one long ladder, usable once each for the whole game. A ladder lets you leap further and higher than a normal step, as long as the landing square is still your color or neutral, open, and not blocked.
+      </div>
+      <div class="rules-section">
+        <div class="rules-section-label">Rotating blocks</div>
+        Instead of moving, you may rotate one unoccupied, unblocked square (that isn't someone's starting square) to its next face &mdash; this can change its color and height, opening or closing routes for everyone.
+      </div>
+      <div class="rules-section">
+        <div class="rules-section-label">Blocking disk</div>
+        You have one disk. Place it on any open square to seal it &mdash; nobody can stand there while it's down. It stays until play comes back around to you, then it automatically returns to your hand.
+      </div>
+      <div class="rules-section">
+        <div class="rules-section-label">Your turn</div>
+        Each turn you may do one climb (a normal move or a ladder), one rotate, and place your disk &mdash; in any order, any or none of them &mdash; then end your turn. If you truly have nothing you want to do, just pass.
+      </div>
+      <div class="rules-section">
+        <div class="rules-section-label">Game end</div>
+        Once every remaining player passes in a row without taking any action, the game ends and whoever is highest up wins (ties share the win).
+      </div>
+      <button class="secondary rules-modal-close" id="rules-modal-close" type="button">Got it</button>
+    </div>
+  </div>
+
+  <button id="chat-toggle" type="button" aria-label="Room chat">
+    💬<span id="chat-badge"></span>
+  </button>
+  <div id="chat-panel">
+    <div id="chat-header">
+      <span>Room Chat</span>
+      <button id="chat-close" type="button" aria-label="Close chat">✕</button>
+    </div>
+    <div id="chat-messages"></div>
+    <div id="chat-input-row">
+      <input type="text" id="chat-input" placeholder="Message..." maxlength="200">
+      <button id="chat-send" type="button">Send</button>
+    </div>
+  </div>
+  <button id="home-toggle" type="button" aria-label="Back to start screen">🏠</button>
+
+  <!-- HOME -->
+  <div class="screen active" id="screen-home">
+    <div class="card">
+      <button class="primary" id="btn-local-mode" type="button">Play on One Device</button>
+      <small class="hint">Everyone plays from the same screen, taking turns &mdash; the whole mountain is visible to all, so there's nothing to hide.</small>
+    </div>
+    <div class="center" style="color:var(--text-dim);font-size:0.8rem;">— or play across devices —</div>
+    <div class="card">
+      <label>Your name</label>
+      <input type="text" id="input-name" maxlength="20" placeholder="Enter your name">
+    </div>
+    <div class="card">
+      <button class="secondary" id="btn-create-room" type="button">Create Room</button>
+    </div>
+    <div class="card">
+      <label>Join a room</label>
+      <input type="text" id="input-join-name" maxlength="20" placeholder="Your name">
+      <button class="secondary" id="btn-join-room" type="button" style="margin-top:10px">Join Room</button>
+    </div>
+    <div class="center" id="home-status" style="color:var(--text-dim);font-size:0.85rem;"></div>
+  </div>
+
+  <!-- JOIN -->
+  <div class="screen" id="screen-join-code">
+    <div class="card">
+      <label>Room code</label>
+      <input type="text" id="input-join-code" maxlength="4" placeholder="4-letter room code">
+      <button class="primary" id="btn-join-code-submit" type="button" style="margin-top:10px">Join Room</button>
+    </div>
+    <div class="center" id="join-code-status" style="color:var(--text-dim);font-size:0.85rem;"></div>
+    <button class="link" id="btn-join-code-back" type="button">Back</button>
+  </div>
+
+  <!-- MULTIPLAYER LOBBY -->
+  <div class="screen" id="screen-lobby">
+    <div class="card center">
+      <label>Room code — share with players</label>
+      <div class="room-code" id="lobby-code"></div>
+      <small class="hint">Everyone opens this page on their own device and enters this code to join. 2&ndash;5 players.</small>
+    </div>
+    <div class="card">
+      <label>Players</label>
+      <div class="player-chip-list" id="lobby-players"></div>
+    </div>
+    <button class="primary" id="btn-start-game" type="button">Start Game</button>
+    <div class="waiting-text" id="lobby-waiting" style="display:none">Waiting for the host to start the game…</div>
+    <button class="link" id="btn-leave-room" type="button">Leave room</button>
+  </div>
+
+  <!-- MULTIPLAYER: BOARD -->
+  <div class="screen" id="screen-board">
+    <div id="mp-board-mount"></div>
+    <button class="link" id="btn-leave-room-2" type="button">Leave room</button>
+  </div>
+
+<div id="local-app">
+  <!-- LOCAL SETUP -->
+  <div class="screen" id="local-screen-setup">
+    <div class="card" id="local-resume-banner" style="display:none;">
+      <div class="row" style="align-items:center; gap:10px;">
+        <div style="flex:1;">Resume the local game that was in progress?</div>
+      </div>
+      <div class="row" style="margin-top:10px;">
+        <button class="secondary" id="local-btn-discard-resume" type="button">Start New</button>
+        <button class="primary" id="local-btn-resume-game" type="button">Resume</button>
+      </div>
+    </div>
+    <div class="card">
+      <label>Players (2&ndash;5)</label>
+      <div id="local-player-list"></div>
+      <button class="secondary" id="local-btn-add-player" type="button">+ Add player</button>
+    </div>
+    <button class="primary" id="local-btn-start-game" type="button">Start Game</button>
+    <button class="link" id="local-btn-back-home" type="button">Back to home</button>
+  </div>
+
+  <!-- LOCAL: BOARD -->
+  <div class="screen" id="local-screen-board">
+    <div id="local-board-mount"></div>
+    <button class="link" id="local-btn-new-game" type="button">New Game</button>
+  </div>
+</div>
+
+</div>
+
+<script type="module">
+import { firebaseConfig } from "./firebase-config.js";
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+import { getDatabase, ref, set, get, update, onValue, push } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
+
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getDatabase(app);
+
+function $(id) { return document.getElementById(id); }
+
+function showScreen(id) {
+  document.querySelectorAll(".screen").forEach(function (s) { s.classList.remove("active"); });
+  $(id).classList.add("active");
+  var homeBtn = $("home-toggle");
+  if (homeBtn) homeBtn.style.display = (id === "screen-home") ? "none" : "flex";
+}
+
+$("home-toggle").addEventListener("click", function () {
+  if (!confirm("Back to the start screen? This leaves your current game.")) return;
+  localStorage.removeItem("climbers_room");
+  location.reload();
+});
+$("rules-btn").addEventListener("click", function () { $("rules-modal-backdrop").classList.add("show"); });
+$("rules-modal-close").addEventListener("click", function () { $("rules-modal-backdrop").classList.remove("show"); });
+$("rules-modal-backdrop").addEventListener("click", function (e) { if (e.target === this) this.classList.remove("show"); });
+
+// =========================================================================
+// RULES ENGINE (pure, no DOM) -- shared by local and multiplayer modes
+// =========================================================================
+
+var GRID_SIZE = 7;
+var SHORT_LADDER = { maxDist: 3, maxUp: 3 };
+var LONG_LADDER = { maxDist: 5, maxUp: 6 };
+var PEAK_HEIGHT = 6;
+var PLAYER_COLORS = ["#e63946", "#457b9d", "#52b788", "#9d4edd", "#f4a261"];
+
+function clampNum(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
+
+function mulberry32(seed) {
+  var a = seed >>> 0;
+  return function () {
+    a |= 0; a = (a + 0x6D2B79F5) | 0;
+    var t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+function cellKey(r, c) { return r + "," + c; }
+function chebyshev(r1, c1, r2, c2) { return Math.max(Math.abs(r1 - r2), Math.abs(c1 - c2)); }
+
+function neighborCoords(r, c, size) {
+  var out = [];
+  for (var dr = -1; dr <= 1; dr++) {
+    for (var dc = -1; dc <= 1; dc++) {
+      if (dr === 0 && dc === 0) continue;
+      var nr = r + dr, nc = c + dc;
+      if (nr >= 0 && nr < size && nc >= 0 && nc < size) out.push([nr, nc]);
+    }
+  }
+  return out;
+}
+
+function buildFaces(isNeutral, colorId, baseHeight, playerIds, rng) {
+  var heights = [baseHeight, clampNum(baseHeight + 2, 0, PEAK_HEIGHT + 4), clampNum(baseHeight - 2, 0, PEAK_HEIGHT + 4)];
+  var colors;
+  if (isNeutral) {
+    var other = playerIds[Math.floor(rng() * playerIds.length)];
+    colors = ["neutral", "neutral", other];
+  } else {
+    colors = [colorId, "neutral", colorId];
+  }
+  return [
+    { color: colors[0], height: heights[0] },
+    { color: colors[1], height: heights[1] },
+    { color: colors[2], height: heights[2] }
+  ];
+}
+
+function generateBoard(playerIds, seed) {
+  var size = GRID_SIZE;
+  var rng = mulberry32(seed);
+  var center = (size - 1) / 2;
+
+  var seeds = playerIds.map(function (pid, i) {
+    var angle = (2 * Math.PI * i / playerIds.length) - Math.PI / 2;
+    var radius = center - 0.5;
+    var r = clampNum(Math.round(center + radius * Math.sin(angle)), 0, size - 1);
+    var c = clampNum(Math.round(center + radius * Math.cos(angle)), 0, size - 1);
+    return { pid: pid, r: r, c: c };
+  });
+
+  var cells = {};
+  for (var r = 0; r < size; r++) {
+    for (var c = 0; c < size; c++) {
+      var d = chebyshev(r, c, center, center);
+      var isNeutral = d <= 1;
+      var owner = null;
+      if (!isNeutral) {
+        var best = null, bestD = Infinity;
+        seeds.forEach(function (s) {
+          var dd = Math.hypot(r - s.r, c - s.c);
+          if (dd < bestD) { bestD = dd; best = s.pid; }
+        });
+        owner = best;
+      }
+      var noise = Math.floor(rng() * 3) - 1;
+      var height = clampNum(PEAK_HEIGHT - Math.round(d * 1.5) + noise, 0, PEAK_HEIGHT + 2);
+      var key = cellKey(r, c);
+      cells[key] = {
+        r: r, c: c,
+        color: isNeutral ? "neutral" : owner,
+        height: height,
+        faces: buildFaces(isNeutral, isNeutral ? "neutral" : owner, height, playerIds, rng),
+        faceIndex: 0,
+        disk: null,
+        climberUid: null,
+        isSeed: false
+      };
+    }
+  }
+
+  seeds.forEach(function (s) {
+    var cell = cells[cellKey(s.r, s.c)];
+    cell.color = s.pid;
+    cell.height = 0;
+    cell.faces = [{ color: s.pid, height: 0 }];
+    cell.faceIndex = 0;
+    cell.isSeed = true;
+  });
+
+  return { size: size, cells: cells, seeds: seeds };
+}
+
+function isOpen(cell) { return cell.climberUid === null && cell.disk === null; }
+function isNeighbor(a, b) { return chebyshev(a.r, a.c, b.r, b.c) === 1; }
+function canClimbStep(a, b) { return b.height >= a.height && b.height <= a.height + 1; }
+function colorOk(cell, playerColor) { return cell.color === "neutral" || cell.color === playerColor; }
+
+function canMoveTo(board, playerColor, fromKey, toKey) {
+  var a = board.cells[fromKey], b = board.cells[toKey];
+  if (!a || !b) return false;
+  if (!isNeighbor(a, b)) return false;
+  if (!isOpen(b)) return false;
+  if (!colorOk(b, playerColor)) return false;
+  if (!canClimbStep(a, b)) return false;
+  return true;
+}
+
+function legalMoves(board, playerColor, fromKey) {
+  var a = board.cells[fromKey];
+  if (!a) return [];
+  return neighborCoords(a.r, a.c, board.size)
+    .map(function (rc) { return cellKey(rc[0], rc[1]); })
+    .filter(function (k) { return canMoveTo(board, playerColor, fromKey, k); });
+}
+
+function canLadderTo(board, playerColor, fromKey, toKey, reach) {
+  var a = board.cells[fromKey], b = board.cells[toKey];
+  if (!a || !b || fromKey === toKey) return false;
+  var d = chebyshev(a.r, a.c, b.r, b.c);
+  if (d < 1 || d > reach.maxDist) return false;
+  if (!isOpen(b)) return false;
+  if (!colorOk(b, playerColor)) return false;
+  if (b.height < a.height) return false;
+  if (b.height > a.height + reach.maxUp) return false;
+  return true;
+}
+
+function legalLadderTargets(board, playerColor, fromKey, which) {
+  var reach = which === "short" ? SHORT_LADDER : LONG_LADDER;
+  var out = [];
+  Object.keys(board.cells).forEach(function (k) {
+    if (canLadderTo(board, playerColor, fromKey, k, reach)) out.push(k);
+  });
+  return out;
+}
+
+function canRotate(cell) {
+  if (!cell) return false;
+  if (cell.isSeed) return false;
+  if (cell.climberUid !== null) return false;
+  if (cell.disk !== null) return false;
+  return true;
+}
+
+function rotateCell(cell) {
+  cell.faceIndex = (cell.faceIndex + 1) % cell.faces.length;
+  var face = cell.faces[cell.faceIndex];
+  cell.color = face.color;
+  cell.height = face.height;
+}
+
+function canPlaceDisk(cell) {
+  if (!cell) return false;
+  if (cell.climberUid !== null) return false;
+  if (cell.disk !== null) return false;
+  return true;
+}
+
+function createGame(playersIn, seed) {
+  var playerIds = playersIn.map(function (p) { return p.uid; });
+  var board = generateBoard(playerIds, seed);
+  var players = {};
+  playersIn.forEach(function (p, i) {
+    var startKey = cellKey(board.seeds[i].r, board.seeds[i].c);
+    players[p.uid] = {
+      uid: p.uid, name: p.name, color: p.uid,
+      cellKey: startKey,
+      ladders: { short: true, long: true },
+      diskCellKey: null
+    };
+    board.cells[startKey].climberUid = p.uid;
+  });
+  return {
+    board: board,
+    playerOrder: playerIds,
+    players: players,
+    turnIndex: 0,
+    turnNumber: 1,
+    consecutivePasses: 0,
+    actions: { moved: false, rotated: false, diskPlaced: false },
+    phase: "playing",
+    winners: null
+  };
+}
+
+function currentPlayer(state) { return state.players[state.playerOrder[state.turnIndex]]; }
+
+function doMove(state, toKey) {
+  var p = currentPlayer(state);
+  if (state.actions.moved) return { ok: false, error: "Already moved this turn." };
+  if (!canMoveTo(state.board, p.color, p.cellKey, toKey)) return { ok: false, error: "Illegal move." };
+  state.board.cells[p.cellKey].climberUid = null;
+  state.board.cells[toKey].climberUid = p.uid;
+  p.cellKey = toKey;
+  state.actions.moved = true;
+  state.consecutivePasses = 0;
+  return { ok: true };
+}
+
+function doLadder(state, which, toKey) {
+  var p = currentPlayer(state);
+  if (state.actions.moved) return { ok: false, error: "Already moved this turn." };
+  if (!p.ladders[which]) return { ok: false, error: "That ladder is already used." };
+  var reach = which === "short" ? SHORT_LADDER : LONG_LADDER;
+  if (!canLadderTo(state.board, p.color, p.cellKey, toKey, reach)) return { ok: false, error: "Illegal ladder move." };
+  state.board.cells[p.cellKey].climberUid = null;
+  state.board.cells[toKey].climberUid = p.uid;
+  p.cellKey = toKey;
+  p.ladders[which] = false;
+  state.actions.moved = true;
+  state.consecutivePasses = 0;
+  return { ok: true };
+}
+
+function doRotate(state, key) {
+  if (state.actions.rotated) return { ok: false, error: "Already rotated a block this turn." };
+  var cell = state.board.cells[key];
+  if (!canRotate(cell)) return { ok: false, error: "That block can't be rotated." };
+  rotateCell(cell);
+  state.actions.rotated = true;
+  state.consecutivePasses = 0;
+  return { ok: true };
+}
+
+function doPlaceDisk(state, key) {
+  var p = currentPlayer(state);
+  if (state.actions.diskPlaced) return { ok: false, error: "Already placed your disk this turn." };
+  if (p.diskCellKey !== null) return { ok: false, error: "Your disk is already on the board." };
+  var cell = state.board.cells[key];
+  if (!canPlaceDisk(cell)) return { ok: false, error: "That surface can't be blocked." };
+  cell.disk = { ownerUid: p.uid };
+  p.diskCellKey = key;
+  state.actions.diskPlaced = true;
+  state.consecutivePasses = 0;
+  return { ok: true };
+}
+
+function endTurn(state) {
+  if (state.phase !== "playing") return;
+  var actedThisTurn = state.actions.moved || state.actions.rotated || state.actions.diskPlaced;
+  if (!actedThisTurn) state.consecutivePasses++;
+  if (state.consecutivePasses >= state.playerOrder.length) {
+    endGame(state);
+    return;
+  }
+  var nextIndex = (state.turnIndex + 1) % state.playerOrder.length;
+  var nextPlayer = state.players[state.playerOrder[nextIndex]];
+  if (nextPlayer.diskCellKey !== null) {
+    state.board.cells[nextPlayer.diskCellKey].disk = null;
+    nextPlayer.diskCellKey = null;
+  }
+  state.turnIndex = nextIndex;
+  state.turnNumber++;
+  state.actions = { moved: false, rotated: false, diskPlaced: false };
+}
+
+function endGame(state) {
+  state.phase = "ended";
+  var maxHeight = -1;
+  state.playerOrder.forEach(function (uid) {
+    var h = state.board.cells[state.players[uid].cellKey].height;
+    if (h > maxHeight) maxHeight = h;
+  });
+  state.winners = state.playerOrder.filter(function (uid) {
+    return state.board.cells[state.players[uid].cellKey].height === maxHeight;
+  });
+}
+
+function colorForUid(game, uid) {
+  if (uid === "neutral") return "neutral";
+  var idx = game.playerOrder.indexOf(uid);
+  return idx === -1 ? "#666" : PLAYER_COLORS[idx % PLAYER_COLORS.length];
+}
+
+function deepCloneGame(game) { return JSON.parse(JSON.stringify(game)); }
+
+// =========================================================================
+// SHARED BOARD RENDERING (used by both local and multiplayer)
+// =========================================================================
+
+function makeBoardController(mountId, opts) {
+  // opts: { getGame(), getMyUid(), isInteractive(), dispatch(fn), onNewGame() }
+  var uiMode = null; // null | "move" | "ladder-short" | "ladder-long" | "rotate" | "disk"
+
+  function playerInitial(name) { return (name || "?").trim().charAt(0).toUpperCase() || "?"; }
+
+  function setMode(mode) {
+    uiMode = (uiMode === mode) ? null : mode;
+    render();
+  }
+
+  function targetKeysForMode(game, myUid) {
+    if (!uiMode) return [];
+    var me = game.players[myUid];
+    if (!me) return [];
+    if (uiMode === "move") return legalMoves(game.board, me.color, me.cellKey);
+    if (uiMode === "ladder-short") return me.ladders.short ? legalLadderTargets(game.board, me.color, me.cellKey, "short") : [];
+    if (uiMode === "ladder-long") return me.ladders.long ? legalLadderTargets(game.board, me.color, me.cellKey, "long") : [];
+    if (uiMode === "rotate") return Object.keys(game.board.cells).filter(function (k) { return canRotate(game.board.cells[k]); });
+    if (uiMode === "disk") return Object.keys(game.board.cells).filter(function (k) { return canPlaceDisk(game.board.cells[k]); });
+    return [];
+  }
+
+  function onCellTap(key) {
+    if (!uiMode) return;
+    var mode = uiMode;
+    uiMode = null;
+    if (mode === "move") opts.dispatch(function (s) { return doMove(s, key); });
+    else if (mode === "ladder-short") opts.dispatch(function (s) { return doLadder(s, "short", key); });
+    else if (mode === "ladder-long") opts.dispatch(function (s) { return doLadder(s, "long", key); });
+    else if (mode === "rotate") opts.dispatch(function (s) { return doRotate(s, key); });
+    else if (mode === "disk") opts.dispatch(function (s) { return doPlaceDisk(s, key); });
+  }
+
+  function render() {
+    var game = opts.getGame();
+    var mount = $(mountId);
+    if (!game || !mount) return;
+    var myUid = opts.getMyUid();
+    var interactive = opts.isInteractive();
+    var me = game.players[myUid];
+
+    mount.innerHTML = "";
+
+    if (game.phase === "ended") {
+      var card = document.createElement("div");
+      card.className = "card center";
+      var names = game.winners.map(function (uid) { return game.players[uid].name; }).join(" & ");
+      card.innerHTML = '<div class="winner-banner">🏔️ <span>' + escapeHtml(names) + "</span> reached the top!</div>";
+      mount.appendChild(card);
+      mount.appendChild(buildBoardCard(game, myUid, false));
+      return;
+    }
+
+    var cp = currentPlayer(game);
+    var banner = document.createElement("div");
+    banner.className = "turn-banner" + (cp.uid === myUid ? " my-turn" : "");
+    var dot = '<span class="player-color-dot" style="background:' + colorForUid(game, cp.uid) + ';display:inline-block;"></span>';
+    banner.innerHTML =
+      '<div class="turn-banner-name">' + dot + escapeHtml(cp.name) + (cp.uid === myUid ? " (you)" : "") + "</div>" +
+      '<div style="color:var(--text-dim);font-size:0.8rem;">Turn ' + game.turnNumber + "</div>";
+    mount.appendChild(banner);
+
+    mount.appendChild(buildBoardCard(game, myUid, interactive));
+
+    if (interactive && me) {
+      var toolbar = document.createElement("div");
+      toolbar.className = "action-toolbar";
+
+      var moveBtn = actionButton("Move", uiMode === "move", legalMoves(game.board, me.color, me.cellKey).length === 0 || game.actions.moved, function () { setMode("move"); });
+      toolbar.appendChild(moveBtn);
+
+      var rotateBtn = actionButton("Rotate a Block", uiMode === "rotate", game.actions.rotated, function () { setMode("rotate"); });
+      toolbar.appendChild(rotateBtn);
+
+      var shortBtn = actionButton("Short Ladder" + (me.ladders.short ? "" : " (used)"), uiMode === "ladder-short", !me.ladders.short || game.actions.moved, function () { setMode("ladder-short"); });
+      toolbar.appendChild(shortBtn);
+
+      var longBtn = actionButton("Long Ladder" + (me.ladders.long ? "" : " (used)"), uiMode === "ladder-long", !me.ladders.long || game.actions.moved, function () { setMode("ladder-long"); });
+      toolbar.appendChild(longBtn);
+
+      var diskBtn = actionButton("Place Disk" + (me.diskCellKey ? " (down)" : ""), uiMode === "disk", game.actions.diskPlaced || me.diskCellKey !== null, function () { setMode("disk"); });
+      toolbar.appendChild(diskBtn);
+
+      var endBtn = actionButton("End Turn / Pass", false, false, function () {
+        uiMode = null;
+        opts.dispatch(function (s) { endTurn(s); return { ok: true }; });
+      });
+      toolbar.appendChild(endBtn);
+
+      mount.appendChild(toolbar);
+
+      var status = document.createElement("div");
+      status.className = "action-status";
+      if (uiMode) status.textContent = "Tap a highlighted square to confirm, or tap the button again to cancel.";
+      mount.appendChild(status);
+    } else if (!interactive) {
+      var waiting = document.createElement("div");
+      waiting.className = "waiting-text";
+      waiting.textContent = "Waiting for " + cp.name + "…";
+      mount.appendChild(waiting);
+    }
+
+    mount.appendChild(buildLegend(game));
+  }
+
+  function actionButton(label, isOn, isDisabled, handler) {
+    var b = document.createElement("button");
+    b.type = "button";
+    b.className = "action-btn" + (isOn ? " on" : "");
+    b.textContent = label;
+    b.disabled = !!isDisabled;
+    b.addEventListener("click", handler);
+    return b;
+  }
+
+  function buildBoardCard(game, myUid, interactive) {
+    var wrap = document.createElement("div");
+    wrap.className = "board-wrap";
+    var grid = document.createElement("div");
+    grid.className = "board-grid";
+    grid.style.gridTemplateColumns = "repeat(" + game.board.size + ", 1fr)";
+
+    var targets = interactive ? targetKeysForMode(game, myUid) : [];
+    var targetSet = {};
+    targets.forEach(function (k) { targetSet[k] = true; });
+
+    for (var r = 0; r < game.board.size; r++) {
+      for (var c = 0; c < game.board.size; c++) {
+        var key = cellKey(r, c);
+        var cell = game.board.cells[key];
+        var btn = document.createElement("button");
+        btn.type = "button";
+        btn.className = "board-cell" + (cell.color === "neutral" ? " cell-neutral" : "") + (targetSet[key] ? " targetable" : "");
+        if (cell.color !== "neutral") btn.style.background = colorForUid(game, cell.color);
+
+        var heightEl = document.createElement("span");
+        heightEl.className = "cell-height";
+        heightEl.textContent = String(cell.height);
+        btn.appendChild(heightEl);
+
+        if (cell.isSeed) {
+          var seedMark = document.createElement("span");
+          seedMark.className = "cell-seed-mark";
+          seedMark.textContent = "⌂";
+          btn.appendChild(seedMark);
+        }
+
+        if (cell.disk) {
+          var diskEl = document.createElement("span");
+          diskEl.className = "cell-disk";
+          diskEl.textContent = "🚫";
+          btn.appendChild(diskEl);
+        }
+
+        if (cell.climberUid) {
+          var pawn = document.createElement("span");
+          pawn.className = "cell-pawn";
+          var pColor = colorForUid(game, cell.climberUid);
+          pawn.style.background = cell.color === "neutral" ? pColor : "rgba(0,0,0,0.28)";
+          pawn.textContent = playerInitial(game.players[cell.climberUid].name);
+          btn.appendChild(pawn);
+        }
+
+        if (targetSet[key]) {
+          btn.addEventListener("click", (function (k) { return function () { onCellTap(k); }; })(key));
+        }
+        grid.appendChild(btn);
+      }
+    }
+    wrap.appendChild(grid);
+    return wrap;
+  }
+
+  function buildLegend(game) {
+    var wrap = document.createElement("div");
+    wrap.className = "legend";
+    game.playerOrder.forEach(function (uid) {
+      var p = game.players[uid];
+      var item = document.createElement("div");
+      item.className = "legend-item";
+      item.innerHTML = '<span class="legend-dot" style="background:' + colorForUid(game, uid) + ';"></span>' + escapeHtml(p.name) + " · height " + game.board.cells[p.cellKey].height;
+      wrap.appendChild(item);
+    });
+    return wrap;
+  }
+
+  return { render: render, resetMode: function () { uiMode = null; } };
+}
+
+function escapeHtml(s) {
+  var div = document.createElement("div");
+  div.textContent = String(s == null ? "" : s);
+  return div.innerHTML;
+}
+
+// =========================================================================
+// LOCAL MODE
+// =========================================================================
+
+var localState = {
+  playerNames: ["", ""],
+  game: null
+};
+
+var localBoard = makeBoardController("local-board-mount", {
+  getGame: function () { return localState.game; },
+  getMyUid: function () { return localState.game ? currentPlayer(localState.game).uid : null; },
+  isInteractive: function () { return true; },
+  dispatch: function (fn) {
+    var r = fn(localState.game);
+    if (r && r.ok === false) return;
+    saveLocalGame();
+    localBoard.render();
+    if (localState.game.phase === "ended") localStorage.removeItem("climbers_local_game");
+  }
+});
+
+function saveLocalGame() {
+  try { localStorage.setItem("climbers_local_game", JSON.stringify(localState.game)); } catch (e) {}
+}
+
+function renderLocalPlayerList() {
+  var wrap = $("local-player-list");
+  wrap.innerHTML = "";
+  localState.playerNames.forEach(function (name, i) {
+    var row = document.createElement("div");
+    row.className = "player-row";
+    var input = document.createElement("input");
+    input.type = "text";
+    input.maxLength = 20;
+    input.placeholder = "Player " + (i + 1);
+    input.value = name;
+    input.addEventListener("input", function () { localState.playerNames[i] = input.value; });
+    row.appendChild(input);
+    if (localState.playerNames.length > 2) {
+      var removeBtn = document.createElement("button");
+      removeBtn.type = "button";
+      removeBtn.className = "icon-btn";
+      removeBtn.textContent = "✕";
+      removeBtn.addEventListener("click", function () {
+        localState.playerNames.splice(i, 1);
+        renderLocalPlayerList();
+      });
+      row.appendChild(removeBtn);
+    }
+    wrap.appendChild(row);
+  });
+  $("local-btn-add-player").disabled = localState.playerNames.length >= 5;
+}
+
+$("local-btn-add-player").addEventListener("click", function () {
+  if (localState.playerNames.length >= 5) return;
+  localState.playerNames.push("");
+  renderLocalPlayerList();
+});
+
+$("btn-local-mode").addEventListener("click", function () {
+  renderLocalPlayerList();
+  showScreen("local-screen-setup");
+  try {
+    var saved = JSON.parse(localStorage.getItem("climbers_local_game") || "null");
+    if (saved && saved.phase === "playing") $("local-resume-banner").style.display = "";
+    else $("local-resume-banner").style.display = "none";
+  } catch (e) { $("local-resume-banner").style.display = "none"; }
+});
+
+$("local-btn-back-home").addEventListener("click", function () { showScreen("screen-home"); });
+
+$("local-btn-resume-game").addEventListener("click", function () {
+  try {
+    var saved = JSON.parse(localStorage.getItem("climbers_local_game") || "null");
+    if (!saved) return;
+    localState.game = saved;
+    showScreen("local-screen-board");
+    localBoard.render();
+  } catch (e) {}
+});
+
+$("local-btn-discard-resume").addEventListener("click", function () {
+  localStorage.removeItem("climbers_local_game");
+  $("local-resume-banner").style.display = "none";
+});
+
+$("local-btn-start-game").addEventListener("click", function () {
+  var names = localState.playerNames.map(function (n) { return n.trim(); });
+  if (names.some(function (n) { return !n; })) { alert("Enter a name for every player."); return; }
+  var players = names.map(function (n, i) { return { uid: "local" + i, name: n }; });
+  localState.game = createGame(players, Math.floor(Math.random() * 4294967295));
+  saveLocalGame();
+  localBoard.resetMode();
+  showScreen("local-screen-board");
+  localBoard.render();
+});
+
+$("local-btn-new-game").addEventListener("click", function () {
+  if (!confirm("End this game and set up a new one?")) return;
+  localStorage.removeItem("climbers_local_game");
+  renderLocalPlayerList();
+  showScreen("local-screen-setup");
+  $("local-resume-banner").style.display = "none";
+});
+
+// =========================================================================
+// MULTIPLAYER MODE
+// =========================================================================
+
+var CODE_CHARS = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+
+var mp = {
+  uid: null,
+  name: "",
+  roomCode: null,
+  isHost: false,
+  room: null
+};
+
+function roomRef(code) { return ref(db, "rooms/" + code); }
+function generateRoomCode() {
+  var out = "";
+  for (var i = 0; i < 4; i++) out += CODE_CHARS[Math.floor(Math.random() * CODE_CHARS.length)];
+  return out;
+}
+
+var mpBoard = makeBoardController("mp-board-mount", {
+  getGame: function () { return mp.room ? mp.room.game : null; },
+  getMyUid: function () { return mp.uid; },
+  isInteractive: function () {
+    if (!mp.room || !mp.room.game) return false;
+    return currentPlayer(mp.room.game).uid === mp.uid;
+  },
+  dispatch: function (fn) {
+    if (!mp.room || !mp.room.game) return;
+    if (currentPlayer(mp.room.game).uid !== mp.uid) return;
+    var gameCopy = deepCloneGame(mp.room.game);
+    var r = fn(gameCopy);
+    if (r && r.ok === false) return;
+    set(ref(db, "rooms/" + mp.roomCode + "/game"), gameCopy);
+  }
+});
+
+signInAnonymously(auth).catch(function (err) {
+  $("home-status").textContent = "Couldn't connect: " + err.message;
+});
+
+onAuthStateChanged(auth, function (user) {
+  if (!user) return;
+  mp.uid = user.uid;
+  tryAutoRejoin();
+});
+
+function tryAutoRejoin() {
+  var saved = null;
+  try { saved = JSON.parse(localStorage.getItem("climbers_room") || "null"); } catch (e) {}
+  if (!saved || !saved.code || !saved.name) return;
+  $("input-name").value = saved.name;
+  get(roomRef(saved.code)).then(function (snap) {
+    if (!snap.exists()) { localStorage.removeItem("climbers_room"); return; }
+    var roomVal = snap.val();
+    if (roomVal.players && roomVal.players[mp.uid]) {
+      mp.roomCode = saved.code;
+      mp.name = saved.name;
+      mp.isHost = roomVal.hostUid === mp.uid;
+      subscribeRoom(saved.code);
+    }
+  });
+}
+
+$("btn-create-room").addEventListener("click", function () {
+  var name = $("input-name").value.trim();
+  if (!name) { $("home-status").textContent = "Enter your name first."; return; }
+  if (!mp.uid) { $("home-status").textContent = "Still connecting, try again in a moment."; return; }
+  createRoomFlow(name);
+});
+
+var pendingJoinName = "";
+
+$("btn-join-room").addEventListener("click", function () {
+  var name = $("input-join-name").value.trim();
+  if (!name) { $("home-status").textContent = "Enter your name first."; return; }
+  if (!mp.uid) { $("home-status").textContent = "Still connecting, try again in a moment."; return; }
+  pendingJoinName = name;
+  $("input-join-code").value = "";
+  $("join-code-status").textContent = "";
+  showScreen("screen-join-code");
+});
+
+$("btn-join-code-back").addEventListener("click", function () { showScreen("screen-home"); });
+
+$("btn-join-code-submit").addEventListener("click", function () {
+  var code = $("input-join-code").value.trim().toUpperCase();
+  if (!code) { $("join-code-status").textContent = "Enter a room code."; return; }
+  joinRoomFlow(code, pendingJoinName);
+});
+
+async function createRoomFlow(name) {
+  $("home-status").textContent = "Creating room…";
+  var code;
+  do { code = generateRoomCode(); } while ((await get(roomRef(code))).exists());
+  var uid = mp.uid;
+  await set(roomRef(code), {
+    createdAt: Date.now(),
+    hostUid: uid,
+    phase: "lobby",
+    players: { [uid]: { name: name, joinedAt: Date.now() } }
+  });
+  mp.roomCode = code;
+  mp.name = name;
+  mp.isHost = true;
+  localStorage.setItem("climbers_room", JSON.stringify({ code: code, name: name }));
+  subscribeRoom(code);
+}
+
+async function joinRoomFlow(code, name) {
+  $("join-code-status").textContent = "Joining…";
+  var snap = await get(roomRef(code));
+  if (!snap.exists()) { $("join-code-status").textContent = "Room not found."; return; }
+  var val = snap.val();
+  if (val.phase !== "lobby") { $("join-code-status").textContent = "That game has already started."; return; }
+  var existingCount = val.players ? Object.keys(val.players).length : 0;
+  if (existingCount >= 5 && !(val.players && val.players[mp.uid])) {
+    $("join-code-status").textContent = "That room is full (5 players max).";
+    return;
+  }
+  var uid = mp.uid;
+  await update(ref(db, "rooms/" + code + "/players/" + uid), { name: name, joinedAt: Date.now() });
+  mp.roomCode = code;
+  mp.name = name;
+  mp.isHost = val.hostUid === uid;
+  localStorage.setItem("climbers_room", JSON.stringify({ code: code, name: name }));
+  subscribeRoom(code);
+}
+
+function leaveRoom() {
+  if (!confirm("Leave this room?")) return;
+  localStorage.removeItem("climbers_room");
+  location.reload();
+}
+$("btn-leave-room").addEventListener("click", leaveRoom);
+$("btn-leave-room-2").addEventListener("click", leaveRoom);
+
+function subscribeRoom(code) {
+  onValue(roomRef(code), function (snap) {
+    mp.room = snap.val();
+    if (!mp.room) {
+      localStorage.removeItem("climbers_room");
+      showScreen("screen-home");
+      $("home-status").textContent = "Room closed.";
+      $("chat-toggle").style.display = "none";
+      $("chat-panel").classList.remove("open");
+      return;
+    }
+    mp.isHost = mp.room.hostUid === mp.uid;
+    render();
+  });
+  subscribeChat(code);
+  $("chat-toggle").style.display = "flex";
+}
+
+function mpPlayerUids() { return mp.room.players ? Object.keys(mp.room.players) : []; }
+
+function render() {
+  var room = mp.room;
+  if (!room) return;
+  if (room.phase === "lobby") renderLobby();
+  else { showScreen("screen-board"); mpBoard.render(); }
+}
+
+function renderLobby() {
+  showScreen("screen-lobby");
+  var room = mp.room;
+  $("lobby-code").textContent = mp.roomCode;
+
+  var list = $("lobby-players");
+  list.innerHTML = "";
+  var uids = mpPlayerUids();
+  uids.forEach(function (uid, i) {
+    var p = room.players[uid];
+    var chip = document.createElement("div");
+    chip.className = "player-chip";
+    var dot = document.createElement("span");
+    dot.className = "player-color-dot";
+    dot.style.background = PLAYER_COLORS[i % PLAYER_COLORS.length];
+    chip.appendChild(dot);
+    chip.appendChild(document.createTextNode(p.name));
+    if (uid === room.hostUid) {
+      var badge = document.createElement("span");
+      badge.className = "host-badge";
+      badge.textContent = "HOST";
+      chip.appendChild(badge);
+    }
+    list.appendChild(chip);
+  });
+
+  var canStart = mp.isHost && uids.length >= 2 && uids.length <= 5;
+  $("btn-start-game").style.display = mp.isHost ? "" : "none";
+  $("btn-start-game").disabled = !canStart;
+  $("lobby-waiting").style.display = mp.isHost ? "none" : "";
+}
+
+$("btn-start-game").addEventListener("click", function () {
+  if (!mp.isHost || !mp.room) return;
+  var uids = mpPlayerUids();
+  if (uids.length < 2 || uids.length > 5) return;
+  var players = uids.map(function (uid) { return { uid: uid, name: mp.room.players[uid].name }; });
+  var game = createGame(players, Math.floor(Math.random() * 4294967295));
+  update(roomRef(mp.roomCode), { phase: "playing", game: game });
+});
+
+// ---------- Room chat ----------
+var chatSeenCount = 0;
+var chatUnread = 0;
+
+function subscribeChat(code) {
+  onValue(ref(db, "rooms/" + code + "/chat"), function (snap) {
+    var val = snap.val() || {};
+    var messages = Object.keys(val).map(function (key) { return val[key]; })
+      .sort(function (a, b) { return a.ts - b.ts; });
+
+    var wrap = $("chat-messages");
+    wrap.innerHTML = "";
+    messages.forEach(function (m) {
+      var row = document.createElement("div");
+      row.className = "chat-msg" + (m.uid === mp.uid ? " chat-mine" : "");
+      var nameSpan = document.createElement("span");
+      nameSpan.className = "chat-name";
+      nameSpan.textContent = (m.uid === mp.uid ? "You" : m.name) + ": ";
+      row.appendChild(nameSpan);
+      row.appendChild(document.createTextNode(m.text));
+      wrap.appendChild(row);
+    });
+    wrap.scrollTop = wrap.scrollHeight;
+
+    if (messages.length > chatSeenCount) {
+      if (!$("chat-panel").classList.contains("open")) {
+        chatUnread += messages.length - chatSeenCount;
+        var badge = $("chat-badge");
+        badge.textContent = chatUnread > 9 ? "9+" : String(chatUnread);
+        badge.style.display = "block";
+        $("chat-toggle").classList.add("has-unread");
+      }
+    }
+    chatSeenCount = messages.length;
+  });
+}
+
+$("chat-toggle").addEventListener("click", function () {
+  $("chat-panel").classList.add("open");
+  chatUnread = 0;
+  $("chat-badge").style.display = "none";
+  $("chat-toggle").classList.remove("has-unread");
+  $("chat-input").focus();
+});
+$("chat-close").addEventListener("click", function () {
+  $("chat-panel").classList.remove("open");
+});
+
+function sendChatMessage() {
+  var text = $("chat-input").value.trim();
+  if (!text || !mp.roomCode) return;
+  push(ref(db, "rooms/" + mp.roomCode + "/chat"), {
+    uid: mp.uid,
+    name: mp.name,
+    text: text.slice(0, 200),
+    ts: Date.now()
+  });
+  $("chat-input").value = "";
+}
+$("chat-send").addEventListener("click", sendChatMessage);
+$("chat-input").addEventListener("keydown", function (e) {
+  if (e.key === "Enter") { e.preventDefault(); sendChatMessage(); }
+});
+
+</script>
+</body>
+</html>
