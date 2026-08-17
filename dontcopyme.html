@@ -941,11 +941,21 @@ $("chat-input").addEventListener("keydown", function (e) {
 function render() {
   var room = mp.room;
   if (!room) return;
-  if (room.phase === "lobby") renderLobby();
-  else if (room.phase === "turn") renderTurn();
-  else if (room.phase === "turn-reveal") renderTurnReveal();
-  else if (room.phase === "scores") renderScoresScreen();
-  else if (room.phase === "game-won") renderGameWonScreen();
+  // If a phase's render function throws partway through, it can leave the
+  // screen frozen on whatever was last shown -- room.phase (and the rest of
+  // mp.room) has already moved on internally, but showScreen() never got
+  // reached for the new phase, so nothing visibly changes and there's no
+  // other sign anything went wrong. Surfacing the error here turns that
+  // silent freeze into something reportable instead of an unexplained stall.
+  try {
+    if (room.phase === "lobby") renderLobby();
+    else if (room.phase === "turn") renderTurn();
+    else if (room.phase === "turn-reveal") renderTurnReveal();
+    else if (room.phase === "scores") renderScoresScreen();
+    else if (room.phase === "game-won") renderGameWonScreen();
+  } catch (err) {
+    mpReportError("updating the screen (phase: " + room.phase + ")", err);
+  }
 }
 
 function mpPlayerName(uid) {
@@ -1251,7 +1261,12 @@ async function mpForceAdvanceTurn() {
   var room = mp.room;
   var round = room && room.round;
   if (!round || room.phase !== "turn") {
-    alert("Nothing to continue right now (the round already moved on, or hasn't started). Try again in a moment.");
+    // The screen might just be stuck showing an older phase while the
+    // actual game state has already moved on (e.g. a render error froze
+    // the display without changing what's actually happening) -- re-run
+    // the render for whatever the real current state is, which fixes that
+    // regardless of why it didn't happen on its own.
+    render();
     return;
   }
   var answers = Object.assign({}, round.answers || {});
