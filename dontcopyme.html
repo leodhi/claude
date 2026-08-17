@@ -264,7 +264,7 @@
       </div>
       <div class="rules-section">
         <div class="rules-section-label">Winning the round</div>
-        The Judge only gets <strong>5 categories</strong> per round. If exactly one competitor survives (at any point), they win the round. If the Judge eliminates <strong>everyone</strong>, the Judge wins instead. If <strong>2 or more</strong> competitors are still standing after all 5 categories, nobody scores — it's a wash. Either way, the Judge role passes to the next player and everyone's back in for the next round. First to reach the target score (set before the game starts) wins the game.
+        The Judge only gets <strong>5 categories</strong> per round, and nobody scores until they're used up. If the Judge eliminates <strong>everyone</strong>, the Judge wins right away — no need to play out the rest. Otherwise, keep going through all 5 categories even if it's down to one survivor — they can still get caught matching the Judge later. If exactly one competitor is left standing after category 5, they win. If <strong>2 or more</strong> are still standing, nobody scores — it's a wash. Either way, the Judge role passes to the next player and everyone's back in for the next round. First to reach the target score (set before the game starts) wins the game.
       </div>
       <button class="secondary rules-modal-close" id="rules-modal-close" type="button">Got it</button>
     </div>
@@ -1492,14 +1492,21 @@ async function mpContinueFromReveal() {
   var round = room.round;
   var turnEliminated = round.turnEliminated || {};
   var survivors = round.competitors.filter(function (uid) { return !turnEliminated[uid]; });
-  if (survivors.length === 1) {
-    await mpFinishRoundWin(survivors[0], round);
-  } else if (survivors.length === 0) {
+  if (survivors.length === 0) {
+    // Everyone's out -- the Judge wins right away, no need to burn through
+    // the rest of the card since there's nobody left to play against.
     await mpFinishRoundWin(round.judgeUid, round);
   } else if (round.turnNum >= MAX_TURNS_PER_ROUND) {
-    // The Judge's card only has 5 categories -- if 2+ people are still
-    // standing after all of them, nobody scores this round.
-    await mpFinishRoundNoWinner(round);
+    // The Judge's card only has 5 categories. A single survivor doesn't
+    // win the instant they're the last one standing -- they keep going
+    // through the remaining categories too (they can still get eliminated
+    // later by matching the Judge). Only once the card runs out does
+    // anyone actually score.
+    if (survivors.length === 1) {
+      await mpFinishRoundWin(survivors[0], round);
+    } else {
+      await mpFinishRoundNoWinner(round);
+    }
   } else {
     var justOut = round.competitors.filter(function (uid) { return turnEliminated[uid]; });
     var newOut = (round.outThisRound || []).concat(justOut);
@@ -1956,14 +1963,21 @@ function localRenderTurnRevealList() {
 
 $("local-btn-turn-continue").addEventListener("click", function () {
   var survivors = localState.competitors.filter(function (name) { return !localState.turnEliminated[name]; });
-  if (survivors.length === 1) {
-    localFinishRoundWin(survivors[0]);
-  } else if (survivors.length === 0) {
+  if (survivors.length === 0) {
+    // Everyone's out -- the Judge wins right away, no need to burn through
+    // the rest of the card since there's nobody left to play against.
     localFinishRoundWin(localState.judgeName);
   } else if (localState.turnNum >= MAX_TURNS_PER_ROUND) {
-    // The Judge's card only has 5 categories -- if 2+ people are still
-    // standing after all of them, nobody scores this round.
-    localFinishRoundNoWinner();
+    // The Judge's card only has 5 categories. A single survivor doesn't
+    // win the instant they're the last one standing -- they keep going
+    // through the remaining categories too (they can still get eliminated
+    // later by matching the Judge). Only once the card runs out does
+    // anyone actually score.
+    if (survivors.length === 1) {
+      localFinishRoundWin(survivors[0]);
+    } else {
+      localFinishRoundNoWinner();
+    }
   } else {
     var justOut = localState.competitors.filter(function (name) { return localState.turnEliminated[name]; });
     localState.outThisRound = localState.outThisRound.concat(justOut);
