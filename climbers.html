@@ -127,29 +127,9 @@
     border: 1px solid var(--border); touch-action: none; cursor: grab;
   }
   .scene-viewport:active { cursor: grabbing; }
-  .scene-viewport::after {
-    content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 28%;
-    background: linear-gradient(180deg, rgba(255,255,255,0), rgba(255,255,255,0.5));
-    pointer-events: none;
-  }
-  .scene { position: absolute; top: 52%; left: 50%; width: 0; height: 0; transform-style: preserve-3d; }
-  .scene-ground { position: absolute; transform-style: preserve-3d; }
-  .scene-hint { position: absolute; bottom: 6px; right: 10px; font-size: 0.68rem; color: var(--text-dim); background: rgba(255,255,255,0.7); padding: 2px 7px; border-radius: 999px; }
-  .block3d { position: absolute; transform-style: preserve-3d; }
-  .block-face { position: absolute; border-radius: 2px; box-shadow: inset 0 0 0 1px rgba(20,35,55,0.18); }
-  .block-face.top-face { cursor: default; }
-  .block-face.top-face.targetable { cursor: pointer; box-shadow: inset 0 0 0 3px #ffffff, inset 0 0 0 5px var(--accent); }
-  .block-face.top-face.seed-face::after {
-    content: "\2302"; position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 11px; color: rgba(20,35,55,0.4);
-  }
-  .pawn3d {
-    position: absolute; border-radius: 50%; box-shadow: 0 2px 5px rgba(20,35,55,0.4), inset -2px -2px 4px rgba(0,0,0,0.25);
-    display: flex; align-items: center; justify-content: center; font-size: 0.6rem; font-weight: 800; color: #fff; text-shadow: 0 1px 1px rgba(0,0,0,0.35);
-  }
-  .disk3d {
-    position: absolute; border-radius: 50%; background: repeating-conic-gradient(#2b2b2b 0deg 15deg, #e6484f 15deg 30deg);
-    box-shadow: 0 1px 3px rgba(0,0,0,0.4);
-  }
+  .scene-viewport canvas { display: block; width: 100%; height: 100%; }
+  .scene-hint { position: absolute; bottom: 6px; right: 10px; font-size: 0.68rem; color: var(--text-dim); background: rgba(255,255,255,0.7); padding: 2px 7px; border-radius: 999px; pointer-events: none; }
+  .scene-loading { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: var(--text-dim); font-size: 0.85rem; }
   .action-toolbar { display: flex; flex-wrap: wrap; gap: 8px; }
   .action-btn {
     flex: 1 1 calc(50% - 8px); min-width: 120px; background: var(--panel-2); border: 1px solid var(--border);
@@ -369,7 +349,17 @@
 
 </div>
 
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+  }
+}
+</script>
 <script type="module">
+import * as THREE from "three";
+import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { firebaseConfig } from "./firebase-config.js";
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
@@ -757,13 +747,12 @@ var PHASE_LABELS = {
 // 3D BOARD SCENE + SHARED RENDERING (used by both local and multiplayer)
 // =========================================================================
 
-var CS = 42;   // grid cell footprint, px
-var UH = 15;   // px per height unit
-var BASE_ROT_X = 54;
+var CELL_SIZE = 1;     // world-unit footprint per grid cell
+var UNIT_HEIGHT = 0.32; // world units per height level
+var CELL_GAP = 0.05;
 
 function makeBoardController(mountId, opts) {
-  var sceneRotY = -35;
-  var dragState = null;
+  var three = null; // lazily-created persistent Three.js state, reused across renders
 
   function playerInitial(name) { return (name || "?").trim().charAt(0).toUpperCase() || "?"; }
 
@@ -814,6 +803,172 @@ function makeBoardController(mountId, opts) {
     else if (game.mainPhase === "disc") opts.dispatch(function (s) { return skipDisc(s); });
   }
 
+  // ---- Three.js scene: created once per controller, reused across renders ----
+  function ensureScene() {
+    if (three) return three;
+
+    var viewport = document.createElement("div");
+    viewport.className = "scene-viewport";
+    var hint = document.createElement("div");
+    hint.className = "scene-hint";
+    hint.textContent = "drag to orbit";
+    viewport.appendChild(hint);
+
+    var scene = new THREE.Scene();
+    scene.background = new THREE.Color(0xbfe3ff);
+    scene.fog = new THREE.Fog(0xbfe3ff, 10, 22);
+
+    var camera = new THREE.PerspectiveCamera(42, 1, 0.1, 100);
+    camera.position.set(5.4, 6.2, 7.2);
+
+    var renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    renderer.outputColorSpace = THREE.SRGBColorSpace;
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.05;
+    viewport.insertBefore(renderer.domElement, hint);
+
+    var controls = new OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.08;
+    controls.target.set(0, 0.7, 0);
+    controls.minDistance = 3.5;
+    controls.maxDistance = 16;
+    controls.maxPolarAngle = Math.PI * 0.49;
+
+    scene.add(new THREE.HemisphereLight(0xffffff, 0x9fb3c8, 0.65));
+    var sun = new THREE.DirectionalLight(0xfff4e0, 1.15);
+    sun.position.set(5, 9, 3.5);
+    sun.castShadow = true;
+    sun.shadow.mapSize.set(1536, 1536);
+    sun.shadow.camera.left = -5.5;
+    sun.shadow.camera.right = 5.5;
+    sun.shadow.camera.top = 5.5;
+    sun.shadow.camera.bottom = -5.5;
+    sun.shadow.camera.near = 1;
+    sun.shadow.camera.far = 18;
+    sun.shadow.bias = -0.0015;
+    scene.add(sun);
+
+    var ground = new THREE.Mesh(
+      new THREE.PlaneGeometry(26, 26),
+      new THREE.MeshStandardMaterial({ color: 0xdcebf7, roughness: 1 })
+    );
+    ground.rotation.x = -Math.PI / 2;
+    ground.position.y = -0.01;
+    ground.receiveShadow = true;
+    scene.add(ground);
+
+    var group = new THREE.Group();
+    scene.add(group);
+
+    var boxGeo = new THREE.BoxGeometry(1, 1, 1);
+    var raycaster = new THREE.Raycaster();
+    var pointer = new THREE.Vector2();
+
+    renderer.domElement.addEventListener("click", function (e) {
+      var rect = renderer.domElement.getBoundingClientRect();
+      pointer.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+      pointer.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+      raycaster.setFromCamera(pointer, camera);
+      var hits = raycaster.intersectObjects(group.children, false);
+      if (!hits.length) return;
+      var key = hits[0].object.userData.cellKey;
+      var kind = three.lastTargets[key];
+      if (kind) onCellTap(kind, key);
+    });
+
+    function resize() {
+      var w = viewport.clientWidth || 1, h = viewport.clientHeight || 1;
+      camera.aspect = w / h;
+      camera.updateProjectionMatrix();
+      renderer.setSize(w, h);
+    }
+    window.addEventListener("resize", resize);
+
+    var animating = true;
+    function animate() {
+      if (!animating) return;
+      requestAnimationFrame(animate);
+      controls.update();
+      renderer.render(scene, camera);
+    }
+    animate();
+
+    three = {
+      viewport: viewport, scene: scene, camera: camera, renderer: renderer, controls: controls,
+      group: group, boxGeo: boxGeo, resize: resize, lastTargets: {}
+    };
+    return three;
+  }
+
+  function gridToWorld(size, r, c) {
+    var half = (size - 1) / 2;
+    return { x: (c - half) * CELL_SIZE, z: (r - half) * CELL_SIZE };
+  }
+
+  function updateScene(game, targets) {
+    var t = ensureScene();
+    t.lastTargets = targets;
+
+    // Clear last render's meshes (geometry is shared/reused; only materials are disposed).
+    while (t.group.children.length) {
+      var obj = t.group.children.pop();
+      if (obj.material) obj.material.dispose();
+    }
+
+    var size = game.board.size;
+    Object.keys(game.board.cells).forEach(function (key) {
+      var cell = game.board.cells[key];
+      var pos = gridToWorld(size, cell.r, cell.c);
+      var h = Math.max(1, cell.height + 1) * UNIT_HEIGHT;
+      var palette = paletteForUid(game, cell.color);
+      var isTarget = !!targets[key];
+      var mat = new THREE.MeshStandardMaterial({
+        color: palette.hex, roughness: 0.72, metalness: 0.04,
+        emissive: isTarget ? 0xf2a516 : 0x000000, emissiveIntensity: isTarget ? 0.45 : 0
+      });
+      var mesh = new THREE.Mesh(t.boxGeo, mat);
+      mesh.scale.set(CELL_SIZE - CELL_GAP, h, CELL_SIZE - CELL_GAP);
+      mesh.position.set(pos.x, h / 2, pos.z);
+      mesh.castShadow = true;
+      mesh.receiveShadow = true;
+      mesh.userData.cellKey = key;
+      t.group.add(mesh);
+    });
+
+    Object.keys(game.players).forEach(function (uid) {
+      var p = game.players[uid];
+      var cell = game.board.cells[p.cellKey];
+      var pos = gridToWorld(size, cell.r, cell.c);
+      var h = Math.max(1, cell.height + 1) * UNIT_HEIGHT;
+      var mat = new THREE.MeshStandardMaterial({ color: paletteForUid(game, uid).hex, roughness: 0.35, metalness: 0.1 });
+      var pawn = new THREE.Mesh(new THREE.SphereGeometry(0.16, 20, 14), mat);
+      pawn.position.set(pos.x, h + 0.18, pos.z);
+      pawn.castShadow = true;
+      pawn.userData.cellKey = p.cellKey;
+      t.group.add(pawn);
+    });
+
+    Object.keys(game.board.cells).forEach(function (key) {
+      var cell = game.board.cells[key];
+      if (!cell.disk) return;
+      var pos = gridToWorld(size, cell.r, cell.c);
+      var h = Math.max(1, cell.height + 1) * UNIT_HEIGHT;
+      var mat = new THREE.MeshStandardMaterial({ color: 0x2b2b2b, roughness: 0.5 });
+      var disk = new THREE.Mesh(new THREE.CylinderGeometry(0.24, 0.24, 0.04, 20), mat);
+      disk.position.set(pos.x, h + 0.03, pos.z);
+      disk.castShadow = true;
+      disk.userData.cellKey = key;
+      t.group.add(disk);
+    });
+
+    t.resize();
+    return t.viewport;
+  }
+
   function render() {
     var game = opts.getGame();
     var mount = $(mountId);
@@ -829,7 +984,8 @@ function makeBoardController(mountId, opts) {
       var names = game.winners.map(function (uid) { return game.players[uid].name; }).join(" & ");
       card.innerHTML = '<div class="winner-banner">🏔️ <span>' + escapeHtml(names) + "</span> reached the highest point!</div>";
       mount.appendChild(card);
-      mount.appendChild(buildScene(game, {}));
+      mount.appendChild(updateScene(game, {}));
+      three.resize(); // the viewport had zero layout size until just now (not yet attached to the DOM)
       mount.appendChild(buildLegend(game));
       return;
     }
@@ -844,7 +1000,8 @@ function makeBoardController(mountId, opts) {
     mount.appendChild(banner);
 
     var targets = interactive ? targetKeysForPhase(game, active.uid) : {};
-    mount.appendChild(buildScene(game, targets));
+    mount.appendChild(updateScene(game, targets));
+    three.resize(); // the viewport had zero layout size until just now (not yet attached to the DOM)
 
     if (interactive) {
       var toolbar = document.createElement("div");
@@ -860,7 +1017,7 @@ function makeBoardController(mountId, opts) {
       var status = document.createElement("div");
       status.className = "action-status";
       var n = Object.keys(targets).length;
-      status.textContent = n > 0 ? "Tap a highlighted block, or Skip." : "No legal action here right now — tap Skip.";
+      status.textContent = n > 0 ? "Tap a highlighted (glowing) block, or Skip." : "No legal action here right now — tap Skip.";
       mount.appendChild(status);
     } else {
       var waiting = document.createElement("div");
@@ -870,133 +1027,6 @@ function makeBoardController(mountId, opts) {
     }
 
     mount.appendChild(buildLegend(game));
-  }
-
-  function buildScene(game, targets) {
-    var viewport = document.createElement("div");
-    viewport.className = "scene-viewport";
-    var scene = document.createElement("div");
-    scene.className = "scene";
-    scene.style.transform = "rotateX(" + BASE_ROT_X + "deg) rotateZ(" + sceneRotY + "deg)";
-    var ground = document.createElement("div");
-    ground.className = "scene-ground";
-    scene.appendChild(ground);
-    viewport.appendChild(scene);
-    var hint = document.createElement("div");
-    hint.className = "scene-hint";
-    hint.textContent = "drag to rotate";
-    viewport.appendChild(hint);
-
-    var size = game.board.size;
-    Object.keys(game.board.cells).forEach(function (key) {
-      var cell = game.board.cells[key];
-      buildBlock(ground, size, cell, key, paletteForUid(game, cell.color), !!targets[key]);
-    });
-    Object.keys(game.players).forEach(function (uid) {
-      var p = game.players[uid];
-      var cell = game.board.cells[p.cellKey];
-      buildPawn(ground, size, cell, paletteForUid(game, uid).hex, playerInitial(p.name));
-    });
-    Object.keys(game.board.cells).forEach(function (key) {
-      var cell = game.board.cells[key];
-      if (cell.disk) buildDisk(ground, size, cell);
-    });
-
-    var onPointerDown = function (e) {
-      dragState = { startX: e.clientX, startRot: sceneRotY, moved: false };
-      viewport.setPointerCapture && e.pointerId !== undefined && viewport.setPointerCapture(e.pointerId);
-    };
-    var onPointerMove = function (e) {
-      if (!dragState) return;
-      var dx = e.clientX - dragState.startX;
-      if (Math.abs(dx) > 3) dragState.moved = true;
-      sceneRotY = dragState.startRot + dx * 0.4;
-      scene.style.transform = "rotateX(" + BASE_ROT_X + "deg) rotateZ(" + sceneRotY + "deg)";
-    };
-    var onPointerUp = function () { dragState = null; };
-    viewport.addEventListener("pointerdown", onPointerDown);
-    viewport.addEventListener("pointermove", onPointerMove);
-    viewport.addEventListener("pointerup", onPointerUp);
-    viewport.addEventListener("pointerleave", onPointerUp);
-
-    Object.keys(targets).forEach(function (key) {
-      var kind = targets[key];
-      var topFace = ground.querySelector('.top-face[data-key="' + cssEscape(key) + '"]');
-      if (!topFace) return;
-      topFace.classList.add("targetable");
-      topFace.addEventListener("click", function () {
-        if (dragState && dragState.moved) return;
-        onCellTap(kind, key);
-      });
-    });
-
-    return viewport;
-  }
-
-  function gridToWorld(size, r, c) {
-    var half = (size - 1) / 2;
-    return { x: (c - half) * CS, z: (r - half) * CS };
-  }
-
-  function buildBlock(ground, size, cell, key, palette, isTarget) {
-    var pos = gridToWorld(size, cell.r, cell.c);
-    var h = Math.max(1, cell.height + 1) * UH;
-    var half = CS / 2;
-
-    var block = document.createElement("div");
-    block.className = "block3d";
-    block.style.transform = "translate3d(" + pos.x + "px, " + (-h / 2) + "px, " + pos.z + "px)";
-
-    function face(cls, w, hh, transform, bg) {
-      var f = document.createElement("div");
-      f.className = "block-face " + cls;
-      f.style.width = w + "px";
-      f.style.height = hh + "px";
-      f.style.marginLeft = (-w / 2) + "px";
-      f.style.marginTop = (-hh / 2) + "px";
-      f.style.transform = transform;
-      f.style.background = bg;
-      block.appendChild(f);
-      return f;
-    }
-
-    var top = face("top-face" + (cell.isSeed ? " seed-face" : ""), CS, CS, "translateZ(" + (h / 2) + "px) rotateX(90deg)", palette.top);
-    top.dataset.key = key;
-    if (isTarget) top.classList.add("targetable");
-    face("front-face", CS, h, "translateZ(" + half + "px)", palette.front);
-    face("back-face", CS, h, "rotateY(180deg) translateZ(" + half + "px)", palette.front);
-    face("right-face", CS, h, "rotateY(90deg) translateZ(" + half + "px)", palette.side);
-    face("left-face", CS, h, "rotateY(-90deg) translateZ(" + half + "px)", palette.side);
-
-    ground.appendChild(block);
-  }
-
-  function buildPawn(ground, size, cell, colorHex, initial) {
-    var pos = gridToWorld(size, cell.r, cell.c);
-    var h = Math.max(1, cell.height + 1) * UH;
-    var pawn = document.createElement("div");
-    pawn.className = "pawn3d";
-    pawn.style.width = "20px";
-    pawn.style.height = "20px";
-    pawn.style.marginLeft = "-10px";
-    pawn.style.marginTop = "-10px";
-    pawn.style.background = "radial-gradient(circle at 35% 30%, #fff, " + colorHex + " 75%)";
-    pawn.style.transform = "translate3d(" + pos.x + "px, " + (-h - 12) + "px, " + pos.z + "px)";
-    pawn.textContent = initial;
-    ground.appendChild(pawn);
-  }
-
-  function buildDisk(ground, size, cell) {
-    var pos = gridToWorld(size, cell.r, cell.c);
-    var h = Math.max(1, cell.height + 1) * UH;
-    var disk = document.createElement("div");
-    disk.className = "disk3d";
-    disk.style.width = "26px";
-    disk.style.height = "26px";
-    disk.style.marginLeft = "-13px";
-    disk.style.marginTop = "-13px";
-    disk.style.transform = "translate3d(" + pos.x + "px, " + (-h - 3) + "px, " + pos.z + "px) rotateX(90deg)";
-    ground.appendChild(disk);
   }
 
   function buildLegend(game) {
@@ -1014,8 +1044,6 @@ function makeBoardController(mountId, opts) {
 
   return { render: render };
 }
-
-function cssEscape(s) { return String(s).replace(/[^a-zA-Z0-9_-]/g, "\\$&"); }
 
 function escapeHtml(s) {
   var div = document.createElement("div");
