@@ -145,6 +145,12 @@
   .player-chip-list { display: flex; flex-wrap: wrap; gap: 8px; }
   .player-chip { background: var(--panel-2); border: 1px solid var(--border); border-radius: 999px; padding: 7px 14px; font-size: 0.85rem; }
   .host-badge { color: var(--accent); font-size: 0.7rem; margin-left: 4px; }
+  .chip-group { display: flex; flex-wrap: wrap; gap: 8px; }
+  .chip {
+    padding: 8px 14px; border-radius: 999px; border: 1px solid var(--border);
+    background: var(--panel-2); color: var(--text-dim); font-size: 0.85rem; cursor: pointer; user-select: none;
+  }
+  .chip.selected { background: var(--accent); color: #2a1300; border-color: var(--accent); font-weight: 600; }
   .waiting-text { color: var(--text-dim); text-align: center; padding: 16px 0; }
   .footer-nav { display: flex; gap: 8px; margin-top: auto; padding-top: 10px; }
   .footer-nav button { flex: 1; }
@@ -322,6 +328,16 @@
       <label>Players</label>
       <div class="player-chip-list" id="lobby-players"></div>
     </div>
+    <div class="card" id="lobby-bot-card" style="display:none">
+      <label>Add an AI Player</label>
+      <div class="chip-group" id="bot-difficulty-chips">
+        <div class="chip" data-diff="easy">Easy</div>
+        <div class="chip selected" data-diff="medium">Medium</div>
+        <div class="chip" data-diff="hard">Hard</div>
+      </div>
+      <button class="secondary" id="btn-add-bot" type="button" style="margin-top:10px">+ Add AI Player</button>
+      <small class="hint">The AI doesn't actually understand the category — it just picks a word from its own vocabulary. A "Hard" AI knows more unusual words, so it's less likely to accidentally match someone.</small>
+    </div>
     <div class="card" id="lobby-settings-card">
       <label>Points to Win</label>
       <div class="target-score-row">
@@ -335,7 +351,6 @@
     <button class="link" id="btn-leave-room" type="button">Leave room</button>
   </div>
 
-  <!-- MULTIPLAYER: JUDGE TURN (the judge secretly picks an answer) -->
   <!-- MULTIPLAYER: TURN (judge and competitors all answer at once, each secretly on their own device) -->
   <div class="screen" id="screen-turn">
     <div class="card center" style="padding:10px 16px;">
@@ -463,7 +478,7 @@
       <label>Players (2–10)</label>
       <div id="local-player-list"></div>
       <button class="secondary" id="local-btn-add-player" type="button">+ Add player</button>
-      <small class="hint">You need at least 2 players — there's no one to match against solo.</small>
+      <small class="hint">You need at least 2 players — there's no one to match against solo. Tap a player's "AI" chip to have the computer play their turns for them — the AI doesn't understand the category, it just picks from its own vocabulary, so "Hard" AI knows more unusual words and is less likely to accidentally match someone.</small>
     </div>
     <div class="card">
       <label>Points to Win</label>
@@ -680,6 +695,31 @@ $("rules-modal-close").addEventListener("click", function () { $("rules-modal-ba
 $("rules-modal-backdrop").addEventListener("click", function (e) { if (e.target === this) this.classList.remove("show"); });
 
 function pickRandom(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
+
+// ---------- AI players ----------
+// The AI doesn't understand the category — there's no way to generate a
+// genuinely on-topic answer without a huge per-category word bank — so it
+// just picks a word from its own vocabulary. Difficulty controls how big
+// that vocabulary is: a small pool of very common words is more likely to
+// accidentally collide with what a human (or another AI) picks, while a
+// big pool of more unusual words is less likely to.
+var BOT_WORD_POOL = [
+  "dog", "cat", "pizza", "coffee", "blue", "car", "house", "book", "tree", "phone",
+  "chair", "water", "mountain", "guitar", "banana", "robot", "ocean", "candle", "bicycle", "spaceship",
+  "dragon", "umbrella", "sandwich", "volcano", "penguin", "waterfall", "trumpet", "cactus", "lighthouse", "kangaroo",
+  "spaghetti", "thunderstorm", "dinosaur", "glacier", "harmonica", "pineapple", "tornado", "octopus", "bagpipes", "chandelier",
+  "asteroid", "platypus", "accordion", "avalanche", "jellyfish", "xylophone", "meteor", "armadillo", "kaleidoscope", "hurricane",
+  "narwhal", "typewriter", "tsunami", "chameleon", "telescope", "earthquake", "porcupine", "saxophone", "hedgehog", "periscope",
+  "blizzard", "flamingo", "harpsichord", "stalactite", "pangolin", "gyroscope", "monsoon", "alpaca", "seismograph", "mongoose"
+];
+var BOT_WORD_POOLS = {
+  easy: BOT_WORD_POOL.slice(0, 10),
+  medium: BOT_WORD_POOL.slice(0, 30),
+  hard: BOT_WORD_POOL
+};
+function botPickWord(difficulty) {
+  return pickRandom(BOT_WORD_POOLS[difficulty] || BOT_WORD_POOLS.medium);
+}
 
 function normalizeAnswer(s) {
   return (s || "").toLowerCase().trim().replace(/^(a|an|the)\s+/, "").replace(/[^a-z0-9 ]/g, "").replace(/\s+/g, " ");
@@ -971,12 +1011,17 @@ function render() {
 }
 
 function mpPlayerName(uid) {
-  return mp.room.players && mp.room.players[uid] ? mp.room.players[uid].name : "?";
+  var p = mp.room.players && mp.room.players[uid];
+  return p ? (p.isBot ? "🤖 " : "") + p.name : "?";
 }
 function mpPlayerLabel(uid) {
   return mpPlayerName(uid) + (uid === mp.room.hostUid ? " (Host)" : "");
 }
 function mpPlayerUids() { return mp.room.players ? Object.keys(mp.room.players) : []; }
+function isBotUid(uid) {
+  var p = mp.room.players && mp.room.players[uid];
+  return !!(p && p.isBot);
+}
 
 // Stable rotation order for the Judge role: playerOrder (join order),
 // filtered down to players still actually in the room.
@@ -1009,8 +1054,21 @@ function renderLobby() {
       badge.textContent = "HOST";
       chip.appendChild(badge);
     }
+    if (isBotUid(uid) && mp.isHost) {
+      var rm = document.createElement("span");
+      rm.textContent = " ✕";
+      rm.style.cursor = "pointer";
+      rm.style.marginLeft = "4px";
+      rm.addEventListener("click", function () {
+        set(ref(db, "rooms/" + mp.roomCode + "/players/" + uid), null);
+        set(ref(db, "rooms/" + mp.roomCode + "/scores/" + uid), null);
+      });
+      chip.appendChild(rm);
+    }
     list.appendChild(chip);
   });
+
+  $("lobby-bot-card").style.display = mp.isHost ? "" : "none";
 
   var targetInput = $("target-score-input");
   targetInput.value = room.settings.targetScore;
@@ -1038,6 +1096,37 @@ function renderLobby() {
 
   showScreen("screen-lobby");
 }
+
+// No server exists here beyond Firebase itself, so the host's own browser
+// tab quietly answers on a bot's behalf when it's its turn.
+var botActionsScheduled = {};
+function generateBotUid() { return "bot-" + Math.random().toString(36).slice(2, 10); }
+function scheduleBotAction(key, fn, minDelay, maxDelay) {
+  if (botActionsScheduled[key]) return;
+  botActionsScheduled[key] = true;
+  setTimeout(fn, minDelay + Math.random() * (maxDelay - minDelay));
+}
+
+var selectedBotDifficulty = "medium";
+Array.prototype.forEach.call($("bot-difficulty-chips").children, function (chip) {
+  chip.addEventListener("click", function () {
+    selectedBotDifficulty = chip.dataset.diff;
+    Array.prototype.forEach.call($("bot-difficulty-chips").children, function (c) { c.classList.remove("selected"); });
+    chip.classList.add("selected");
+  });
+});
+$("btn-add-bot").addEventListener("click", function () {
+  if (!mp.isHost) return;
+  var room = mp.room;
+  var botUid = generateBotUid();
+  var botNumber = mpPlayerUids().filter(isBotUid).length + 1;
+  var existingOrder = room.playerOrder || mpPlayerUids();
+  update(ref(db, "rooms/" + mp.roomCode + "/players/" + botUid), {
+    name: "CPU " + botNumber, isBot: true, difficulty: selectedBotDifficulty, joinedAt: Date.now()
+  });
+  update(ref(db, "rooms/" + mp.roomCode + "/scores"), (function () { var o = {}; o[botUid] = 0; return o; })());
+  update(roomRef(mp.roomCode), { playerOrder: existingOrder.concat([botUid]) });
+});
 
 $("btn-start-game").addEventListener("click", function () {
   if (!mp.isHost || mpPlayerUids().length < 2) return;
@@ -1171,6 +1260,8 @@ function renderTurn() {
     startMpWatchdog();
   }
 
+  if (mp.isHost) runBotAnswers(room, round);
+
   // Any connected client can trigger the advance once everyone (Judge
   // included) has answered — not just the host — so the round can't get
   // stuck if the host's own client is slow to notice.
@@ -1183,6 +1274,25 @@ function renderTurn() {
       if (mp.finishingTurnKey === finishKey) mp.finishingTurnKey = null;
     });
   }
+}
+
+// AI players "answer" by having the host's own client quietly submit on
+// their behalf a moment later, so it doesn't feel instantaneous.
+function runBotAnswers(room, round) {
+  [round.judgeUid].concat(round.competitors).forEach(function (uid) {
+    if (!isBotUid(uid)) return;
+    if (round.answers && round.answers[uid] !== undefined) return;
+    var key = "answer:" + uid + ":" + round.roundNum + "-" + round.turnNum;
+    scheduleBotAction(key, function () {
+      if (!mp.room || mp.room.phase !== "turn" || !mp.room.round) return;
+      if (mp.room.round.roundNum !== round.roundNum || mp.room.round.turnNum !== round.turnNum) return;
+      if (mp.room.round.answers && mp.room.round.answers[uid] !== undefined) return;
+      var difficulty = mp.room.players[uid].difficulty;
+      var answer = botPickWord(difficulty);
+      update(ref(db, "rooms/" + mp.roomCode + "/round/answers"), (function () { var o = {}; o[uid] = answer; return o; })())
+        .catch(function (err) { mpReportError("having the AI answer", err); });
+    }, 1500, 4000);
+  });
 }
 
 function startMpTimer() {
@@ -1556,6 +1666,7 @@ var LOCAL_SAVE_KEY = "dontCopyMePartySave";
 
 var localState = {
   players: ["", ""],
+  bots: [null, null],
   targetScore: 10,
   scores: {},
   usedPrompts: {},
@@ -1578,6 +1689,11 @@ var localState = {
   winner: null
 };
 
+var LOCAL_BOT_CYCLE = [null, "easy", "medium", "hard"];
+function localBotLabel(difficulty) {
+  return difficulty ? ("🤖 AI · " + difficulty.charAt(0).toUpperCase() + difficulty.slice(1)) : "🤖 AI: Off";
+}
+
 function localRenderPlayerList() {
   var wrap = $("local-player-list");
   wrap.innerHTML = "";
@@ -1591,6 +1707,17 @@ function localRenderPlayerList() {
     input.value = name;
     input.addEventListener("input", function () { localState.players[i] = input.value; });
     row.appendChild(input);
+    var botBtn = document.createElement("button");
+    botBtn.type = "button";
+    botBtn.className = "chip" + (localState.bots[i] ? " selected" : "");
+    botBtn.style.cssText = "flex-shrink:0;white-space:nowrap;";
+    botBtn.textContent = localBotLabel(localState.bots[i]);
+    botBtn.addEventListener("click", function () {
+      var idx = LOCAL_BOT_CYCLE.indexOf(localState.bots[i]);
+      localState.bots[i] = LOCAL_BOT_CYCLE[(idx + 1) % LOCAL_BOT_CYCLE.length];
+      localRenderPlayerList();
+    });
+    row.appendChild(botBtn);
     if (localState.players.length > 2) {
       var rm = document.createElement("button");
       rm.type = "button";
@@ -1598,6 +1725,7 @@ function localRenderPlayerList() {
       rm.textContent = "✕";
       rm.addEventListener("click", function () {
         localState.players.splice(i, 1);
+        localState.bots.splice(i, 1);
         localRenderPlayerList();
       });
       row.appendChild(rm);
@@ -1608,6 +1736,7 @@ function localRenderPlayerList() {
 $("local-btn-add-player").addEventListener("click", function () {
   if (localState.players.length >= 10) return;
   localState.players.push("");
+  localState.bots.push(null);
   localRenderPlayerList();
 });
 
@@ -1622,9 +1751,15 @@ $("local-btn-target-down").addEventListener("click", function () { localSetTarge
 $("local-btn-target-up").addEventListener("click", function () { localSetTarget(localState.targetScore + 1); });
 
 $("local-btn-start-game").addEventListener("click", function () {
-  var names = localState.players.map(function (n) { return n.trim(); }).filter(Boolean);
+  var names = [];
+  var bots = [];
+  localState.players.forEach(function (n, i) {
+    var trimmed = n.trim();
+    if (trimmed) { names.push(trimmed); bots.push(localState.bots[i] || null); }
+  });
   if (names.length < 2) { alert("Add at least 2 players — you need someone to compete against!"); return; }
   localState.players = names;
+  localState.bots = bots;
   localState.scores = {};
   names.forEach(function (n) { localState.scores[n] = 0; });
   localState.usedPrompts = {};
@@ -1644,7 +1779,9 @@ function localPickPrompt() {
 function localStartNewLocalRound() {
   localState.roundNum += 1;
   localState.turnNum = 1;
-  localState.judgeName = localState.players[localState.judgeIndex % localState.players.length];
+  var judgeIdx = localState.judgeIndex % localState.players.length;
+  localState.judgeName = localState.players[judgeIdx];
+  localState.judgeBotDifficulty = localState.bots[judgeIdx] || null;
   localState.competitors = localState.players.filter(function (p) { return p !== localState.judgeName; });
   localState.outThisRound = [];
   localGoToLocalTurn(localState.competitors);
@@ -1669,13 +1806,33 @@ function localGoToLocalTurn(competitors) {
 }
 
 $("local-btn-turn-begin").addEventListener("click", function () {
+  if (localState.judgeBotDifficulty) {
+    localState.judgeSecretAnswer = botPickWord(localState.judgeBotDifficulty);
+    localState.turnOrder = localState.competitors.slice();
+    localState.turnIndex = 0;
+    localState.roundAnswers = {};
+    localGoToPassTurn();
+    return;
+  }
   localState.answeringAsJudge = true;
   $("local-pass-name").textContent = localState.judgeName;
   $("local-pass-name-2").textContent = localState.judgeName;
   showScreen("local-screen-pass-turn");
 });
 
+function localBotDifficultyForName(name) {
+  var idx = localState.players.indexOf(name);
+  return idx !== -1 ? localState.bots[idx] : null;
+}
+
 function localGoToPassTurn() {
+  while (localState.turnIndex < localState.turnOrder.length) {
+    var botName = localState.turnOrder[localState.turnIndex];
+    var botDiff = localBotDifficultyForName(botName);
+    if (!botDiff) break;
+    localState.roundAnswers[botName] = botPickWord(botDiff);
+    localState.turnIndex++;
+  }
   if (localState.turnIndex >= localState.turnOrder.length) {
     showScreen("local-screen-ready-reveal");
     return;
@@ -1917,7 +2074,7 @@ $("local-btn-confirm-extend").addEventListener("click", function () {
 function localSaveCheckpoint() {
   try {
     var snapshot = {
-      players: localState.players, targetScore: localState.targetScore,
+      players: localState.players, bots: localState.bots, targetScore: localState.targetScore,
       scores: localState.scores, usedPrompts: localState.usedPrompts,
       judgeIndex: localState.judgeIndex
     };
@@ -1933,6 +2090,7 @@ function localCheckResumeBanners() {
     $("local-refresh-resume-banner").style.display = "";
     $("local-btn-refresh-continue").onclick = function () {
       localState.players = saved.players;
+      localState.bots = saved.bots || saved.players.map(function () { return null; });
       localState.targetScore = saved.targetScore;
       localState.scores = saved.scores;
       localState.usedPrompts = saved.usedPrompts;
