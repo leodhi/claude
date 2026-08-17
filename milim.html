@@ -740,7 +740,12 @@ function acceptableAnswers(word) {
 }
 
 function normalizeAnswer(s) {
-  return (s || "").toLowerCase().trim().replace(/^(a|an|the)\s+/, "").replace(/[^a-z0-9 ]/g, "").replace(/\s+/g, " ");
+  // Fold accented Latin characters to their plain equivalent (e.g. "café"
+  // -> "cafe") before stripping non-alphanumeric characters, in case a
+  // future transliteration/synonym ever includes one -- same fix already
+  // applied to Don't Copy Me and Doodle & Guess.
+  return (s || "").toLowerCase().trim().normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+    .replace(/^(a|an|the)\s+/, "").replace(/[^a-z0-9 ]/g, "").replace(/\s+/g, " ");
 }
 
 // Damerau-Levenshtein (optimal string alignment): counts a transposed
