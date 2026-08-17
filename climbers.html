@@ -6,14 +6,16 @@
 <title>Climbers</title>
 <style>
   :root {
-    --bg: #0d1b2a;
-    --panel: #16283d;
-    --panel-2: #1f3a52;
-    --accent: #ffb703;
-    --accent-2: #e63946;
-    --text: #eef4f8;
-    --text-dim: #8fa6bd;
-    --border: #2c4863;
+    --sky-top: #bfe3ff;
+    --sky-bottom: #eef8ff;
+    --bg: #eef5fc;
+    --panel: #ffffff;
+    --panel-2: #f2f6fb;
+    --accent: #f2a516;
+    --accent-2: #e6484f;
+    --text: #1c2a3a;
+    --text-dim: #5b7089;
+    --border: #d7e3f0;
   }
   * { box-sizing: border-box; }
   html { font-size: 16px; }
@@ -41,12 +43,12 @@
     html { font-size: 20px; }
     #app { max-width: 860px; padding: 40px 32px 64px; }
   }
-  h1 { font-size: 1.5rem; margin: 4px 0 2px; letter-spacing: 0.3px; }
+  h1 { font-size: 1.5rem; margin: 4px 0 2px; letter-spacing: 0.3px; color: var(--text); }
   h1 span { color: var(--accent); }
   .subtitle { color: var(--text-dim); font-size: 0.85rem; margin-bottom: 18px; }
   .screen { display: none; flex-direction: column; gap: 14px; flex: 1; }
   .screen.active { display: flex; }
-  .card { background: var(--panel); border: 1px solid var(--border); border-radius: 14px; padding: 16px; box-shadow: 0 1px 2px rgba(0,0,0,0.2); }
+  .card { background: var(--panel); border: 1px solid var(--border); border-radius: 14px; padding: 16px; box-shadow: 0 2px 10px rgba(30,60,100,0.06); }
   label { display: block; font-size: 0.8rem; color: var(--text-dim); margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.06em; }
   input[type="text"], input[type="number"] {
     width: 100%; background: var(--panel-2); border: 1px solid var(--border);
@@ -61,12 +63,12 @@
   }
   .icon-btn:active { transform: scale(0.95); }
   button.primary {
-    background: var(--accent); color: #1a1200; border: none; padding: 15px; border-radius: 12px;
+    background: var(--accent); color: #3a2400; border: none; padding: 15px; border-radius: 12px;
     font-size: 1.05rem; font-weight: 700; cursor: pointer; width: 100%;
   }
   button.primary:active { transform: scale(0.98); }
   button.secondary {
-    background: transparent; color: var(--text); border: 1px solid var(--border);
+    background: var(--panel-2); color: var(--text); border: 1px solid var(--border);
     padding: 13px; border-radius: 12px; font-size: 0.95rem; cursor: pointer; width: 100%;
   }
   button.danger { background: var(--accent-2); color: #fff; border: none; }
@@ -78,14 +80,12 @@
   .center { text-align: center; }
   .row { display: flex; gap: 8px; }
   .row > * { flex: 1; }
-  .footer-nav { display: flex; gap: 8px; margin-top: auto; padding-top: 10px; }
-  .footer-nav button { flex: 1; }
   small.hint { color: var(--text-dim); display: block; margin-top: 4px; font-size: 0.78rem; }
   .room-code { font-size: 2.6rem; font-weight: 800; letter-spacing: 0.2em; text-align: center; color: var(--accent); margin: 8px 0; }
   .player-chip-list { display: flex; flex-wrap: wrap; gap: 8px; }
   .player-chip { background: var(--panel-2); border: 1px solid var(--border); border-radius: 999px; padding: 7px 14px; font-size: 0.85rem; display: flex; align-items: center; gap: 6px; }
   .player-color-dot { width: 10px; height: 10px; border-radius: 50%; flex: none; }
-  .host-badge { color: var(--accent); font-size: 0.7rem; margin-left: 4px; }
+  .host-badge { color: var(--accent); font-size: 0.7rem; margin-left: 4px; font-weight: 700; }
   .waiting-text { color: var(--text-dim); text-align: center; padding: 16px 0; }
 
   .rules-link-row { text-align: center; margin: -8px 0 14px; }
@@ -95,7 +95,7 @@
   }
   .rules-link-btn:hover { color: var(--accent); }
   .rules-modal-backdrop {
-    position: fixed; inset: 0; background: rgba(0,0,0,0.6);
+    position: fixed; inset: 0; background: rgba(20,35,55,0.5);
     display: none; align-items: center; justify-content: center; z-index: 300; padding: 20px;
   }
   .rules-modal-backdrop.show { display: flex; }
@@ -109,66 +109,67 @@
   .rules-modal .rules-section strong { color: var(--text); }
   .rules-modal .rules-section-label {
     text-transform: uppercase; font-size: 0.72rem; letter-spacing: 0.05em;
-    color: var(--accent); font-weight: 600; margin-bottom: 4px;
+    color: var(--accent); font-weight: 700; margin-bottom: 4px;
   }
   .rules-modal-close { width: 100%; margin-top: 6px; }
 
-  /* ---- board ---- */
+  /* ---- 3D scene ---- */
   .turn-banner {
     display: flex; align-items: center; justify-content: space-between; gap: 10px;
     background: var(--panel); border: 1px solid var(--border); border-radius: 14px; padding: 12px 14px;
   }
   .turn-banner-name { font-weight: 800; font-size: 1.05rem; display: flex; align-items: center; gap: 8px; }
-  .turn-banner.my-turn { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent) inset; }
-  .board-wrap {
-    background: var(--panel); border: 1px solid var(--border); border-radius: 14px; padding: 8px;
+  .turn-banner.my-turn { border-color: var(--accent); box-shadow: 0 0 0 2px rgba(242,165,22,0.35); }
+  .turn-phase-label { font-size: 0.72rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.05em; }
+  .scene-viewport {
+    position: relative; width: 100%; height: 340px; border-radius: 14px; overflow: hidden;
+    background: linear-gradient(180deg, var(--sky-top), var(--sky-bottom));
+    border: 1px solid var(--border); touch-action: none; cursor: grab;
   }
-  .board-grid {
-    display: grid; gap: 3px; width: 100%; aspect-ratio: 1;
+  .scene-viewport:active { cursor: grabbing; }
+  .scene-viewport::after {
+    content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 28%;
+    background: linear-gradient(180deg, rgba(255,255,255,0), rgba(255,255,255,0.5));
+    pointer-events: none;
   }
-  .board-cell {
-    position: relative; border-radius: 6px; border: 1px solid rgba(0,0,0,0.25);
-    display: flex; align-items: center; justify-content: center;
-    cursor: default; padding: 0; font-family: inherit;
+  .scene { position: absolute; top: 52%; left: 50%; width: 0; height: 0; transform-style: preserve-3d; }
+  .scene-ground { position: absolute; transform-style: preserve-3d; }
+  .scene-hint { position: absolute; bottom: 6px; right: 10px; font-size: 0.68rem; color: var(--text-dim); background: rgba(255,255,255,0.7); padding: 2px 7px; border-radius: 999px; }
+  .block3d { position: absolute; transform-style: preserve-3d; }
+  .block-face { position: absolute; border-radius: 2px; box-shadow: inset 0 0 0 1px rgba(20,35,55,0.18); }
+  .block-face.top-face { cursor: default; }
+  .block-face.top-face.targetable { cursor: pointer; box-shadow: inset 0 0 0 3px #ffffff, inset 0 0 0 5px var(--accent); }
+  .block-face.top-face.seed-face::after {
+    content: "\2302"; position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 11px; color: rgba(20,35,55,0.4);
   }
-  .board-cell.cell-neutral { background: #46586e; }
-  .board-cell.targetable { cursor: pointer; box-shadow: 0 0 0 2px var(--accent) inset; }
-  .board-cell.targetable:active { transform: scale(0.94); }
-  .cell-height {
-    position: absolute; top: 2px; left: 3px; font-size: 0.55rem; font-weight: 700;
-    color: rgba(255,255,255,0.75); text-shadow: 0 1px 1px rgba(0,0,0,0.5);
+  .pawn3d {
+    position: absolute; border-radius: 50%; box-shadow: 0 2px 5px rgba(20,35,55,0.4), inset -2px -2px 4px rgba(0,0,0,0.25);
+    display: flex; align-items: center; justify-content: center; font-size: 0.6rem; font-weight: 800; color: #fff; text-shadow: 0 1px 1px rgba(0,0,0,0.35);
   }
-  .cell-seed-mark {
-    position: absolute; bottom: 2px; left: 3px; font-size: 0.5rem; color: rgba(255,255,255,0.6);
-  }
-  .cell-disk {
-    position: absolute; bottom: 1px; right: 2px; font-size: 0.7rem; line-height: 1;
-  }
-  .cell-pawn {
-    width: 62%; height: 62%; border-radius: 50%; display: flex; align-items: center; justify-content: center;
-    font-size: 0.62rem; font-weight: 800; color: #fff; text-shadow: 0 1px 1px rgba(0,0,0,0.4);
-    border: 2px solid rgba(255,255,255,0.85);
+  .disk3d {
+    position: absolute; border-radius: 50%; background: repeating-conic-gradient(#2b2b2b 0deg 15deg, #e6484f 15deg 30deg);
+    box-shadow: 0 1px 3px rgba(0,0,0,0.4);
   }
   .action-toolbar { display: flex; flex-wrap: wrap; gap: 8px; }
   .action-btn {
     flex: 1 1 calc(50% - 8px); min-width: 120px; background: var(--panel-2); border: 1px solid var(--border);
-    color: var(--text); padding: 11px 8px; border-radius: 10px; font-size: 0.85rem; cursor: pointer; font-weight: 600;
+    color: var(--text); padding: 11px 8px; border-radius: 10px; font-size: 0.85rem; cursor: pointer; font-weight: 700;
   }
-  .action-btn.on { background: var(--accent); color: #1a1200; border-color: var(--accent); }
-  .action-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+  .action-btn.skip { background: var(--panel); }
+  .action-btn:disabled { opacity: 0.4; cursor: not-allowed; }
   .legend { display: flex; flex-wrap: wrap; gap: 10px; font-size: 0.78rem; color: var(--text-dim); }
   .legend-item { display: flex; align-items: center; gap: 5px; }
   .legend-dot { width: 12px; height: 12px; border-radius: 50%; flex: none; }
   .action-status { color: var(--text-dim); font-size: 0.82rem; min-height: 1.2em; text-align: center; }
-  .winner-banner { font-size: 1.3rem; font-weight: 800; text-align: center; }
+  .winner-banner { font-size: 1.3rem; font-weight: 800; text-align: center; color: var(--text); }
   .winner-banner span { color: var(--accent); }
 
   #chat-toggle {
     position: fixed; right: 16px; bottom: 16px; z-index: 40;
     width: 52px; height: 52px; border-radius: 50%;
-    background: var(--accent); color: #1a1200; border: none;
+    background: var(--accent); color: #3a2400; border: none;
     font-size: 1.4rem; cursor: pointer;
-    box-shadow: 0 4px 14px rgba(0,0,0,0.35);
+    box-shadow: 0 4px 14px rgba(30,60,100,0.25);
     display: none; align-items: center; justify-content: center;
   }
   #chat-toggle:active { transform: scale(0.94); }
@@ -190,7 +191,7 @@
     width: min(320px, calc(100vw - 32px)); max-height: min(440px, calc(100vh - 140px));
     background: var(--panel); border: 1px solid var(--border); border-radius: 16px;
     display: none; flex-direction: column; overflow: hidden;
-    box-shadow: 0 10px 30px rgba(0,0,0,0.45);
+    box-shadow: 0 10px 30px rgba(20,35,55,0.25);
   }
   #chat-panel.open { display: flex; }
   #chat-header {
@@ -213,15 +214,15 @@
     color: var(--text); padding: 9px 10px; border-radius: 10px; font-size: 0.9rem;
   }
   #chat-send {
-    background: var(--accent); color: #1a1200; border: none;
+    background: var(--accent); color: #3a2400; border: none;
     border-radius: 10px; padding: 0 14px; font-weight: 700; cursor: pointer; font-size: 0.85rem;
   }
   #home-toggle {
     position: fixed; left: 16px; bottom: 16px; z-index: 40;
     width: 52px; height: 52px; border-radius: 50%;
-    background: var(--panel-2); color: var(--text); border: 1px solid var(--border);
+    background: var(--panel); color: var(--text); border: 1px solid var(--border);
     font-size: 1.3rem; cursor: pointer;
-    box-shadow: 0 4px 14px rgba(0,0,0,0.35);
+    box-shadow: 0 4px 14px rgba(30,60,100,0.2);
     display: none; align-items: center; justify-content: center;
   }
   #home-toggle:active { transform: scale(0.94); }
@@ -230,42 +231,38 @@
 <body>
 <div id="app">
   <h1>The <span>Climbers</span></h1>
-  <div class="subtitle">Race to the peak &mdash; climb your own colored path or the shared neutral stones, reshape the mountain as you go &middot; <a class="top-link" href="index.html" style="color:var(--text-dim);font-size:0.8rem;">&larr; all games</a></div>
+  <div class="subtitle">Race up the mountain &mdash; climb your own colored blocks or the shared gray ones, reshape the structure as you go &middot; <a class="top-link" href="index.html" style="color:var(--text-dim);font-size:0.8rem;">&larr; all games</a></div>
   <div class="rules-link-row"><button type="button" class="rules-link-btn" id="rules-btn">Rules</button></div>
   <div class="rules-modal-backdrop" id="rules-modal-backdrop">
     <div class="rules-modal">
       <h2>How to Play</h2>
       <div class="rules-section">
         <div class="rules-section-label">A note on this version</div>
-        This is a browser adaptation of the physical board game "The Climbers" (Capstone Games). Instead of stacking real 3D blocks, the mountain is a 7&times;7 grid where every square has a color and a height. The rules below describe exactly what this version does &mdash; a few numbers (ladder reach, board shape) were chosen to make it work well on screen.
+        This is a browser adaptation of the physical board game "The Climbers" (Capstone Games). The mountain is a 7&times;7 grid of solid colored blocks instead of hand-stacked wooden pieces, rendered in 3D so you can see the actual heights. One simplification: blocks can be <strong>rotated</strong> to a new face (changing color/height) but not physically relocated, since this board has no empty space to move a block into.
       </div>
       <div class="rules-section">
         <div class="rules-section-label">The goal</div>
-        Everyone starts at their own low, home-colored square at the edge of the grid. Be the highest climber left standing when the game ends.
+        Get your climber as high as possible. There's no finish line &mdash; the game ends once a full round passes with nobody climbing any higher. Whoever is then highest wins; a tie goes to whoever reached that height first.
       </div>
       <div class="rules-section">
         <div class="rules-section-label">Moving</div>
-        On your turn you may move to one neighboring square (including diagonals) if it's your own color <strong>or</strong> the shared gray neutral color, nobody else is standing there, it isn't blocked, and it's the same height as where you are or up to one level higher &mdash; you can never move down to a lower square.
+        Your climber can move sideways and/or upward across connected blocks that are your color or the shared gray neutral color &mdash; never downward, never diagonally. You can chain through several connected blocks in a single move if there's a legal path.
       </div>
       <div class="rules-section">
         <div class="rules-section-label">Ladders</div>
-        Each player has one short and one long ladder, usable once each for the whole game. A ladder lets you leap further and higher than a normal step, as long as the landing square is still your color or neutral, open, and not blocked.
-      </div>
-      <div class="rules-section">
-        <div class="rules-section-label">Rotating blocks</div>
-        Instead of moving, you may rotate one unoccupied, unblocked square (that isn't someone's starting square) to its next face &mdash; this can change its color and height, opening or closing routes for everyone.
-      </div>
-      <div class="rules-section">
-        <div class="rules-section-label">Blocking disk</div>
-        You have one disk. Place it on any open square to seal it &mdash; nobody can stand there while it's down. It stays until play comes back around to you, then it automatically returns to your hand.
+        You get one short ladder (bridges a gap of up to 2) and one long ladder (bridges a gap of 2, 3, or 4), each usable once for the whole game. You can use both in the same move if you land on a real block between them.
       </div>
       <div class="rules-section">
         <div class="rules-section-label">Your turn</div>
-        Each turn you may do one climb (a normal move or a ladder), one rotate, and place your disk &mdash; in any order, any or none of them &mdash; then end your turn. If you truly have nothing you want to do, just pass.
+        A full turn is: <strong>climb</strong> &rarr; <strong>rotate one block</strong> (optional, can't be the block your predecessor just rotated) &rarr; <strong>climb again</strong> &rarr; <strong>place your disc</strong> (optional). Any step can be skipped.
       </div>
       <div class="rules-section">
-        <div class="rules-section-label">Game end</div>
-        Once every remaining player passes in a row without taking any action, the game ends and whoever is highest up wins (ties share the win).
+        <div class="rules-section-label">Blocking disc</div>
+        You have one disc for the whole game. Place it on any open block to seal it &mdash; nobody can stand on it, cross it, or rotate it. It returns to your hand automatically once play comes back around to your next full turn.
+      </div>
+      <div class="rules-section">
+        <div class="rules-section-label">Bonus moves</div>
+        After your full turn, every other player gets one bonus climb (no block or disc) in turn order, before the next player's full turn.
       </div>
       <button class="secondary rules-modal-close" id="rules-modal-close" type="button">Got it</button>
     </div>
@@ -405,10 +402,16 @@ $("rules-modal-backdrop").addEventListener("click", function (e) { if (e.target 
 // =========================================================================
 
 var GRID_SIZE = 7;
-var SHORT_LADDER = { maxDist: 3, maxUp: 3 };
-var LONG_LADDER = { maxDist: 5, maxUp: 6 };
+var SHORT_LADDER_UP = 2;
 var PEAK_HEIGHT = 6;
-var PLAYER_COLORS = ["#e63946", "#457b9d", "#52b788", "#9d4edd", "#f4a261"];
+var PLAYER_COLORS = [
+  { hex: "#e6484f", top: "#f4776f", front: "#dd5048", side: "#b53c36" },
+  { hex: "#3b7cc4", top: "#5b9de0", front: "#3b7cc4", side: "#2a5e99" },
+  { hex: "#45ab68", top: "#6fce8f", front: "#45ab68", side: "#31804c" },
+  { hex: "#a466e0", top: "#c091f0", front: "#a466e0", side: "#7d47b3" },
+  { hex: "#e29332", top: "#f5b866", front: "#e29332", side: "#b8721e" }
+];
+var NEUTRAL_PALETTE = { hex: "#a7b6c8", top: "#c7d2de", front: "#a7b6c8", side: "#8b9bb0" };
 
 function clampNum(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
 
@@ -427,13 +430,10 @@ function chebyshev(r1, c1, r2, c2) { return Math.max(Math.abs(r1 - r2), Math.abs
 
 function neighborCoords(r, c, size) {
   var out = [];
-  for (var dr = -1; dr <= 1; dr++) {
-    for (var dc = -1; dc <= 1; dc++) {
-      if (dr === 0 && dc === 0) continue;
-      var nr = r + dr, nc = c + dc;
-      if (nr >= 0 && nr < size && nc >= 0 && nc < size) out.push([nr, nc]);
-    }
-  }
+  [[-1, 0], [1, 0], [0, -1], [0, 1]].forEach(function (d) {
+    var nr = r + d[0], nc = c + d[1];
+    if (nr >= 0 && nr < size && nc >= 0 && nc < size) out.push([nr, nc]);
+  });
   return out;
 }
 
@@ -490,7 +490,7 @@ function generateBoard(playerIds, seed) {
         faces: buildFaces(isNeutral, isNeutral ? "neutral" : owner, height, playerIds, rng),
         faceIndex: 0,
         disk: null,
-        climberUid: null,
+        climberUids: [],
         isSeed: false
       };
     }
@@ -508,59 +508,62 @@ function generateBoard(playerIds, seed) {
   return { size: size, cells: cells, seeds: seeds };
 }
 
-function isOpen(cell) { return cell.climberUid === null && cell.disk === null; }
-function isNeighbor(a, b) { return chebyshev(a.r, a.c, b.r, b.c) === 1; }
-function canClimbStep(a, b) { return b.height >= a.height && b.height <= a.height + 1; }
 function colorOk(cell, playerColor) { return cell.color === "neutral" || cell.color === playerColor; }
 
-function canMoveTo(board, playerColor, fromKey, toKey) {
-  var a = board.cells[fromKey], b = board.cells[toKey];
-  if (!a || !b) return false;
-  if (!isNeighbor(a, b)) return false;
-  if (!isOpen(b)) return false;
-  if (!colorOk(b, playerColor)) return false;
-  if (!canClimbStep(a, b)) return false;
-  return true;
+function computeReachable(board, player, fromKey) {
+  var best = {};
+  var bestForCell = {};
+  var queue = [{ key: fromKey, usedShort: false, usedLong: false, cost: 0 }];
+  best[fromKey + "|0|0"] = 0;
+
+  while (queue.length) {
+    var cur = queue.shift();
+    var cell = board.cells[cur.key];
+
+    neighborCoords(cell.r, cell.c, board.size).forEach(function (rc) {
+      var toKey = cellKey(rc[0], rc[1]);
+      var toCell = board.cells[toKey];
+      if (toCell.disk) return;
+      if (!colorOk(toCell, player.color)) return;
+      if (toCell.height < cell.height) return;
+
+      var edges = [];
+      var delta = toCell.height - cell.height;
+      if (delta <= 1) edges.push({ usedShort: cur.usedShort, usedLong: cur.usedLong });
+      if (delta <= SHORT_LADDER_UP && player.ladders.short && !cur.usedShort) {
+        edges.push({ usedShort: true, usedLong: cur.usedLong });
+      }
+      if (delta >= 2 && delta <= 4 && player.ladders.long && !cur.usedLong) {
+        edges.push({ usedShort: cur.usedShort, usedLong: true });
+      }
+
+      edges.forEach(function (e) {
+        var cost = cur.cost + (e.usedShort && !cur.usedShort ? 1 : 0) + (e.usedLong && !cur.usedLong ? 1 : 0);
+        var stateKey = toKey + "|" + (e.usedShort ? 1 : 0) + "|" + (e.usedLong ? 1 : 0);
+        if (best[stateKey] !== undefined && best[stateKey] <= cost) return;
+        best[stateKey] = cost;
+        queue.push({ key: toKey, usedShort: e.usedShort, usedLong: e.usedLong, cost: cost });
+        if (!bestForCell[toKey] || bestForCell[toKey].cost > cost) {
+          bestForCell[toKey] = { cost: cost, usedShort: e.usedShort, usedLong: e.usedLong };
+        }
+      });
+    });
+  }
+
+  delete bestForCell[fromKey];
+  return bestForCell;
 }
 
-function legalMoves(board, playerColor, fromKey) {
-  var a = board.cells[fromKey];
-  if (!a) return [];
-  return neighborCoords(a.r, a.c, board.size)
-    .map(function (rc) { return cellKey(rc[0], rc[1]); })
-    .filter(function (k) { return canMoveTo(board, playerColor, fromKey, k); });
-}
-
-function canLadderTo(board, playerColor, fromKey, toKey, reach) {
-  var a = board.cells[fromKey], b = board.cells[toKey];
-  if (!a || !b || fromKey === toKey) return false;
-  var d = chebyshev(a.r, a.c, b.r, b.c);
-  if (d < 1 || d > reach.maxDist) return false;
-  if (!isOpen(b)) return false;
-  if (!colorOk(b, playerColor)) return false;
-  if (b.height < a.height) return false;
-  if (b.height > a.height + reach.maxUp) return false;
-  return true;
-}
-
-function legalLadderTargets(board, playerColor, fromKey, which) {
-  var reach = which === "short" ? SHORT_LADDER : LONG_LADDER;
-  var out = [];
-  Object.keys(board.cells).forEach(function (k) {
-    if (canLadderTo(board, playerColor, fromKey, k, reach)) out.push(k);
-  });
-  return out;
-}
-
-function canRotate(cell) {
+function canRotate(cell, blockRestrictionKey, keyOfCell) {
   if (!cell) return false;
   if (cell.isSeed) return false;
-  if (cell.climberUid !== null) return false;
-  if (cell.disk !== null) return false;
+  if (cell.climberUids.length > 0) return false;
+  if (cell.disk) return false;
+  if (blockRestrictionKey && blockRestrictionKey === keyOfCell) return false;
   return true;
 }
 
-function rotateCell(cell) {
+function rotateCellInPlace(cell) {
   cell.faceIndex = (cell.faceIndex + 1) % cell.faces.length;
   var face = cell.faces[cell.faceIndex];
   cell.color = face.color;
@@ -569,8 +572,8 @@ function rotateCell(cell) {
 
 function canPlaceDisk(cell) {
   if (!cell) return false;
-  if (cell.climberUid !== null) return false;
-  if (cell.disk !== null) return false;
+  if (cell.climberUids.length > 0) return false;
+  if (cell.disk) return false;
   return true;
 }
 
@@ -584,92 +587,144 @@ function createGame(playersIn, seed) {
       uid: p.uid, name: p.name, color: p.uid,
       cellKey: startKey,
       ladders: { short: true, long: true },
-      diskCellKey: null
+      diskCellKey: null,
+      heightReachedStep: 0
     };
-    board.cells[startKey].climberUid = p.uid;
+    board.cells[startKey].climberUids.push(p.uid);
   });
   return {
     board: board,
     playerOrder: playerIds,
     players: players,
-    turnIndex: 0,
-    turnNumber: 1,
-    consecutivePasses: 0,
-    actions: { moved: false, rotated: false, diskPlaced: false },
+    globalStep: 1,
+    turnMode: "main",
+    activeUid: playerIds[0],
+    mainPlayerIndex: 0,
+    mainPhase: "climb1",
+    bonusQueue: [],
+    blockRestrictionKey: null,
+    pendingRotatedKey: null,
+    roundProgress: false,
     phase: "playing",
     winners: null
   };
 }
 
-function currentPlayer(state) { return state.players[state.playerOrder[state.turnIndex]]; }
+function activePlayer(state) { return state.players[state.activeUid]; }
 
-function doMove(state, toKey) {
-  var p = currentPlayer(state);
-  if (state.actions.moved) return { ok: false, error: "Already moved this turn." };
-  if (!canMoveTo(state.board, p.color, p.cellKey, toKey)) return { ok: false, error: "Illegal move." };
-  state.board.cells[p.cellKey].climberUid = null;
-  state.board.cells[toKey].climberUid = p.uid;
-  p.cellKey = toKey;
-  state.actions.moved = true;
-  state.consecutivePasses = 0;
+function moveClimber(state, player, toKey) {
+  var fromCell = state.board.cells[player.cellKey];
+  var toCell = state.board.cells[toKey];
+  fromCell.climberUids = fromCell.climberUids.filter(function (u) { return u !== player.uid; });
+  toCell.climberUids.push(player.uid);
+  var wentUp = toCell.height > fromCell.height;
+  player.cellKey = toKey;
+  if (wentUp) {
+    state.globalStep++;
+    player.heightReachedStep = state.globalStep;
+    state.roundProgress = true;
+  }
+}
+
+function doClimb(state, toKey) {
+  if (state.phase !== "playing") return { ok: false, error: "Game over." };
+  var canClimbNow = (state.turnMode === "bonus") || (state.turnMode === "main" && (state.mainPhase === "climb1" || state.mainPhase === "climb2"));
+  if (!canClimbNow) return { ok: false, error: "Not a climbing phase." };
+  var player = activePlayer(state);
+  var reachable = computeReachable(state.board, player, player.cellKey);
+  var choice = reachable[toKey];
+  if (!choice) return { ok: false, error: "Not reachable." };
+  if (choice.usedShort) player.ladders.short = false;
+  if (choice.usedLong) player.ladders.long = false;
+  moveClimber(state, player, toKey);
+  advancePhaseAfterClimb(state);
   return { ok: true };
 }
 
-function doLadder(state, which, toKey) {
-  var p = currentPlayer(state);
-  if (state.actions.moved) return { ok: false, error: "Already moved this turn." };
-  if (!p.ladders[which]) return { ok: false, error: "That ladder is already used." };
-  var reach = which === "short" ? SHORT_LADDER : LONG_LADDER;
-  if (!canLadderTo(state.board, p.color, p.cellKey, toKey, reach)) return { ok: false, error: "Illegal ladder move." };
-  state.board.cells[p.cellKey].climberUid = null;
-  state.board.cells[toKey].climberUid = p.uid;
-  p.cellKey = toKey;
-  p.ladders[which] = false;
-  state.actions.moved = true;
-  state.consecutivePasses = 0;
+function skipClimb(state) {
+  if (state.phase !== "playing") return { ok: false, error: "Game over." };
+  advancePhaseAfterClimb(state);
   return { ok: true };
+}
+
+function advancePhaseAfterClimb(state) {
+  if (state.turnMode === "bonus") { advanceBonus(state); return; }
+  if (state.mainPhase === "climb1") state.mainPhase = "block";
+  else if (state.mainPhase === "climb2") state.mainPhase = "disc";
 }
 
 function doRotate(state, key) {
-  if (state.actions.rotated) return { ok: false, error: "Already rotated a block this turn." };
+  if (state.phase !== "playing") return { ok: false, error: "Game over." };
+  if (!(state.turnMode === "main" && state.mainPhase === "block")) return { ok: false, error: "Not the block phase." };
   var cell = state.board.cells[key];
-  if (!canRotate(cell)) return { ok: false, error: "That block can't be rotated." };
-  rotateCell(cell);
-  state.actions.rotated = true;
-  state.consecutivePasses = 0;
+  if (!canRotate(cell, state.blockRestrictionKey, key)) return { ok: false, error: "That block can't be changed." };
+  rotateCellInPlace(cell);
+  state.pendingRotatedKey = key;
+  state.mainPhase = "climb2";
+  return { ok: true };
+}
+
+function skipRotate(state) {
+  if (state.phase !== "playing") return { ok: false, error: "Game over." };
+  if (!(state.turnMode === "main" && state.mainPhase === "block")) return { ok: false, error: "Not the block phase." };
+  state.pendingRotatedKey = null;
+  state.mainPhase = "climb2";
   return { ok: true };
 }
 
 function doPlaceDisk(state, key) {
-  var p = currentPlayer(state);
-  if (state.actions.diskPlaced) return { ok: false, error: "Already placed your disk this turn." };
-  if (p.diskCellKey !== null) return { ok: false, error: "Your disk is already on the board." };
+  if (state.phase !== "playing") return { ok: false, error: "Game over." };
+  if (!(state.turnMode === "main" && state.mainPhase === "disc")) return { ok: false, error: "Not the disc phase." };
+  var player = activePlayer(state);
+  if (player.diskCellKey !== null) return { ok: false, error: "Your disc is already on the board." };
   var cell = state.board.cells[key];
   if (!canPlaceDisk(cell)) return { ok: false, error: "That surface can't be blocked." };
-  cell.disk = { ownerUid: p.uid };
-  p.diskCellKey = key;
-  state.actions.diskPlaced = true;
-  state.consecutivePasses = 0;
+  cell.disk = { ownerUid: player.uid };
+  player.diskCellKey = key;
+  endMainTurn(state);
   return { ok: true };
 }
 
-function endTurn(state) {
-  if (state.phase !== "playing") return;
-  var actedThisTurn = state.actions.moved || state.actions.rotated || state.actions.diskPlaced;
-  if (!actedThisTurn) state.consecutivePasses++;
-  if (state.consecutivePasses >= state.playerOrder.length) {
-    endGame(state);
+function skipDisc(state) {
+  if (state.phase !== "playing") return { ok: false, error: "Game over." };
+  if (!(state.turnMode === "main" && state.mainPhase === "disc")) return { ok: false, error: "Not the disc phase." };
+  endMainTurn(state);
+  return { ok: true };
+}
+
+function endMainTurn(state) {
+  state.blockRestrictionKey = state.pendingRotatedKey;
+  state.pendingRotatedKey = null;
+
+  var order = state.playerOrder;
+  var activeIdx = order.indexOf(state.activeUid);
+  var others = [];
+  for (var i = 1; i < order.length; i++) others.push(order[(activeIdx + i) % order.length]);
+
+  if (others.length === 0) { advanceToNextMainTurn(state); return; }
+  state.turnMode = "bonus";
+  state.bonusQueue = others.slice(1);
+  state.activeUid = others[0];
+}
+
+function advanceBonus(state) {
+  if (state.bonusQueue.length > 0) {
+    state.activeUid = state.bonusQueue.shift();
     return;
   }
-  var nextIndex = (state.turnIndex + 1) % state.playerOrder.length;
-  var nextPlayer = state.players[state.playerOrder[nextIndex]];
-  if (nextPlayer.diskCellKey !== null) {
-    state.board.cells[nextPlayer.diskCellKey].disk = null;
-    nextPlayer.diskCellKey = null;
+  advanceToNextMainTurn(state);
+}
+
+function advanceToNextMainTurn(state) {
+  var wrapped = (state.mainPlayerIndex === state.playerOrder.length - 1);
+  if (wrapped) {
+    if (!state.roundProgress) { endGame(state); return; }
+    state.roundProgress = false;
   }
-  state.turnIndex = nextIndex;
-  state.turnNumber++;
-  state.actions = { moved: false, rotated: false, diskPlaced: false };
+  state.mainPlayerIndex = (state.mainPlayerIndex + 1) % state.playerOrder.length;
+  state.turnMode = "main";
+  state.activeUid = state.playerOrder[state.mainPlayerIndex];
+  state.mainPhase = "climb1";
 }
 
 function endGame(state) {
@@ -679,55 +734,84 @@ function endGame(state) {
     var h = state.board.cells[state.players[uid].cellKey].height;
     if (h > maxHeight) maxHeight = h;
   });
-  state.winners = state.playerOrder.filter(function (uid) {
+  var tied = state.playerOrder.filter(function (uid) {
     return state.board.cells[state.players[uid].cellKey].height === maxHeight;
   });
+  var earliest = Math.min.apply(null, tied.map(function (uid) { return state.players[uid].heightReachedStep; }));
+  state.winners = tied.filter(function (uid) { return state.players[uid].heightReachedStep === earliest; });
 }
 
-function colorForUid(game, uid) {
-  if (uid === "neutral") return "neutral";
+function paletteForUid(game, uid) {
+  if (uid === "neutral") return NEUTRAL_PALETTE;
   var idx = game.playerOrder.indexOf(uid);
-  return idx === -1 ? "#666" : PLAYER_COLORS[idx % PLAYER_COLORS.length];
+  return idx === -1 ? NEUTRAL_PALETTE : PLAYER_COLORS[idx % PLAYER_COLORS.length];
 }
 
 function deepCloneGame(game) { return JSON.parse(JSON.stringify(game)); }
 
+var PHASE_LABELS = {
+  climb1: "Climb", block: "Change a block", climb2: "Climb again", disc: "Place your disc"
+};
+
 // =========================================================================
-// SHARED BOARD RENDERING (used by both local and multiplayer)
+// 3D BOARD SCENE + SHARED RENDERING (used by both local and multiplayer)
 // =========================================================================
 
+var CS = 42;   // grid cell footprint, px
+var UH = 15;   // px per height unit
+var BASE_ROT_X = 54;
+
 function makeBoardController(mountId, opts) {
-  // opts: { getGame(), getMyUid(), isInteractive(), dispatch(fn), onNewGame() }
-  var uiMode = null; // null | "move" | "ladder-short" | "ladder-long" | "rotate" | "disk"
+  var sceneRotY = -35;
+  var dragState = null;
 
   function playerInitial(name) { return (name || "?").trim().charAt(0).toUpperCase() || "?"; }
 
-  function setMode(mode) {
-    uiMode = (uiMode === mode) ? null : mode;
-    render();
+  function actionLabel(state) {
+    if (state.turnMode === "bonus") return "Bonus climb";
+    return PHASE_LABELS[state.mainPhase] || "";
   }
 
-  function targetKeysForMode(game, myUid) {
-    if (!uiMode) return [];
-    var me = game.players[myUid];
-    if (!me) return [];
-    if (uiMode === "move") return legalMoves(game.board, me.color, me.cellKey);
-    if (uiMode === "ladder-short") return me.ladders.short ? legalLadderTargets(game.board, me.color, me.cellKey, "short") : [];
-    if (uiMode === "ladder-long") return me.ladders.long ? legalLadderTargets(game.board, me.color, me.cellKey, "long") : [];
-    if (uiMode === "rotate") return Object.keys(game.board.cells).filter(function (k) { return canRotate(game.board.cells[k]); });
-    if (uiMode === "disk") return Object.keys(game.board.cells).filter(function (k) { return canPlaceDisk(game.board.cells[k]); });
-    return [];
+  function targetKeysForPhase(game, activeUid) {
+    var player = game.players[activeUid];
+    if (!player) return {};
+    if (game.turnMode === "bonus" || game.mainPhase === "climb1" || game.mainPhase === "climb2") {
+      var reach = computeReachable(game.board, player, player.cellKey);
+      var out = {};
+      Object.keys(reach).forEach(function (k) { out[k] = "climb"; });
+      return out;
+    }
+    if (game.mainPhase === "block") {
+      var out2 = {};
+      Object.keys(game.board.cells).forEach(function (k) {
+        if (canRotate(game.board.cells[k], game.blockRestrictionKey, k)) out2[k] = "rotate";
+      });
+      return out2;
+    }
+    if (game.mainPhase === "disc") {
+      if (player.diskCellKey !== null) return {};
+      var out3 = {};
+      Object.keys(game.board.cells).forEach(function (k) {
+        if (canPlaceDisk(game.board.cells[k])) out3[k] = "disc";
+      });
+      return out3;
+    }
+    return {};
   }
 
-  function onCellTap(key) {
-    if (!uiMode) return;
-    var mode = uiMode;
-    uiMode = null;
-    if (mode === "move") opts.dispatch(function (s) { return doMove(s, key); });
-    else if (mode === "ladder-short") opts.dispatch(function (s) { return doLadder(s, "short", key); });
-    else if (mode === "ladder-long") opts.dispatch(function (s) { return doLadder(s, "long", key); });
-    else if (mode === "rotate") opts.dispatch(function (s) { return doRotate(s, key); });
-    else if (mode === "disk") opts.dispatch(function (s) { return doPlaceDisk(s, key); });
+  function onCellTap(kind, key) {
+    if (kind === "climb") opts.dispatch(function (s) { return doClimb(s, key); });
+    else if (kind === "rotate") opts.dispatch(function (s) { return doRotate(s, key); });
+    else if (kind === "disc") opts.dispatch(function (s) { return doPlaceDisk(s, key); });
+  }
+
+  function skipCurrentPhase() {
+    var game = opts.getGame();
+    if (!game) return;
+    if (game.turnMode === "bonus") { opts.dispatch(function (s) { return skipClimb(s); }); return; }
+    if (game.mainPhase === "climb1" || game.mainPhase === "climb2") opts.dispatch(function (s) { return skipClimb(s); });
+    else if (game.mainPhase === "block") opts.dispatch(function (s) { return skipRotate(s); });
+    else if (game.mainPhase === "disc") opts.dispatch(function (s) { return skipDisc(s); });
   }
 
   function render() {
@@ -736,7 +820,6 @@ function makeBoardController(mountId, opts) {
     if (!game || !mount) return;
     var myUid = opts.getMyUid();
     var interactive = opts.isInteractive();
-    var me = game.players[myUid];
 
     mount.innerHTML = "";
 
@@ -744,130 +827,176 @@ function makeBoardController(mountId, opts) {
       var card = document.createElement("div");
       card.className = "card center";
       var names = game.winners.map(function (uid) { return game.players[uid].name; }).join(" & ");
-      card.innerHTML = '<div class="winner-banner">🏔️ <span>' + escapeHtml(names) + "</span> reached the top!</div>";
+      card.innerHTML = '<div class="winner-banner">🏔️ <span>' + escapeHtml(names) + "</span> reached the highest point!</div>";
       mount.appendChild(card);
-      mount.appendChild(buildBoardCard(game, myUid, false));
+      mount.appendChild(buildScene(game, {}));
+      mount.appendChild(buildLegend(game));
       return;
     }
 
-    var cp = currentPlayer(game);
+    var active = activePlayer(game);
     var banner = document.createElement("div");
-    banner.className = "turn-banner" + (cp.uid === myUid ? " my-turn" : "");
-    var dot = '<span class="player-color-dot" style="background:' + colorForUid(game, cp.uid) + ';display:inline-block;"></span>';
+    banner.className = "turn-banner" + (active.uid === myUid ? " my-turn" : "");
+    var dot = '<span class="player-color-dot" style="background:' + paletteForUid(game, active.uid).hex + ';display:inline-block;"></span>';
     banner.innerHTML =
-      '<div class="turn-banner-name">' + dot + escapeHtml(cp.name) + (cp.uid === myUid ? " (you)" : "") + "</div>" +
-      '<div style="color:var(--text-dim);font-size:0.8rem;">Turn ' + game.turnNumber + "</div>";
+      '<div><div class="turn-banner-name">' + dot + escapeHtml(active.name) + (active.uid === myUid ? " (you)" : "") + '</div><div class="turn-phase-label">' + actionLabel(game) + "</div></div>" +
+      '<div style="color:var(--text-dim);font-size:0.8rem;">' + (game.turnMode === "bonus" ? "Bonus" : "Main turn") + "</div>";
     mount.appendChild(banner);
 
-    mount.appendChild(buildBoardCard(game, myUid, interactive));
+    var targets = interactive ? targetKeysForPhase(game, active.uid) : {};
+    mount.appendChild(buildScene(game, targets));
 
-    if (interactive && me) {
+    if (interactive) {
       var toolbar = document.createElement("div");
       toolbar.className = "action-toolbar";
-
-      var moveBtn = actionButton("Move", uiMode === "move", legalMoves(game.board, me.color, me.cellKey).length === 0 || game.actions.moved, function () { setMode("move"); });
-      toolbar.appendChild(moveBtn);
-
-      var rotateBtn = actionButton("Rotate a Block", uiMode === "rotate", game.actions.rotated, function () { setMode("rotate"); });
-      toolbar.appendChild(rotateBtn);
-
-      var shortBtn = actionButton("Short Ladder" + (me.ladders.short ? "" : " (used)"), uiMode === "ladder-short", !me.ladders.short || game.actions.moved, function () { setMode("ladder-short"); });
-      toolbar.appendChild(shortBtn);
-
-      var longBtn = actionButton("Long Ladder" + (me.ladders.long ? "" : " (used)"), uiMode === "ladder-long", !me.ladders.long || game.actions.moved, function () { setMode("ladder-long"); });
-      toolbar.appendChild(longBtn);
-
-      var diskBtn = actionButton("Place Disk" + (me.diskCellKey ? " (down)" : ""), uiMode === "disk", game.actions.diskPlaced || me.diskCellKey !== null, function () { setMode("disk"); });
-      toolbar.appendChild(diskBtn);
-
-      var endBtn = actionButton("End Turn / Pass", false, false, function () {
-        uiMode = null;
-        opts.dispatch(function (s) { endTurn(s); return { ok: true }; });
-      });
-      toolbar.appendChild(endBtn);
-
+      var skipBtn = document.createElement("button");
+      skipBtn.type = "button";
+      skipBtn.className = "action-btn skip";
+      skipBtn.textContent = (game.mainPhase === "block" && game.turnMode === "main") ? "Skip (don't change a block)" : "Skip";
+      skipBtn.addEventListener("click", skipCurrentPhase);
+      toolbar.appendChild(skipBtn);
       mount.appendChild(toolbar);
 
       var status = document.createElement("div");
       status.className = "action-status";
-      if (uiMode) status.textContent = "Tap a highlighted square to confirm, or tap the button again to cancel.";
+      var n = Object.keys(targets).length;
+      status.textContent = n > 0 ? "Tap a highlighted block, or Skip." : "No legal action here right now — tap Skip.";
       mount.appendChild(status);
-    } else if (!interactive) {
+    } else {
       var waiting = document.createElement("div");
       waiting.className = "waiting-text";
-      waiting.textContent = "Waiting for " + cp.name + "…";
+      waiting.textContent = "Waiting for " + active.name + "…";
       mount.appendChild(waiting);
     }
 
     mount.appendChild(buildLegend(game));
   }
 
-  function actionButton(label, isOn, isDisabled, handler) {
-    var b = document.createElement("button");
-    b.type = "button";
-    b.className = "action-btn" + (isOn ? " on" : "");
-    b.textContent = label;
-    b.disabled = !!isDisabled;
-    b.addEventListener("click", handler);
-    return b;
+  function buildScene(game, targets) {
+    var viewport = document.createElement("div");
+    viewport.className = "scene-viewport";
+    var scene = document.createElement("div");
+    scene.className = "scene";
+    scene.style.transform = "rotateX(" + BASE_ROT_X + "deg) rotateZ(" + sceneRotY + "deg)";
+    var ground = document.createElement("div");
+    ground.className = "scene-ground";
+    scene.appendChild(ground);
+    viewport.appendChild(scene);
+    var hint = document.createElement("div");
+    hint.className = "scene-hint";
+    hint.textContent = "drag to rotate";
+    viewport.appendChild(hint);
+
+    var size = game.board.size;
+    Object.keys(game.board.cells).forEach(function (key) {
+      var cell = game.board.cells[key];
+      buildBlock(ground, size, cell, key, paletteForUid(game, cell.color), !!targets[key]);
+    });
+    Object.keys(game.players).forEach(function (uid) {
+      var p = game.players[uid];
+      var cell = game.board.cells[p.cellKey];
+      buildPawn(ground, size, cell, paletteForUid(game, uid).hex, playerInitial(p.name));
+    });
+    Object.keys(game.board.cells).forEach(function (key) {
+      var cell = game.board.cells[key];
+      if (cell.disk) buildDisk(ground, size, cell);
+    });
+
+    var onPointerDown = function (e) {
+      dragState = { startX: e.clientX, startRot: sceneRotY, moved: false };
+      viewport.setPointerCapture && e.pointerId !== undefined && viewport.setPointerCapture(e.pointerId);
+    };
+    var onPointerMove = function (e) {
+      if (!dragState) return;
+      var dx = e.clientX - dragState.startX;
+      if (Math.abs(dx) > 3) dragState.moved = true;
+      sceneRotY = dragState.startRot + dx * 0.4;
+      scene.style.transform = "rotateX(" + BASE_ROT_X + "deg) rotateZ(" + sceneRotY + "deg)";
+    };
+    var onPointerUp = function () { dragState = null; };
+    viewport.addEventListener("pointerdown", onPointerDown);
+    viewport.addEventListener("pointermove", onPointerMove);
+    viewport.addEventListener("pointerup", onPointerUp);
+    viewport.addEventListener("pointerleave", onPointerUp);
+
+    Object.keys(targets).forEach(function (key) {
+      var kind = targets[key];
+      var topFace = ground.querySelector('.top-face[data-key="' + cssEscape(key) + '"]');
+      if (!topFace) return;
+      topFace.classList.add("targetable");
+      topFace.addEventListener("click", function () {
+        if (dragState && dragState.moved) return;
+        onCellTap(kind, key);
+      });
+    });
+
+    return viewport;
   }
 
-  function buildBoardCard(game, myUid, interactive) {
-    var wrap = document.createElement("div");
-    wrap.className = "board-wrap";
-    var grid = document.createElement("div");
-    grid.className = "board-grid";
-    grid.style.gridTemplateColumns = "repeat(" + game.board.size + ", 1fr)";
+  function gridToWorld(size, r, c) {
+    var half = (size - 1) / 2;
+    return { x: (c - half) * CS, z: (r - half) * CS };
+  }
 
-    var targets = interactive ? targetKeysForMode(game, myUid) : [];
-    var targetSet = {};
-    targets.forEach(function (k) { targetSet[k] = true; });
+  function buildBlock(ground, size, cell, key, palette, isTarget) {
+    var pos = gridToWorld(size, cell.r, cell.c);
+    var h = Math.max(1, cell.height + 1) * UH;
+    var half = CS / 2;
 
-    for (var r = 0; r < game.board.size; r++) {
-      for (var c = 0; c < game.board.size; c++) {
-        var key = cellKey(r, c);
-        var cell = game.board.cells[key];
-        var btn = document.createElement("button");
-        btn.type = "button";
-        btn.className = "board-cell" + (cell.color === "neutral" ? " cell-neutral" : "") + (targetSet[key] ? " targetable" : "");
-        if (cell.color !== "neutral") btn.style.background = colorForUid(game, cell.color);
+    var block = document.createElement("div");
+    block.className = "block3d";
+    block.style.transform = "translate3d(" + pos.x + "px, " + (-h / 2) + "px, " + pos.z + "px)";
 
-        var heightEl = document.createElement("span");
-        heightEl.className = "cell-height";
-        heightEl.textContent = String(cell.height);
-        btn.appendChild(heightEl);
-
-        if (cell.isSeed) {
-          var seedMark = document.createElement("span");
-          seedMark.className = "cell-seed-mark";
-          seedMark.textContent = "⌂";
-          btn.appendChild(seedMark);
-        }
-
-        if (cell.disk) {
-          var diskEl = document.createElement("span");
-          diskEl.className = "cell-disk";
-          diskEl.textContent = "🚫";
-          btn.appendChild(diskEl);
-        }
-
-        if (cell.climberUid) {
-          var pawn = document.createElement("span");
-          pawn.className = "cell-pawn";
-          var pColor = colorForUid(game, cell.climberUid);
-          pawn.style.background = cell.color === "neutral" ? pColor : "rgba(0,0,0,0.28)";
-          pawn.textContent = playerInitial(game.players[cell.climberUid].name);
-          btn.appendChild(pawn);
-        }
-
-        if (targetSet[key]) {
-          btn.addEventListener("click", (function (k) { return function () { onCellTap(k); }; })(key));
-        }
-        grid.appendChild(btn);
-      }
+    function face(cls, w, hh, transform, bg) {
+      var f = document.createElement("div");
+      f.className = "block-face " + cls;
+      f.style.width = w + "px";
+      f.style.height = hh + "px";
+      f.style.marginLeft = (-w / 2) + "px";
+      f.style.marginTop = (-hh / 2) + "px";
+      f.style.transform = transform;
+      f.style.background = bg;
+      block.appendChild(f);
+      return f;
     }
-    wrap.appendChild(grid);
-    return wrap;
+
+    var top = face("top-face" + (cell.isSeed ? " seed-face" : ""), CS, CS, "translateZ(" + (h / 2) + "px) rotateX(90deg)", palette.top);
+    top.dataset.key = key;
+    if (isTarget) top.classList.add("targetable");
+    face("front-face", CS, h, "translateZ(" + half + "px)", palette.front);
+    face("back-face", CS, h, "rotateY(180deg) translateZ(" + half + "px)", palette.front);
+    face("right-face", CS, h, "rotateY(90deg) translateZ(" + half + "px)", palette.side);
+    face("left-face", CS, h, "rotateY(-90deg) translateZ(" + half + "px)", palette.side);
+
+    ground.appendChild(block);
+  }
+
+  function buildPawn(ground, size, cell, colorHex, initial) {
+    var pos = gridToWorld(size, cell.r, cell.c);
+    var h = Math.max(1, cell.height + 1) * UH;
+    var pawn = document.createElement("div");
+    pawn.className = "pawn3d";
+    pawn.style.width = "20px";
+    pawn.style.height = "20px";
+    pawn.style.marginLeft = "-10px";
+    pawn.style.marginTop = "-10px";
+    pawn.style.background = "radial-gradient(circle at 35% 30%, #fff, " + colorHex + " 75%)";
+    pawn.style.transform = "translate3d(" + pos.x + "px, " + (-h - 12) + "px, " + pos.z + "px)";
+    pawn.textContent = initial;
+    ground.appendChild(pawn);
+  }
+
+  function buildDisk(ground, size, cell) {
+    var pos = gridToWorld(size, cell.r, cell.c);
+    var h = Math.max(1, cell.height + 1) * UH;
+    var disk = document.createElement("div");
+    disk.className = "disk3d";
+    disk.style.width = "26px";
+    disk.style.height = "26px";
+    disk.style.marginLeft = "-13px";
+    disk.style.marginTop = "-13px";
+    disk.style.transform = "translate3d(" + pos.x + "px, " + (-h - 3) + "px, " + pos.z + "px) rotateX(90deg)";
+    ground.appendChild(disk);
   }
 
   function buildLegend(game) {
@@ -877,14 +1006,16 @@ function makeBoardController(mountId, opts) {
       var p = game.players[uid];
       var item = document.createElement("div");
       item.className = "legend-item";
-      item.innerHTML = '<span class="legend-dot" style="background:' + colorForUid(game, uid) + ';"></span>' + escapeHtml(p.name) + " · height " + game.board.cells[p.cellKey].height;
+      item.innerHTML = '<span class="legend-dot" style="background:' + paletteForUid(game, uid).hex + ';"></span>' + escapeHtml(p.name) + " · height " + game.board.cells[p.cellKey].height;
       wrap.appendChild(item);
     });
     return wrap;
   }
 
-  return { render: render, resetMode: function () { uiMode = null; } };
+  return { render: render };
 }
+
+function cssEscape(s) { return String(s).replace(/[^a-zA-Z0-9_-]/g, "\\$&"); }
 
 function escapeHtml(s) {
   var div = document.createElement("div");
@@ -903,7 +1034,7 @@ var localState = {
 
 var localBoard = makeBoardController("local-board-mount", {
   getGame: function () { return localState.game; },
-  getMyUid: function () { return localState.game ? currentPlayer(localState.game).uid : null; },
+  getMyUid: function () { return localState.game ? activePlayer(localState.game).uid : null; },
   isInteractive: function () { return true; },
   dispatch: function (fn) {
     var r = fn(localState.game);
@@ -986,7 +1117,6 @@ $("local-btn-start-game").addEventListener("click", function () {
   var players = names.map(function (n, i) { return { uid: "local" + i, name: n }; });
   localState.game = createGame(players, Math.floor(Math.random() * 4294967295));
   saveLocalGame();
-  localBoard.resetMode();
   showScreen("local-screen-board");
   localBoard.render();
 });
@@ -1025,11 +1155,11 @@ var mpBoard = makeBoardController("mp-board-mount", {
   getMyUid: function () { return mp.uid; },
   isInteractive: function () {
     if (!mp.room || !mp.room.game) return false;
-    return currentPlayer(mp.room.game).uid === mp.uid;
+    return activePlayer(mp.room.game).uid === mp.uid;
   },
   dispatch: function (fn) {
     if (!mp.room || !mp.room.game) return;
-    if (currentPlayer(mp.room.game).uid !== mp.uid) return;
+    if (activePlayer(mp.room.game).uid !== mp.uid) return;
     var gameCopy = deepCloneGame(mp.room.game);
     var r = fn(gameCopy);
     if (r && r.ok === false) return;
@@ -1178,7 +1308,7 @@ function renderLobby() {
     chip.className = "player-chip";
     var dot = document.createElement("span");
     dot.className = "player-color-dot";
-    dot.style.background = PLAYER_COLORS[i % PLAYER_COLORS.length];
+    dot.style.background = PLAYER_COLORS[i % PLAYER_COLORS.length].hex;
     chip.appendChild(dot);
     chip.appendChild(document.createTextNode(p.name));
     if (uid === room.hostUid) {
