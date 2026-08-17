@@ -744,19 +744,59 @@ function botPickWord(difficulty) {
 }
 
 function normalizeAnswer(s) {
-  return (s || "").toLowerCase().trim().replace(/^(a|an|the)\s+/, "").replace(/[^a-z0-9 ]/g, "").replace(/\s+/g, " ");
+  return (s || "").toLowerCase().trim()
+    // Fold accented characters to their plain equivalent (e.g. "piñata" ->
+    // "pinata") so an accent typed (or not typed) doesn't count as a
+    // different word.
+    .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+    .replace(/^(a|an|the)\s+/, "").replace(/[^a-z0-9 ]/g, "").replace(/\s+/g, " ");
+}
+
+// Damerau-Levenshtein (optimal string alignment): counts a transposed pair
+// of adjacent letters (e.g. "sandwhich" for "sandwich") as one edit, since
+// that's one of the most common typing typos.
+function levenshtein(a, b) {
+  var m = a.length, n = b.length;
+  var d = [];
+  for (var i = 0; i <= m; i++) { d[i] = new Array(n + 1).fill(0); d[i][0] = i; }
+  for (var j = 0; j <= n; j++) d[0][j] = j;
+  for (var i = 1; i <= m; i++) {
+    for (var j = 1; j <= n; j++) {
+      var cost = a[i - 1] === b[j - 1] ? 0 : 1;
+      d[i][j] = Math.min(d[i - 1][j] + 1, d[i][j - 1] + 1, d[i - 1][j - 1] + cost);
+      if (i > 1 && j > 1 && a[i - 1] === b[j - 2] && a[i - 2] === b[j - 1]) {
+        d[i][j] = Math.min(d[i][j], d[i - 2][j - 2] + cost);
+      }
+    }
+  }
+  return d[m][n];
+}
+
+// Two answers count as "the same word" if they're identical after
+// normalizing, differ only by a trailing "s", or are within a small
+// edit-distance of each other (scaled by word length, so short words still
+// need to match closely -- "cat" vs "bat" shouldn't count as the same
+// word just because they're one edit apart).
+function answersAreClose(a, b) {
+  var na = normalizeAnswer(a);
+  var nb = normalizeAnswer(b);
+  if (!na || !nb) return false;
+  if (na === nb) return true;
+  if (na.replace(/s$/, "") === nb.replace(/s$/, "")) return true;
+  var maxLen = Math.max(na.length, nb.length);
+  var threshold = maxLen <= 4 ? 0 : (maxLen <= 6 ? 1 : (maxLen <= 10 ? 2 : 3));
+  return levenshtein(na, nb) <= threshold;
 }
 
 // Decides who's eliminated among the competitors (everyone but the Judge)
-// for one turn: anyone whose normalized answer matches another still-in
-// competitor's is out ("matched"), anyone whose answer matches the Judge's
-// secret answer is out ("judge"), anyone with no usable answer is out
-// ("timeout"), everyone else survives.
+// for one turn: anyone whose answer is close enough to another still-in
+// competitor's is out ("matched"), anyone whose answer is close enough to
+// the Judge's secret answer is out ("judge"), anyone with no usable answer
+// is out ("timeout"), everyone else survives.
 function computeEliminations(competitors, answers, judgeAnswer) {
-  var groups = {};
   var eliminated = {};
   var reason = {};
-  var normJudge = judgeAnswer ? normalizeAnswer(judgeAnswer) : "";
+  var remaining = [];
   competitors.forEach(function (uid) {
     var raw = answers ? answers[uid] : undefined;
     if (raw === undefined || raw === null || normalizeAnswer(raw) === "") {
@@ -764,17 +804,35 @@ function computeEliminations(competitors, answers, judgeAnswer) {
       reason[uid] = "timeout";
       return;
     }
-    var norm = normalizeAnswer(raw);
-    if (normJudge && norm === normJudge) {
+    if (judgeAnswer && answersAreClose(raw, judgeAnswer)) {
       eliminated[uid] = true;
       reason[uid] = "judge";
       return;
     }
-    if (!groups[norm]) groups[norm] = [];
-    groups[norm].push(uid);
+    remaining.push(uid);
   });
-  Object.keys(groups).forEach(function (norm) {
-    var uids = groups[norm];
+
+  // Union-find over the remaining competitors: any two whose answers are
+  // close enough get grouped together, transitively, so three people who
+  // are all pairwise-close (or chained close-to-close-to-close) end up in
+  // the same group even if the first and last aren't close to each other.
+  var parent = {};
+  remaining.forEach(function (uid) { parent[uid] = uid; });
+  function find(uid) { while (parent[uid] !== uid) { uid = parent[uid]; } return uid; }
+  function union(a, b) { var ra = find(a), rb = find(b); if (ra !== rb) parent[ra] = rb; }
+  for (var i = 0; i < remaining.length; i++) {
+    for (var j = i + 1; j < remaining.length; j++) {
+      if (answersAreClose(answers[remaining[i]], answers[remaining[j]])) union(remaining[i], remaining[j]);
+    }
+  }
+  var groups = {};
+  remaining.forEach(function (uid) {
+    var root = find(uid);
+    if (!groups[root]) groups[root] = [];
+    groups[root].push(uid);
+  });
+  Object.keys(groups).forEach(function (root) {
+    var uids = groups[root];
     if (uids.length >= 2) {
       uids.forEach(function (uid) { eliminated[uid] = true; reason[uid] = "matched"; });
     } else {
