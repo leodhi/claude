@@ -244,7 +244,7 @@
       </div>
       <div class="rules-section">
         <div class="rules-section-label">Everyone else</div>
-        The other players answer the prompt in secret, without seeing anyone else's answer or the Judge's. <strong>Playing on one device:</strong> pass it around — the Judge locks in their secret answer first, then each other player privately types theirs. <strong>Playing across devices:</strong> everyone types on their own phone at once. Once everybody's locked in, all the answers reveal together. Answers are compared after trimming spacing, punctuation and capitalization, so "A Dog" and "a dog." count as the same answer.
+        The other players answer the prompt in secret, without seeing anyone else's answer or the Judge's. <strong>Playing on one device:</strong> pass it around — the Judge locks in their secret answer first, then each other player privately types theirs. <strong>Playing across devices:</strong> everyone — including the Judge — types on their own phone at the same time. Once everybody's locked in, all the answers reveal together. Answers are compared after trimming spacing, punctuation and capitalization, so "A Dog" and "a dog." count as the same answer.
       </div>
       <div class="rules-section">
         <div class="rules-section-label">Elimination</div>
@@ -330,38 +330,14 @@
   </div>
 
   <!-- MULTIPLAYER: JUDGE TURN (the judge secretly picks an answer) -->
-  <div class="screen" id="screen-judge-turn">
-    <div class="card center" style="padding:10px 16px;">
-      <span class="category-label" id="judge-turn-round-label"></span>
-    </div>
-    <div class="judge-banner">
-      <span class="category-label">Judge this round</span>
-      <div class="big-name" id="judge-turn-judge-name"></div>
-    </div>
-    <div class="card center">
-      <span class="category-label">The prompt is</span>
-      <div class="prompt-text" id="judge-turn-prompt-text"></div>
-    </div>
-    <div class="card" id="judge-turn-active-card" style="display:none;">
-      <div class="timer-display center" id="judge-turn-timer">0:45</div>
-      <label>Your SECRET answer (try to trip everyone up!)</label>
-      <input type="text" id="judge-turn-answer-field" placeholder="Type your secret answer..." maxlength="60">
-      <button class="primary" id="btn-judge-turn-submit" type="button" style="margin-top:10px;">Lock In Secret Answer</button>
-    </div>
-    <div class="card center" id="judge-turn-waiting-card">
-      <div class="pass-icon">🕵️</div>
-      <div>The Judge is secretly picking an answer to trip everyone up…</div>
-    </div>
-    <div class="card">
-      <div class="roster-line">Competing: <strong id="judge-turn-competitors-list"></strong></div>
-      <div class="roster-line" id="judge-turn-out-row" style="display:none;">Already out this round: <span id="judge-turn-out-list"></span></div>
-    </div>
-  </div>
-
-  <!-- MULTIPLAYER: TURN (competitors answer, judge spectates) -->
+  <!-- MULTIPLAYER: TURN (judge and competitors all answer at once, each secretly on their own device) -->
   <div class="screen" id="screen-turn">
     <div class="card center" style="padding:10px 16px;">
       <span class="category-label" id="turn-round-label"></span>
+    </div>
+    <div class="judge-banner">
+      <span class="category-label">Judge this round</span>
+      <div class="big-name" id="turn-judge-name"></div>
     </div>
     <div class="card center">
       <span class="category-label">The prompt is</span>
@@ -369,7 +345,7 @@
     </div>
     <div class="card" id="turn-active-card">
       <div class="timer-display center" id="turn-timer">0:45</div>
-      <label>Your answer</label>
+      <label id="turn-answer-label">Your answer</label>
       <input type="text" id="turn-answer-field" placeholder="Type your answer..." maxlength="60">
       <button class="primary" id="btn-turn-submit" type="button" style="margin-top:10px;">Lock In Answer</button>
       <div class="waiting-text" id="turn-waiting" style="display:none">
@@ -957,7 +933,6 @@ function render() {
   var room = mp.room;
   if (!room) return;
   if (room.phase === "lobby") renderLobby();
-  else if (room.phase === "judge-turn") renderJudgeTurn();
   else if (room.phase === "turn") renderTurn();
   else if (room.phase === "turn-reveal") renderTurnReveal();
   else if (room.phase === "scores") renderScoresScreen();
@@ -988,8 +963,6 @@ function mpJudgeForIndex(room, judgeIndex) {
 function renderLobby() {
   stopMpWatchdog();
   mp.watchdogRoundKey = null;
-  stopMpJudgeWatchdog();
-  mp.judgeWatchdogRoundKey = null;
   var room = mp.room;
   $("lobby-code").textContent = mp.roomCode;
 
@@ -1040,7 +1013,7 @@ $("btn-start-game").addEventListener("click", function () {
   var room = mp.room;
   var judgeUid = mpJudgeForIndex(room, 0);
   var competitors = mpActiveOrder(room).filter(function (uid) { return uid !== judgeUid; });
-  mpGoToJudgeTurn(competitors, 1, 1, [], judgeUid, 0);
+  mpGoToTurn(competitors, 1, 1, [], judgeUid, 0);
 });
 
 function mpPickPrompt(room) {
@@ -1065,27 +1038,29 @@ function mpReportError(action, err) {
   alert("Something went wrong (" + action + "): " + code + " — " + message + "\n\nPlease screenshot this and report it.");
 }
 
-// Starts a turn with the Judge picking a fresh secret answer for a fresh
-// prompt — happens at the start of every turn, not just the first in a round.
-async function mpGoToJudgeTurn(competitors, roundNum, turnNum, outThisRound, judgeUid, judgeIndex) {
+// Starts a turn with a fresh prompt — the Judge and every competitor answer
+// it at the same time, each secretly on their own device (no separate
+// "judge goes first" phase in multiplayer, since nobody can see anyone
+// else's screen anyway). Happens at the start of every turn, not just the
+// first in a round.
+async function mpGoToTurn(competitors, roundNum, turnNum, outThisRound, judgeUid, judgeIndex) {
   var room = mp.room;
   var picked = mpPickPrompt(room);
   try {
     await update(roomRef(mp.roomCode), {
-      phase: "judge-turn",
+      phase: "turn",
       usedPrompts: picked.usedPrompts,
       judgeIndex: judgeIndex,
       round: {
         roundNum: roundNum, turnNum: turnNum,
         judgeUid: judgeUid,
         competitors: competitors, outThisRound: outThisRound || [],
-        prompt: picked.prompt, judgeSecretAnswer: null, answers: {},
+        prompt: picked.prompt, answers: {},
         turnEliminated: null, turnReason: null, roundWinnerUid: null,
-        // A shared deadline (not tied to the judge's own device) so the
-        // round can still move on even if the judge's tab is closed, dead,
-        // or was never really there.
-        judgeDeadline: Date.now() + ROUND_TIME * 1000,
-        turnDeadline: null
+        // A shared deadline (not tied to any one device) so the round can
+        // still move on even if someone's tab — the Judge's included — is
+        // closed, dead, or was never really there.
+        turnDeadline: Date.now() + ROUND_TIME * 1000
       }
     });
   } catch (err) {
@@ -1093,124 +1068,18 @@ async function mpGoToJudgeTurn(competitors, roundNum, turnNum, outThisRound, jud
   }
 }
 
-// Atomically locks in the Judge's secret answer (from the Judge's own submit,
-// or from the watchdog force-filling an empty one) and moves to the
-// competitor-answering phase. Guarded so only one caller actually does it.
-function mpFinishJudgeTurn(answer) {
-  var room = mp.room;
-  var round = room.round;
-  var key = round.roundNum + "-" + round.turnNum;
-  if (mp.finishingJudgeKey === key) return;
-  mp.finishingJudgeKey = key;
-  update(roomRef(mp.roomCode), {
-    phase: "turn",
-    round: Object.assign({}, round, {
-      judgeSecretAnswer: answer,
-      turnDeadline: Date.now() + ROUND_TIME * 1000
-    })
-  }).catch(function (err) {
-    mpReportError("locking in the secret answer", err);
-  }).finally(function () {
-    if (mp.finishingJudgeKey === key) mp.finishingJudgeKey = null;
-  });
-}
-
-// Any client on the judge-turn screen runs this. If the Judge doesn't submit
-// within the deadline (their device might be the one that's gone), force an
-// empty secret answer so the round can still move on to the competitors.
-function startMpJudgeWatchdog() {
-  stopMpJudgeWatchdog();
-  mp.judgeWatchdogHandle = setInterval(function () {
-    var room = mp.room;
-    if (!room || room.phase !== "judge-turn" || !room.round || !room.round.judgeDeadline) return;
-    if (Date.now() < room.round.judgeDeadline) return;
-    mpFinishJudgeTurn("");
-  }, 2000);
-}
-function stopMpJudgeWatchdog() {
-  if (mp.judgeWatchdogHandle) { clearInterval(mp.judgeWatchdogHandle); mp.judgeWatchdogHandle = null; }
-}
-
-// ---------- Judge turn (the Judge secretly picks an answer) ----------
-function renderJudgeTurn() {
-  stopMpWatchdog();
-  mp.watchdogRoundKey = null;
-  var room = mp.room;
-  var round = room.round;
-  var key = round.roundNum + "-" + round.turnNum;
-  var amIJudge = mp.uid === round.judgeUid;
-
-  $("judge-turn-round-label").textContent = "Round " + round.roundNum + (round.turnNum > 1 ? " · Turn " + round.turnNum : "");
-  $("judge-turn-judge-name").textContent = mpPlayerName(round.judgeUid);
-  $("judge-turn-prompt-text").textContent = round.prompt;
-  $("judge-turn-competitors-list").textContent = round.competitors.map(mpPlayerLabel).join(", ");
-  var outNames = (round.outThisRound || []).map(mpPlayerName);
-  $("judge-turn-out-row").style.display = outNames.length ? "" : "none";
-  $("judge-turn-out-list").textContent = outNames.join(", ");
-
-  if (amIJudge) {
-    $("judge-turn-active-card").style.display = "";
-    $("judge-turn-waiting-card").style.display = "none";
-    if (mp.judgeTimerRoundKey !== key) {
-      mp.judgeTimerRoundKey = key;
-      $("judge-turn-answer-field").value = "";
-      startMpJudgeTimer();
-    }
-  } else {
-    $("judge-turn-active-card").style.display = "none";
-    $("judge-turn-waiting-card").style.display = "";
-    stopMpJudgeTimer();
-  }
-
-  showScreen("screen-judge-turn");
-
-  if (mp.judgeWatchdogRoundKey !== key) {
-    mp.judgeWatchdogRoundKey = key;
-    startMpJudgeWatchdog();
-  }
-}
-
-function startMpJudgeTimer() {
-  stopMpJudgeTimer();
-  mp.judgeTimerRemaining = ROUND_TIME;
-  updateMpJudgeTimerDisplay();
-  mp.judgeTimerHandle = setInterval(function () {
-    mp.judgeTimerRemaining--;
-    updateMpJudgeTimerDisplay();
-    if (mp.judgeTimerRemaining <= 0) {
-      stopMpJudgeTimer();
-      submitMpJudgeAnswer();
-    }
-  }, 1000);
-}
-function stopMpJudgeTimer() {
-  if (mp.judgeTimerHandle) { clearInterval(mp.judgeTimerHandle); mp.judgeTimerHandle = null; }
-}
-function updateMpJudgeTimerDisplay() {
-  var el = $("judge-turn-timer");
-  el.textContent = "0:" + (mp.judgeTimerRemaining < 10 ? "0" : "") + mp.judgeTimerRemaining;
-  el.classList.toggle("low", mp.judgeTimerRemaining <= 5);
-}
-function submitMpJudgeAnswer() {
-  var round = mp.room.round;
-  if (!round || round.judgeUid !== mp.uid || round.judgeSecretAnswer !== null) return;
-  var answer = $("judge-turn-answer-field").value.trim();
-  mpFinishJudgeTurn(answer);
-}
-$("btn-judge-turn-submit").addEventListener("click", function () { stopMpJudgeTimer(); submitMpJudgeAnswer(); });
-
-// ---------- Turn (competitors answer, Judge spectates) ----------
+// ---------- Turn (judge and competitors all answer at once) ----------
 function renderTurn() {
-  stopMpJudgeWatchdog();
-  mp.judgeWatchdogRoundKey = null;
   var room = mp.room;
   var round = room.round;
   var key = round.roundNum + "-" + round.turnNum;
   var amIJudge = mp.uid === round.judgeUid;
   var amICompeting = round.competitors.indexOf(mp.uid) !== -1;
+  var isParticipant = amIJudge || amICompeting;
   var myAnswer = round.answers ? round.answers[mp.uid] : undefined;
 
   $("turn-round-label").textContent = "Round " + round.roundNum + (round.turnNum > 1 ? " · Turn " + round.turnNum : "");
+  $("turn-judge-name").textContent = mpPlayerName(round.judgeUid);
   $("turn-prompt-text").textContent = round.prompt;
 
   $("turn-stillin-list").textContent = round.competitors.map(mpPlayerLabel).join(", ");
@@ -1218,13 +1087,7 @@ function renderTurn() {
   $("turn-out-row").style.display = outNames.length ? "" : "none";
   $("turn-out-list").textContent = outNames.join(", ");
 
-  if (amIJudge) {
-    $("turn-active-card").style.display = "none";
-    $("turn-spectator-card").style.display = "";
-    $("turn-spectator-icon").textContent = "🕵️";
-    $("turn-spectator-text").textContent = "You're the Judge this round — waiting for everyone to answer…";
-    stopMpTimer();
-  } else if (!amICompeting) {
+  if (!isParticipant) {
     $("turn-active-card").style.display = "none";
     $("turn-spectator-card").style.display = "";
     $("turn-spectator-icon").textContent = "🙊";
@@ -1241,6 +1104,8 @@ function renderTurn() {
   } else {
     $("turn-active-card").style.display = "";
     $("turn-spectator-card").style.display = "none";
+    $("turn-answer-label").textContent = amIJudge ? "Your SECRET answer (try to trip everyone up!)" : "Your answer";
+    $("btn-turn-submit").textContent = amIJudge ? "Lock In Secret Answer" : "Lock In Answer";
     $("turn-answer-field").disabled = false;
     $("btn-turn-submit").style.display = "";
     $("turn-waiting").style.display = "none";
@@ -1253,12 +1118,12 @@ function renderTurn() {
 
   var statusList = $("turn-status-list");
   statusList.innerHTML = "";
-  round.competitors.forEach(function (uid) {
+  [round.judgeUid].concat(round.competitors).forEach(function (uid) {
     var answered = round.answers && round.answers[uid] !== undefined;
     var row = document.createElement("div");
     row.className = "score-row";
     var span = document.createElement("span");
-    span.textContent = (answered ? "✅" : "⏳") + " " + mpPlayerLabel(uid);
+    span.textContent = (answered ? "✅" : "⏳") + " " + mpPlayerLabel(uid) + (uid === round.judgeUid ? " (Judge)" : "");
     row.appendChild(span);
     statusList.appendChild(row);
   });
@@ -1270,11 +1135,12 @@ function renderTurn() {
     startMpWatchdog();
   }
 
-  // Any connected client can trigger the advance once everyone's answered —
-  // not just the host — so the round can't get stuck if the host's own
-  // client is slow to notice (or if hostUid ever falls out of sync).
+  // Any connected client can trigger the advance once everyone (Judge
+  // included) has answered — not just the host — so the round can't get
+  // stuck if the host's own client is slow to notice.
   var count = round.answers ? Object.keys(round.answers).length : 0;
-  if (count >= round.competitors.length && round.competitors.length > 0 && !mp.finishingTurnKey) {
+  var totalParticipants = round.competitors.length + 1;
+  if (count >= totalParticipants && !mp.finishingTurnKey) {
     var finishKey = round.roundNum + "-" + round.turnNum;
     mp.finishingTurnKey = finishKey;
     finishMpTurn().finally(function () {
@@ -1305,10 +1171,10 @@ function updateMpTimerDisplay() {
   el.classList.toggle("low", mp.timerRemaining <= 5);
 }
 
-// Any client on the turn screen runs this. If a competitor never answers
-// (their device might be the one that's gone — closed tab, dead battery),
-// force-fill an empty answer once the shared deadline passes so the round
-// can't hang forever waiting on someone who's never coming back.
+// Any client on the turn screen runs this. If someone never answers (the
+// Judge included — their device might be the one that's gone, closed tab,
+// dead battery), force-fill an empty answer once the shared deadline passes
+// so the round can't hang forever waiting on someone who's never coming back.
 function startMpWatchdog() {
   stopMpWatchdog();
   mp.watchdogHandle = setInterval(function () {
@@ -1318,7 +1184,7 @@ function startMpWatchdog() {
     var round = room.round;
     var answers = Object.assign({}, round.answers || {});
     var changed = false;
-    round.competitors.forEach(function (uid) {
+    [round.judgeUid].concat(round.competitors).forEach(function (uid) {
       if (answers[uid] === undefined) { answers[uid] = ""; changed = true; }
     });
     if (changed) {
@@ -1333,7 +1199,9 @@ function stopMpWatchdog() {
 
 function submitMpAnswer() {
   var round = mp.room.round;
-  if (!round || round.competitors.indexOf(mp.uid) === -1) return;
+  if (!round) return;
+  var isParticipant = round.judgeUid === mp.uid || round.competitors.indexOf(mp.uid) !== -1;
+  if (!isParticipant) return;
   if (round.answers && round.answers[mp.uid] !== undefined) return;
   var answer = $("turn-answer-field").value.trim();
   update(ref(db, "rooms/" + mp.roomCode + "/round/answers"), (function () { var o = {}; o[mp.uid] = answer; return o; })())
@@ -1344,11 +1212,12 @@ $("btn-turn-submit").addEventListener("click", function () { stopMpTimer(); subm
 async function finishMpTurn() {
   var room = mp.room;
   var round = room.round;
-  var result = computeEliminations(round.competitors, round.answers || {}, round.judgeSecretAnswer);
+  var judgeSecretAnswer = round.answers ? round.answers[round.judgeUid] : undefined;
+  var result = computeEliminations(round.competitors, round.answers || {}, judgeSecretAnswer);
   try {
     await update(roomRef(mp.roomCode), {
       phase: "turn-reveal",
-      round: Object.assign({}, round, { turnEliminated: result.eliminated, turnReason: result.reason })
+      round: Object.assign({}, round, { turnEliminated: result.eliminated, turnReason: result.reason, judgeSecretAnswer: judgeSecretAnswer })
     });
   } catch (err) {
     mpReportError("revealing the round", err);
@@ -1359,8 +1228,6 @@ async function finishMpTurn() {
 function renderTurnReveal() {
   stopMpWatchdog();
   mp.watchdogRoundKey = null;
-  stopMpJudgeWatchdog();
-  mp.judgeWatchdogRoundKey = null;
   var room = mp.room;
   var round = room.round;
   $("reveal-prompt-text").textContent = round.prompt;
@@ -1438,7 +1305,7 @@ async function mpContinueFromReveal() {
   } else {
     var justOut = round.competitors.filter(function (uid) { return round.turnEliminated[uid]; });
     var newOut = (round.outThisRound || []).concat(justOut);
-    await mpGoToJudgeTurn(survivors, round.roundNum, round.turnNum + 1, newOut, round.judgeUid, room.judgeIndex);
+    await mpGoToTurn(survivors, round.roundNum, round.turnNum + 1, newOut, round.judgeUid, room.judgeIndex);
   }
 }
 
@@ -1470,8 +1337,6 @@ async function mpFinishRoundWin(winnerUid, round) {
 function renderScoresScreen() {
   stopMpWatchdog();
   mp.watchdogRoundKey = null;
-  stopMpJudgeWatchdog();
-  mp.judgeWatchdogRoundKey = null;
   var room = mp.room;
   var scoresByName = {};
   mpPlayerUids().forEach(function (uid) { scoresByName[mpPlayerName(uid)] = room.scores[uid] || 0; });
@@ -1495,7 +1360,7 @@ $("btn-back-to-round").addEventListener("click", function () {
   var judgeIndex = room.judgeIndex || 0;
   var judgeUid = mpJudgeForIndex(room, judgeIndex);
   var competitors = mpActiveOrder(room).filter(function (uid) { return uid !== judgeUid; });
-  mpGoToJudgeTurn(competitors, (room.round ? room.round.roundNum : 0) + 1, 1, [], judgeUid, judgeIndex);
+  mpGoToTurn(competitors, (room.round ? room.round.roundNum : 0) + 1, 1, [], judgeUid, judgeIndex);
 });
 $("btn-end-game").addEventListener("click", function () {
   if (!mp.isHost) return;
@@ -1507,8 +1372,6 @@ $("btn-end-game").addEventListener("click", function () {
 function renderGameWonScreen() {
   stopMpWatchdog();
   mp.watchdogRoundKey = null;
-  stopMpJudgeWatchdog();
-  mp.judgeWatchdogRoundKey = null;
   var room = mp.room;
   $("winner-name").textContent = mpPlayerName(room.winnerUid);
   var scoresByName = {};
@@ -1553,7 +1416,7 @@ $("btn-mp-confirm-extend").addEventListener("click", async function () {
   var judgeIndex = room.judgeIndex || 0;
   var judgeUid = mpJudgeForIndex(room, judgeIndex);
   var competitors = mpActiveOrder(room).filter(function (uid) { return uid !== judgeUid; });
-  mpGoToJudgeTurn(competitors, (room.round ? room.round.roundNum : 0) + 1, 1, [], judgeUid, judgeIndex);
+  mpGoToTurn(competitors, (room.round ? room.round.roundNum : 0) + 1, 1, [], judgeUid, judgeIndex);
 });
 
 // =========================================================================
