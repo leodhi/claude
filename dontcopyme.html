@@ -239,7 +239,7 @@
   <div class="row" style="align-items:center; margin-bottom:4px;">
     <h1 style="margin:0;">📢 Don't Copy Me</h1>
   </div>
-  <div class="subtitle">Answer fast — don't match anyone else &middot; <a class="top-link" href="index.html">&larr; all games</a></div>
+  <div class="subtitle">Don't match anyone else — or the Judge &middot; <a class="top-link" href="index.html">&larr; all games</a></div>
   <div class="rules-link-row"><button type="button" class="rules-link-btn" id="rules-btn">Rules</button></div>
   <div class="rules-modal-backdrop" id="rules-modal-backdrop">
     <div class="rules-modal">
@@ -258,7 +258,7 @@
       </div>
       <div class="rules-section">
         <div class="rules-section-label">Winning the round</div>
-        If exactly one competitor survives, they win the round. If the Judge manages to eliminate <strong>everyone</strong>, the Judge wins the round instead. Either way the winner earns <strong>1 point</strong>, the Judge role passes to the next player, and everyone's back in for the next round. First to reach the target score (set before the game starts) wins the game.
+        The Judge only gets <strong>5 categories</strong> per round. If exactly one competitor survives (at any point), they win the round. If the Judge eliminates <strong>everyone</strong>, the Judge wins instead. If <strong>2 or more</strong> competitors are still standing after all 5 categories, nobody scores — it's a wash. Either way, the Judge role passes to the next player and everyone's back in for the next round. First to reach the target score (set before the game starts) wins the game.
       </div>
       <button class="secondary rules-modal-close" id="rules-modal-close" type="button">Got it</button>
     </div>
@@ -391,16 +391,22 @@
     <div class="footer-nav" id="turn-reveal-host-nav" style="display:none">
       <button class="primary" id="btn-turn-continue" type="button">Continue</button>
     </div>
-    <small class="hint" style="text-align:center;display:block;">Moving on automatically in a few seconds…</small>
+    <small class="hint" style="text-align:center;display:block;">Moving on automatically in a bit…</small>
     <div class="waiting-text" id="turn-reveal-waiting" style="display:none">Waiting for host…</div>
   </div>
 
   <!-- MULTIPLAYER: SCOREBOARD -->
   <div class="screen" id="screen-scores">
     <div class="round-winner-banner" id="scores-round-winner-banner" style="display:none;">
-      <div>🏆</div>
+      <div id="scores-round-winner-icon">🏆</div>
       <div class="big-name" id="scores-round-winner-name"></div>
-      <div>won the round — +1 point!</div>
+      <div id="scores-round-winner-subtext">won the round — +1 point!</div>
+    </div>
+    <div class="card" id="scores-recap-card" style="display:none;">
+      <label>What Everyone Said</label>
+      <div class="roster-line">Prompt: <strong id="scores-recap-prompt"></strong></div>
+      <div class="roster-line">Judge's secret answer: <strong id="scores-recap-judge-answer"></strong></div>
+      <div id="scores-recap-list"></div>
     </div>
     <div class="card">
       <label>Scoreboard</label>
@@ -552,9 +558,15 @@
   <!-- LOCAL: SCOREBOARD -->
   <div class="screen" id="local-screen-scores">
     <div class="round-winner-banner" id="local-scores-round-winner-banner" style="display:none;">
-      <div>🏆</div>
+      <div id="local-scores-round-winner-icon">🏆</div>
       <div class="big-name" id="local-scores-round-winner-name"></div>
-      <div>won the round — +1 point!</div>
+      <div id="local-scores-round-winner-subtext">won the round — +1 point!</div>
+    </div>
+    <div class="card" id="local-scores-recap-card" style="display:none;">
+      <label>What Everyone Said</label>
+      <div class="roster-line">Prompt: <strong id="local-scores-recap-prompt"></strong></div>
+      <div class="roster-line">Judge's secret answer: <strong id="local-scores-recap-judge-answer"></strong></div>
+      <div id="local-scores-recap-list"></div>
     </div>
     <div class="card">
       <label>Scoreboard</label>
@@ -612,6 +624,9 @@ const auth = getAuth(app);
 const db = getDatabase(app);
 
 var ROUND_TIME = 45;
+// The Judge's card has 5 categories -- if the round is still down to 2+
+// survivors after all 5, nobody scores that round (a "wash").
+var MAX_TURNS_PER_ROUND = 5;
 
 var PROMPTS = [
   "a scary movie","an Italian restaurant","a pizza topping","a U.S. state","a country",
@@ -1291,6 +1306,32 @@ async function mpForceAdvanceTurn() {
 }
 $("btn-turn-force-advance").addEventListener("click", function () { stopMpTimer(); mpForceAdvanceTurn(); });
 
+// Builds one "what they said" row (used on both the reveal screen and the
+// scoreboard's recap of the round that just finished).
+function mpRevealRow(uid, answers, turnEliminated, turnReason) {
+  var out = !!turnEliminated[uid];
+  var reasonText = turnReason[uid] === "timeout" ? "Didn't answer in time"
+    : turnReason[uid] === "judge" ? "Matched the Judge's secret answer!"
+    : out ? "Matched another answer" : "Unique answer!";
+  var row = document.createElement("div");
+  row.className = "judge-row " + (out ? "out" : "correct");
+  var left = document.createElement("div");
+  var pname = document.createElement("div");
+  pname.className = "pname";
+  pname.textContent = mpPlayerName(uid);
+  var given = document.createElement("div");
+  given.className = "given-answer";
+  given.textContent = (answers[uid] ? "\"" + answers[uid] + "\" — " : "") + reasonText;
+  left.appendChild(pname);
+  left.appendChild(given);
+  var mark = document.createElement("span");
+  mark.className = "mark";
+  mark.textContent = out ? "OUT" : "SAFE";
+  row.appendChild(left);
+  row.appendChild(mark);
+  return row;
+}
+
 // ---------- Turn reveal ----------
 function renderTurnReveal() {
   stopMpWatchdog();
@@ -1309,26 +1350,7 @@ function renderTurnReveal() {
   var wrap = $("turn-reveal-list");
   wrap.innerHTML = "";
   round.competitors.forEach(function (uid) {
-    var out = !!turnEliminated[uid];
-    var reasonText = turnReason[uid] === "timeout" ? "Didn't answer in time"
-      : turnReason[uid] === "judge" ? "Matched the Judge's secret answer!"
-      : out ? "Matched another answer" : "Unique answer!";
-    var row = document.createElement("div");
-    row.className = "judge-row " + (out ? "out" : "correct");
-    var left = document.createElement("div");
-    var pname = document.createElement("div");
-    pname.className = "pname";
-    pname.textContent = mpPlayerName(uid);
-    var given = document.createElement("div");
-    given.className = "given-answer";
-    given.textContent = (round.answers[uid] ? "\"" + round.answers[uid] + "\" — " : "") + reasonText;
-    left.appendChild(pname);
-    left.appendChild(given);
-    var mark = document.createElement("span");
-    mark.className = "mark";
-    mark.textContent = out ? "OUT" : "SAFE";
-    row.appendChild(left);
-    row.appendChild(mark);
+    var row = mpRevealRow(uid, round.answers || {}, turnEliminated, turnReason);
     if (mp.isHost) {
       row.addEventListener("click", function () {
         var next = Object.assign({}, turnEliminated);
@@ -1353,7 +1375,9 @@ function renderTurnReveal() {
   // reveal shows — no one has to remember to tap Continue. Any client can
   // fire this (matching the rest of the game's "any connected client can
   // move things along" pattern), and the manual button still works
-  // instantly for anyone who doesn't want to wait even that long.
+  // instantly for anyone who doesn't want to wait even that long. Long
+  // enough to actually read everyone's answers first (an earlier, shorter
+  // delay snapped away before people could see what everyone picked).
   var revealKey = round.roundNum + "-" + round.turnNum;
   if (mp.revealAdvanceKey !== revealKey) {
     mp.revealAdvanceKey = revealKey;
@@ -1363,7 +1387,7 @@ function renderTurnReveal() {
           mp.room.round.roundNum === round.roundNum && mp.room.round.turnNum === round.turnNum) {
         mpContinueFromReveal();
       }
-    }, 3000);
+    }, 9000);
   }
 }
 
@@ -1376,6 +1400,10 @@ async function mpContinueFromReveal() {
     await mpFinishRoundWin(survivors[0], round);
   } else if (survivors.length === 0) {
     await mpFinishRoundWin(round.judgeUid, round);
+  } else if (round.turnNum >= MAX_TURNS_PER_ROUND) {
+    // The Judge's card only has 5 categories -- if 2+ people are still
+    // standing after all of them, nobody scores this round.
+    await mpFinishRoundNoWinner(round);
   } else {
     var justOut = round.competitors.filter(function (uid) { return turnEliminated[uid]; });
     var newOut = (round.outThisRound || []).concat(justOut);
@@ -1407,6 +1435,19 @@ async function mpFinishRoundWin(winnerUid, round) {
   }
 }
 
+// 2+ people made it through all 5 of the Judge's categories -- the round
+// ends with nobody scoring, but the Judge role still rotates.
+async function mpFinishRoundNoWinner(round) {
+  var room = mp.room;
+  var updatedRound = Object.assign({}, round, { roundWinnerUid: null, roundNoWinner: true });
+  var nextJudgeIndex = (room.judgeIndex || 0) + 1;
+  try {
+    await update(roomRef(mp.roomCode), { phase: "scores", round: updatedRound, judgeIndex: nextJudgeIndex });
+  } catch (err) {
+    mpReportError("finishing the round", err);
+  }
+}
+
 // ---------- Scoreboard ----------
 function renderScoresScreen() {
   stopMpWatchdog();
@@ -1418,11 +1459,32 @@ function renderScoresScreen() {
   $("scoreboard-target").textContent = room.settings.targetScore;
 
   var banner = $("scores-round-winner-banner");
-  if (room.round && room.round.roundWinnerUid) {
+  var round = room.round;
+  if (round && (round.roundWinnerUid || round.roundNoWinner)) {
     banner.style.display = "";
-    $("scores-round-winner-name").textContent = mpPlayerName(room.round.roundWinnerUid);
+    if (round.roundWinnerUid) {
+      $("scores-round-winner-icon").textContent = "🏆";
+      $("scores-round-winner-name").textContent = mpPlayerName(round.roundWinnerUid);
+      $("scores-round-winner-subtext").textContent = "won the round — +1 point!";
+    } else {
+      $("scores-round-winner-icon").textContent = "🤷";
+      $("scores-round-winner-name").textContent = "No Winner";
+      $("scores-round-winner-subtext").textContent = "2 or more players made it through all 5 categories — nobody scores this round.";
+    }
+
+    $("scores-recap-card").style.display = "";
+    $("scores-recap-prompt").textContent = round.prompt;
+    $("scores-recap-judge-answer").textContent = round.judgeSecretAnswer || "(no answer given)";
+    var recapWrap = $("scores-recap-list");
+    recapWrap.innerHTML = "";
+    var turnEliminated = round.turnEliminated || {};
+    var turnReason = round.turnReason || {};
+    (round.competitors || []).forEach(function (uid) {
+      recapWrap.appendChild(mpRevealRow(uid, round.answers || {}, turnEliminated, turnReason));
+    });
   } else {
     banner.style.display = "none";
+    $("scores-recap-card").style.display = "none";
   }
 
   $("scores-host-nav").style.display = mp.isHost ? "flex" : "none";
@@ -1706,31 +1768,41 @@ $("local-btn-show-results").addEventListener("click", function () {
   showScreen("local-screen-turn-reveal");
 });
 
+// Builds one "what they said" row (used on both the reveal screen and the
+// scoreboard's recap of the round that just finished).
+function localRevealRow(name, answer, out, reasonText) {
+  var row = document.createElement("div");
+  row.className = "judge-row " + (out ? "out" : "correct");
+  var left = document.createElement("div");
+  var pname = document.createElement("div");
+  pname.className = "pname";
+  pname.textContent = name;
+  var given = document.createElement("div");
+  given.className = "given-answer";
+  given.textContent = (answer ? "\"" + answer + "\" — " : "") + reasonText;
+  left.appendChild(pname);
+  left.appendChild(given);
+  var mark = document.createElement("span");
+  mark.className = "mark";
+  mark.textContent = out ? "OUT" : "SAFE";
+  row.appendChild(left);
+  row.appendChild(mark);
+  return row;
+}
+
+function localRevealReasonText(name) {
+  var out = !!localState.turnEliminated[name];
+  return localState.turnReason[name] === "timeout" ? "Didn't answer in time"
+    : localState.turnReason[name] === "judge" ? "Matched the Judge's secret answer!"
+    : out ? "Matched another answer" : "Unique answer!";
+}
+
 function localRenderTurnRevealList() {
   var wrap = $("local-turn-reveal-list");
   wrap.innerHTML = "";
   localState.competitors.forEach(function (name) {
     var out = !!localState.turnEliminated[name];
-    var reasonText = localState.turnReason[name] === "timeout" ? "Didn't answer in time"
-      : localState.turnReason[name] === "judge" ? "Matched the Judge's secret answer!"
-      : out ? "Matched another answer" : "Unique answer!";
-    var answer = localState.roundAnswers[name];
-    var row = document.createElement("div");
-    row.className = "judge-row " + (out ? "out" : "correct");
-    var left = document.createElement("div");
-    var pname = document.createElement("div");
-    pname.className = "pname";
-    pname.textContent = name;
-    var given = document.createElement("div");
-    given.className = "given-answer";
-    given.textContent = (answer ? "\"" + answer + "\" — " : "") + reasonText;
-    left.appendChild(pname);
-    left.appendChild(given);
-    var mark = document.createElement("span");
-    mark.className = "mark";
-    mark.textContent = out ? "OUT" : "SAFE";
-    row.appendChild(left);
-    row.appendChild(mark);
+    var row = localRevealRow(name, localState.roundAnswers[name], out, localRevealReasonText(name));
     row.addEventListener("click", function () {
       localState.turnEliminated[name] = !localState.turnEliminated[name];
       localRenderTurnRevealList();
@@ -1745,6 +1817,10 @@ $("local-btn-turn-continue").addEventListener("click", function () {
     localFinishRoundWin(survivors[0]);
   } else if (survivors.length === 0) {
     localFinishRoundWin(localState.judgeName);
+  } else if (localState.turnNum >= MAX_TURNS_PER_ROUND) {
+    // The Judge's card only has 5 categories -- if 2+ people are still
+    // standing after all of them, nobody scores this round.
+    localFinishRoundNoWinner();
   } else {
     var justOut = localState.competitors.filter(function (name) { return localState.turnEliminated[name]; });
     localState.outThisRound = localState.outThisRound.concat(justOut);
@@ -1763,22 +1839,48 @@ function localFinishRoundWin(winnerName) {
     localStorage.removeItem(LOCAL_SAVE_KEY);
     showScreen("local-screen-game-won");
   } else {
-    localRenderScores(winnerName);
+    localRenderScores(winnerName, false);
     localSaveCheckpoint();
     showScreen("local-screen-scores");
   }
 }
 
-function localRenderScores(roundWinnerName) {
+function localFinishRoundNoWinner() {
+  localState.judgeIndex += 1;
+  localRenderScores(null, true);
+  localSaveCheckpoint();
+  showScreen("local-screen-scores");
+}
+
+function localRenderScores(roundWinnerName, noWinner) {
   renderScoreboardInto($("local-scoreboard"), localState.scores);
   $("local-scoreboard-target").textContent = localState.targetScore;
   $("local-end-game-confirm").style.display = "none";
   var banner = $("local-scores-round-winner-banner");
-  if (roundWinnerName) {
+  if (roundWinnerName || noWinner) {
     banner.style.display = "";
-    $("local-scores-round-winner-name").textContent = roundWinnerName;
+    if (roundWinnerName) {
+      $("local-scores-round-winner-icon").textContent = "🏆";
+      $("local-scores-round-winner-name").textContent = roundWinnerName;
+      $("local-scores-round-winner-subtext").textContent = "won the round — +1 point!";
+    } else {
+      $("local-scores-round-winner-icon").textContent = "🤷";
+      $("local-scores-round-winner-name").textContent = "No Winner";
+      $("local-scores-round-winner-subtext").textContent = "2 or more players made it through all 5 categories — nobody scores this round.";
+    }
+
+    $("local-scores-recap-card").style.display = "";
+    $("local-scores-recap-prompt").textContent = localState.currentPrompt;
+    $("local-scores-recap-judge-answer").textContent = localState.judgeSecretAnswer || "(no answer given)";
+    var recapWrap = $("local-scores-recap-list");
+    recapWrap.innerHTML = "";
+    localState.competitors.forEach(function (name) {
+      var out = !!localState.turnEliminated[name];
+      recapWrap.appendChild(localRevealRow(name, localState.roundAnswers[name], out, localRevealReasonText(name)));
+    });
   } else {
     banner.style.display = "none";
+    $("local-scores-recap-card").style.display = "none";
   }
 }
 
