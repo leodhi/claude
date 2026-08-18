@@ -37,24 +37,32 @@
 
   .empty-state { color: var(--ink-muted); font-size: 14px; padding: 30px 4px; }
 
-  .fab {
-    position: fixed; bottom: calc(28px + env(safe-area-inset-bottom)); right: 20px; width: 56px; height: 56px; border-radius: 50%;
-    background: var(--accent); color: #fff; border: none; font-size: 28px; line-height: 1;
-    box-shadow: 0 4px 16px rgba(0,0,0,0.4); cursor: pointer; touch-action: manipulation;
-    -webkit-transform: translateZ(0); transform: translateZ(0);
-    transition: transform 0.1s ease;
+  .scroll-container { position: relative; }
+  .wrap.pull-snap { transition: transform 0.3s cubic-bezier(.2,.9,.3,1.2); }
+  .pull-indicator {
+    position: absolute; top: 0; left: 0; right: 0; height: 0; overflow: visible;
+    display: flex; justify-content: center; pointer-events: none; z-index: 5;
   }
-  .fab:active { transform: scale(0.94); }
+  #pull-icon {
+    margin-top: calc(14px + env(safe-area-inset-top));
+    width: 38px; height: 38px; border-radius: 50%; background: #2c2c2e; border: 1px solid #3a3a3c;
+    color: var(--ink-muted); display: flex; align-items: center; justify-content: center;
+    font-size: 19px; font-weight: 700; opacity: 0; transform: scale(0.4);
+    transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+  }
+  #pull-icon.ready { background: var(--accent); border-color: var(--accent); color: #fff; }
+  #pull-icon.reset { transition: opacity 0.2s ease, transform 0.2s ease, background 0.15s ease, border-color 0.15s ease, color 0.15s ease; }
 </style>
 </head>
 <body>
 
-<div class="wrap">
-  <h1>My Lists</h1>
-  <div id="list-root"></div>
+<div class="scroll-container">
+  <div class="pull-indicator"><div id="pull-icon">+</div></div>
+  <div class="wrap">
+    <h1>My Lists</h1>
+    <div id="list-root"></div>
+  </div>
 </div>
-
-<button type="button" id="fab-add" class="fab" aria-label="Create new list">+</button>
 
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
@@ -100,7 +108,7 @@
   function render() {
     const entries = Object.entries(lists).sort((a, b) => (a[1].order ?? 0) - (b[1].order ?? 0));
     if (entries.length === 0) {
-      root.innerHTML = '<div class="empty-state">No lists yet. Tap + to create one.</div>';
+      root.innerHTML = '<div class="empty-state">No lists yet. Tap anywhere to create one.</div>';
       return;
     }
     root.innerHTML = entries.map(([id, l], i) => `
@@ -138,7 +146,7 @@
     root.innerHTML = '<div class="empty-state">Couldn\'t load your lists. Check your connection and reload.</div>';
   });
 
-  document.getElementById("fab-add").addEventListener("click", async () => {
+  async function createList() {
     const name = prompt("Name this list:");
     if (!name || !name.trim()) return;
     const id = uid();
@@ -150,7 +158,76 @@
       console.error(err);
       alert("Couldn't create the list — try again.");
     }
+  }
+
+  // Tap anywhere that isn't an existing list row to create a new one --
+  // no separate "+" button needed. A tap that ends a pull-to-add drag
+  // (below) doesn't double-fire this: preventDefault() on that drag's
+  // touchmove suppresses the browser's compatibility click for it.
+  document.addEventListener("click", e => {
+    if (e.target.closest("[data-list-id]")) return;
+    createList();
   });
+
+  // ---------- Pull down to add (same gesture as the list page) ----------
+  const pullWrap = document.querySelector(".wrap");
+  const pullIcon = document.getElementById("pull-icon");
+  const PULL_TRIGGER = 56;
+  const PULL_MAX = 96;
+  let pullTouchId = null;
+  let pullStartY = 0;
+  let pullActive = false;
+  let pullDist = 0;
+
+  function resetPull() {
+    pullWrap.classList.add("pull-snap");
+    pullWrap.style.transform = "";
+    pullIcon.classList.add("reset");
+    pullIcon.classList.remove("ready");
+    pullIcon.style.opacity = 0;
+    pullIcon.style.transform = "scale(0.4)";
+    pullActive = false;
+    pullDist = 0;
+    setTimeout(() => { pullWrap.classList.remove("pull-snap"); pullIcon.classList.remove("reset"); }, 300);
+  }
+
+  document.addEventListener("touchstart", e => {
+    if (e.touches.length !== 1) return;
+    if (window.scrollY > 0 || e.target.closest("[data-list-id]")) { pullTouchId = null; return; }
+    const t = e.touches[0];
+    if (!t) return;
+    pullTouchId = t.identifier;
+    pullStartY = t.clientY;
+  }, { passive: true });
+
+  document.addEventListener("touchmove", e => {
+    if (pullTouchId === null) return;
+    const t = [...e.touches].find(x => x.identifier === pullTouchId);
+    if (!t) return;
+    if (window.scrollY > 0) { pullTouchId = null; if (pullActive) resetPull(); return; }
+    const dy = t.clientY - pullStartY;
+    if (dy <= 0) { if (pullActive) resetPull(); return; }
+    e.preventDefault();
+    pullActive = true;
+    pullWrap.classList.remove("pull-snap");
+    pullIcon.classList.remove("reset");
+    pullDist = Math.min(PULL_MAX, dy * 0.5);
+    pullWrap.style.transform = `translateY(${pullDist}px)`;
+    const progress = Math.min(1, pullDist / PULL_TRIGGER);
+    pullIcon.style.opacity = progress;
+    pullIcon.style.transform = `scale(${0.4 + progress * 0.6})`;
+    pullIcon.classList.toggle("ready", pullDist >= PULL_TRIGGER);
+  }, { passive: false });
+
+  function endPull() {
+    if (pullTouchId === null) return;
+    pullTouchId = null;
+    const shouldAdd = pullActive && pullDist >= PULL_TRIGGER;
+    resetPull();
+    if (shouldAdd) createList();
+  }
+  document.addEventListener("touchend", endPull);
+  document.addEventListener("touchcancel", endPull);
 </script>
 </body>
 </html>
