@@ -935,12 +935,12 @@
   document.addEventListener("touchstart", e => {
     if (e.touches.length === 2) { tryStartSpread(e); return; }
     if (e.touches.length !== 1) return;
-    if (window.scrollY > 0 || e.target.closest(".swipe-row, .cat-header, button, input, select, textarea, a")) {
+    const t = e.touches[0];
+    if (!t) return;
+    if (window.scrollY > 0 || t.clientX <= EDGE_ZONE || e.target.closest(".swipe-row, .cat-header, button, input, select, textarea, a")) {
       pullTouchId = null;
       return;
     }
-    const t = e.touches[0];
-    if (!t) return;
     pullTouchId = t.identifier;
     pullStartY = t.clientY;
   }, { passive: true });
@@ -1008,6 +1008,78 @@
     if (reorderActive) { finishReorderDrag(); return; }
     if (spreadActive) { endSpread(); return; }
     endPull();
+  });
+
+  // ---------- Edge-swipe-back (iOS-style) ----------
+  // As an installed home-screen app (display: standalone) there's no browser
+  // chrome and no native back gesture at all -- the only way back to "My
+  // Lists" would otherwise be the small back-link up top. This mirrors
+  // iOS's own edge-swipe: drag in from the left edge to slide this list
+  // away and return home.
+  const EDGE_ZONE = 24;    // how close to the left edge a swipe has to start, px
+  const EDGE_TRIGGER = 80; // how far it has to travel to commit, px
+  let edgeBackPointerId = null;
+  let edgeBackStartX = 0, edgeBackStartY = 0;
+  let edgeBackDragging = null; // null=undetermined, true=confirmed horizontal drag
+  let edgeBackDist = 0;
+
+  function resetEdgeBack() {
+    pullWrap.classList.add("pull-snap");
+    pullWrap.style.transform = "";
+    edgeBackDragging = null;
+    edgeBackDist = 0;
+    setTimeout(() => pullWrap.classList.remove("pull-snap"), 300);
+  }
+
+  function commitEdgeBack() {
+    pullWrap.classList.add("pull-snap");
+    pullWrap.style.transform = "translateX(100%)";
+    setTimeout(() => { location.href = "./index.html"; }, 220);
+  }
+
+  // Runs in the capture phase, ahead of each row's own pointerdown handler,
+  // and stops propagation for any touch starting in the edge zone -- like
+  // iOS, that thin strip is reserved for the back gesture, not row taps or
+  // row-swipe. Everything outside it (including normal vertical scrolling,
+  // which touch events -- not these -- drive) is completely unaffected.
+  document.addEventListener("pointerdown", e => {
+    if (e.pointerType === "mouse" && e.button !== 0) return;
+    if (e.clientX > EDGE_ZONE) return;
+    if (reorderActive || spreadActive || pendingAddCat !== null || pendingEditId !== null) return;
+    edgeBackPointerId = e.pointerId;
+    edgeBackStartX = e.clientX;
+    edgeBackStartY = e.clientY;
+    edgeBackDragging = null;
+    edgeBackDist = 0;
+    e.stopPropagation();
+  }, { capture: true });
+
+  document.addEventListener("pointermove", e => {
+    if (edgeBackPointerId === null || e.pointerId !== edgeBackPointerId) return;
+    const dx = e.clientX - edgeBackStartX;
+    const dy = e.clientY - edgeBackStartY;
+    if (edgeBackDragging === null) {
+      if (Math.abs(dx) < 8 && Math.abs(dy) < 8) return;
+      edgeBackDragging = Math.abs(dx) > Math.abs(dy) && dx > 0;
+      if (!edgeBackDragging) { edgeBackPointerId = null; return; } // vertical or leftward -- not a back-swipe
+      pullWrap.classList.remove("pull-snap");
+    }
+    e.preventDefault();
+    edgeBackDist = Math.max(0, dx);
+    pullWrap.style.transform = `translateX(${Math.min(edgeBackDist, EDGE_TRIGGER * 1.3)}px)`;
+  });
+
+  document.addEventListener("pointerup", e => {
+    if (edgeBackPointerId === null || e.pointerId !== edgeBackPointerId) return;
+    edgeBackPointerId = null;
+    if (!edgeBackDragging) return;
+    if (edgeBackDist >= EDGE_TRIGGER) commitEdgeBack();
+    else resetEdgeBack();
+  });
+  document.addEventListener("pointercancel", e => {
+    if (edgeBackPointerId === null || e.pointerId !== edgeBackPointerId) return;
+    edgeBackPointerId = null;
+    if (edgeBackDragging) resetEdgeBack();
   });
 
   const fabAdd = document.getElementById("fab-add");
