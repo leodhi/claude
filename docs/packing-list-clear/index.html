@@ -124,8 +124,9 @@
   .row-name { flex: 1; font-size: 21px; font-weight: 600; min-width: 0; overflow-wrap: break-word; color: #fff; }
   .row-fg.checked .row-name, .row-fg.na .row-name { color: #4a4a4d; text-decoration: line-through; }
 
+  .inline-add-input-wrap { flex: 1; min-width: 0; }
   .inline-add-input {
-    flex: 1; min-width: 0; width: 100%; display: block; font: inherit; font-size: 21px; font-weight: 600; color: #fff;
+    width: 100%; display: block; font: inherit; font-size: 21px; font-weight: 600; color: #fff;
     background: transparent; border: none; padding: 0; margin: 0; -webkit-appearance: none; appearance: none;
     font-family: inherit; line-height: inherit; resize: none; overflow: hidden;
   }
@@ -938,7 +939,7 @@
         inlineRow.className = "swipe-row";
         inlineRow.innerHTML = `
           <div class="row-fg" style="background:${headerColorForCat()}">
-            <textarea id="inline-add-input" class="inline-add-input" rows="1" placeholder="New item"></textarea>
+            <div class="inline-add-input-wrap"><textarea id="inline-add-input" class="inline-add-input" rows="1" placeholder="New item"></textarea></div>
           </div>`;
         list.appendChild(inlineRow);
         const inlineInput = inlineRow.querySelector("#inline-add-input");
@@ -968,7 +969,7 @@
           <div class="swipe-bg bg-delete">🗑</div>
           <div class="row-fg${item.checked ? " checked" : ""}${item.na ? " na" : ""}" style="background:${bg}">
             ${isEditingThis
-              ? `<textarea id="inline-edit-input" class="inline-add-input" rows="1">${escapeHtml(item.name)}</textarea>`
+              ? `<div class="inline-add-input-wrap"><textarea id="inline-edit-input" class="inline-add-input" rows="1">${escapeHtml(item.name)}</textarea></div>`
               : `<span class="row-name">${escapeHtml(item.name)}</span>`}
             ${item.na ? '<span class="row-na-tag">N/A</span>' : ""}
             ${item.assignee ? `<span class="row-avatar">${escapeHtml(item.assignee.slice(0, 1).toUpperCase())}</span>` : ""}
