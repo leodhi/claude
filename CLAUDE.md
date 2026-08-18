@@ -46,6 +46,7 @@ These apps are used mostly as "Add to Home Screen" pseudo-apps on phones, so app
 - Give every tappable element (buttons, chips, cards) a `:active` state — a quick `transform: scale(0.92–0.96)` — so taps have immediate visual feedback, plus `touch-action: manipulation` to kill any tap delay/double-tap-zoom.
 - Modals/sheets should fade and slide or scale in (`opacity` + `transform`, base state hidden via `opacity:0; visibility:hidden; pointer-events:none`), never just snap via `display:none`/`display:flex`.
 - Match iOS conventions: cards/panels ~14-16px corner radius, controls/inputs ~8-10px, pill buttons `border-radius:999px`, spacing roughly on an 8px grid. Inconsistent radii/spacing is a big part of what makes something read as "a webpage" instead of "an app."
+- Set `-webkit-tap-highlight-color: transparent` on `*` and `overscroll-behavior-y: contain` on `html, body`. Without these, taps flash a gray highlight box and the whole page rubber-bands/threatens a browser refresh when you scroll past the top — both are dead giveaways it's a webpage, not an app.
 - Keep it simple — don't add animation/motion beyond this list unless asked; the goal is snappier default interactions, not a redesign.
 
 ## Lessons learned the hard way (don't repeat these)
