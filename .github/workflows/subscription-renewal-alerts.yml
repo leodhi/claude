@@ -5,6 +5,11 @@ on:
     # 13:00 UTC ~= 8-9am US Eastern depending on daylight saving.
     - cron: "0 13 * * *"
   workflow_dispatch:
+    inputs:
+      test_only:
+        description: "Send one throwaway test notification instead of checking real renewals"
+        type: boolean
+        default: false
 
 jobs:
   check-renewals:
@@ -24,4 +29,5 @@ jobs:
         env:
           FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
           NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
+          TEST_ONLY: ${{ inputs.test_only }}
         run: node check-subscription-renewals.mjs
