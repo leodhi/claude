@@ -566,7 +566,13 @@
   // long-pressing opens the modal for category/assignee. New items go into
   // whichever category is currently scrolled to the top of the screen.
   let pendingAddCat = null;
+  let pendingEditId = null;
   let pendingRerenderNeeded = false;
+
+  function finishAnyPendingInlineEntry() {
+    finishPendingInlineAdd();
+    finishPendingInlineEdit();
+  }
 
   function getCurrentCategorySection() {
     const sections = [...document.querySelectorAll(".cat-section")];
@@ -603,7 +609,7 @@
   }
 
   function startInlineAdd() {
-    finishPendingInlineAdd();
+    finishAnyPendingInlineEntry();
     const section = getCurrentCategorySection();
     if (!section) { openAddModal(); return; }
     const catName = section.querySelector("[data-cat-toggle]").dataset.catToggle;
@@ -612,6 +618,40 @@
     render();
     const input = document.getElementById("inline-add-input");
     if (input) input.focus();
+  }
+
+  // ---------- Inline edit (tap an item) vs. full modal (long-press) ----------
+  // Tapping an existing item edits its name directly in the row, like the
+  // Clear app; long-pressing opens the modal for category/assignee.
+  function finishPendingInlineEdit() {
+    if (!pendingEditId) return;
+    const input = document.getElementById("inline-edit-input");
+    const name = input ? input.value.trim() : "";
+    if (name) commitInlineEditValue(pendingEditId, name);
+    pendingEditId = null;
+  }
+
+  async function commitInlineEditValue(id, newName) {
+    const item = currentItems[id];
+    if (!item || newName === item.name) return;
+    const from = { name: item.name, cat: item.cat, assignee: item.assignee || "" };
+    const to = { name: newName, cat: item.cat, assignee: item.assignee || "" };
+    setStatus("syncing", "Saving…");
+    try {
+      await updateDoc(listRef, { [`items.${id}.name`]: newName });
+      pushAction({ type: "edit", id, from, to });
+    } catch (err) {
+      console.error(err);
+      setStatus("error", "Couldn't save");
+    }
+  }
+
+  function startInlineEdit(id) {
+    finishAnyPendingInlineEntry();
+    pendingEditId = id;
+    render();
+    const input = document.getElementById("inline-edit-input");
+    if (input) { input.focus(); input.select(); }
   }
 
   const fabAdd = document.getElementById("fab-add");
@@ -723,6 +763,8 @@
     const bgDelete = swipeRow.querySelector(".bg-delete");
     let startX = 0, startY = 0, dx = 0, dragging = null; // dragging: null=undetermined, true=horizontal, false=vertical(ignore)
     let pointerId = null;
+    let longPressTimer = null;
+    let longPressFired = false;
 
     function resetBg() {
       bgComplete.style.opacity = "0";
@@ -734,6 +776,13 @@
       startX = e.clientX; startY = e.clientY; dx = 0; dragging = null;
       pointerId = e.pointerId;
       rowFg.classList.remove("snap", "commit");
+      longPressFired = false;
+      clearTimeout(longPressTimer);
+      longPressTimer = setTimeout(() => {
+        if (dragging !== null) return; // already swiping/scrolling, not a long-press
+        longPressFired = true;
+        openEditModal(id);
+      }, 500);
     });
 
     rowFg.addEventListener("pointermove", e => {
@@ -742,6 +791,7 @@
       const curDy = e.clientY - startY;
       if (dragging === null) {
         if (Math.abs(curDx) < 6 && Math.abs(curDy) < 6) return;
+        clearTimeout(longPressTimer);
         dragging = Math.abs(curDx) > Math.abs(curDy);
         if (dragging) {
           if (rowFg.setPointerCapture) rowFg.setPointerCapture(pointerId);
@@ -759,11 +809,13 @@
     });
 
     function endDrag() {
+      clearTimeout(longPressTimer);
       if (pointerId === null) return;
       pointerId = null;
+      if (longPressFired) { dragging = null; return; } // modal already opened by the long-press
       if (dragging === null) {
-        // No meaningful movement -- treat as a tap to edit the item.
-        openEditModal(id);
+        // No meaningful movement -- treat as a tap to edit the item's name inline.
+        startInlineEdit(id);
         return;
       }
       if (!dragging) { dragging = null; return; } // vertical scroll gesture, ignore
@@ -888,16 +940,35 @@
         const bg = isDone ? "var(--bg)" : gradientRowColor(openIdx++, openCount);
         const row = document.createElement("div");
         row.className = "swipe-row";
+        const isEditingThis = pendingEditId === item.id;
         row.innerHTML = `
           <div class="swipe-bg bg-complete">✓</div>
           <div class="swipe-bg bg-delete">🗑</div>
           <div class="row-fg${item.checked ? " checked" : ""}${item.na ? " na" : ""}" style="background:${bg}">
-            <span class="row-name">${escapeHtml(item.name)}</span>
+            ${isEditingThis
+              ? `<input type="text" id="inline-edit-input" class="inline-add-input" value="${escapeAttr(item.name)}">`
+              : `<span class="row-name">${escapeHtml(item.name)}</span>`}
             ${item.na ? '<span class="row-na-tag">N/A</span>' : ""}
             ${item.assignee ? `<span class="row-avatar">${escapeHtml(item.assignee.slice(0, 1).toUpperCase())}</span>` : ""}
           </div>`;
         list.appendChild(row);
-        attachSwipe(row, item.id);
+        if (isEditingThis) {
+          const inlineEditInput = row.querySelector("#inline-edit-input");
+          inlineEditInput.addEventListener("keydown", e => {
+            if (e.key === "Enter") { e.preventDefault(); inlineEditInput.blur(); }
+            else if (e.key === "Escape") { e.preventDefault(); inlineEditInput.dataset.cancelled = "1"; inlineEditInput.blur(); }
+          });
+          inlineEditInput.addEventListener("blur", () => {
+            const cancelled = inlineEditInput.dataset.cancelled === "1";
+            const newName = inlineEditInput.value.trim();
+            pendingEditId = null;
+            if (!cancelled && newName) commitInlineEditValue(item.id, newName);
+            if (pendingRerenderNeeded) { pendingRerenderNeeded = false; }
+            render();
+          });
+        } else {
+          attachSwipe(row, item.id);
+        }
       });
 
       section.appendChild(list);
@@ -919,7 +990,7 @@
     if (!snap.exists()) return;
     currentItems = snap.data().items || {};
     setStatus("synced", "Synced");
-    if (pendingAddCat) { pendingRerenderNeeded = true; } else { render(); }
+    if (pendingAddCat || pendingEditId) { pendingRerenderNeeded = true; } else { render(); }
   }, err => {
     console.error(err);
     setStatus("error", "Connection error");
