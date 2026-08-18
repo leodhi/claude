@@ -1,0 +1,92 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>Snooze reminder</title>
+<style>
+  :root {
+    --paper: #f6f4ef;
+    --surface: #ffffff;
+    --ink: #241f18;
+    --ink-muted: #766c5c;
+    --border: #e6ddc9;
+    --accent: #8a5a2b;
+    --good: #3a7d5c;
+    --good-soft: #e1ede6;
+    --warn: #b23a3a;
+    --warn-soft: #f5dede;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --paper: #161310; --surface: #1e1a15; --ink: #efe9df; --ink-muted: #b3a790;
+      --border: #322c22; --accent: #d99a54; --good: #6cc190; --good-soft: rgba(108,193,144,0.12);
+      --warn: #e28080; --warn-soft: rgba(226,128,128,0.12);
+    }
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { overscroll-behavior-y: contain; }
+  body {
+    margin: 0; min-height: 100vh; background: var(--paper); color: var(--ink);
+    font-family: -apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    display: flex; align-items: center; justify-content: center; padding: 24px;
+  }
+  .card {
+    max-width: 340px; width: 100%; background: var(--surface); border: 1px solid var(--border);
+    border-radius: 16px; padding: 28px 24px; text-align: center;
+    box-shadow: 0 1px 2px rgba(36,31,24,0.06), 0 8px 24px rgba(36,31,24,0.06);
+  }
+  .icon {
+    width: 52px; height: 52px; border-radius: 50%; margin: 0 auto 16px;
+    display: flex; align-items: center; justify-content: center; font-size: 26px;
+    background: var(--good-soft); color: var(--good);
+  }
+  .icon.err { background: var(--warn-soft); color: var(--warn); }
+  h1 { font-size: 18px; margin: 0 0 8px; font-weight: 700; }
+  p { margin: 0; color: var(--ink-muted); font-size: 14px; line-height: 1.5; }
+  .spinner {
+    width: 26px; height: 26px; border-radius: 50%; margin: 0 auto 16px;
+    border: 3px solid var(--border); border-top-color: var(--accent);
+    animation: spin 0.8s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+</style>
+</head>
+<body>
+  <div class="card" id="card">
+    <div class="spinner"></div>
+    <h1>Snoozing…</h1>
+    <p>Asking ntfy to remind you again tomorrow.</p>
+  </div>
+
+<script type="module">
+  const params = new URLSearchParams(window.location.search);
+  const topic = params.get("topic");
+  const title = params.get("title") || "Reminder";
+  const message = params.get("message") || "";
+  const card = document.getElementById("card");
+
+  function render(ok, heading, body) {
+    card.innerHTML = `
+      <div class="icon${ok ? "" : " err"}">${ok ? "&#10003;" : "&#33;"}</div>
+      <h1>${heading}</h1>
+      <p>${body}</p>`;
+  }
+
+  if (!topic) {
+    render(false, "Missing info", "This link is missing what it needs to snooze — go back and try the original reminder again.");
+  } else {
+    const url = `https://ntfy.sh/${encodeURIComponent(topic)}`
+      + `?delay=24h&title=${encodeURIComponent(title)}&priority=3&tags=bell`;
+    fetch(url, { method: "POST", body: message })
+      .then(res => {
+        if (!res.ok) throw new Error("ntfy responded " + res.status);
+        render(true, "Snoozed", `“${title}” will remind you again tomorrow. You can close this page.`);
+      })
+      .catch(() => {
+        render(false, "Couldn't snooze", "Something went wrong reaching ntfy. Try tapping the button again, or just wait for the next check.");
+      });
+  }
+</script>
+</body>
+</html>
