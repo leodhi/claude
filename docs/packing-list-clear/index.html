@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <title>Niagara Packing List — Clear style</title>
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
@@ -686,6 +686,40 @@
     finishPendingInlineAdd();
     finishPendingInlineEdit();
   }
+
+  // Discards whatever's typed instead of committing it -- same as pressing
+  // Escape in the field. Reuses that exact mechanism (mark cancelled, then
+  // blur) rather than touching pendingAddCat/pendingEditId directly, since
+  // the field's own blur handler is what actually reads that cancelled
+  // flag and skips the commit.
+  function cancelPendingInlineEntry() {
+    const addInput = document.getElementById("inline-add-input");
+    if (addInput) { addInput.dataset.cancelled = "1"; addInput.blur(); }
+    const editInput = document.getElementById("inline-edit-input");
+    if (editInput) { editInput.dataset.cancelled = "1"; editInput.blur(); }
+  }
+
+  // On wide screens (iPad) the list column is capped at 640px and centered,
+  // leaving empty margin on either side. Tapping that margin while adding
+  // or editing an item now cancels it outright, the way tapping outside a
+  // sheet/modal normally would -- previously it did nothing at all.
+  //
+  // pointerdown, in the capture phase, not a plain "click": the browser's
+  // own default behavior already blurs the focused textarea as part of
+  // handling the tap itself, well before a "click" event would ever fire --
+  // by then that blur has already committed whatever was typed, since our
+  // cancelled flag hadn't been set yet. Capture phase also matters
+  // separately: a tap that opens the very first inline-add row is handled
+  // by #list-root's own (bubble-phase) listener, which calls render() and
+  // detaches the very element that was clicked, so a bubble-phase listener
+  // here would see a detached e.target and wrongly think .wrap wasn't
+  // matched. Running on pointerdown, in capture, beats both problems --
+  // it sees the intact DOM and sets the flag before any blur can happen.
+  document.addEventListener("pointerdown", e => {
+    if (pendingAddCat === null && pendingEditId === null) return;
+    if (e.target.closest(".wrap")) return;
+    cancelPendingInlineEntry();
+  }, { capture: true });
 
   function finishPendingInlineAdd() {
     if (!pendingAddCat) return;
