@@ -1,6 +1,6 @@
 {
-  "name": "Niagara Packing List",
-  "short_name": "Packing List",
+  "name": "My Lists",
+  "short_name": "My Lists",
   "start_url": ".",
   "display": "standalone",
   "background_color": "#0b0b0d",
