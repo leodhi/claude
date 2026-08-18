@@ -651,7 +651,7 @@
     pendingEditId = id;
     render();
     const input = document.getElementById("inline-edit-input");
-    if (input) { input.focus(); input.select(); }
+    if (input) { input.focus(); input.setSelectionRange(input.value.length, input.value.length); }
   }
 
   const fabAdd = document.getElementById("fab-add");
@@ -773,6 +773,16 @@
 
     rowFg.addEventListener("pointerdown", e => {
       if (e.button !== undefined && e.button !== 0) return;
+      if (pendingAddCat !== null || pendingEditId !== null) {
+        // Another row (or the add field) is mid-edit -- this tap just
+        // dismisses that, like tapping away/pressing Enter would. It
+        // shouldn't ALSO start editing whatever was tapped; that takes a
+        // separate, second tap once nothing else is open.
+        finishAnyPendingInlineEntry();
+        if (pendingRerenderNeeded) pendingRerenderNeeded = false;
+        render();
+        return;
+      }
       startX = e.clientX; startY = e.clientY; dx = 0; dragging = null;
       pointerId = e.pointerId;
       rowFg.classList.remove("snap", "commit");
