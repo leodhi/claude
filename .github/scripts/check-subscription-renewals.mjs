@@ -10,12 +10,8 @@ import { getFirestore } from "firebase-admin/firestore";
 
 const ALERT_DAYS_AHEAD = 7;
 
-const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
 const ntfyTopic = process.env.NTFY_TOPIC;
 if (!ntfyTopic) throw new Error("NTFY_TOPIC is not set");
-
-initializeApp({ credential: cert(serviceAccount) });
-const db = getFirestore();
 
 function advanceRenewal(renew, cycleInterval, cycleUnit) {
   const dt = new Date(renew + "T00:00:00Z");
@@ -51,36 +47,44 @@ function formatDate(dateStr) {
   return dt.toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" });
 }
 
-async function sendNtfy(sub, renew, cost) {
-  const title = `${sub.name} renews soon`;
-  const message = `$${cost.toFixed(2)} · renews ${formatDate(renew)}`;
-  const payload = {
-    topic: ntfyTopic,
-    title,
-    message,
-    priority: 3,
-    tags: ["bell"],
-    actions: [
-      {
-        action: "http",
-        label: "Snooze 1 day",
-        url: "https://ntfy.sh/",
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ topic: ntfyTopic, title, message, delay: "24h" }),
-        clear: true
-      }
-    ]
-  };
-  const res = await fetch("https://ntfy.sh/", {
+// Snooze re-publishes via ntfy's plain query-string + text-body form (the
+// same shape as `curl -d message ntfy.sh/topic?delay=24h`) rather than a
+// JSON body -- that's the form every ntfy client version is guaranteed to
+// support for an http action button, where the fancier JSON-body form isn't
+// consistently honored.
+function snoozeAction(title, message) {
+  const url = `https://ntfy.sh/${encodeURIComponent(ntfyTopic)}`
+    + `?delay=24h&title=${encodeURIComponent(title)}&priority=3&tags=bell`;
+  return { action: "http", label: "Snooze 1 day", url, method: "POST", body: message, clear: true };
+}
+
+async function sendNtfy(title, message) {
+  const url = `https://ntfy.sh/${encodeURIComponent(ntfyTopic)}`
+    + `?title=${encodeURIComponent(title)}&priority=3&tags=bell`;
+  const res = await fetch(url, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload)
+    headers: { Actions: JSON.stringify([snoozeAction(title, message)]) },
+    body: message
   });
-  if (!res.ok) throw new Error(`ntfy publish failed for ${sub.name}: ${res.status} ${await res.text()}`);
+  if (!res.ok) throw new Error(`ntfy publish failed: ${res.status} ${await res.text()}`);
 }
 
 async function main() {
+  // TEST_ONLY sends a single throwaway notification (with a working snooze
+  // button) and exits, without touching Firestore -- lets us confirm ntfy
+  // delivery/actions work without waiting on a real 7-day-out renewal.
+  if (process.env.TEST_ONLY === "true") {
+    const title = "Test alert";
+    const message = "If you can see this and the Snooze button works, you're all set.";
+    await sendNtfy(title, message);
+    console.log("Test notification sent.");
+    return;
+  }
+
+  const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
+  initializeApp({ credential: cert(serviceAccount) });
+  const db = getFirestore();
+
   const today = new Date();
   today.setUTCHours(0, 0, 0, 0);
 
@@ -93,7 +97,9 @@ async function main() {
   for (const [id, sub] of Object.entries(subsMap)) {
     const { renew, daysUntil: d } = nextRenewal(sub, today);
     if (d <= ALERT_DAYS_AHEAD && sub.lastAlertedRenewal !== renew) {
-      await sendNtfy(sub, renew, sub.cost || 0);
+      const title = `${sub.name} renews soon`;
+      const message = `$${(sub.cost || 0).toFixed(2)} · renews ${formatDate(renew)}`;
+      await sendNtfy(title, message);
       await ref.set({ subs: { [id]: { lastAlertedRenewal: renew } } }, { merge: true });
       console.log(`Alerted: ${sub.name} (renews ${renew}, ${d}d out)`);
       alerted++;
