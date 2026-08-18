@@ -125,8 +125,9 @@
   .row-fg.checked .row-name, .row-fg.na .row-name { color: #4a4a4d; text-decoration: line-through; }
 
   .inline-add-input {
-    flex: 1; min-width: 0; font: inherit; font-size: 21px; font-weight: 600; color: #fff;
-    background: transparent; border: none; padding: 0; -webkit-appearance: none; appearance: none;
+    flex: 1; min-width: 0; width: 100%; display: block; font: inherit; font-size: 21px; font-weight: 600; color: #fff;
+    background: transparent; border: none; padding: 0; margin: 0; -webkit-appearance: none; appearance: none;
+    font-family: inherit; line-height: inherit; resize: none; overflow: hidden;
   }
   .inline-add-input:focus { outline: none; }
   .inline-add-input::placeholder { color: rgba(255,255,255,0.65); font-weight: 600; }
@@ -569,6 +570,16 @@
   let pendingEditId = null;
   let pendingRerenderNeeded = false;
 
+  // A long name is meant to wrap across lines in the static display, but a
+  // plain single-line <input> doesn't wrap -- it scrolls horizontally, which
+  // left the cursor scrolled off out of view when editing a long item. Using
+  // an auto-growing textarea instead keeps the caret on-screen the same way
+  // the wrapped display text always is.
+  function autoGrowInlineTextarea(el) {
+    el.style.height = "auto";
+    el.style.height = el.scrollHeight + "px";
+  }
+
   function finishAnyPendingInlineEntry() {
     finishPendingInlineAdd();
     finishPendingInlineEdit();
@@ -617,7 +628,7 @@
     pendingAddCat = catName;
     render();
     const input = document.getElementById("inline-add-input");
-    if (input) input.focus();
+    if (input) { autoGrowInlineTextarea(input); input.focus(); }
   }
 
   // ---------- Inline edit (tap an item) vs. full modal (long-press) ----------
@@ -651,7 +662,7 @@
     pendingEditId = id;
     render();
     const input = document.getElementById("inline-edit-input");
-    if (input) { input.focus(); input.setSelectionRange(input.value.length, input.value.length); }
+    if (input) { autoGrowInlineTextarea(input); input.focus(); input.setSelectionRange(input.value.length, input.value.length); }
   }
 
   const fabAdd = document.getElementById("fab-add");
@@ -927,10 +938,11 @@
         inlineRow.className = "swipe-row";
         inlineRow.innerHTML = `
           <div class="row-fg" style="background:${headerColorForCat()}">
-            <input type="text" id="inline-add-input" class="inline-add-input" placeholder="New item">
+            <textarea id="inline-add-input" class="inline-add-input" rows="1" placeholder="New item"></textarea>
           </div>`;
         list.appendChild(inlineRow);
         const inlineInput = inlineRow.querySelector("#inline-add-input");
+        inlineInput.addEventListener("input", () => autoGrowInlineTextarea(inlineInput));
         inlineInput.addEventListener("keydown", e => {
           if (e.key === "Enter") { e.preventDefault(); inlineInput.blur(); }
           else if (e.key === "Escape") { e.preventDefault(); inlineInput.dataset.cancelled = "1"; inlineInput.blur(); }
@@ -956,7 +968,7 @@
           <div class="swipe-bg bg-delete">🗑</div>
           <div class="row-fg${item.checked ? " checked" : ""}${item.na ? " na" : ""}" style="background:${bg}">
             ${isEditingThis
-              ? `<input type="text" id="inline-edit-input" class="inline-add-input" value="${escapeAttr(item.name)}">`
+              ? `<textarea id="inline-edit-input" class="inline-add-input" rows="1">${escapeHtml(item.name)}</textarea>`
               : `<span class="row-name">${escapeHtml(item.name)}</span>`}
             ${item.na ? '<span class="row-na-tag">N/A</span>' : ""}
             ${item.assignee ? `<span class="row-avatar">${escapeHtml(item.assignee.slice(0, 1).toUpperCase())}</span>` : ""}
@@ -964,6 +976,7 @@
         list.appendChild(row);
         if (isEditingThis) {
           const inlineEditInput = row.querySelector("#inline-edit-input");
+          inlineEditInput.addEventListener("input", () => autoGrowInlineTextarea(inlineEditInput));
           inlineEditInput.addEventListener("keydown", e => {
             if (e.key === "Enter") { e.preventDefault(); inlineEditInput.blur(); }
             else if (e.key === "Escape") { e.preventDefault(); inlineEditInput.dataset.cancelled = "1"; inlineEditInput.blur(); }
