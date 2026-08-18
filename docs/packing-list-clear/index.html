@@ -134,6 +134,7 @@
     width: 100%; display: block; font: inherit; font-size: 18px; font-weight: 600; color: #fff;
     background: transparent; border: none; padding: 0; margin: 0; -webkit-appearance: none; appearance: none;
     font-family: inherit; line-height: inherit; resize: none; overflow: hidden;
+    -webkit-user-select: none; user-select: none; -webkit-touch-callout: none;
   }
   .inline-add-input:focus { outline: none; }
   .inline-add-input::placeholder { color: rgba(255,255,255,0.65); font-weight: 600; }
@@ -276,6 +277,7 @@
     <div class="status-row">
       <span class="status" id="status"><span class="dot"></span><span id="status-text">Connecting…</span></span>
       <div class="header-actions">
+        <button type="button" id="add-category-btn" class="icon-btn" aria-label="Add new category">🗂️</button>
         <button type="button" id="undo-btn" class="pill-btn" disabled>Undo</button>
         <button type="button" id="redo-btn" class="pill-btn" disabled>Redo</button>
         <button type="button" id="search-toggle" class="icon-btn" aria-label="Search items">🔍</button>
@@ -296,7 +298,6 @@
   </header>
 
   <div id="list-root"></div>
-  <button type="button" id="add-category-btn" class="pill-btn" style="margin:4px 0 24px;">+ New category</button>
 </div>
 </div>
 
@@ -1366,7 +1367,7 @@
         if (dragging !== null || avatarTapTarget) return; // already swiping/scrolling, or the avatar isn't draggable
         longPressFired = true;
         startReorderDrag(id, swipeRow, startY);
-      }, 650); // firmer/slower than a quick tap, so it doesn't trigger by accident
+      }, 350);
     });
 
     rowFg.addEventListener("pointermove", e => {
@@ -1375,7 +1376,10 @@
       const curDx = e.clientX - startX;
       const curDy = e.clientY - startY;
       if (dragging === null) {
-        if (Math.abs(curDx) < 6 && Math.abs(curDy) < 6) return;
+        // A bit of natural finger drift while holding still shouldn't cancel
+        // the long-press and force a retry -- 8px gives room for that
+        // without meaningfully delaying when a real swipe kicks in.
+        if (Math.abs(curDx) < 8 && Math.abs(curDy) < 8) return;
         clearTimeout(longPressTimer);
         dragging = Math.abs(curDx) > Math.abs(curDy);
         if (dragging) {
