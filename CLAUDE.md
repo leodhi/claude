@@ -56,6 +56,10 @@ These apps are used mostly as "Add to Home Screen" pseudo-apps on phones, so app
 - **A PR merge from another branch can bring in an older snapshot of a file than that branch's actual current tip**, if the PR was opened before the branch kept evolving. If something looks reverted after a merge, diff against the branch's actual current HEAD, not just the merged commit.
 - When a user reports data loss or "this used to work," verify what actually changed (git history, live `curl`, Firestore REST reads) before concluding what happened — and before reassuring anyone nothing was lost.
 
+## Notifications / alerts
+
+- The user has the [ntfy](https://ntfy.sh) app installed and is fine using it for push notifications (renewal reminders, alerts, etc.) from apps in this repo. Since these are static sites with no backend, the pattern is: a GitHub Actions scheduled workflow does the periodic check and POSTs to the user's ntfy topic — see the subscription-renewal-alerts feature for the reference implementation (Firebase service account as a GitHub secret, ntfy topic as a GitHub secret, never hardcoded in a workflow file since this repo is public). Default to proposing ntfy for any future "remind me about X" idea rather than re-deriving alerting options from scratch.
+
 ## How to communicate with this user
 
 - The user is new to Claude Code and AI coding tools generally. When explaining how to do something, skip unnecessary jargon — explain plainly, or better, just do it directly rather than describing the steps for them to do it.
