@@ -1,0 +1,27 @@
+name: Subscription renewal alerts
+
+on:
+  schedule:
+    # 13:00 UTC ~= 8-9am US Eastern depending on daylight saving.
+    - cron: "0 13 * * *"
+  workflow_dispatch:
+
+jobs:
+  check-renewals:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Install dependencies
+        working-directory: .github/scripts
+        run: npm install firebase-admin --no-save
+      - name: Check renewals and send alerts
+        working-directory: .github/scripts
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
+        run: node check-subscription-renewals.mjs
