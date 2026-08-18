@@ -114,12 +114,22 @@
 
   .row-fg {
     position: relative; display: flex; align-items: center; gap: 12px;
-    padding: 18px 16px; cursor: pointer;
+    padding: 18px 16px; cursor: pointer; user-select: none; -webkit-touch-callout: none;
   }
   .row-fg.dragging, .row-fg.commit { will-change: transform; }
   .row-fg.dragging { transition: none; }
   .row-fg.snap { transition: transform 0.25s cubic-bezier(.2,.9,.3,1.3); }
   .row-fg.commit { transition: transform 0.2s ease-out, opacity 0.2s ease-out; }
+
+  .swipe-row.reorder-source-hidden { opacity: 0; pointer-events: none; }
+  .reorder-ghost {
+    pointer-events: none; z-index: 60; border-radius: 14px; overflow: hidden; border-top: none;
+    box-shadow: 0 10px 26px rgba(0,0,0,0.55);
+  }
+  .drop-indicator {
+    height: 3px; margin: 0 12px; border-radius: 2px; background: var(--accent);
+    box-shadow: 0 0 6px var(--accent); pointer-events: none;
+  }
 
   .row-name { flex: 1; font-size: 18px; font-weight: 600; min-width: 0; overflow-wrap: break-word; color: #fff; }
   .row-fg.checked .row-name, .row-fg.na .row-name { color: #4a4a4d; text-decoration: line-through; }
@@ -141,7 +151,22 @@
   .row-avatar {
     width: 26px; height: 26px; border-radius: 50%; background: #48484a; color: #fff;
     font-size: 12px; font-weight: 700; display: flex; align-items: center; justify-content: center; flex: none;
+    touch-action: manipulation;
   }
+  .row-avatar.unassigned {
+    background: transparent; border: 1.5px dashed rgba(255,255,255,0.45); color: rgba(255,255,255,0.6);
+    font-weight: 900; font-size: 14px;
+  }
+
+  .assignee-options { display: flex; flex-direction: column; gap: 6px; max-height: 50vh; overflow-y: auto; }
+  .assignee-option-btn {
+    font: inherit; text-align: left; cursor: pointer; border: none; border-radius: 10px;
+    background: #2c2c2e; color: var(--ink); padding: 12px 14px; font-size: 15px; font-weight: 600;
+    display: flex; align-items: center; justify-content: space-between; touch-action: manipulation;
+    transition: transform 0.1s ease;
+  }
+  .assignee-option-btn:active { transform: scale(0.98); }
+  .assignee-option-btn.current { background: var(--accent); color: #fff; }
 
   .empty-state { color: var(--ink-faint); font-size: 14px; text-align: center; padding: 40px 20px; }
 
@@ -284,6 +309,13 @@
   </div>
 </div>
 
+<div class="modal-backdrop" id="assignee-modal">
+  <div class="modal">
+    <h3>Assign to</h3>
+    <div class="assignee-options" id="assignee-options"></div>
+  </div>
+</div>
+
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
   import {
@@ -382,6 +414,8 @@
       await updateDoc(listRef, { [`items.${action.id}`]: action.item });
     } else if (action.type === "edit") {
       await updateDoc(listRef, { [`items.${action.id}.name`]: action.from.name, [`items.${action.id}.cat`]: action.from.cat, [`items.${action.id}.assignee`]: action.from.assignee });
+    } else if (action.type === "reorder") {
+      await updateDoc(listRef, { [`items.${action.id}.cat`]: action.from.cat, [`items.${action.id}.order`]: action.from.order });
     }
   }
   async function applyForward(action) {
@@ -393,6 +427,8 @@
       await updateDoc(listRef, { [`items.${action.id}`]: deleteField() });
     } else if (action.type === "edit") {
       await updateDoc(listRef, { [`items.${action.id}.name`]: action.to.name, [`items.${action.id}.cat`]: action.to.cat, [`items.${action.id}.assignee`]: action.to.assignee });
+    } else if (action.type === "reorder") {
+      await updateDoc(listRef, { [`items.${action.id}.cat`]: action.to.cat, [`items.${action.id}.order`]: action.to.order });
     }
   }
   async function performUndo() {
@@ -513,31 +549,15 @@
   const ciAssigneeNew = document.getElementById("ci-assignee-new");
   const NEW_CAT_VALUE = "__new__";
   const NEW_ASSIGNEE_VALUE = "__new_assignee__";
-  let editingId = null;
 
   function closeItemModal() {
     addModal.classList.remove("show");
-    editingId = null;
   }
   function openAddModal() {
-    editingId = null;
     modalTitle.textContent = "Add item";
     modalSubmitBtn.textContent = "Add";
     ciName.value = "";
     ciAssignee.value = "";
-    ciAssigneeNewWrap.style.display = "none";
-    addModal.classList.add("show");
-    ciName.focus();
-  }
-  function openEditModal(id) {
-    const item = currentItems[id];
-    if (!item) return;
-    editingId = id;
-    modalTitle.textContent = "Edit item";
-    modalSubmitBtn.textContent = "Save";
-    ciName.value = item.name;
-    ciCat.value = item.cat;
-    ciAssignee.value = item.assignee || "";
     ciAssigneeNewWrap.style.display = "none";
     addModal.classList.add("show");
     ciName.focus();
@@ -730,6 +750,12 @@
   }, { passive: true });
 
   document.addEventListener("touchmove", e => {
+    if (reorderActive) {
+      e.preventDefault();
+      const t = e.touches[0];
+      if (t) updateReorderDrag(t.clientY);
+      return;
+    }
     if (pullTouchId === null) return;
     const t = [...e.touches].find(x => x.identifier === pullTouchId);
     if (!t) return;
@@ -783,33 +809,87 @@
     const assignee = ciAssignee.value === NEW_ASSIGNEE_VALUE ? ciAssigneeNew.value.trim() : ciAssignee.value;
     const cat = ciCat.value === NEW_CAT_VALUE ? ciCatNew.value.trim() : ciCat.value;
     if (!name || !cat) return;
-    const wasEditingId = editingId;
     closeItemModal();
     setStatus("syncing", "Saving…");
     try {
-      if (wasEditingId) {
-        const item = currentItems[wasEditingId];
-        const from = { name: item.name, cat: item.cat, assignee: item.assignee || "" };
-        const to = { name, cat, assignee };
-        if (from.name !== to.name || from.cat !== to.cat || from.assignee !== to.assignee) {
-          await updateDoc(listRef, {
-            [`items.${wasEditingId}.name`]: to.name,
-            [`items.${wasEditingId}.cat`]: to.cat,
-            [`items.${wasEditingId}.assignee`]: to.assignee,
-          });
-          pushAction({ type: "edit", id: wasEditingId, from, to });
-        }
-      } else {
-        const id = uid();
-        const maxOrder = Math.max(0, ...Object.values(currentItems).map(it => it.order ?? 0));
-        const itemData = { cat, name, assignee, checked: false, order: maxOrder + 1 };
-        await updateDoc(listRef, { [`items.${id}`]: itemData });
-        pushAction({ type: "add", id, itemData });
-      }
+      const id = uid();
+      const maxOrder = Math.max(0, ...Object.values(currentItems).map(it => it.order ?? 0));
+      const itemData = { cat, name, assignee, checked: false, order: maxOrder + 1 };
+      await updateDoc(listRef, { [`items.${id}`]: itemData });
+      pushAction({ type: "add", id, itemData });
     } catch (err) {
       console.error(err);
       setStatus("error", "Couldn't save");
     }
+  });
+
+  // ---------- Assignee quick-pick (tap the row avatar) ----------
+  function getAllAssignees() {
+    const used = [...new Set(Object.values(currentItems).map(i => i.assignee).filter(Boolean))].sort();
+    return [...new Set([...PRESET_ASSIGNEES, ...used])];
+  }
+
+  async function setAssignee(id, assignee) {
+    const item = currentItems[id];
+    if (!item) return;
+    const from = { name: item.name, cat: item.cat, assignee: item.assignee || "" };
+    const to = { name: item.name, cat: item.cat, assignee };
+    if (from.assignee === to.assignee) return;
+    setStatus("syncing", "Saving…");
+    try {
+      await updateDoc(listRef, { [`items.${id}.assignee`]: assignee });
+      pushAction({ type: "edit", id, from, to });
+    } catch (err) {
+      console.error(err);
+      setStatus("error", "Couldn't save");
+    }
+  }
+
+  const assigneeModal = document.getElementById("assignee-modal");
+  const assigneeOptionsEl = document.getElementById("assignee-options");
+  let assigneePickerItemId = null;
+  let assigneeModalOpenedAt = 0;
+
+  function openAssigneePicker(id) {
+    const item = currentItems[id];
+    if (!item) return;
+    assigneePickerItemId = id;
+    const current = item.assignee || "";
+    const names = getAllAssignees();
+    assigneeOptionsEl.innerHTML =
+      `<button type="button" class="assignee-option-btn${current === "" ? " current" : ""}" data-assignee-pick="">Unassigned${current === "" ? '<span class="check">✓</span>' : ""}</button>` +
+      names.map(n => `<button type="button" class="assignee-option-btn${current === n ? " current" : ""}" data-assignee-pick="${escapeAttr(n)}">${escapeHtml(n)}${current === n ? '<span class="check">✓</span>' : ""}</button>`).join("") +
+      `<button type="button" class="assignee-option-btn" id="assignee-pick-other">+ Someone else…</button>`;
+    assigneeModal.classList.add("show");
+    assigneeModalOpenedAt = Date.now();
+  }
+  function closeAssigneePicker() {
+    assigneeModal.classList.remove("show");
+    assigneePickerItemId = null;
+  }
+  // The tap that opens this picker (on the avatar) still produces a
+  // trailing synthetic "click" afterward, same as any touch interaction --
+  // and since the sheet renders new buttons right where that tap landed,
+  // that ghost click can immediately fire one of them. Ignoring clicks in
+  // the first moment after opening is the standard, browser-independent
+  // fix (preventDefault() on the originating pointerup isn't reliable here).
+  function justOpened() { return Date.now() - assigneeModalOpenedAt < 400; }
+  assigneeOptionsEl.addEventListener("click", e => {
+    if (justOpened()) return;
+    if (e.target.closest("#assignee-pick-other")) {
+      const name = prompt("Assign to:");
+      if (name && name.trim()) setAssignee(assigneePickerItemId, name.trim());
+      closeAssigneePicker();
+      return;
+    }
+    const btn = e.target.closest("[data-assignee-pick]");
+    if (!btn) return;
+    setAssignee(assigneePickerItemId, btn.dataset.assigneePick);
+    closeAssigneePicker();
+  });
+  assigneeModal.addEventListener("click", e => {
+    if (justOpened()) return;
+    if (e.target === assigneeModal) closeAssigneePicker();
   });
 
   // ---------- Toast (quick undo for swipe-delete) ----------
@@ -861,6 +941,143 @@
     }
   }
 
+  // ---------- Long-press drag to reorder / move between categories ----------
+  let reorderActive = false;
+  let reorderId = null;
+  let reorderRow = null;
+  let reorderGhost = null;
+  let reorderStartY = 0;
+  let reorderIndicatorEl = null;
+  let reorderTargetCat = null;
+  let reorderTargetBeforeId = null; // null = end of category
+  let reorderOriginalCat = null;
+  let reorderOriginalNextId = null;
+
+  function visibleCatSections() {
+    return [...document.querySelectorAll(".cat-section")].filter(s => !s.classList.contains("collapsed"));
+  }
+
+  function startReorderDrag(id, swipeRowEl, startClientY) {
+    const item = currentItems[id];
+    if (!item) return;
+    reorderActive = true;
+    reorderId = id;
+    reorderRow = swipeRowEl;
+    reorderStartY = startClientY;
+    reorderOriginalCat = item.cat;
+
+    const siblingRow = swipeRowEl.nextElementSibling;
+    reorderOriginalNextId = siblingRow ? siblingRow.dataset.itemId || null : null;
+    reorderTargetCat = reorderOriginalCat;
+    reorderTargetBeforeId = reorderOriginalNextId;
+
+    const rect = swipeRowEl.getBoundingClientRect();
+    const ghost = swipeRowEl.cloneNode(true);
+    ghost.classList.add("reorder-ghost");
+    ghost.style.position = "fixed";
+    ghost.style.left = rect.left + "px";
+    ghost.style.top = rect.top + "px";
+    ghost.style.width = rect.width + "px";
+    ghost.style.margin = "0";
+    ghost.style.transform = "scale(1.02)";
+    document.body.appendChild(ghost);
+    reorderGhost = ghost;
+
+    swipeRowEl.classList.add("reorder-source-hidden");
+
+    reorderIndicatorEl = document.createElement("div");
+    reorderIndicatorEl.className = "drop-indicator";
+    const list = swipeRowEl.parentElement;
+    if (siblingRow) list.insertBefore(reorderIndicatorEl, siblingRow);
+    else list.appendChild(reorderIndicatorEl);
+
+    if (navigator.vibrate) navigator.vibrate(8);
+  }
+
+  function updateReorderDrag(clientY) {
+    if (!reorderActive) return;
+    reorderGhost.style.transform = `translateY(${clientY - reorderStartY}px) scale(1.02)`;
+
+    const sections = visibleCatSections();
+    if (sections.length === 0) return;
+    let targetSection = sections[0];
+    for (const s of sections) {
+      if (s.getBoundingClientRect().top <= clientY) targetSection = s; else break;
+    }
+    const catName = targetSection.querySelector("[data-cat-toggle]").dataset.catToggle;
+    const list = targetSection.querySelector(".row-list");
+    const rows = [...list.querySelectorAll(".swipe-row")].filter(r => r !== reorderRow);
+
+    let beforeEl = null;
+    for (const r of rows) {
+      const rowRect = r.getBoundingClientRect();
+      if (clientY < rowRect.top + rowRect.height / 2) { beforeEl = r; break; }
+    }
+
+    reorderTargetCat = catName;
+    reorderTargetBeforeId = beforeEl ? beforeEl.dataset.itemId : null;
+
+    const alreadyThere = beforeEl
+      ? beforeEl.previousElementSibling === reorderIndicatorEl
+      : list.lastElementChild === reorderIndicatorEl;
+    if (!alreadyThere) {
+      if (beforeEl) list.insertBefore(reorderIndicatorEl, beforeEl);
+      else list.appendChild(reorderIndicatorEl);
+    }
+  }
+
+  async function finishReorderDrag() {
+    if (!reorderActive) return;
+    const id = reorderId;
+    const targetCat = reorderTargetCat;
+    const beforeId = reorderTargetBeforeId;
+    const sameSpot = targetCat === reorderOriginalCat && beforeId === reorderOriginalNextId;
+
+    reorderGhost.remove();
+    reorderIndicatorEl.remove();
+    reorderActive = false;
+    reorderId = null;
+    reorderRow = null;
+    reorderGhost = null;
+    reorderIndicatorEl = null;
+
+    if (!sameSpot) {
+      const item = currentItems[id];
+      const from = { cat: item.cat, order: item.order ?? 0 };
+      const itemsInCat = Object.entries(currentItems)
+        .filter(([iid, it]) => it.cat === targetCat && iid !== id)
+        .map(([iid, it]) => ({ id: iid, order: it.order ?? 0 }))
+        .sort((a, b) => a.order - b.order);
+      let newOrder;
+      if (itemsInCat.length === 0) {
+        newOrder = 0;
+      } else if (beforeId === null) {
+        newOrder = itemsInCat[itemsInCat.length - 1].order + 1;
+      } else {
+        const idx = itemsInCat.findIndex(i => i.id === beforeId);
+        if (idx === -1) {
+          newOrder = itemsInCat[itemsInCat.length - 1].order + 1;
+        } else {
+          const prevOrder = idx > 0 ? itemsInCat[idx - 1].order : itemsInCat[idx].order - 1;
+          newOrder = (prevOrder + itemsInCat[idx].order) / 2;
+        }
+      }
+      const to = { cat: targetCat, order: newOrder };
+      setStatus("syncing", "Saving…");
+      try {
+        const updates = { [`items.${id}.order`]: newOrder };
+        if (targetCat !== from.cat) updates[`items.${id}.cat`] = targetCat;
+        await updateDoc(listRef, updates);
+        pushAction({ type: "reorder", id, from, to });
+      } catch (err) {
+        console.error(err);
+        setStatus("error", "Couldn't save");
+      }
+    }
+
+    if (pendingRerenderNeeded) { pendingRerenderNeeded = false; render(); }
+  }
+
   function attachSwipe(swipeRow, id) {
     const rowFg = swipeRow.querySelector(".row-fg");
     const bgComplete = swipeRow.querySelector(".bg-complete");
@@ -869,6 +1086,7 @@
     let pointerId = null;
     let longPressTimer = null;
     let longPressFired = false;
+    let avatarTapTarget = false;
 
     function resetBg() {
       bgComplete.style.opacity = "0";
@@ -887,20 +1105,28 @@
         render();
         return;
       }
+      // A tap on the avatar opens the assignee picker, but only once the
+      // finger actually lifts (in endDrag below) -- opening it immediately
+      // here, on pointerdown, means this same tap's release lands on the
+      // freshly-opened sheet (which covers this same spot) and instantly
+      // closes it again.
+      avatarTapTarget = !!e.target.closest(".row-avatar");
       startX = e.clientX; startY = e.clientY; dx = 0; dragging = null;
       pointerId = e.pointerId;
       rowFg.classList.remove("snap", "commit");
       longPressFired = false;
       clearTimeout(longPressTimer);
       longPressTimer = setTimeout(() => {
-        if (dragging !== null) return; // already swiping/scrolling, not a long-press
+        if (dragging !== null || avatarTapTarget) return; // already swiping/scrolling, or the avatar isn't draggable
         longPressFired = true;
-        openEditModal(id);
+        if (rowFg.setPointerCapture) rowFg.setPointerCapture(pointerId);
+        startReorderDrag(id, swipeRow, startY);
       }, 500);
     });
 
     rowFg.addEventListener("pointermove", e => {
       if (pointerId === null || e.pointerId !== pointerId) return;
+      if (reorderActive && reorderId === id) return; // handled by the global touchmove drag tracker
       const curDx = e.clientX - startX;
       const curDy = e.clientY - startY;
       if (dragging === null) {
@@ -922,13 +1148,26 @@
       else resetBg();
     });
 
-    function endDrag() {
+    function endDrag(e) {
       clearTimeout(longPressTimer);
       if (pointerId === null) return;
       pointerId = null;
-      if (longPressFired) { dragging = null; return; } // modal already opened by the long-press
+      if (reorderActive && reorderId === id) { finishReorderDrag(); dragging = null; return; }
+      if (longPressFired) { dragging = null; return; } // reorder drag already started by the long-press
       if (dragging === null) {
-        // No meaningful movement -- treat as a tap to edit the item's name inline.
+        // No meaningful movement -- treat as a tap. Avatar taps open the
+        // assignee picker; anything else edits the item's name inline.
+        if (avatarTapTarget) {
+          // The browser still fires a synthetic trailing "click" for this
+          // same tap after we act on pointerup -- without suppressing it,
+          // that click can land on a button in the sheet we just opened
+          // (if the avatar sits where the sheet's options end up) and
+          // immediately trigger it. preventDefault() on pointerup stops
+          // that compatibility click from firing at all.
+          if (e && e.cancelable) e.preventDefault();
+          openAssigneePicker(id);
+          return;
+        }
         startInlineEdit(id);
         return;
       }
@@ -985,8 +1224,7 @@
     const categoryOrder = [...CUSTOM_CATEGORIES, ...extraCats];
     renderCatOptions(categoryOrder);
 
-    const usedAssignees = [...new Set(Object.values(currentItems).map(i => i.assignee).filter(Boolean))].sort();
-    const allAssignees = [...new Set([...PRESET_ASSIGNEES, ...usedAssignees])];
+    const allAssignees = getAllAssignees();
     renderAssigneeOptions(allAssignees);
     renderAssigneeFilter(allAssignees);
 
@@ -1055,6 +1293,7 @@
         const bg = isDone ? "var(--bg)" : gradientRowColor(openIdx++, openCount);
         const row = document.createElement("div");
         row.className = "swipe-row";
+        row.dataset.itemId = item.id;
         const isEditingThis = pendingEditId === item.id;
         row.innerHTML = `
           <div class="swipe-bg bg-complete">✓</div>
@@ -1064,7 +1303,7 @@
               ? `<div class="inline-add-input-wrap"><textarea id="inline-edit-input" class="inline-add-input" rows="1">${escapeHtml(item.name)}</textarea></div>`
               : `<span class="row-name">${escapeHtml(item.name)}</span>`}
             ${item.na ? '<span class="row-na-tag">N/A</span>' : ""}
-            ${item.assignee ? `<span class="row-avatar">${escapeHtml(item.assignee.slice(0, 1).toUpperCase())}</span>` : ""}
+            <span class="row-avatar${item.assignee ? "" : " unassigned"}">${item.assignee ? escapeHtml(item.assignee.slice(0, 1).toUpperCase()) : "+"}</span>
           </div>`;
         list.appendChild(row);
         if (isEditingThis) {
@@ -1106,7 +1345,7 @@
     if (!snap.exists()) return;
     currentItems = snap.data().items || {};
     setStatus("synced", "Synced");
-    if (pendingAddCat || pendingEditId) { pendingRerenderNeeded = true; } else { render(); }
+    if (pendingAddCat || pendingEditId || reorderActive) { pendingRerenderNeeded = true; } else { render(); }
   }, err => {
     console.error(err);
     setStatus("error", "Connection error");
