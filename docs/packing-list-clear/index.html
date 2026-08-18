@@ -43,15 +43,19 @@
     background: #2c2c2e; border: 1px solid #3a3a3c; color: var(--ink); border-radius: 50%;
     width: 30px; height: 30px; font-size: 14px; cursor: pointer; flex: none;
     display: flex; align-items: center; justify-content: center;
+    transition: border-color 0.15s ease, transform 0.1s ease; touch-action: manipulation;
   }
   .icon-btn:hover { border-color: var(--accent); }
+  .icon-btn:active { transform: scale(0.92); }
 
   .header-actions { display: flex; align-items: center; gap: 6px; flex: none; }
   .pill-btn {
     font: inherit; cursor: pointer; border-radius: 999px; border: 1px solid #3a3a3c;
     background: #2c2c2e; color: var(--ink); padding: 6px 13px; font-size: 12.5px; font-weight: 600;
+    transition: border-color 0.15s ease, color 0.15s ease, transform 0.1s ease; touch-action: manipulation;
   }
   .pill-btn:not(:disabled):hover { border-color: var(--accent); color: var(--accent); }
+  .pill-btn:not(:disabled):active { transform: scale(0.95); }
   .pill-btn:disabled { opacity: 0.4; cursor: default; }
 
   .search-wrap { margin-bottom: 14px; display: none; }
@@ -73,8 +77,10 @@
   .assignee-chip {
     font: inherit; cursor: pointer; border-radius: 999px; border: 1px solid #3a3a3c;
     background: #2c2c2e; color: var(--ink-muted); padding: 5px 12px; font-size: 12.5px; font-weight: 600;
+    transition: border-color 0.15s ease, color 0.15s ease, background 0.15s ease, transform 0.1s ease; touch-action: manipulation;
   }
   .assignee-chip:hover { border-color: var(--accent); color: var(--ink); }
+  .assignee-chip:active { transform: scale(0.95); }
   .assignee-chip.active { background: var(--accent); border-color: var(--accent); color: #fff; }
 
   .progress-wrap { display: flex; align-items: center; gap: 10px; margin-bottom: 20px; }
@@ -86,8 +92,10 @@
   .cat-header {
     display: flex; align-items: center; justify-content: space-between; gap: 8px;
     padding: 16px 16px 14px; font-weight: 900; font-size: 20px; letter-spacing: -0.01em; color: #fff;
-    cursor: pointer; user-select: none;
+    cursor: pointer; user-select: none; touch-action: manipulation;
+    transition: filter 0.1s ease;
   }
+  .cat-header:active { filter: brightness(0.9); }
   .cat-header .cat-title-text { display: inline-flex; align-items: center; gap: 8px; }
   .cat-header .cat-chevron { display: inline-block; font-size: 13px; transition: transform 0.15s ease; opacity: 0.85; }
   .cat-section.collapsed .cat-chevron { transform: rotate(-90deg); }
@@ -155,14 +163,17 @@
   .toast button { font: inherit; font-weight: 700; color: var(--accent); background: none; border: none; cursor: pointer; padding: 2px; flex: none; }
 
   .modal-backdrop {
-    position: fixed; inset: 0; background: rgba(0,0,0,0.55); display: none;
-    align-items: flex-end; justify-content: center; z-index: 25;
+    position: fixed; inset: 0; background: rgba(0,0,0,0.55);
+    display: flex; align-items: flex-end; justify-content: center; z-index: 25;
+    opacity: 0; visibility: hidden; pointer-events: none; transition: opacity 0.2s ease;
   }
-  .modal-backdrop.show { display: flex; }
+  .modal-backdrop.show { opacity: 1; visibility: visible; pointer-events: auto; }
   .modal {
     background: #1c1c1e; border-radius: 16px 16px 0 0; padding: 18px 18px calc(18px + env(safe-area-inset-bottom));
     width: 100%; max-width: 640px; box-shadow: 0 -6px 24px rgba(0,0,0,0.5);
+    transform: translateY(24px); transition: transform 0.25s cubic-bezier(.2,.9,.3,1.1);
   }
+  .modal-backdrop.show .modal { transform: translateY(0); }
   .modal h3 { margin: 0 0 14px; font-size: 16px; }
   .modal label { display: block; font-size: 11px; color: var(--ink-muted); text-transform: uppercase; letter-spacing: 0.05em; margin: 12px 0 5px; }
   .modal label:first-of-type { margin-top: 0; }
@@ -173,7 +184,9 @@
   .modal-actions { display: flex; gap: 10px; margin-top: 18px; }
   .modal-actions button {
     flex: 1; font: inherit; cursor: pointer; border-radius: 9px; border: none; padding: 12px 14px; font-size: 15px; font-weight: 600;
+    transition: filter 0.15s ease, transform 0.1s ease; touch-action: manipulation;
   }
+  .modal-actions button:active { transform: scale(0.96); }
   .modal-actions .btn-cancel { background: #2c2c2e; color: var(--ink); }
   .modal-actions .btn-save { background: #fff; color: #111; }
 </style>

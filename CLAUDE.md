@@ -37,6 +37,17 @@ This single repo hosts multiple unrelated projects, all served from one GitHub P
 - Other branches/sessions may merge into `main` between your edits — always `git fetch origin main` and branch fresh from `origin/main` before starting new work rather than reusing a stale local branch or continuing on an already-merged branch.
 - Before shipping any change to the game/app HTML files, run `node --check` on the extracted `<script type="module">` contents, and where feasible simulate the actual flow with jsdom plus hand-written mocks for Firebase calls, rather than assuming the code works from a read-through. Several real bugs here were only caught this way (an `id="input-name"` scope bug, a falsy-zero rotation bug, a duplicated-header bug, a corrupted `createElement("localCanvas")` typo, and more).
 
+## Making web apps in this repo feel native (mobile)
+
+These apps are used mostly as "Add to Home Screen" pseudo-apps on phones, so apply these by default whenever creating or touching one of the interactive HTML apps, not just when asked:
+
+- Animate with `transform` (`translateX/Y`, `scale`) and `opacity`, never `top`/`left`/`width`/`height` — transforms are GPU-accelerated, the others force layout/reflow and feel janky.
+- Use real easing curves on transitions (e.g. `cubic-bezier(.2,.9,.3,1.1)`-style, with a little overshoot for playful UI), not the browser default linear/ease. This is the single biggest lever on "feel."
+- Give every tappable element (buttons, chips, cards) a `:active` state — a quick `transform: scale(0.92–0.96)` — so taps have immediate visual feedback, plus `touch-action: manipulation` to kill any tap delay/double-tap-zoom.
+- Modals/sheets should fade and slide or scale in (`opacity` + `transform`, base state hidden via `opacity:0; visibility:hidden; pointer-events:none`), never just snap via `display:none`/`display:flex`.
+- Match iOS conventions: cards/panels ~14-16px corner radius, controls/inputs ~8-10px, pill buttons `border-radius:999px`, spacing roughly on an 8px grid. Inconsistent radii/spacing is a big part of what makes something read as "a webpage" instead of "an app."
+- Keep it simple — don't add animation/motion beyond this list unless asked; the goal is snappier default interactions, not a redesign.
+
 ## Lessons learned the hard way (don't repeat these)
 
 - **GitHub Pages settings can be changed by anyone with push access to any branch in this repo**, not just people working on the thing that broke. Don't assume "the site is broken" means a code bug — check Pages settings (Settings → Pages) and do a live `curl` against the actual deployed site before diagnosing further.
