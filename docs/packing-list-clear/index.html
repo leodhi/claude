@@ -124,6 +124,13 @@
   .row-name { flex: 1; font-size: 21px; font-weight: 600; min-width: 0; overflow-wrap: break-word; color: #fff; }
   .row-fg.checked .row-name, .row-fg.na .row-name { color: #4a4a4d; text-decoration: line-through; }
 
+  .inline-add-input {
+    flex: 1; min-width: 0; font: inherit; font-size: 21px; font-weight: 600; color: #fff;
+    background: transparent; border: none; padding: 0; -webkit-appearance: none; appearance: none;
+  }
+  .inline-add-input:focus { outline: none; }
+  .inline-add-input::placeholder { color: rgba(255,255,255,0.65); font-weight: 600; }
+
   .row-na-tag {
     font-size: 11px; font-weight: 700; letter-spacing: 0.03em; color: var(--ink-faint);
     border: 1px solid var(--ink-faint); border-radius: 5px; padding: 3px 6px; flex: none;
@@ -551,9 +558,80 @@
     if (isNew) ciAssigneeNew.focus();
   });
 
-  document.getElementById("fab-add").addEventListener("click", openAddModal);
   document.getElementById("add-cancel").addEventListener("click", closeItemModal);
   addModal.addEventListener("click", e => { if (e.target === addModal) closeItemModal(); });
+
+  // ---------- Inline add (tap +) vs. full modal (long-press +) ----------
+  // Tapping + types the new item straight into the list, like the Clear app;
+  // long-pressing opens the modal for category/assignee. New items go into
+  // whichever category is currently scrolled to the top of the screen.
+  let pendingAddCat = null;
+  let pendingRerenderNeeded = false;
+
+  function getCurrentCategorySection() {
+    const sections = [...document.querySelectorAll(".cat-section")];
+    if (sections.length === 0) return null;
+    const refY = 130;
+    let current = sections[0];
+    for (const s of sections) {
+      if (s.getBoundingClientRect().top <= refY) current = s; else break;
+    }
+    return current;
+  }
+
+  function finishPendingInlineAdd() {
+    if (!pendingAddCat) return;
+    const input = document.getElementById("inline-add-input");
+    const name = input ? input.value.trim() : "";
+    if (name) commitInlineAddValue(pendingAddCat, name);
+    pendingAddCat = null;
+  }
+
+  async function commitInlineAddValue(catName, name) {
+    const id = uid();
+    const itemsInCat = Object.values(currentItems).filter(i => i.cat === catName && !i.checked && !i.na);
+    const minOrder = itemsInCat.length ? Math.min(...itemsInCat.map(i => i.order ?? 0)) : 0;
+    const itemData = { cat: catName, name, assignee: "", checked: false, order: minOrder - 1 };
+    setStatus("syncing", "Saving…");
+    try {
+      await updateDoc(listRef, { [`items.${id}`]: itemData });
+      pushAction({ type: "add", id, itemData });
+    } catch (err) {
+      console.error(err);
+      setStatus("error", "Couldn't save");
+    }
+  }
+
+  function startInlineAdd() {
+    finishPendingInlineAdd();
+    const section = getCurrentCategorySection();
+    if (!section) { openAddModal(); return; }
+    const catName = section.querySelector("[data-cat-toggle]").dataset.catToggle;
+    if (collapsedCats.has(catName)) { collapsedCats.delete(catName); saveCollapsed(); }
+    pendingAddCat = catName;
+    render();
+    const input = document.getElementById("inline-add-input");
+    if (input) input.focus();
+  }
+
+  const fabAdd = document.getElementById("fab-add");
+  let fabLongPressTimer = null;
+  let fabLongPressFired = false;
+  fabAdd.addEventListener("pointerdown", e => {
+    if (e.button !== undefined && e.button !== 0) return;
+    fabLongPressFired = false;
+    clearTimeout(fabLongPressTimer);
+    fabLongPressTimer = setTimeout(() => {
+      fabLongPressFired = true;
+      openAddModal();
+    }, 500);
+  });
+  fabAdd.addEventListener("pointerup", () => {
+    clearTimeout(fabLongPressTimer);
+    if (!fabLongPressFired) startInlineAdd();
+  });
+  fabAdd.addEventListener("pointercancel", () => clearTimeout(fabLongPressTimer));
+  fabAdd.addEventListener("pointerleave", () => clearTimeout(fabLongPressTimer));
 
   addForm.addEventListener("submit", async e => {
     e.preventDefault();
@@ -782,6 +860,29 @@
       const openCount = visibleItems.filter(i => !i.checked && !i.na).length;
       let openIdx = 0;
 
+      if (pendingAddCat === catName) {
+        const inlineRow = document.createElement("div");
+        inlineRow.className = "swipe-row";
+        inlineRow.innerHTML = `
+          <div class="row-fg" style="background:${headerColorForCat()}">
+            <input type="text" id="inline-add-input" class="inline-add-input" placeholder="New item">
+          </div>`;
+        list.appendChild(inlineRow);
+        const inlineInput = inlineRow.querySelector("#inline-add-input");
+        inlineInput.addEventListener("keydown", e => {
+          if (e.key === "Enter") { e.preventDefault(); inlineInput.blur(); }
+          else if (e.key === "Escape") { e.preventDefault(); inlineInput.dataset.cancelled = "1"; inlineInput.blur(); }
+        });
+        inlineInput.addEventListener("blur", () => {
+          const cancelled = inlineInput.dataset.cancelled === "1";
+          const name = inlineInput.value.trim();
+          pendingAddCat = null;
+          if (!cancelled && name) commitInlineAddValue(catName, name);
+          if (pendingRerenderNeeded) { pendingRerenderNeeded = false; }
+          render();
+        });
+      }
+
       visibleItems.forEach(item => {
         const isDone = item.checked || item.na;
         const bg = isDone ? "var(--bg)" : gradientRowColor(openIdx++, openCount);
@@ -818,7 +919,7 @@
     if (!snap.exists()) return;
     currentItems = snap.data().items || {};
     setStatus("synced", "Synced");
-    render();
+    if (pendingAddCat) { pendingRerenderNeeded = true; } else { render(); }
   }, err => {
     console.error(err);
     setStatus("error", "Connection error");
