@@ -1322,7 +1322,17 @@
       }
     }
 
-    if (pendingRerenderNeeded) { pendingRerenderNeeded = false; render(); }
+    // If it landed back where it started, no Firestore write happens above,
+    // so there's no snapshot round-trip coming to re-render the list --
+    // meaning nothing would ever remove reorder-source-hidden from this
+    // row, leaving it invisible forever (a real bug: a plain long-press
+    // that's released without ever being dragged anywhere makes the item
+    // disappear). Render explicitly in that case; an actual move still
+    // gets its render from the Firestore round-trip as before.
+    if (sameSpot || pendingRerenderNeeded) {
+      pendingRerenderNeeded = false;
+      render();
+    }
   }
 
   function attachSwipe(swipeRow, id) {
