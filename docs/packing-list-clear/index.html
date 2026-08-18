@@ -126,11 +126,6 @@
     pointer-events: none; z-index: 60; border-radius: 14px; overflow: hidden; border-top: none;
     box-shadow: 0 10px 26px rgba(0,0,0,0.55);
   }
-  .drop-indicator {
-    height: 3px; margin: 0 12px; border-radius: 2px; background: var(--accent);
-    box-shadow: 0 0 6px var(--accent); pointer-events: none;
-  }
-
   .row-name { flex: 1; font-size: 18px; font-weight: 600; min-width: 0; overflow-wrap: break-word; color: #fff; }
   .row-fg.checked .row-name, .row-fg.na .row-name { color: #4a4a4d; text-decoration: line-through; }
 
@@ -193,6 +188,34 @@
     -webkit-transform: translateZ(0); transform: translateZ(0); will-change: transform;
   }
   .fab:active { transform: scale(0.94); }
+
+  .spread-indicator { height: 0; overflow: visible; position: relative; z-index: 6; pointer-events: none; }
+  .spread-plus {
+    position: absolute; left: 50%; top: -19px; transform: translateX(-50%) scale(0.4);
+    width: 38px; height: 38px; border-radius: 50%; background: #2c2c2e; border: 1px solid #3a3a3c;
+    color: var(--ink-muted); display: flex; align-items: center; justify-content: center;
+    font-size: 19px; font-weight: 700; opacity: 0;
+    transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+  }
+  .spread-plus.ready { background: var(--accent); border-color: var(--accent); color: #fff; }
+
+  .add-item-row {
+    padding: 14px 16px; text-align: center; font-size: 14px; font-weight: 600;
+    color: rgba(255,255,255,0.55); cursor: pointer; touch-action: manipulation;
+    background: rgba(255,255,255,0.04);
+  }
+  .add-item-row:active { background: rgba(255,255,255,0.08); }
+
+  .category-jump { display: flex; gap: 6px; overflow-x: auto; margin-bottom: 14px; padding-bottom: 2px; scrollbar-width: none; }
+  .category-jump::-webkit-scrollbar { display: none; }
+  .jump-chip {
+    font: inherit; cursor: pointer; border-radius: 999px; border: 1px solid #3a3a3c; flex: none;
+    background: #2c2c2e; color: var(--ink-muted); padding: 5px 12px; font-size: 12.5px; font-weight: 600;
+    transition: border-color 0.15s ease, color 0.15s ease, transform 0.1s ease; touch-action: manipulation;
+    white-space: nowrap;
+  }
+  .jump-chip:hover { border-color: var(--accent); color: var(--ink); }
+  .jump-chip:active { transform: scale(0.95); }
 
   .scroll-top-btn {
     position: fixed; bottom: calc(64px + env(safe-area-inset-bottom) + var(--vv-bottom-offset, 0px)); left: 20px; width: 44px; height: 44px; border-radius: 50%;
@@ -264,6 +287,7 @@
         <button type="button" id="search-clear" class="search-clear-btn" aria-label="Clear search">✕</button>
       </div>
     </div>
+    <div class="category-jump" id="category-jump"></div>
     <div class="assignee-filter" id="assignee-filter"></div>
     <div class="progress-wrap">
       <div class="progress-track"><div class="progress-fill" id="progress-fill" style="width:0%"></div></div>
@@ -272,6 +296,7 @@
   </header>
 
   <div id="list-root"></div>
+  <button type="button" id="add-category-btn" class="pill-btn" style="margin:4px 0 24px;">+ New category</button>
 </div>
 </div>
 
@@ -390,6 +415,22 @@
   });
   function saveCollapsed() { localStorage.setItem("packing-clear-collapsed-cats", JSON.stringify([...collapsedCats])); }
 
+  // ---------- Category jump chips ----------
+  function renderCategoryJump(categoryOrder) {
+    const el = document.getElementById("category-jump");
+    el.innerHTML = categoryOrder.map(c => `<button type="button" class="jump-chip" data-jump-cat="${escapeAttr(c)}">${escapeHtml(c)}</button>`).join("");
+  }
+  document.getElementById("category-jump").addEventListener("click", e => {
+    const btn = e.target.closest("[data-jump-cat]");
+    if (!btn) return;
+    const catName = btn.dataset.jumpCat;
+    if (collapsedCats.has(catName)) { collapsedCats.delete(catName); saveCollapsed(); render(); }
+    requestAnimationFrame(() => {
+      const section = [...document.querySelectorAll(".cat-section")].find(s => s.querySelector("[data-cat-toggle]")?.dataset.catToggle === catName);
+      if (section) section.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+  });
+
   // ---------- Undo / redo ----------
   const undoBtn = document.getElementById("undo-btn");
   const redoBtn = document.getElementById("redo-btn");
@@ -463,11 +504,32 @@
 
   document.getElementById("list-root").addEventListener("click", e => {
     const catHeader = e.target.closest("[data-cat-toggle]");
-    if (!catHeader) return;
-    const catName = catHeader.dataset.catToggle;
-    if (collapsedCats.has(catName)) collapsedCats.delete(catName); else collapsedCats.add(catName);
-    saveCollapsed();
-    render();
+    if (catHeader) {
+      const catName = catHeader.dataset.catToggle;
+      if (collapsedCats.has(catName)) collapsedCats.delete(catName); else collapsedCats.add(catName);
+      saveCollapsed();
+      render();
+      return;
+    }
+    const addRow = e.target.closest("[data-add-cat]");
+    if (addRow) {
+      if (pendingAddCat !== null || pendingEditId !== null) {
+        finishAnyPendingInlineEntry();
+        if (pendingRerenderNeeded) pendingRerenderNeeded = false;
+        render();
+        return;
+      }
+      startInlineAddBefore(addRow.dataset.addCat, INSERT_AT_END);
+    }
+  });
+
+  document.getElementById("add-category-btn").addEventListener("click", () => {
+    finishAnyPendingInlineEntry();
+    openAddModal();
+    ciCat.value = NEW_CAT_VALUE;
+    ciCatNewWrap.style.display = "";
+    ciCatNew.required = true;
+    ciCatNew.focus();
   });
 
   // ---------- Search ----------
@@ -604,7 +666,9 @@
   // Tapping + types the new item straight into the list, like the Clear app;
   // long-pressing opens the modal for category/assignee. New items go into
   // whichever category is currently scrolled to the top of the screen.
+  const INSERT_AT_END = "__end__";
   let pendingAddCat = null;
+  let pendingAddBeforeId = null; // null = top of category, INSERT_AT_END = bottom, else insert before that item id
   let pendingEditId = null;
   let pendingRerenderNeeded = false;
 
@@ -623,6 +687,59 @@
     finishPendingInlineEdit();
   }
 
+  function finishPendingInlineAdd() {
+    if (!pendingAddCat) return;
+    const input = document.getElementById("inline-add-input");
+    const name = input ? input.value.trim() : "";
+    const catName = pendingAddCat, beforeId = pendingAddBeforeId;
+    pendingAddCat = null;
+    pendingAddBeforeId = null;
+    if (name) commitInlineAddValue(catName, name, beforeId);
+  }
+
+  async function commitInlineAddValue(catName, name, beforeId) {
+    const id = uid();
+    const itemsInCat = Object.entries(currentItems)
+      .filter(([iid, it]) => it.cat === catName && !it.checked && !it.na)
+      .map(([iid, it]) => ({ id: iid, order: it.order ?? 0 }))
+      .sort((a, b) => a.order - b.order);
+    let order;
+    if (itemsInCat.length === 0) {
+      order = 0;
+    } else if (beforeId === null) {
+      order = itemsInCat[0].order - 1; // top of category
+    } else if (beforeId === INSERT_AT_END) {
+      order = itemsInCat[itemsInCat.length - 1].order + 1;
+    } else {
+      const idx = itemsInCat.findIndex(i => i.id === beforeId);
+      if (idx === -1) {
+        order = itemsInCat[0].order - 1;
+      } else {
+        const prevOrder = idx > 0 ? itemsInCat[idx - 1].order : itemsInCat[idx].order - 1;
+        order = (prevOrder + itemsInCat[idx].order) / 2;
+      }
+    }
+    const itemData = { cat: catName, name, assignee: "", checked: false, order };
+    setStatus("syncing", "Saving…");
+    try {
+      await updateDoc(listRef, { [`items.${id}`]: itemData });
+      pushAction({ type: "add", id, itemData });
+    } catch (err) {
+      console.error(err);
+      setStatus("error", "Couldn't save");
+    }
+  }
+
+  function startInlineAddBefore(catName, beforeId) {
+    finishAnyPendingInlineEntry();
+    if (collapsedCats.has(catName)) { collapsedCats.delete(catName); saveCollapsed(); }
+    pendingAddCat = catName;
+    pendingAddBeforeId = beforeId;
+    render();
+    const input = document.getElementById("inline-add-input");
+    if (input) { autoGrowInlineTextarea(input); input.focus(); }
+  }
+
   function getCurrentCategorySection() {
     const sections = [...document.querySelectorAll(".cat-section")];
     if (sections.length === 0) return null;
@@ -634,39 +751,11 @@
     return current;
   }
 
-  function finishPendingInlineAdd() {
-    if (!pendingAddCat) return;
-    const input = document.getElementById("inline-add-input");
-    const name = input ? input.value.trim() : "";
-    if (name) commitInlineAddValue(pendingAddCat, name);
-    pendingAddCat = null;
-  }
-
-  async function commitInlineAddValue(catName, name) {
-    const id = uid();
-    const itemsInCat = Object.values(currentItems).filter(i => i.cat === catName && !i.checked && !i.na);
-    const minOrder = itemsInCat.length ? Math.min(...itemsInCat.map(i => i.order ?? 0)) : 0;
-    const itemData = { cat: catName, name, assignee: "", checked: false, order: minOrder - 1 };
-    setStatus("syncing", "Saving…");
-    try {
-      await updateDoc(listRef, { [`items.${id}`]: itemData });
-      pushAction({ type: "add", id, itemData });
-    } catch (err) {
-      console.error(err);
-      setStatus("error", "Couldn't save");
-    }
-  }
-
   function startInlineAdd() {
-    finishAnyPendingInlineEntry();
     const section = getCurrentCategorySection();
     if (!section) { openAddModal(); return; }
     const catName = section.querySelector("[data-cat-toggle]").dataset.catToggle;
-    if (collapsedCats.has(catName)) { collapsedCats.delete(catName); saveCollapsed(); }
-    pendingAddCat = catName;
-    render();
-    const input = document.getElementById("inline-add-input");
-    if (input) { autoGrowInlineTextarea(input); input.focus(); }
+    startInlineAddBefore(catName, null);
   }
 
   // ---------- Inline edit (tap an item) vs. full modal (long-press) ----------
@@ -731,6 +820,63 @@
     setTimeout(() => { pullWrap.classList.remove("pull-snap"); pullIcon.classList.remove("reset"); }, 300);
   }
 
+  // ---------- Two-finger pull-apart to insert a new item between two rows ----------
+  // Place one finger on each of two adjacent rows and drag them apart --
+  // same gesture as the real Clear app -- to open a gap and start typing a
+  // new item right there.
+  const SPREAD_TRIGGER = 40;
+  const SPREAD_MAX = 90;
+  let spreadActive = false;
+  let spreadTouchIds = null;
+  let spreadRow2 = null; // the lower of the two rows being pulled apart
+  let spreadCatName = null;
+  let spreadBeforeId = null;
+  let spreadStartDist = 0;
+  let spreadGap = 0;
+  let spreadIndicatorEl = null;
+
+  function tryStartSpread(e) {
+    if (reorderActive || pendingAddCat !== null || pendingEditId !== null) return;
+    const [t1, t2] = [...e.touches];
+    const el1 = document.elementFromPoint(t1.clientX, t1.clientY)?.closest(".swipe-row");
+    const el2 = document.elementFromPoint(t2.clientX, t2.clientY)?.closest(".swipe-row");
+    if (!el1 || !el2 || el1 === el2) return;
+    const [upper, lower] = t1.clientY < t2.clientY ? [el1, el2] : [el2, el1];
+    if (upper.nextElementSibling !== lower) return; // must be immediately adjacent
+    const listEl = upper.parentElement;
+    const catToggle = listEl.closest(".cat-section")?.querySelector("[data-cat-toggle]");
+    if (!catToggle) return;
+    spreadActive = true;
+    spreadTouchIds = [t1.identifier, t2.identifier];
+    spreadRow2 = lower;
+    spreadCatName = catToggle.dataset.catToggle;
+    spreadBeforeId = lower.dataset.itemId;
+    spreadStartDist = Math.abs(t2.clientY - t1.clientY);
+    spreadGap = 0;
+    spreadIndicatorEl = document.createElement("div");
+    spreadIndicatorEl.className = "spread-indicator";
+    spreadIndicatorEl.innerHTML = '<span class="spread-plus"></span>';
+    listEl.insertBefore(spreadIndicatorEl, lower);
+    if (navigator.vibrate) navigator.vibrate(8);
+  }
+
+  function endSpread() {
+    if (!spreadActive) return;
+    const commit = spreadGap >= SPREAD_TRIGGER;
+    const catName = spreadCatName, beforeId = spreadBeforeId, row2 = spreadRow2;
+    row2.style.transition = "margin-top 0.2s ease";
+    row2.style.marginTop = "";
+    setTimeout(() => { row2.style.transition = ""; }, 250);
+    spreadIndicatorEl.remove();
+    spreadActive = false;
+    spreadTouchIds = null;
+    spreadRow2 = null;
+    spreadCatName = null;
+    spreadBeforeId = null;
+    spreadIndicatorEl = null;
+    if (commit) startInlineAddBefore(catName, beforeId);
+  }
+
   // Raw touch events, not pointer events: this is a touch-only gesture (a
   // mouse has nothing to overscroll), and calling preventDefault() on a
   // *pointermove* doesn't reliably stop Chrome/Safari's own native
@@ -739,6 +885,8 @@
   // preventDefault() on the underlying touchmove itself is what actually
   // keeps the gesture ours.
   document.addEventListener("touchstart", e => {
+    if (e.touches.length === 2) { tryStartSpread(e); return; }
+    if (e.touches.length !== 1) return;
     if (window.scrollY > 0 || e.target.closest(".swipe-row, .cat-header, button, input, select, textarea, a")) {
       pullTouchId = null;
       return;
@@ -750,6 +898,21 @@
   }, { passive: true });
 
   document.addEventListener("touchmove", e => {
+    if (spreadActive) {
+      e.preventDefault();
+      const t1 = [...e.touches].find(t => t.identifier === spreadTouchIds[0]);
+      const t2 = [...e.touches].find(t => t.identifier === spreadTouchIds[1]);
+      if (!t1 || !t2) return;
+      const dist = Math.abs(t2.clientY - t1.clientY);
+      spreadGap = Math.min(SPREAD_MAX, Math.max(0, dist - spreadStartDist));
+      spreadRow2.style.marginTop = spreadGap + "px";
+      const progress = Math.min(1, spreadGap / SPREAD_TRIGGER);
+      const plusEl = spreadIndicatorEl.querySelector(".spread-plus");
+      plusEl.style.opacity = progress;
+      plusEl.style.transform = `translateX(-50%) scale(${0.4 + progress * 0.6})`;
+      plusEl.classList.toggle("ready", spreadGap >= SPREAD_TRIGGER);
+      return;
+    }
     if (reorderActive) {
       e.preventDefault();
       const t = e.touches[0];
@@ -781,14 +944,35 @@
     resetPull();
     if (shouldAdd) startInlineAdd();
   }
-  document.addEventListener("touchend", endPull);
-  document.addEventListener("touchcancel", endPull);
+  // Reorder-drag's end is detected here rather than via the dragged row's
+  // own pointerup: setPointerCapture() on that row gets silently released
+  // the moment we move it elsewhere in the DOM (which the live-reflow
+  // dragging does continuously), so pointerup stops reaching it partway
+  // through any drag that actually crosses another row -- exactly the
+  // scenario that matters. Touchend/touchcancel at the document level don't
+  // have that problem.
+  document.addEventListener("touchend", e => {
+    if (reorderActive) { if (e.touches.length === 0) finishReorderDrag(); return; }
+    if (spreadActive) { if (e.touches.length < 2) endSpread(); return; }
+    endPull();
+  });
+  document.addEventListener("touchcancel", e => {
+    if (reorderActive) { finishReorderDrag(); return; }
+    if (spreadActive) { endSpread(); return; }
+    endPull();
+  });
 
   const fabAdd = document.getElementById("fab-add");
   let fabLongPressTimer = null;
   let fabLongPressFired = false;
   fabAdd.addEventListener("pointerdown", e => {
     if (e.button !== undefined && e.button !== 0) return;
+    // Without this, the button's own default "take focus on tap" behavior
+    // fires just after we call .focus() on the inline-add textarea it
+    // opens -- stealing focus back from it a moment later, which fires
+    // that textarea's blur handler and wipes the row before anything can
+    // be typed into it.
+    if (e.cancelable) e.preventDefault();
     fabLongPressFired = false;
     clearTimeout(fabLongPressTimer);
     fabLongPressTimer = setTimeout(() => {
@@ -947,7 +1131,6 @@
   let reorderRow = null;
   let reorderGhost = null;
   let reorderStartY = 0;
-  let reorderIndicatorEl = null;
   let reorderTargetCat = null;
   let reorderTargetBeforeId = null; // null = end of category
   let reorderOriginalCat = null;
@@ -985,13 +1168,41 @@
 
     swipeRowEl.classList.add("reorder-source-hidden");
 
-    reorderIndicatorEl = document.createElement("div");
-    reorderIndicatorEl.className = "drop-indicator";
-    const list = swipeRowEl.parentElement;
-    if (siblingRow) list.insertBefore(reorderIndicatorEl, siblingRow);
-    else list.appendChild(reorderIndicatorEl);
-
     if (navigator.vibrate) navigator.vibrate(8);
+  }
+
+  // FLIP (First-Last-Invert-Play): capture where every row in the affected
+  // list(s) currently sits, physically move the hidden placeholder row to
+  // its new spot (an instant, silent DOM change), then for every row whose
+  // position that shifted, jump it back to where it *was* with a transform
+  // and immediately transition that transform to zero. Without this, rows
+  // only visibly move once you release -- the DOM change happens live, but
+  // nothing shows it happening.
+  function flipMove(moveFn, affectedLists) {
+    const firstRects = new Map();
+    affectedLists.forEach(l => {
+      [...l.querySelectorAll(".swipe-row")].forEach(r => firstRects.set(r, r.getBoundingClientRect()));
+    });
+
+    moveFn();
+
+    affectedLists.forEach(l => {
+      [...l.querySelectorAll(".swipe-row")].forEach(r => {
+        if (r === reorderRow) return;
+        const first = firstRects.get(r);
+        if (!first) return; // a row that's newly part of this list -- nothing to invert from
+        const last = r.getBoundingClientRect();
+        const dy = first.top - last.top;
+        if (Math.abs(dy) < 0.5) return;
+        r.style.willChange = "transform";
+        r.style.transition = "none";
+        r.style.transform = `translateY(${dy}px)`;
+        r.getBoundingClientRect(); // force layout so the reverted transition below actually animates
+        r.style.transition = "transform 0.22s cubic-bezier(.2,.9,.3,1.1)";
+        r.style.transform = "";
+        setTimeout(() => { r.style.willChange = ""; r.style.transition = ""; }, 260);
+      });
+    });
   }
 
   function updateReorderDrag(clientY) {
@@ -1018,12 +1229,15 @@
     reorderTargetBeforeId = beforeEl ? beforeEl.dataset.itemId : null;
 
     const alreadyThere = beforeEl
-      ? beforeEl.previousElementSibling === reorderIndicatorEl
-      : list.lastElementChild === reorderIndicatorEl;
-    if (!alreadyThere) {
-      if (beforeEl) list.insertBefore(reorderIndicatorEl, beforeEl);
-      else list.appendChild(reorderIndicatorEl);
-    }
+      ? beforeEl.previousElementSibling === reorderRow
+      : list.lastElementChild === reorderRow;
+    if (alreadyThere) return;
+
+    const affectedLists = new Set([list, reorderRow.parentElement]);
+    flipMove(() => {
+      if (beforeEl) list.insertBefore(reorderRow, beforeEl);
+      else list.appendChild(reorderRow);
+    }, affectedLists);
   }
 
   async function finishReorderDrag() {
@@ -1034,12 +1248,10 @@
     const sameSpot = targetCat === reorderOriginalCat && beforeId === reorderOriginalNextId;
 
     reorderGhost.remove();
-    reorderIndicatorEl.remove();
     reorderActive = false;
     reorderId = null;
     reorderRow = null;
     reorderGhost = null;
-    reorderIndicatorEl = null;
 
     if (!sameSpot) {
       const item = currentItems[id];
@@ -1119,9 +1331,8 @@
       longPressTimer = setTimeout(() => {
         if (dragging !== null || avatarTapTarget) return; // already swiping/scrolling, or the avatar isn't draggable
         longPressFired = true;
-        if (rowFg.setPointerCapture) rowFg.setPointerCapture(pointerId);
         startReorderDrag(id, swipeRow, startY);
-      }, 500);
+      }, 650); // firmer/slower than a quick tap, so it doesn't trigger by accident
     });
 
     rowFg.addEventListener("pointermove", e => {
@@ -1223,6 +1434,7 @@
     const extraCats = Object.keys(byCat).filter(c => !CUSTOM_CATEGORIES.includes(c)).sort();
     const categoryOrder = [...CUSTOM_CATEGORIES, ...extraCats];
     renderCatOptions(categoryOrder);
+    renderCategoryJump(categoryOrder.filter(c => byCat[c] && byCat[c].length > 0));
 
     const allAssignees = getAllAssignees();
     renderAssigneeOptions(allAssignees);
@@ -1264,7 +1476,7 @@
       const openCount = visibleItems.filter(i => !i.checked && !i.na).length;
       let openIdx = 0;
 
-      if (pendingAddCat === catName) {
+      function appendInlineAddRow() {
         const inlineRow = document.createElement("div");
         inlineRow.className = "swipe-row";
         inlineRow.innerHTML = `
@@ -1281,14 +1493,19 @@
         inlineInput.addEventListener("blur", () => {
           const cancelled = inlineInput.dataset.cancelled === "1";
           const name = inlineInput.value.trim();
+          const beforeId = pendingAddBeforeId;
           pendingAddCat = null;
-          if (!cancelled && name) commitInlineAddValue(catName, name);
+          pendingAddBeforeId = null;
+          if (!cancelled && name) commitInlineAddValue(catName, name, beforeId);
           if (pendingRerenderNeeded) { pendingRerenderNeeded = false; }
           render();
         });
       }
 
+      if (pendingAddCat === catName && pendingAddBeforeId === null) appendInlineAddRow();
+
       visibleItems.forEach(item => {
+        if (pendingAddCat === catName && pendingAddBeforeId === item.id) appendInlineAddRow();
         const isDone = item.checked || item.na;
         const bg = isDone ? "var(--bg)" : gradientRowColor(openIdx++, openCount);
         const row = document.createElement("div");
@@ -1325,6 +1542,16 @@
           attachSwipe(row, item.id);
         }
       });
+
+      if (pendingAddCat === catName && pendingAddBeforeId === INSERT_AT_END) {
+        appendInlineAddRow();
+      } else {
+        const addRow = document.createElement("div");
+        addRow.className = "add-item-row";
+        addRow.dataset.addCat = catName;
+        addRow.textContent = "+ Add item";
+        list.appendChild(addRow);
+      }
 
       section.appendChild(list);
       root.appendChild(section);
