@@ -47,15 +47,19 @@ function formatDate(dateStr) {
   return dt.toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" });
 }
 
-// Snooze re-publishes via ntfy's plain query-string + text-body form (the
-// same shape as `curl -d message ntfy.sh/topic?delay=24h`) rather than a
-// JSON body -- that's the form every ntfy client version is guaranteed to
-// support for an http action button, where the fancier JSON-body form isn't
-// consistently honored.
+// ntfy's "http" action button (fire a custom request client-side on tap)
+// isn't reliably honored across ntfy client versions -- confirmed broken on
+// the device this was actually tested on, regardless of JSON-body vs plain
+// query-string form. "view" (just open a URL) is the one action type every
+// client supports, so snoozing instead opens a tiny page on this site
+// (docs/subscriptions/snooze.html) that does the actual delayed re-publish
+// itself when opened.
 function snoozeAction(title, message) {
-  const url = `https://ntfy.sh/${encodeURIComponent(ntfyTopic)}`
-    + `?delay=24h&title=${encodeURIComponent(title)}&priority=3&tags=bell`;
-  return { action: "http", label: "Snooze 1 day", url, method: "POST", body: message, clear: true };
+  const url = "https://leodhi.github.io/claude/docs/subscriptions/snooze.html"
+    + `?topic=${encodeURIComponent(ntfyTopic)}`
+    + `&title=${encodeURIComponent(title)}`
+    + `&message=${encodeURIComponent(message)}`;
+  return { action: "view", label: "Snooze 1 day", url, clear: true };
 }
 
 async function sendNtfy(title, message) {
