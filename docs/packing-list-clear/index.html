@@ -145,6 +145,22 @@
 
   .empty-state { color: var(--ink-faint); font-size: 14px; text-align: center; padding: 40px 20px; }
 
+  .scroll-container { position: relative; }
+  .wrap.pull-snap { transition: transform 0.3s cubic-bezier(.2,.9,.3,1.2); }
+  .pull-indicator {
+    position: absolute; top: 0; left: 0; right: 0; height: 0; overflow: visible;
+    display: flex; justify-content: center; pointer-events: none; z-index: 5;
+  }
+  #pull-icon {
+    margin-top: calc(14px + env(safe-area-inset-top));
+    width: 38px; height: 38px; border-radius: 50%; background: #2c2c2e; border: 1px solid #3a3a3c;
+    color: var(--ink-muted); display: flex; align-items: center; justify-content: center;
+    font-size: 19px; font-weight: 700; opacity: 0; transform: scale(0.4);
+    transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+  }
+  #pull-icon.ready { background: var(--accent); border-color: var(--accent); color: #fff; }
+  #pull-icon.reset { transition: opacity 0.2s ease, transform 0.2s ease, background 0.15s ease, border-color 0.15s ease, color 0.15s ease; }
+
   .fab {
     position: fixed; bottom: calc(64px + env(safe-area-inset-bottom) + var(--vv-bottom-offset, 0px)); right: 20px; width: 56px; height: 56px; border-radius: 50%;
     background: var(--accent); color: #fff; border: none; font-size: 28px; line-height: 1;
@@ -203,6 +219,7 @@
 <body>
 
 <div class="scroll-container">
+<div class="pull-indicator"><span id="pull-icon">+</span></div>
 <div class="wrap">
   <header>
     <a class="back-link" href="../packing-list/">&larr; Regular view</a>
@@ -665,6 +682,81 @@
     const input = document.getElementById("inline-edit-input");
     if (input) { autoGrowInlineTextarea(input); input.focus(); input.setSelectionRange(input.value.length, input.value.length); }
   }
+
+  // ---------- Pull down at top to add (Clear-app style) ----------
+  // Native pull-to-refresh doesn't apply here: overscroll-behavior-y: contain
+  // (set on html/body above) already kills the browser's rubber-band bounce,
+  // and as a home-screen app there's no browser chrome to refresh anyway. So
+  // a manual pull gesture is free to drive the same inline-add flow as
+  // tapping "+" -- into whichever category is scrolled to the top -- exactly
+  // like the real Clear app.
+  const pullWrap = document.querySelector(".wrap");
+  const pullIcon = document.getElementById("pull-icon");
+  const PULL_TRIGGER = 56;
+  const PULL_MAX = 96;
+  let pullTouchId = null;
+  let pullStartY = 0;
+  let pullActive = false;
+  let pullDist = 0;
+
+  function resetPull() {
+    pullWrap.classList.add("pull-snap");
+    pullWrap.style.transform = "";
+    pullIcon.classList.add("reset");
+    pullIcon.classList.remove("ready");
+    pullIcon.style.opacity = 0;
+    pullIcon.style.transform = "scale(0.4)";
+    pullActive = false;
+    pullDist = 0;
+    setTimeout(() => { pullWrap.classList.remove("pull-snap"); pullIcon.classList.remove("reset"); }, 300);
+  }
+
+  // Raw touch events, not pointer events: this is a touch-only gesture (a
+  // mouse has nothing to overscroll), and calling preventDefault() on a
+  // *pointermove* doesn't reliably stop Chrome/Safari's own native
+  // overscroll/pull-to-refresh handling from grabbing the touch out from
+  // under us -- it still cancels our sequence a few pixels in. Doing the
+  // preventDefault() on the underlying touchmove itself is what actually
+  // keeps the gesture ours.
+  document.addEventListener("touchstart", e => {
+    if (window.scrollY > 0 || e.target.closest(".swipe-row, .cat-header, button, input, select, textarea, a")) {
+      pullTouchId = null;
+      return;
+    }
+    const t = e.touches[0];
+    if (!t) return;
+    pullTouchId = t.identifier;
+    pullStartY = t.clientY;
+  }, { passive: true });
+
+  document.addEventListener("touchmove", e => {
+    if (pullTouchId === null) return;
+    const t = [...e.touches].find(x => x.identifier === pullTouchId);
+    if (!t) return;
+    if (window.scrollY > 0) { pullTouchId = null; if (pullActive) resetPull(); return; }
+    const dy = t.clientY - pullStartY;
+    if (dy <= 0) { if (pullActive) resetPull(); return; }
+    e.preventDefault();
+    pullActive = true;
+    pullWrap.classList.remove("pull-snap");
+    pullIcon.classList.remove("reset");
+    pullDist = Math.min(PULL_MAX, dy * 0.5);
+    pullWrap.style.transform = `translateY(${pullDist}px)`;
+    const progress = Math.min(1, pullDist / PULL_TRIGGER);
+    pullIcon.style.opacity = progress;
+    pullIcon.style.transform = `scale(${0.4 + progress * 0.6})`;
+    pullIcon.classList.toggle("ready", pullDist >= PULL_TRIGGER);
+  }, { passive: false });
+
+  function endPull() {
+    if (pullTouchId === null) return;
+    pullTouchId = null;
+    const shouldAdd = pullActive && pullDist >= PULL_TRIGGER;
+    resetPull();
+    if (shouldAdd) startInlineAdd();
+  }
+  document.addEventListener("touchend", endPull);
+  document.addEventListener("touchcancel", endPull);
 
   const fabAdd = document.getElementById("fab-add");
   let fabLongPressTimer = null;
