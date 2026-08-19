@@ -82,12 +82,15 @@
     padding: 12px 12px 12px 14px; margin-bottom: 8px;
   }
   .trash-name { font-size: 15px; color: var(--ink-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .trash-restore {
-    font: inherit; font-size: 13px; font-weight: 700; color: var(--accent);
-    background: none; border: none; cursor: pointer; padding: 4px 6px; flex: none;
+  .trash-actions { display: flex; align-items: center; gap: 2px; flex: none; }
+  .trash-restore, .trash-purge {
+    font: inherit; font-size: 13px; font-weight: 700;
+    background: none; border: none; cursor: pointer; padding: 6px 8px; flex: none;
     touch-action: manipulation; transition: transform 0.1s ease;
   }
-  .trash-restore:active { transform: scale(0.94); }
+  .trash-restore { color: var(--accent); }
+  .trash-purge { color: #ff453a; }
+  .trash-restore:active, .trash-purge:active { transform: scale(0.94); }
 
   .undo-toast {
     position: fixed; left: 14px; right: 14px; bottom: calc(20px + env(safe-area-inset-bottom) + var(--vv-bottom-offset, 0px));
@@ -144,7 +147,7 @@
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
   import {
-    getFirestore, doc, setDoc, updateDoc, deleteField, onSnapshot, collection, getDocs
+    getFirestore, doc, setDoc, updateDoc, deleteDoc, deleteField, onSnapshot, collection, getDocs
   } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
 
   // Same Firebase project as docs/packing-list/index.html and this folder's
@@ -211,7 +214,10 @@
   // durable backstop for that. The list's items were always left intact in
   // packingLists/{id}; this just remembers its name so it can be put back.
   let deletedLists = {};
-  let trashOpen = false;
+  // null = never toggled by hand, so it opens itself whenever there's
+  // something in it. Collapsed-by-default made it easy to miss entirely
+  // right when you'd be looking for it. Once toggled, the choice sticks.
+  let trashOpen = null;
 
   // Item counts come from each list's own document, not the index (which
   // only has name/order), so a small listener per list keeps them live.
@@ -249,16 +255,20 @@
   function renderTrashHtml() {
     const deleted = Object.entries(deletedLists).sort((a, b) => (b[1].deletedAt ?? 0) - (a[1].deletedAt ?? 0));
     if (deleted.length === 0) return "";
+    const open = trashOpen === null ? true : trashOpen;
     return `
-      <div class="trash-block${trashOpen ? " open" : ""}">
+      <div class="trash-block${open ? " open" : ""}">
         <button type="button" class="trash-toggle" id="trash-toggle">
-          <span>Recently deleted (${deleted.length})</span><span class="trash-chev">›</span>
+          <span>🗑 Recently deleted (${deleted.length})</span><span class="trash-chev">›</span>
         </button>
         <div class="trash-items"><div class="trash-items-inner">
           ${deleted.map(([id, e]) => `
             <div class="trash-row">
               <span class="trash-name">${escapeHtml(e.name || "Untitled list")}</span>
-              <button type="button" class="trash-restore" data-restore-id="${escapeAttr(id)}">Restore</button>
+              <span class="trash-actions">
+                <button type="button" class="trash-restore" data-restore-id="${escapeAttr(id)}">Restore</button>
+                <button type="button" class="trash-purge" data-purge-id="${escapeAttr(id)}">Delete forever</button>
+              </span>
             </div>`).join("")}
         </div></div>
       </div>`;
@@ -320,13 +330,14 @@
     render();
   }
 
-  // Discards whatever's typed instead of committing it -- reuses the exact
-  // mechanism the field's own Escape handler uses (mark cancelled, then
-  // blur), so the blur handler above is the single place that decides
-  // commit vs. discard.
-  function cancelPendingInlineAdd() {
+  // Just blurs, WITHOUT marking cancelled, so the field's own blur handler
+  // does what it does for any other blur: keep what was typed, or quietly
+  // close if it's empty. Tapping away from a half-typed name should finish
+  // it, exactly like pressing Enter -- throwing the text away was the
+  // surprising part. Escape is still the way to abandon one.
+  function dismissPendingInlineAdd() {
     const input = document.getElementById("inline-add-input");
-    if (input) { input.dataset.cancelled = "1"; input.blur(); }
+    if (input) input.blur();
   }
 
   async function commitNewList(name) {
@@ -376,13 +387,19 @@
     if (e.target.closest("#inline-add-input")) return;
     suppressNextClick = true;
     setTimeout(() => { suppressNextClick = false; }, 0);
-    cancelPendingInlineAdd();
+    dismissPendingInlineAdd();
   }, { capture: true });
 
   root.addEventListener("click", e => {
     const restoreBtn = e.target.closest("[data-restore-id]");
     if (restoreBtn) { restoreList(restoreBtn.dataset.restoreId); return; }
-    if (e.target.closest("#trash-toggle")) { trashOpen = !trashOpen; render(); return; }
+    const purgeBtn = e.target.closest("[data-purge-id]");
+    if (purgeBtn) { purgeList(purgeBtn.dataset.purgeId); return; }
+    if (e.target.closest("#trash-toggle")) {
+      trashOpen = !(trashOpen === null ? true : trashOpen);
+      render();
+      return;
+    }
     if (suppressNextRowClick) { suppressNextRowClick = false; return; }
     const row = e.target.closest("[data-list-id]");
     if (!row) return;
@@ -561,6 +578,15 @@
     const entry = deletedLists[id];
     if (!entry) return;
     try {
+      // Make sure the list's own document exists before pointing at it
+      // again -- list.html adds items with updateDoc(), which fails on a
+      // missing document. Deliberately writes ONLY the name: merging an
+      // empty `items: {}` would depend on whether an empty map counts as
+      // "leave what's there alone" or "replace it", and being wrong about
+      // that would erase every item in the list being restored. A scalar
+      // field can't do that. The items map doesn't need pre-creating --
+      // updateDoc's dotted paths build it on first use.
+      await setDoc(doc(db, "packingLists", id), { name: entry.name || "" }, { merge: true });
       await updateDoc(indexRef, {
         [`lists.${id}`]: { name: entry.name || "", order: entry.order ?? 0 },
         [`deletedLists.${id}`]: deleteField()
@@ -568,6 +594,28 @@
     } catch (err) {
       console.error(err);
       alert("Couldn't restore the list — try again.");
+    }
+  }
+
+  // Throw a deleted list away for good, items and all. This has to remove
+  // the list's own document too, not just the trash entry: the document is
+  // what reconcileLists() rebuilds from, so clearing only the entry would
+  // have the list rise from the dead on the next load.
+  async function purgeList(id) {
+    const entry = deletedLists[id];
+    if (!entry) return;
+    const name = entry.name || "this list";
+    if (!confirm(`Permanently delete "${name}" and everything in it? This can't be undone.`)) return;
+    try {
+      // Document first. If this fails, the entry stays in the trash and
+      // nothing has visibly changed, so it can just be retried. Doing it
+      // the other way round risks a document with no trash entry, which
+      // reconcileLists() would restore as a list you meant to be rid of.
+      await deleteDoc(doc(db, "packingLists", id));
+      await updateDoc(indexRef, { [`deletedLists.${id}`]: deleteField() });
+    } catch (err) {
+      console.error(err);
+      alert("Couldn't delete the list — try again.");
     }
   }
 
