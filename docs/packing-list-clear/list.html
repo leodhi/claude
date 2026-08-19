@@ -550,6 +550,15 @@
     });
   }
 
+  // Confirms before actually undoing -- a shake can happen by accident
+  // (dropped phone, bumped in a bag), so this asks first, same as the
+  // real Clear app's own shake-to-undo. Nothing to undo means nothing to
+  // ask about, so a stray shake with an empty stack stays silent.
+  function onShakeUndo() {
+    if (!undoStack.length) return;
+    if (confirm("Undo your last change?")) performUndo();
+  }
+
   function closeShakeModal() { shakeModal.classList.remove("show"); }
 
   document.getElementById("shake-skip").addEventListener("click", () => {
@@ -566,7 +575,7 @@
         if (result !== "granted") { localStorage.setItem(SHAKE_PREF_KEY, "declined"); return; }
       }
       localStorage.setItem(SHAKE_PREF_KEY, "granted");
-      startShakeDetection(performUndo);
+      startShakeDetection(onShakeUndo);
     } catch (err) {
       console.error(err);
       localStorage.setItem(SHAKE_PREF_KEY, "declined");
@@ -583,7 +592,7 @@
 
   const shakePref = localStorage.getItem(SHAKE_PREF_KEY);
   if (shakePref === "granted") {
-    startShakeDetection(performUndo);
+    startShakeDetection(onShakeUndo);
   } else if (!shakePref) {
     setTimeout(maybeShowShakePrompt, 900);
   }

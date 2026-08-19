@@ -428,6 +428,16 @@
     });
   }
 
+  // Confirms before actually undoing -- a shake can happen by accident
+  // (dropped phone, bumped in a bag), so this asks first, same as the
+  // real Clear app's own shake-to-undo. Nothing pending means nothing to
+  // ask about, so a stray shake with no deletion pending stays silent.
+  function onShakeUndo() {
+    if (!pendingUndo) return;
+    const name = pendingUndo.entry ? pendingUndo.entry.name : "this list";
+    if (confirm(`Undo deleting "${name}"?`)) performUndo();
+  }
+
   function closeShakeModal() { shakeModal.classList.remove("show"); }
 
   document.getElementById("shake-skip").addEventListener("click", e => {
@@ -451,7 +461,7 @@
         if (result !== "granted") { localStorage.setItem(SHAKE_PREF_KEY, "declined"); return; }
       }
       localStorage.setItem(SHAKE_PREF_KEY, "granted");
-      startShakeDetection(performUndo);
+      startShakeDetection(onShakeUndo);
     } catch (err) {
       console.error(err);
       localStorage.setItem(SHAKE_PREF_KEY, "declined");
@@ -471,7 +481,7 @@
 
   const shakePref = localStorage.getItem(SHAKE_PREF_KEY);
   if (shakePref === "granted") {
-    startShakeDetection(performUndo);
+    startShakeDetection(onShakeUndo);
   } else if (!shakePref) {
     setTimeout(maybeShowShakePrompt, 900);
   }
