@@ -48,7 +48,7 @@
   .icon-btn:hover { border-color: var(--accent); }
   .icon-btn:active { transform: scale(0.92); }
 
-  .header-actions { display: flex; align-items: center; gap: 6px; flex: none; }
+  .header-actions { display: flex; align-items: center; gap: 6px; flex: none; flex-wrap: wrap; justify-content: flex-end; }
   .pill-btn {
     font: inherit; cursor: pointer; border-radius: 999px; border: 1px solid #3a3a3c;
     background: #2c2c2e; color: var(--ink); padding: 6px 13px; font-size: 12.5px; font-weight: 600;
@@ -124,6 +124,11 @@
   .row-fg.revealed { transition: transform 0.2s cubic-bezier(.2,.9,.3,1.1); }
 
   .swipe-row.reorder-source-hidden { opacity: 0; pointer-events: none; }
+  .cat-section.cat-drag-source-hidden { opacity: 0; pointer-events: none; }
+  .cat-drag-ghost {
+    pointer-events: none; z-index: 60; border-radius: 16px; overflow: hidden;
+    box-shadow: 0 14px 34px rgba(0,0,0,0.6);
+  }
   .reorder-ghost {
     pointer-events: none; z-index: 60; border-radius: 14px; overflow: hidden; border-top: none;
     box-shadow: 0 10px 26px rgba(0,0,0,0.55);
@@ -270,7 +275,7 @@
     <div class="status-row">
       <span class="status" id="status"><span class="dot"></span><span id="status-text">Connecting…</span></span>
       <div class="header-actions">
-        <button type="button" id="add-category-btn" class="icon-btn" aria-label="Add new category">🗂️</button>
+        <button type="button" id="add-category-btn" class="pill-btn" aria-label="Add a category">+ Category</button>
         <button type="button" id="undo-btn" class="pill-btn" disabled>Undo</button>
         <button type="button" id="redo-btn" class="pill-btn" disabled>Redo</button>
         <button type="button" id="search-toggle" class="icon-btn" aria-label="Search items">🔍</button>
@@ -444,6 +449,11 @@
   }
 
   let currentItems = {};
+  // Category display order, set by long-press-dragging a category heading.
+  // Stored on the list document so it's shared like everything else.
+  // Categories missing from it (newly created, or never dragged) keep their
+  // default position after the ones that are in it.
+  let savedCatOrder = [];
   let searchQuery = "";
   let assigneeFilters = new Set();
   const COLLAPSED_STORAGE_KEY = "packing-clear-collapsed-cats-" + listId;
@@ -505,6 +515,8 @@
       await updateDoc(listRef, { [`items.${action.id}.name`]: action.from.name, [`items.${action.id}.cat`]: action.from.cat, [`items.${action.id}.assignee`]: action.from.assignee });
     } else if (action.type === "reorder") {
       await updateDoc(listRef, { [`items.${action.id}.cat`]: action.from.cat, [`items.${action.id}.order`]: action.from.order });
+    } else if (action.type === "catOrder") {
+      await updateDoc(listRef, { catOrder: action.from });
     }
   }
   async function applyForward(action) {
@@ -518,6 +530,8 @@
       await updateDoc(listRef, { [`items.${action.id}.name`]: action.to.name, [`items.${action.id}.cat`]: action.to.cat, [`items.${action.id}.assignee`]: action.to.assignee });
     } else if (action.type === "reorder") {
       await updateDoc(listRef, { [`items.${action.id}.cat`]: action.to.cat, [`items.${action.id}.order`]: action.to.order });
+    } else if (action.type === "catOrder") {
+      await updateDoc(listRef, { catOrder: action.to });
     }
   }
   async function performUndo() {
@@ -553,6 +567,8 @@
   document.getElementById("list-root").addEventListener("click", e => {
     const catHeader = e.target.closest("[data-cat-toggle]");
     if (catHeader) {
+      // The tap that ended a category drag isn't also a collapse tap.
+      if (catDragSuppressClick) { catDragSuppressClick = false; return; }
       const catName = catHeader.dataset.catToggle;
       if (collapsedCats.has(catName)) collapsedCats.delete(catName); else collapsedCats.add(catName);
       saveCollapsed();
@@ -1008,6 +1024,12 @@
       spreadRow2.style.marginTop = spreadGap + "px";
       return;
     }
+    if (catDragActive) {
+      e.preventDefault();
+      const t = e.touches[0];
+      if (t) updateCatDrag(t.clientY);
+      return;
+    }
     if (reorderActive) {
       e.preventDefault();
       const t = e.touches[0];
@@ -1047,14 +1069,27 @@
   // scenario that matters. Touchend/touchcancel at the document level don't
   // have that problem.
   document.addEventListener("touchend", e => {
+    if (catDragActive) { if (e.touches.length === 0) finishCatDrag(); return; }
     if (reorderActive) { if (e.touches.length === 0) finishReorderDrag(); return; }
     if (spreadActive) { if (e.touches.length < 2) endSpread(); return; }
     endPull();
   });
   document.addEventListener("touchcancel", e => {
+    if (catDragActive) { finishCatDrag(); return; }
     if (reorderActive) { finishReorderDrag(); return; }
     if (spreadActive) { endSpread(); return; }
     endPull();
+  });
+
+  // Mouse/trackpad equivalent of the touch tracking above, so a category
+  // can be dragged on a desktop browser too.
+  document.addEventListener("pointermove", e => {
+    if (!catDragActive || e.pointerType === "touch") return;
+    updateCatDrag(e.clientY);
+  });
+  document.addEventListener("pointerup", e => {
+    if (!catDragActive || e.pointerType === "touch") return;
+    finishCatDrag();
   });
 
   // Tapping the empty background (not any row, button, or other control)
@@ -1104,7 +1139,7 @@
   document.addEventListener("pointerdown", e => {
     if (e.pointerType === "mouse" && e.button !== 0) return;
     if (e.clientX > EDGE_ZONE) return;
-    if (reorderActive || spreadActive || pendingAddCat !== null || pendingEditId !== null) return;
+    if (catDragActive || reorderActive || spreadActive || pendingAddCat !== null || pendingEditId !== null) return;
     edgeBackPointerId = e.pointerId;
     edgeBackStartX = e.clientX;
     edgeBackStartY = e.clientY;
@@ -1318,7 +1353,7 @@
   let reorderOriginalNextId = null;
 
   function visibleCatSections() {
-    return [...document.querySelectorAll(".cat-section")].filter(s => !s.classList.contains("collapsed"));
+    return liveSections().filter(s => !s.classList.contains("collapsed"));
   }
 
   function startReorderDrag(id, swipeRowEl, startClientY) {
@@ -1479,6 +1514,167 @@
       pendingRerenderNeeded = false;
       render();
     }
+  }
+
+  // ---------- Long-press a category heading to drag the whole category ----------
+  // Same feel as long-press-dragging a single item, one level up: the
+  // entire section (heading plus every item in it) lifts and moves as a
+  // unit, and the order is saved for everyone.
+  let catDragActive = false;
+  let catDragName = null;
+  let catDragSection = null;
+  let catDragGhost = null;
+  let catDragStartY = 0;
+  let catDragOriginalOrder = null;
+  // A long-press that turns into a drag must not also fire the heading's
+  // normal collapse-on-tap when the finger comes up.
+  let catDragSuppressClick = false;
+
+  // Scoped to the list itself, and skipping the floating drag ghost: the
+  // ghost is a clone of a real section (same .cat-section class) parented
+  // to <body>, so a document-wide query would count its category twice.
+  function liveSections() {
+    const root = document.getElementById("list-root");
+    if (!root) return [];
+    return [...root.querySelectorAll(".cat-section")].filter(s => !s.classList.contains("cat-drag-ghost"));
+  }
+
+  function currentSectionOrder() {
+    return liveSections()
+      .map(s => s.querySelector("[data-cat-toggle]"))
+      .filter(Boolean)
+      .map(h => h.dataset.catToggle)
+      .filter(c => c !== "");
+  }
+
+  function startCatDrag(catName, sectionEl, startClientY) {
+    catDragActive = true;
+    catDragName = catName;
+    catDragSection = sectionEl;
+    catDragStartY = startClientY;
+    catDragOriginalOrder = currentSectionOrder();
+
+    const rect = sectionEl.getBoundingClientRect();
+    const ghost = sectionEl.cloneNode(true);
+    ghost.classList.add("cat-drag-ghost");
+    ghost.style.position = "fixed";
+    ghost.style.left = rect.left + "px";
+    ghost.style.top = rect.top + "px";
+    ghost.style.width = rect.width + "px";
+    ghost.style.margin = "0";
+    ghost.style.transform = "scale(1.02)";
+    document.body.appendChild(ghost);
+    catDragGhost = ghost;
+
+    sectionEl.classList.add("cat-drag-source-hidden");
+    if (navigator.vibrate) navigator.vibrate(8);
+  }
+
+  // Same FLIP idea as the item drag: move the section in the DOM, then
+  // animate every other section from where it used to be, so the reflow is
+  // visible rather than only appearing on release.
+  function flipSections(moveFn) {
+    const sections = liveSections();
+    const firstTops = new Map();
+    sections.forEach(s => firstTops.set(s, s.getBoundingClientRect().top));
+
+    moveFn();
+
+    sections.forEach(s => {
+      if (s === catDragSection) return;
+      const before = firstTops.get(s);
+      if (before == null) return;
+      const dy = before - s.getBoundingClientRect().top;
+      if (Math.abs(dy) < 0.5) return;
+      s.style.willChange = "transform";
+      s.style.transition = "none";
+      s.style.transform = `translateY(${dy}px)`;
+      s.getBoundingClientRect(); // force layout so the revert below animates
+      s.style.transition = "transform 0.22s cubic-bezier(.2,.9,.3,1.1)";
+      s.style.transform = "";
+      setTimeout(() => { s.style.willChange = ""; s.style.transition = ""; }, 260);
+    });
+  }
+
+  function updateCatDrag(clientY) {
+    if (!catDragActive) return;
+    catDragGhost.style.transform = `translateY(${clientY - catDragStartY}px) scale(1.02)`;
+
+    const root = document.getElementById("list-root");
+    // The uncategorized section is never a drop target -- excluding it here
+    // is what keeps a dragged category from landing above it.
+    const others = liveSections().filter(s => {
+      if (s === catDragSection) return false;
+      const h = s.querySelector("[data-cat-toggle]");
+      return h && h.dataset.catToggle !== "";
+    });
+
+    let beforeEl = null;
+    for (const s of others) {
+      const r = s.getBoundingClientRect();
+      if (clientY < r.top + r.height / 2) { beforeEl = s; break; }
+    }
+
+    const alreadyThere = beforeEl
+      ? beforeEl.previousElementSibling === catDragSection
+      : root.lastElementChild === catDragSection;
+    if (alreadyThere) return;
+
+    flipSections(() => {
+      if (beforeEl) root.insertBefore(catDragSection, beforeEl);
+      else root.appendChild(catDragSection);
+    });
+  }
+
+  async function finishCatDrag() {
+    if (!catDragActive) return;
+    const newOrder = currentSectionOrder();
+    const oldOrder = catDragOriginalOrder;
+
+    if (catDragGhost) catDragGhost.remove();
+    if (catDragSection) catDragSection.classList.remove("cat-drag-source-hidden");
+    catDragActive = false;
+    catDragName = null;
+    catDragSection = null;
+    catDragGhost = null;
+    catDragOriginalOrder = null;
+
+    const changed = JSON.stringify(newOrder) !== JSON.stringify(oldOrder);
+    if (!changed) { render(); return; }
+
+    setStatus("syncing", "Saving…");
+    try {
+      await updateDoc(listRef, { catOrder: newOrder });
+      pushAction({ type: "catOrder", from: oldOrder, to: newOrder });
+    } catch (err) {
+      console.error(err);
+      setStatus("error", "Couldn't save");
+      render();
+    }
+  }
+
+  function attachCatDrag(header, catName, section) {
+    let timer = null, startX = 0, startY = 0, pid = null, moved = false;
+    header.addEventListener("pointerdown", e => {
+      if (e.button !== undefined && e.button !== 0) return;
+      pid = e.pointerId; startX = e.clientX; startY = e.clientY; moved = false;
+      clearTimeout(timer);
+      timer = setTimeout(() => {
+        if (moved) return;
+        catDragSuppressClick = true;
+        startCatDrag(catName, section, startY);
+      }, 400);
+    });
+    header.addEventListener("pointermove", e => {
+      if (pid === null || e.pointerId !== pid || catDragActive) return;
+      if (Math.abs(e.clientY - startY) > 8 || Math.abs(e.clientX - startX) > 8) {
+        moved = true;
+        clearTimeout(timer);
+      }
+    });
+    const stop = () => { clearTimeout(timer); pid = null; };
+    header.addEventListener("pointerup", stop);
+    header.addEventListener("pointercancel", stop);
   }
 
   // Which row (if any) is currently swiped open showing its delete
@@ -1699,6 +1895,20 @@
     // fallback) needs a section to render into even though there's nothing
     // in byCat for it yet.
     if (pendingAddCat !== null && !categoryOrder.includes(pendingAddCat)) categoryOrder = [...categoryOrder, pendingAddCat];
+    // A hand-dragged order wins over the default one. Uncategorized items
+    // always stay pinned at the top -- they have no heading to grab, so
+    // they can't be dragged, and letting a dragged category land above
+    // them would strand them somewhere unreachable. Array.sort is stable,
+    // so categories with no saved position keep their default order.
+    if (savedCatOrder.length) {
+      const rank = new Map(savedCatOrder.map((c, i) => [c, i]));
+      categoryOrder = [...categoryOrder].sort((a, b) => {
+        if ((a === "") !== (b === "")) return a === "" ? -1 : 1;
+        const ra = rank.has(a) ? rank.get(a) : Infinity;
+        const rb = rank.has(b) ? rank.get(b) : Infinity;
+        return ra === rb ? 0 : ra - rb;
+      });
+    }
     renderCatOptions(categoryOrder);
     const nonEmptyCats = categoryOrder.filter(c => byCat[c] && byCat[c].length > 0);
     // Category chrome (headers, jump chips) only appears once a list
@@ -1756,6 +1966,7 @@
         header.style.background = headerColorForCat();
         const doneCount = items.filter(i => i.checked).length;
         header.innerHTML = `<span class="cat-title-text"><span class="cat-chevron">▾</span>${escapeHtml(catName || "No category")}</span><span class="cat-count">${doneCount} / ${items.length}</span>`;
+        attachCatDrag(header, catName, section);
       }
       section.appendChild(header);
 
@@ -1860,8 +2071,9 @@
   onSnapshot(listRef, snap => {
     if (!snap.exists()) return;
     currentItems = snap.data().items || {};
+    savedCatOrder = Array.isArray(snap.data().catOrder) ? snap.data().catOrder : [];
     setStatus("synced", "Synced");
-    if (pendingAddCat || pendingEditId || reorderActive) { pendingRerenderNeeded = true; } else { render(); }
+    if (pendingAddCat || pendingEditId || reorderActive || catDragActive) { pendingRerenderNeeded = true; } else { render(); }
   }, err => {
     console.error(err);
     setStatus("error", "Connection error");
