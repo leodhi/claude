@@ -447,6 +447,13 @@
       if (revealedListId !== id) return;
       e.stopPropagation(); // don't let this bubble to the row's navigate-on-click
       const entry = lists[id];
+      const name = entry ? (entry.name || "this list") : "this list";
+      // A whole list is a big thing to lose, so the Delete tap asks once
+      // before doing it. Just the one prompt -- the swipe already made this
+      // deliberate, and two stacked prompts only teach you to tap through
+      // them. Declining leaves the row parked open, so it's obvious nothing
+      // happened and Delete is still right there.
+      if (!confirm(`Delete "${name}"? You can restore it afterwards from Recently deleted.`)) return;
       revealedListId = null;
       closeRevealedList = null;
       rowFg.classList.remove("revealed");
