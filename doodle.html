@@ -3825,9 +3825,16 @@ $("local-btn-back-home").addEventListener("click", function () { showScreen("scr
     if (localState.revealMinWaitKey !== revealKey) {
       localState.revealMinWaitKey = revealKey;
       var nextBtn = $("local-btn-next-round");
-      nextBtn.disabled = true;
       clearTimeout(localState.revealMinWaitHandle);
-      localState.revealMinWaitHandle = setTimeout(function () { nextBtn.disabled = false; }, 3000);
+      // Skip the forced read-the-reveal pause when the only other
+      // "players" are AI — nobody else needs the time to catch up.
+      var humanCount = localState.players.length - localState.bots.filter(Boolean).length;
+      if (humanCount <= 1) {
+        nextBtn.disabled = false;
+      } else {
+        nextBtn.disabled = true;
+        localState.revealMinWaitHandle = setTimeout(function () { nextBtn.disabled = false; }, 3000);
+      }
     }
 
     showScreen("local-screen-reveal-guesses");

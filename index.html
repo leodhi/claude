@@ -1938,9 +1938,17 @@ function showLocalResults() {
     var waitKey = round.startedAt;
     if (localState.revealMinWaitKey === waitKey) return;
     localState.revealMinWaitKey = waitKey;
-    nextBtn.disabled = true;
     clearTimeout(localState.revealMinWaitHandle);
-    localState.revealMinWaitHandle = setTimeout(function () { nextBtn.disabled = false; }, 3000);
+    // The forced pause is so other people around the device have time to
+    // read the reveal before it's rushed past — skip it when the only
+    // other "players" are AI and there's nobody else who needs the time.
+    var humanCount = localState.players.length - localState.bots.filter(Boolean).length;
+    if (humanCount <= 1) {
+      nextBtn.disabled = false;
+    } else {
+      nextBtn.disabled = true;
+      localState.revealMinWaitHandle = setTimeout(function () { nextBtn.disabled = false; }, 3000);
+    }
   }
 
   function localResolveGuess(correct) {
