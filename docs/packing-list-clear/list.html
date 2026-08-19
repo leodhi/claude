@@ -190,16 +190,6 @@
   }
   .fab:active { transform: scale(0.94); }
 
-  .spread-indicator { height: 0; overflow: visible; position: relative; z-index: 6; pointer-events: none; }
-  .spread-plus {
-    position: absolute; left: 50%; top: -19px; transform: translateX(-50%) scale(0.4);
-    width: 38px; height: 38px; border-radius: 50%; background: #2c2c2e; border: 1px solid #3a3a3c;
-    color: var(--ink-muted); display: flex; align-items: center; justify-content: center;
-    font-size: 19px; font-weight: 700; opacity: 0;
-    transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
-  }
-  .spread-plus.ready { background: var(--accent); border-color: var(--accent); color: #fff; }
-
   .add-item-row {
     padding: 14px 16px; text-align: center; font-size: 14px; font-weight: 600;
     color: rgba(255,255,255,0.55); cursor: pointer; touch-action: manipulation;
@@ -881,7 +871,6 @@
   let spreadBeforeId = null;
   let spreadStartDist = 0;
   let spreadGap = 0;
-  let spreadIndicatorEl = null;
 
   function tryStartSpread(e) {
     if (reorderActive || pendingAddCat !== null || pendingEditId !== null) return;
@@ -901,10 +890,6 @@
     spreadBeforeId = lower.dataset.itemId;
     spreadStartDist = Math.abs(t2.clientY - t1.clientY);
     spreadGap = 0;
-    spreadIndicatorEl = document.createElement("div");
-    spreadIndicatorEl.className = "spread-indicator";
-    spreadIndicatorEl.innerHTML = '<span class="spread-plus"></span>';
-    listEl.insertBefore(spreadIndicatorEl, lower);
     if (navigator.vibrate) navigator.vibrate(8);
   }
 
@@ -915,13 +900,11 @@
     row2.style.transition = "margin-top 0.2s ease";
     row2.style.marginTop = "";
     setTimeout(() => { row2.style.transition = ""; }, 250);
-    spreadIndicatorEl.remove();
     spreadActive = false;
     spreadTouchIds = null;
     spreadRow2 = null;
     spreadCatName = null;
     spreadBeforeId = null;
-    spreadIndicatorEl = null;
     if (commit) startInlineAddBefore(catName, beforeId);
   }
 
@@ -954,11 +937,6 @@
       const dist = Math.abs(t2.clientY - t1.clientY);
       spreadGap = Math.min(SPREAD_MAX, Math.max(0, dist - spreadStartDist));
       spreadRow2.style.marginTop = spreadGap + "px";
-      const progress = Math.min(1, spreadGap / SPREAD_TRIGGER);
-      const plusEl = spreadIndicatorEl.querySelector(".spread-plus");
-      plusEl.style.opacity = progress;
-      plusEl.style.transform = `translateX(-50%) scale(${0.4 + progress * 0.6})`;
-      plusEl.classList.toggle("ready", spreadGap >= SPREAD_TRIGGER);
       return;
     }
     if (reorderActive) {
