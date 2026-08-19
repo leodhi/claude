@@ -88,10 +88,7 @@
   .progress-fill { height: 100%; background: var(--accent); transition: width 0.2s ease; }
   .progress-label { font-size: 12px; color: var(--ink-muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
 
-  /* Edge to edge with nothing between the groups, so the colour runs as
-     one continuous sheet down the page the way the Clear app does, rather
-     than as a stack of separate rounded cards on black. */
-  .cat-section { overflow: hidden; }
+  .cat-section { border-radius: 16px; overflow: hidden; margin-bottom: 22px; box-shadow: var(--shadow); }
   /* Italic, a little smaller and a little lighter than the item names, so
      the heading reads as a label for the group rather than as another,
      louder row in it. It used to be 17px/900 against 18px/600 items --
@@ -124,11 +121,8 @@
   .cat-header.dragging { transition: none; }
 
   .row-list { display: flex; flex-direction: column; }
-  /* The header above keeps the wrap's side padding; only the list itself
-     runs to the screen edges. */
-  #list-root { margin-left: -14px; margin-right: -14px; }
 
-  .swipe-row { position: relative; overflow: hidden; touch-action: pan-y; border-top: 1px solid rgba(0,0,0,0.10); }
+  .swipe-row { position: relative; overflow: hidden; touch-action: pan-y; border-top: 1px solid rgba(0,0,0,0.18); }
   .swipe-bg {
     position: absolute; inset: 0; display: flex; align-items: center; font-size: 22px; font-weight: 700; color: #fff;
     opacity: 0;
@@ -213,14 +207,12 @@
   #pull-icon.reset { transition: opacity 0.2s ease, transform 0.2s ease, background 0.15s ease, border-color 0.15s ease, color 0.15s ease; }
 
 
-  /* Takes its colour from the page-wide sweep like every other row, so it
-     doesn't cut a grey band across the sheet. */
   .add-item-row {
     padding: 14px 16px; text-align: center; font-size: 14px; font-weight: 600;
-    color: rgba(255,255,255,0.75); cursor: pointer; touch-action: manipulation;
-    border-top: 1px solid rgba(0,0,0,0.10);
+    color: rgba(255,255,255,0.55); cursor: pointer; touch-action: manipulation;
+    background: rgba(255,255,255,0.04);
   }
-  .add-item-row:active { filter: brightness(0.92); }
+  .add-item-row:active { background: rgba(255,255,255,0.08); }
 
   .category-jump { display: flex; gap: 6px; overflow-x: auto; margin-bottom: 14px; padding-bottom: 2px; scrollbar-width: none; }
   .category-jump::-webkit-scrollbar { display: none; }
@@ -2163,10 +2155,6 @@
     }
 
     let anySectionShown = false;
-    // Every element that takes a colour, in the order it appears down the
-    // page. Colours are handed out at the end so the fade runs once from
-    // top to bottom instead of restarting inside each category.
-    const tinted = [];
 
     categoryOrder.forEach(catName => {
       const items = byCat[catName] || [];
@@ -2198,7 +2186,7 @@
       header.className = "cat-header" + (showThisHeader ? "" : " cat-header-hidden");
       header.dataset.catToggle = catName;
       if (showThisHeader) {
-        tinted.push(header);
+        header.style.background = headerColorForCat();
         const doneCount = items.filter(i => i.checked).length;
         header.innerHTML = `<span class="cat-title-text"><span class="cat-chevron">▾</span>${escapeHtml(catName || "No category")}</span><span class="cat-count">${doneCount} / ${items.length}</span>`;
         attachCatDrag(header, catName, section);
@@ -2220,7 +2208,8 @@
       const list = document.createElement("div");
       list.className = "row-list";
 
-
+      const openCount = visibleItems.filter(i => !i.checked && !i.na).length;
+      let openIdx = 0;
 
       function appendInlineAddRow() {
         const inlineRow = document.createElement("div");
@@ -2230,7 +2219,6 @@
             <div class="inline-add-input-wrap"><textarea id="inline-add-input" class="inline-add-input" rows="1" placeholder="New item"></textarea></div>
           </div>`;
         list.appendChild(inlineRow);
-        tinted.push(inlineRow.querySelector(".row-fg"));
         const inlineInput = inlineRow.querySelector("#inline-add-input");
 
         // An untouched empty row closes itself. Opening one is supposed to
@@ -2281,6 +2269,7 @@
       visibleItems.forEach(item => {
         if (pendingAddCat === catName && pendingAddBeforeId === item.id) appendInlineAddRow();
         const isDone = item.checked || item.na;
+        const bg = isDone ? "var(--bg)" : gradientRowColor(openIdx++, openCount);
         const row = document.createElement("div");
         row.className = "swipe-row";
         row.dataset.itemId = item.id;
@@ -2288,7 +2277,7 @@
         row.innerHTML = `
           <div class="swipe-bg bg-complete">✓</div>
           <div class="swipe-bg bg-delete">🗑</div>
-          <div class="row-fg${item.checked ? " checked" : ""}${item.na ? " na" : ""}" style="background:${isDone ? "var(--bg)" : ""}">
+          <div class="row-fg${item.checked ? " checked" : ""}${item.na ? " na" : ""}" style="background:${bg}">
             ${isEditingThis
               ? `<div class="inline-add-input-wrap"><textarea id="inline-edit-input" class="inline-add-input" rows="1">${escapeHtml(item.name)}</textarea></div>`
               : `<span class="row-name">${escapeHtml(item.name)}</span>`}
@@ -2296,9 +2285,6 @@
             ${isNiagara ? `<span class="row-avatar${item.assignee ? "" : " unassigned"}">${item.assignee ? escapeHtml(item.assignee.slice(0, 1).toUpperCase()) : "+"}</span>` : ""}
           </div>`;
         list.appendChild(row);
-        // Packed and N/A rows go dark and sit out of the sweep, so they
-        // don't take a colour step and leave a gap in the fade.
-        if (!isDone) tinted.push(row.querySelector(".row-fg"));
         if (isEditingThis) {
           const inlineEditInput = row.querySelector("#inline-edit-input");
           inlineEditInput.addEventListener("input", () => autoGrowInlineTextarea(inlineEditInput));
@@ -2327,14 +2313,11 @@
         addRow.dataset.addCat = catName;
         addRow.textContent = "+ Add item";
         list.appendChild(addRow);
-        tinted.push(addRow);
       }
 
       section.appendChild(list);
       root.appendChild(section);
     });
-
-    tinted.forEach((el, i) => { el.style.background = gradientRowColor(i, tinted.length); });
 
     if (Object.keys(currentItems).length > 0 && !anySectionShown) {
       const q = searchInput.value.trim();
