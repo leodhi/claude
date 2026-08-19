@@ -40,6 +40,11 @@
   .list-row.snap { transition: transform 0.25s cubic-bezier(.2,.9,.3,1.2); }
   .list-row.commit { transition: transform 0.2s ease-out, opacity 0.2s ease-out; }
   .list-row .chev { opacity: 0.7; font-weight: 400; flex: none; }
+  .list-row-right { display: flex; align-items: center; gap: 8px; flex: none; }
+  .list-row .item-count {
+    font-size: 13px; font-weight: 600; opacity: 0.85; flex: none;
+    background: rgba(255,255,255,0.2); padding: 2px 9px; border-radius: 999px;
+  }
 
   .inline-add-input-wrap { flex: 1; min-width: 0; }
   .inline-add-input {
@@ -169,6 +174,29 @@
   const root = document.getElementById("list-root");
   let lists = {};
 
+  // Item counts come from each list's own document, not the index (which
+  // only has name/order), so a small listener per list keeps them live.
+  // Kept in sync with whatever's currently in `lists` -- a list that gets
+  // deleted (or its count arrives after the initial render) unsubscribes
+  // or re-renders rather than leaking listeners or going stale.
+  const itemCounts = {};
+  const itemCountUnsubs = {};
+  function syncItemCountListeners() {
+    for (const id of Object.keys(lists)) {
+      if (itemCountUnsubs[id]) continue;
+      itemCountUnsubs[id] = onSnapshot(doc(db, "packingLists", id), snap => {
+        itemCounts[id] = snap.exists() ? Object.keys(snap.data().items || {}).length : 0;
+        render();
+      }, err => console.error(err));
+    }
+    for (const id of Object.keys(itemCountUnsubs)) {
+      if (id in lists) continue;
+      itemCountUnsubs[id]();
+      delete itemCountUnsubs[id];
+      delete itemCounts[id];
+    }
+  }
+
   // A pending "new list" entry, edited inline as its own orange row (same
   // idea as adding an item on the list page) rather than a native prompt()
   // popup, which looked/felt like a totally separate window.
@@ -189,7 +217,11 @@
       <div class="swipe-row" data-list-id="${escapeAttr(id)}" data-list-name="${escapeAttr(l.name || "")}">
         <div class="bg-delete">Delete</div>
         <button type="button" class="list-row" style="background:${gradientRowColor(i, entries.length)}">
-          <span>${escapeHtml(l.name || "Untitled list")}</span><span class="chev">›</span>
+          <span>${escapeHtml(l.name || "Untitled list")}</span>
+          <span class="list-row-right">
+            ${itemCounts[id] != null ? `<span class="item-count">${itemCounts[id]}</span>` : ""}
+            <span class="chev">›</span>
+          </span>
         </button>
       </div>`).join("");
     const inlineAddHtml = pendingAdd ? `
@@ -239,7 +271,15 @@
     const id = uid();
     const order = Object.keys(lists).length;
     try {
-      await setDoc(indexRef, { lists: { [id]: { name, order } } }, { merge: true });
+      // Registering the name in the index isn't enough on its own -- the
+      // list's own document has to exist too, since list.html adds/edits
+      // items with updateDoc(), which (unlike setDoc) fails if the
+      // document doesn't exist yet. Without this, a brand new list looked
+      // like it was created fine but silently couldn't be added to.
+      await Promise.all([
+        setDoc(indexRef, { lists: { [id]: { name, order } } }, { merge: true }),
+        setDoc(doc(db, "packingLists", id), { items: {} })
+      ]);
       location.href = `list.html?id=${encodeURIComponent(id)}&name=${encodeURIComponent(name)}`;
     } catch (err) {
       console.error(err);
@@ -409,6 +449,7 @@
       return; // onSnapshot fires again once that write lands
     }
     lists = snap.data().lists || {};
+    syncItemCountListeners();
     render();
   }, err => {
     console.error(err);
