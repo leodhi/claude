@@ -24,18 +24,44 @@
 
   h1 { font-weight: 700; font-size: 32px; margin: 0 0 20px; letter-spacing: -0.01em; }
 
-  .list-row {
-    display: flex; align-items: center; justify-content: space-between; gap: 10px;
-    width: 100%; text-align: left; border: none; cursor: pointer;
-    padding: 20px 18px; margin-bottom: 10px; border-radius: 14px; box-shadow: var(--shadow);
-    font: inherit; font-size: 19px; font-weight: 700; color: #fff;
-    -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; touch-action: manipulation;
-    transition: transform 0.1s ease;
+  .swipe-row { position: relative; margin-bottom: 10px; border-radius: 14px; overflow: hidden; box-shadow: var(--shadow); touch-action: pan-y; }
+  .bg-delete {
+    position: absolute; inset: 0; background: #ff3b30; display: flex; align-items: center; justify-content: flex-end;
+    padding-right: 22px; color: #fff; font-size: 15px; font-weight: 700; opacity: 0;
   }
-  .list-row:active { transform: scale(0.97); }
+
+  .list-row {
+    position: relative; display: flex; align-items: center; justify-content: space-between; gap: 10px;
+    width: 100%; text-align: left; border: none; cursor: pointer;
+    padding: 20px 18px; font: inherit; font-size: 19px; font-weight: 700; color: #fff;
+    -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; touch-action: manipulation;
+  }
+  .list-row.dragging { transition: none; }
+  .list-row.snap { transition: transform 0.25s cubic-bezier(.2,.9,.3,1.2); }
+  .list-row.commit { transition: transform 0.2s ease-out, opacity 0.2s ease-out; }
   .list-row .chev { opacity: 0.7; font-weight: 400; flex: none; }
 
   .empty-state { color: var(--ink-muted); font-size: 14px; padding: 30px 4px; }
+
+  .undo-toast {
+    position: fixed; left: 14px; right: 14px; bottom: calc(20px + env(safe-area-inset-bottom));
+    max-width: 612px; margin: 0 auto;
+    background: #2c2c2e; border: 1px solid #3a3a3c; border-radius: 14px;
+    padding: 14px 10px 14px 16px; display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    box-shadow: var(--shadow); z-index: 10;
+    opacity: 0; visibility: hidden; pointer-events: none;
+    transform: translateY(16px) scale(0.98);
+    transition: opacity 0.25s cubic-bezier(.2,.9,.3,1.1), transform 0.25s cubic-bezier(.2,.9,.3,1.1), visibility 0s linear 0.25s;
+  }
+  .undo-toast.show {
+    opacity: 1; visibility: visible; pointer-events: auto; transform: translateY(0) scale(1);
+    transition: opacity 0.25s cubic-bezier(.2,.9,.3,1.1), transform 0.25s cubic-bezier(.2,.9,.3,1.1);
+  }
+  .undo-toast span { font-size: 14px; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .undo-toast button {
+    font: inherit; font-weight: 700; font-size: 14px; color: var(--accent); background: none; border: none;
+    cursor: pointer; padding: 8px 10px; flex: none; touch-action: manipulation;
+  }
 
   .scroll-container { position: relative; }
   .wrap.pull-snap { transition: transform 0.3s cubic-bezier(.2,.9,.3,1.2); }
@@ -64,10 +90,15 @@
   </div>
 </div>
 
+<div id="undo-toast" class="undo-toast">
+  <span id="undo-toast-text"></span>
+  <button type="button" id="undo-toast-btn">Undo</button>
+</div>
+
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
   import {
-    getFirestore, doc, setDoc, onSnapshot
+    getFirestore, doc, setDoc, updateDoc, deleteField, onSnapshot
   } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
 
   // Same Firebase project as docs/packing-list/index.html and this folder's
@@ -112,15 +143,123 @@
       return;
     }
     root.innerHTML = entries.map(([id, l], i) => `
-      <button type="button" class="list-row" style="background:${gradientRowColor(i, entries.length)}" data-list-id="${escapeAttr(id)}" data-list-name="${escapeAttr(l.name || "")}">
-        <span>${escapeHtml(l.name || "Untitled list")}</span><span class="chev">›</span>
-      </button>`).join("");
+      <div class="swipe-row" data-list-id="${escapeAttr(id)}" data-list-name="${escapeAttr(l.name || "")}">
+        <div class="bg-delete">Delete</div>
+        <button type="button" class="list-row" style="background:${gradientRowColor(i, entries.length)}">
+          <span>${escapeHtml(l.name || "Untitled list")}</span><span class="chev">›</span>
+        </button>
+      </div>`).join("");
+    root.querySelectorAll(".swipe-row").forEach(row => attachDeleteSwipe(row, row.dataset.listId));
   }
 
   root.addEventListener("click", e => {
-    const btn = e.target.closest("[data-list-id]");
-    if (!btn) return;
-    location.href = `list.html?id=${encodeURIComponent(btn.dataset.listId)}&name=${encodeURIComponent(btn.dataset.listName)}`;
+    const row = e.target.closest("[data-list-id]");
+    if (!row) return;
+    location.href = `list.html?id=${encodeURIComponent(row.dataset.listId)}&name=${encodeURIComponent(row.dataset.listName)}`;
+  });
+
+  // ---------- Swipe left to delete (same gesture/confirm as list items) ----------
+  const SWIPE_COMMIT_PX = 84;
+
+  function attachDeleteSwipe(swipeRow, id) {
+    const rowFg = swipeRow.querySelector(".list-row");
+    const bgDelete = swipeRow.querySelector(".bg-delete");
+    let startX = 0, startY = 0, dx = 0, dragging = null;
+    let pointerId = null;
+
+    rowFg.addEventListener("pointerdown", e => {
+      if (e.button !== undefined && e.button !== 0) return;
+      startX = e.clientX; startY = e.clientY; dx = 0; dragging = null;
+      pointerId = e.pointerId;
+      rowFg.classList.remove("snap", "commit");
+    });
+
+    rowFg.addEventListener("pointermove", e => {
+      if (pointerId === null || e.pointerId !== pointerId) return;
+      const curDx = e.clientX - startX;
+      const curDy = e.clientY - startY;
+      if (dragging === null) {
+        if (Math.abs(curDx) < 8 && Math.abs(curDy) < 8) return;
+        dragging = Math.abs(curDx) > Math.abs(curDy);
+        if (dragging) {
+          if (rowFg.setPointerCapture) rowFg.setPointerCapture(pointerId);
+          rowFg.classList.add("dragging");
+        }
+      }
+      if (!dragging) return;
+      e.preventDefault();
+      dx = Math.min(0, curDx); // only leftward -- there's no "complete" direction for a list
+      rowFg.style.transform = `translateX(${dx}px)`;
+      bgDelete.style.opacity = String(Math.min(1, Math.abs(dx) / SWIPE_COMMIT_PX));
+    });
+
+    function endDrag(e) {
+      if (pointerId === null) return;
+      pointerId = null;
+      if (dragging === null || !dragging) { dragging = null; return; } // plain tap -- the row's own click handles it
+      rowFg.classList.remove("dragging");
+      if (dx < -SWIPE_COMMIT_PX) {
+        const entry = lists[id];
+        const name = entry ? entry.name : "this list";
+        if (confirm(`Delete "${name}"?`)) {
+          rowFg.classList.add("commit");
+          rowFg.style.transform = "translateX(-100%)";
+          rowFg.style.opacity = "0";
+          setTimeout(() => deleteList(id, entry), 150);
+        } else {
+          rowFg.classList.add("snap");
+          rowFg.style.transform = "translateX(0)";
+          bgDelete.style.opacity = "0";
+        }
+      } else {
+        rowFg.classList.add("snap");
+        rowFg.style.transform = "translateX(0)";
+        bgDelete.style.opacity = "0";
+      }
+      dragging = null;
+    }
+    rowFg.addEventListener("pointerup", endDrag);
+    rowFg.addEventListener("pointercancel", endDrag);
+  }
+
+  async function deleteList(id, entry) {
+    try {
+      await updateDoc(indexRef, { [`lists.${id}`]: deleteField() });
+      showUndoToast(id, entry);
+    } catch (err) {
+      console.error(err);
+      alert("Couldn't delete the list — try again.");
+    }
+  }
+
+  // ---------- Undo ----------
+  const undoToast = document.getElementById("undo-toast");
+  const undoToastText = document.getElementById("undo-toast-text");
+  const undoToastBtn = document.getElementById("undo-toast-btn");
+  let undoTimer = null;
+  let pendingUndo = null;
+
+  function showUndoToast(id, entry) {
+    pendingUndo = { id, entry };
+    undoToastText.textContent = `Deleted "${entry ? entry.name : "list"}"`;
+    undoToast.classList.add("show");
+    clearTimeout(undoTimer);
+    undoTimer = setTimeout(() => { undoToast.classList.remove("show"); pendingUndo = null; }, 6000);
+  }
+
+  undoToastBtn.addEventListener("click", async e => {
+    e.stopPropagation(); // don't also trigger the document-level tap-to-add handler
+    if (!pendingUndo) return;
+    const { id, entry } = pendingUndo;
+    clearTimeout(undoTimer);
+    undoToast.classList.remove("show");
+    pendingUndo = null;
+    try {
+      await setDoc(indexRef, { lists: { [id]: entry } }, { merge: true });
+    } catch (err) {
+      console.error(err);
+      alert("Couldn't undo — try again.");
+    }
   });
 
   // Self-initializing: the very first time this page ever loads (no index
