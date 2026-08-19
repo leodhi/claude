@@ -308,10 +308,30 @@
     }
     lists = snap.data().lists || {};
     render();
+    checkPendingCrossPageDelete();
   }, err => {
     console.error(err);
     root.innerHTML = '<div class="empty-state">Couldn\'t load your lists. Check your connection and reload.</div>';
   });
+
+  // Picks up a delete started from inside a list (its own "🗑" header
+  // button on list.html) rather than by swiping here -- that page already
+  // removed the entry from the index before handing off, so this just
+  // shows the same undo toast and schedules the same grace-period purge
+  // as if the swipe had happened on this screen directly. Runs after every
+  // onSnapshot firing but is a no-op once the one-shot flag is consumed.
+  function checkPendingCrossPageDelete() {
+    const raw = sessionStorage.getItem("pendingListDelete");
+    if (!raw) return;
+    sessionStorage.removeItem("pendingListDelete");
+    let parsed;
+    try { parsed = JSON.parse(raw); } catch (err) { return; }
+    const { id, name } = parsed;
+    if (!id || id in lists) return; // already present -- stale signal, nothing to undo
+    const entry = { name, order: Object.keys(lists).length };
+    showUndoToast(id, entry);
+    scheduleFinalPurge(id);
+  }
 
   async function createList() {
     const name = prompt("Name this list:");
