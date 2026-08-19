@@ -2243,10 +2243,17 @@ $("local-btn-show-results").addEventListener("click", function () {
   var continueBtn = $("local-btn-turn-continue");
   continueBtn.textContent = revealContinueLabel(survivorCount, localState.turnNum);
   // Minimum 3 seconds before Continue can be tapped, so whoever's holding
-  // the device can't rush past before everyone else has read the answers.
-  continueBtn.disabled = true;
+  // the device can't rush past before everyone else has read the answers —
+  // skip it when the only other "players" are AI and there's nobody else
+  // who needs the time.
   clearTimeout(localState.revealMinWaitHandle);
-  localState.revealMinWaitHandle = setTimeout(function () { continueBtn.disabled = false; }, 3000);
+  var humanCount = localState.players.length - localState.bots.filter(Boolean).length;
+  if (humanCount <= 1) {
+    continueBtn.disabled = false;
+  } else {
+    continueBtn.disabled = true;
+    localState.revealMinWaitHandle = setTimeout(function () { continueBtn.disabled = false; }, 3000);
+  }
   showScreen("local-screen-turn-reveal");
 });
 
