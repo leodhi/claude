@@ -1106,7 +1106,9 @@ var mp = {
   timerRoundKey: null,
   finishingTurnKey: null,
   watchdogHandle: null,
-  watchdogRoundKey: null
+  watchdogRoundKey: null,
+  revealMinWaitKey: null,
+  revealMinWaitHandle: null
 };
 
 function roomRef(code) { return ref(db, "rooms/" + code); }
@@ -1782,14 +1784,25 @@ function renderTurnReveal() {
   });
 
   var survivors = round.competitors.filter(function (uid) { return !turnEliminated[uid]; });
-  $("btn-turn-continue").textContent = revealContinueLabel(survivors.length, round.turnNum);
+  var continueBtn = $("btn-turn-continue");
+  continueBtn.textContent = revealContinueLabel(survivors.length, round.turnNum);
 
   // Host decides when to move on -- same as every other game in this
   // family (Milim, Trivia, etc.) -- so there's no timer racing people
-  // while they're still reading what everyone answered.
+  // while they're still reading what everyone answered. But the host can
+  // still tap through instantly, before anyone else has had a chance to
+  // actually read the answers -- so the button stays disabled for a
+  // minimum 3 seconds regardless of how fast the host taps.
   if (mp.isHost) {
     $("turn-reveal-host-nav").style.display = "flex";
     $("turn-reveal-waiting").style.display = "none";
+    var revealKey = round.roundNum + "-" + round.turnNum;
+    if (mp.revealMinWaitKey !== revealKey) {
+      mp.revealMinWaitKey = revealKey;
+      continueBtn.disabled = true;
+      clearTimeout(mp.revealMinWaitHandle);
+      mp.revealMinWaitHandle = setTimeout(function () { continueBtn.disabled = false; }, 3000);
+    }
   } else {
     $("turn-reveal-host-nav").style.display = "none";
     $("turn-reveal-waiting").style.display = "";
@@ -1825,7 +1838,7 @@ async function mpContinueFromReveal() {
 }
 
 $("btn-turn-continue").addEventListener("click", function () {
-  if (!mp.isHost) return;
+  if (!mp.isHost || this.disabled) return;
   mpContinueFromReveal();
 });
 
@@ -2003,6 +2016,7 @@ var localState = {
   turnReason: {},
   timerHandle: null,
   timerRemaining: 0,
+  revealMinWaitHandle: null,
   winner: null
 };
 
@@ -2226,7 +2240,13 @@ $("local-btn-show-results").addEventListener("click", function () {
   $("local-reveal-judge-answer").textContent = localState.judgeSecretAnswer || "(no answer given)";
   localRenderTurnRevealList();
   var survivorCount = localState.competitors.filter(function (name) { return !localState.turnEliminated[name]; }).length;
-  $("local-btn-turn-continue").textContent = revealContinueLabel(survivorCount, localState.turnNum);
+  var continueBtn = $("local-btn-turn-continue");
+  continueBtn.textContent = revealContinueLabel(survivorCount, localState.turnNum);
+  // Minimum 3 seconds before Continue can be tapped, so whoever's holding
+  // the device can't rush past before everyone else has read the answers.
+  continueBtn.disabled = true;
+  clearTimeout(localState.revealMinWaitHandle);
+  localState.revealMinWaitHandle = setTimeout(function () { continueBtn.disabled = false; }, 3000);
   showScreen("local-screen-turn-reveal");
 });
 
@@ -2274,6 +2294,7 @@ function localRenderTurnRevealList() {
 }
 
 $("local-btn-turn-continue").addEventListener("click", function () {
+  if (this.disabled) return;
   var survivors = localState.competitors.filter(function (name) { return !localState.turnEliminated[name]; });
   if (survivors.length === 0) {
     // Everyone's out -- the Judge wins right away, no need to burn through
