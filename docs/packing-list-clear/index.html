@@ -322,7 +322,10 @@
       if (dx < -SWIPE_COMMIT_PX) {
         const entry = lists[id];
         const name = entry ? entry.name : "this list";
-        if (confirm(`Delete "${name}"?`)) {
+        // Deleting a whole list is a bigger move than deleting one item, so
+        // it gets a second, more explicit confirmation on top of the usual
+        // one, rather than the single generic dialog used everywhere else.
+        if (confirm(`Delete "${name}"?`) && confirm(`This removes "${name}" and everything in it from My Lists. Delete anyway?`)) {
           rowFg.classList.add("commit");
           rowFg.style.transform = "translateX(-100%)";
           rowFg.style.opacity = "0";
