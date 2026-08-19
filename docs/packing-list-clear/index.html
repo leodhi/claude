@@ -318,7 +318,11 @@
         const cancelled = input.dataset.cancelled === "1";
         const name = input.value.trim();
         pendingAdd = false;
-        if (!cancelled && name) { commitNewList(name); return; }
+        if (!cancelled && name) commitNewList(name);
+        // Always re-render: this used to bail out early because committing
+        // navigated away. Now that it stays put, the pending row has to be
+        // cleared here rather than lingering until the write's snapshot
+        // lands.
         render();
       });
     }
@@ -357,7 +361,11 @@
         // from it alone if the index is ever lost -- see reconcileLists().
         setDoc(doc(db, "packingLists", id), { items: {}, name })
       ]);
-      location.href = `list.html?id=${encodeURIComponent(id)}&name=${encodeURIComponent(name)}`;
+      // Deliberately stays on My Lists rather than opening the new list.
+      // Creating one and going straight into it hijacked the screen when
+      // you were only setting things up -- adding several lists in a row
+      // meant getting thrown into each one and navigating back. The new
+      // row appears here; tap it when you actually want to open it.
     } catch (err) {
       console.error(err);
       alert("Couldn't create the list — try again.");
