@@ -718,16 +718,16 @@
     finishPendingInlineEdit();
   }
 
-  // Discards whatever's typed instead of committing it -- same as pressing
-  // Escape in the field. Reuses that exact mechanism (mark cancelled, then
-  // blur) rather than touching pendingAddCat/pendingEditId directly, since
-  // the field's own blur handler is what actually reads that cancelled
-  // flag and skips the commit.
-  function cancelPendingInlineEntry() {
+  // Just blurs, WITHOUT marking cancelled -- the field's own blur handler
+  // then does exactly what it always does for any other blur: commit if
+  // something was actually typed, or quietly close if it's empty. Tapping
+  // away should behave like finishing up, not throwing a draft away --
+  // only an empty field truly has nothing to keep.
+  function dismissPendingInlineEntry() {
     const addInput = document.getElementById("inline-add-input");
-    if (addInput) { addInput.dataset.cancelled = "1"; addInput.blur(); }
+    if (addInput) addInput.blur();
     const editInput = document.getElementById("inline-edit-input");
-    if (editInput) { editInput.dataset.cancelled = "1"; editInput.blur(); }
+    if (editInput) editInput.blur();
   }
 
   // Shared by the cancel-on-outside-tap listener below and the
@@ -744,16 +744,20 @@
   // On wide screens (iPad) the list column is capped at 640px and centered,
   // leaving empty margin on either side, and on any screen there's often
   // blank space below a short list. Tapping either while adding or editing
-  // an item cancels it outright, the way tapping outside a sheet/modal
-  // normally would -- previously only the iPad margin (outside .wrap) did
-  // anything; blank space inside .wrap's own padding didn't.
+  // an item finishes it up -- same as tapping any other control would --
+  // rather than leaving it stuck open with nowhere obvious to tap next.
+  // Keeps whatever was actually typed (like any other blur does); only an
+  // empty field has nothing to keep, so that's the only case that just
+  // quietly closes with nothing added.
   //
   // pointerdown, in the capture phase, not a plain "click": the browser's
   // own default behavior already blurs the focused textarea as part of
-  // handling the tap itself, well before a "click" event would ever fire --
-  // by then that blur has already committed whatever was typed, since our
-  // cancelled flag hadn't been set yet. Capture phase also matters
-  // separately: a tap that opens the very first inline-add row is handled
+  // handling the tap itself, well before a "click" event would ever fire,
+  // which would make this listener redundant with that native blur -- it
+  // exists for the DOM-reading logic below (isBackgroundTarget/.wrap),
+  // which needs to run before anything else changes. Capture phase also
+  // matters separately: a tap that opens the very first inline-add row is
+  // handled
   // by #list-root's own (bubble-phase) listener, which calls render() and
   // detaches the very element that was clicked, so a bubble-phase listener
   // here would see a detached e.target and wrongly think .wrap wasn't
@@ -774,7 +778,7 @@
     suppressNextBackgroundAdd = false; // a fresh gesture always starts clean
     if (pendingAddCat === null && pendingEditId === null) return;
     if (!isBackgroundTarget(e.target) && e.target.closest(".wrap")) return;
-    cancelPendingInlineEntry();
+    dismissPendingInlineEntry();
     suppressNextBackgroundAdd = true;
   }, { capture: true });
 
