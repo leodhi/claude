@@ -715,7 +715,9 @@ const state = {
   roomCode: null,
   isHost: false,
   room: null,
-  timerHandle: null
+  timerHandle: null,
+  revealMinWaitKey: null,
+  revealMinWaitHandle: null
 };
 
 function $(id) { return document.getElementById(id); }
@@ -1108,7 +1110,8 @@ async function startRound() {
       chameleonUid: chameleonUid,
       order: order,
       readyUids: readyUids,
-      guess: null
+      guess: null,
+      startedAt: Date.now()
     },
     votes: {},
     timer: { running: false, endTime: null, remaining: room.settings.timerSeconds }
@@ -1393,6 +1396,17 @@ function renderResults() {
       if (state.isHost) {
         hostNav.style.display = "flex";
         waiting.style.display = "none";
+        // Minimum 3 seconds before Continue can be tapped, so the host
+        // can't rush past before everyone's had a chance to actually read
+        // who the Chameleon was.
+        var revealKey = round.startedAt;
+        if (state.revealMinWaitKey !== revealKey) {
+          state.revealMinWaitKey = revealKey;
+          var nextBtn = $("btn-next-round");
+          nextBtn.disabled = true;
+          clearTimeout(state.revealMinWaitHandle);
+          state.revealMinWaitHandle = setTimeout(function () { nextBtn.disabled = false; }, 3000);
+        }
       } else {
         hostNav.style.display = "none";
         waiting.style.display = "";
@@ -1466,7 +1480,7 @@ function renderScoreboard() {
 }
 
 $("btn-next-round").addEventListener("click", function () {
-  if (!state.isHost) return;
+  if (!state.isHost || this.disabled) return;
   startRound();
 });
 
@@ -1554,7 +1568,9 @@ var localState = {
   votes: {},
   timerHandle: null,
   timerRemaining: 0,
-  timerRunning: false
+  timerRunning: false,
+  revealMinWaitKey: null,
+  revealMinWaitHandle: null
 };
 
 var LOCAL_BOT_CYCLE = [null, "easy", "medium", "hard"];
@@ -1689,7 +1705,8 @@ function startLocalRound() {
     words: words,
     secretWord: secretWord,
     chameleonIdx: chameleonIdx,
-    order: order
+    order: order,
+    startedAt: Date.now()
   };
   localState.revealIndex = 0;
   localState.votes = {};
@@ -1917,6 +1934,15 @@ function showLocalResults() {
   nextBtn.style.display = "none";
   $("local-guess-input").value = "";
 
+  function armNextBtnMinWait() {
+    var waitKey = round.startedAt;
+    if (localState.revealMinWaitKey === waitKey) return;
+    localState.revealMinWaitKey = waitKey;
+    nextBtn.disabled = true;
+    clearTimeout(localState.revealMinWaitHandle);
+    localState.revealMinWaitHandle = setTimeout(function () { nextBtn.disabled = false; }, 3000);
+  }
+
   function localResolveGuess(correct) {
     guessBox.style.display = "none";
     banner.style.display = "";
@@ -1932,6 +1958,7 @@ function showLocalResults() {
       });
     }
     nextBtn.style.display = "";
+    armNextBtnMinWait();
   }
 
   if (chameleonCaught) {
@@ -1952,6 +1979,7 @@ function showLocalResults() {
     banner.textContent = "Chameleon escaped detection! Chameleon wins the round (secret word: \"" + round.secretWord + "\").";
     localState.scores[localState.players[round.chameleonIdx]] += 2;
     nextBtn.style.display = "";
+    armNextBtnMinWait();
   }
 
   showScreen("screen-local-results");
@@ -1982,6 +2010,7 @@ function renderLocalScoreboardInto(elId) {
 }
 
 $("local-btn-next-round").addEventListener("click", function () {
+  if (this.disabled) return;
   var winner = localComputeWinner();
   if (winner !== null) {
     localState.lastWinningScore = localState.scores[winner];

@@ -1139,7 +1139,9 @@ var mp = {
   choiceSelected: null,
   timerHandle: null,
   timerRemaining: 0,
-  timerRoundKey: null
+  timerRoundKey: null,
+  revealMinWaitKey: null,
+  revealMinWaitHandle: null
 };
 
 function roomRef(code) { return ref(db, "rooms/" + code); }
@@ -1556,7 +1558,7 @@ async function startMpRound() {
     round: {
       cat: pick.cat, diff: pick.diff, q: pick.q, a: pick.a,
       roundGuessMode: roundGuessMode, roundChoiceOptions: roundChoiceOptions,
-      answers: {}, judged: {}
+      answers: {}, judged: {}, startedAt: Date.now()
     }
   });
 }
@@ -1744,6 +1746,14 @@ function renderRevealScreen() {
   if (mp.isHost) {
     hostNav.style.display = "flex";
     waiting.style.display = "none";
+    var revealKey = round.startedAt;
+    if (mp.revealMinWaitKey !== revealKey) {
+      mp.revealMinWaitKey = revealKey;
+      var nextBtn = $("btn-next-round");
+      nextBtn.disabled = true;
+      clearTimeout(mp.revealMinWaitHandle);
+      mp.revealMinWaitHandle = setTimeout(function () { nextBtn.disabled = false; }, 3000);
+    }
   } else {
     hostNav.style.display = "none";
     waiting.style.display = "";
@@ -1752,7 +1762,7 @@ function renderRevealScreen() {
 }
 
 $("btn-next-round").addEventListener("click", function () {
-  if (!mp.isHost) return;
+  if (!mp.isHost || this.disabled) return;
   var room = mp.room;
   var round = room.round;
   var scoreUpdates = {};
@@ -1915,7 +1925,10 @@ var localState = {
     timerHandle: null,
     timerRemaining: 0,
     canResume: false,
-    lastWinningScore: 0
+    lastWinningScore: 0,
+    roundStartedAt: null,
+    revealMinWaitKey: null,
+    revealMinWaitHandle: null
   };
 
     
@@ -2173,6 +2186,7 @@ var localState = {
     localState.currentQuestion = pick;
     localState.givenAnswers = {};
     localState.judgedCorrect = {};
+    localState.roundStartedAt = Date.now();
 
     // Random Mix rolls type-vs-choice ONCE per round here -- every player
     // this round gets the same mode, so nobody has an easier/harder turn
@@ -2370,6 +2384,16 @@ var localState = {
       });
       wrap.appendChild(row);
     });
+
+    var revealKey = localState.roundStartedAt;
+    if (localState.revealMinWaitKey !== revealKey) {
+      localState.revealMinWaitKey = revealKey;
+      var nextBtn = $("local-btn-next-round");
+      nextBtn.disabled = true;
+      clearTimeout(localState.revealMinWaitHandle);
+      localState.revealMinWaitHandle = setTimeout(function () { nextBtn.disabled = false; }, 3000);
+    }
+
     showScreen("local-screen-reveal");
   }
 
@@ -2401,6 +2425,7 @@ var localState = {
   var LOCAL_WRONG_STREAK_PENALTY = 2;
 
   $("local-btn-next-round").addEventListener("click", function () {
+    if (this.disabled) return;
     localState.players.forEach(function (name) {
       if (localState.judgedCorrect[name]) {
         localState.scores[name] = (localState.scores[name] || 0) + 1;
