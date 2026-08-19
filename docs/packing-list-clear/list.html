@@ -220,6 +220,14 @@
   .jump-chip:hover { border-color: var(--accent); color: var(--ink); }
   .jump-chip:active { transform: scale(0.95); }
 
+  .fab {
+    position: fixed; bottom: calc(64px + env(safe-area-inset-bottom) + var(--vv-bottom-offset, 0px)); right: 20px; width: 56px; height: 56px; border-radius: 50%;
+    background: var(--accent); color: #fff; border: none; font-size: 28px; line-height: 1;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.4); cursor: pointer; z-index: 20;
+    -webkit-transform: translateZ(0); transform: translateZ(0); will-change: transform;
+  }
+  .fab:active { transform: scale(0.94); }
+
   .scroll-top-btn {
     position: fixed; bottom: calc(64px + env(safe-area-inset-bottom) + var(--vv-bottom-offset, 0px)); left: 20px; width: 44px; height: 44px; border-radius: 50%;
     background: #2c2c2e; color: #fff; border: 1px solid #3a3a3c; font-size: 18px; line-height: 1;
@@ -310,6 +318,7 @@
 </div>
 </div>
 
+<button type="button" id="fab-add" class="fab" aria-label="Add an item">+</button>
 <button type="button" id="scroll-top-btn" class="scroll-top-btn" aria-label="Scroll to top">↑</button>
 
 <div class="toast" id="toast">
@@ -1250,10 +1259,42 @@
     if (edgeBackDragging) resetEdgeBack();
   });
 
-  // The floating "+" is gone: every category already has its own
-  // "+ Add item" row, tapping empty space adds one, and pulling down at
-  // the top does too -- it was a fourth way to do the same thing, sitting
-  // on top of the list.
+  // The floating "+" is Niagara-only. Everywhere else it was a fourth
+  // route to the same thing -- each category has its own "+ Add item"
+  // row, tapping empty space adds one, and so does pulling down at the
+  // top -- and it sat on top of the list covering whatever was at the
+  // bottom of the screen. Niagara keeps it because long-pressing it is
+  // the only way to reach the full add-item dialog, the one with the
+  // category and assignee fields that only that list uses.
+  const fabAdd = document.getElementById("fab-add");
+  if (!isNiagara) {
+    fabAdd.remove();
+  } else {
+    let fabLongPressTimer = null;
+    let fabLongPressFired = false;
+    fabAdd.addEventListener("pointerdown", e => {
+      if (e.button !== undefined && e.button !== 0) return;
+      // Without this, the button's own default "take focus on tap" behavior
+      // fires just after we call .focus() on the inline-add textarea it
+      // opens -- stealing focus back from it a moment later, which fires
+      // that textarea's blur handler and wipes the row before anything can
+      // be typed into it.
+      if (e.cancelable) e.preventDefault();
+      fabLongPressFired = false;
+      clearTimeout(fabLongPressTimer);
+      fabLongPressTimer = setTimeout(() => {
+        fabLongPressFired = true;
+        openAddModal();
+      }, 500);
+    });
+    fabAdd.addEventListener("pointerup", () => {
+      clearTimeout(fabLongPressTimer);
+      if (!fabLongPressFired) startInlineAdd();
+    });
+    fabAdd.addEventListener("pointercancel", () => clearTimeout(fabLongPressTimer));
+    fabAdd.addEventListener("pointerleave", () => clearTimeout(fabLongPressTimer));
+  }
+
   addForm.addEventListener("submit", async e => {
     e.preventDefault();
     const name = ciName.value.trim();
