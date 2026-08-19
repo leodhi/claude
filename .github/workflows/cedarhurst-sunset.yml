@@ -1,0 +1,23 @@
+name: Cedarhurst sunset notice
+
+on:
+  schedule:
+    # Fridays at 6pm UTC (2pm ET in summer, 1pm ET in winter).
+    - cron: "0 18 * * 5"
+  workflow_dispatch:
+
+jobs:
+  sunset:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Send sunset notice
+        working-directory: .github/scripts
+        env:
+          NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
+        run: node send-sunset-alert.mjs
