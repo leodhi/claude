@@ -708,10 +708,40 @@
     shakeModal.classList.add("show");
   }
 
+  // iOS's motion-sensor permission, unlike camera/mic, does NOT carry over
+  // across a page reload -- it has to be re-established on every fresh
+  // load, even for a user who already said yes before. A stored "granted"
+  // preference only means "this person already agreed", not "this exact
+  // page load already has the OS's permission active" -- those are two
+  // different things, and treating the first as proof of the second is
+  // very likely why shake stopped working again after simply reopening
+  // the app. So a stored "granted" re-requests silently (no prompt shown,
+  // since the choice was already made) rather than skipping straight to
+  // attaching the listener. If that silent re-request can't succeed
+  // (e.g. this API requires an actual tap, not just a page load, even for
+  // an already-decided user), it falls back to showing the real prompt
+  // again so a genuine tap can re-establish it, instead of silently doing
+  // nothing forever.
+  async function ensureShakeEnabled() {
+    if (typeof DeviceMotionEvent !== "undefined" && typeof DeviceMotionEvent.requestPermission === "function") {
+      try {
+        const result = await DeviceMotionEvent.requestPermission();
+        shakeDebugLog(`silent re-request on load resolved: "${result}"`);
+        if (result === "granted") { startShakeDetection(onShakeUndo); return; }
+      } catch (err) {
+        shakeDebugLog(`silent re-request threw: ${err.message}`);
+      }
+      shakeDebugLog("falling back to showing the prompt again");
+      maybeShowShakePrompt();
+    } else {
+      startShakeDetection(onShakeUndo);
+    }
+  }
+
   const shakePref = localStorage.getItem(SHAKE_PREF_KEY);
   shakeDebugLog(`stored pref: ${shakePref || "(none yet)"}`);
   if (shakePref === "granted") {
-    startShakeDetection(onShakeUndo);
+    ensureShakeEnabled();
   } else if (!shakePref) {
     setTimeout(maybeShowShakePrompt, 900);
   }
