@@ -89,18 +89,23 @@
   .progress-label { font-size: 12px; color: var(--ink-muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
 
   .cat-section { border-radius: 16px; overflow: hidden; margin-bottom: 22px; box-shadow: var(--shadow); }
+  /* Italic, a little smaller and a little lighter than the item names, so
+     the heading reads as a label for the group rather than as another,
+     louder row in it. It used to be 17px/900 against 18px/600 items --
+     heavier AND smaller, which is what made the two hard to tell apart. */
   .cat-header {
     display: flex; align-items: center; justify-content: space-between; gap: 8px;
-    padding: 16px 16px 14px; font-weight: 900; font-size: 17px; letter-spacing: -0.01em; color: #fff;
+    padding: 14px 16px 12px; font-weight: 700; font-size: 15px; font-style: italic;
+    letter-spacing: -0.01em; color: #fff;
     cursor: pointer; user-select: none; touch-action: manipulation;
     transition: filter 0.1s ease;
   }
   .cat-header:active { filter: brightness(0.9); }
   .cat-header .cat-title-text { display: inline-flex; align-items: center; gap: 8px; }
-  .cat-header .cat-chevron { display: inline-block; font-size: 13px; transition: transform 0.15s ease; opacity: 0.85; }
+  .cat-header .cat-chevron { display: inline-block; font-size: 12px; font-style: normal; transition: transform 0.15s ease; opacity: 0.85; }
   .cat-section.collapsed .cat-chevron { transform: rotate(-90deg); }
   .cat-section.collapsed .row-list { display: none; }
-  .cat-header .cat-count { font-size: 12px; font-weight: 600; opacity: 0.85; white-space: nowrap; }
+  .cat-header .cat-count { font-size: 12px; font-weight: 600; font-style: normal; opacity: 0.85; white-space: nowrap; }
   .cat-header-hidden { display: none; }
 
   /* Swipe a heading left to reveal its delete, same gesture as a row. */
