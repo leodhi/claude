@@ -233,17 +233,23 @@
   .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); pointer-events: auto; }
   .toast button { font: inherit; font-weight: 700; color: var(--accent); background: none; border: none; cursor: pointer; padding: 2px; flex: none; }
 
+  /* Spans the *visible* viewport rather than the whole window, so with the
+     keyboard up the sheet lands just above it instead of behind it. */
   .modal-backdrop {
-    position: fixed; inset: 0; background: rgba(0,0,0,0.55);
+    position: fixed; left: 0; right: 0;
+    top: var(--vv-top, 0px); height: var(--vv-height, 100%);
+    background: rgba(0,0,0,0.55);
     display: flex; align-items: flex-end; justify-content: center; z-index: 25;
     opacity: 0; visibility: hidden; pointer-events: none; transition: opacity 0.2s ease;
-    padding-bottom: var(--vv-bottom-offset, 0px);
   }
   .modal-backdrop.show { opacity: 1; visibility: visible; pointer-events: auto; }
   .modal {
     background: #1c1c1e; border-radius: 16px 16px 0 0; padding: 18px 18px calc(18px + env(safe-area-inset-bottom));
     width: 100%; max-width: 640px; box-shadow: 0 -6px 24px rgba(0,0,0,0.5);
     transform: translateY(24px); transition: transform 0.25s cubic-bezier(.2,.9,.3,1.1);
+    /* A tall sheet on a short (keyboard-shrunk) viewport scrolls inside
+       itself rather than pushing its buttons out of reach. */
+    max-height: 100%; overflow-y: auto; -webkit-overflow-scrolling: touch;
   }
   .modal-backdrop.show .modal { transform: translateY(0); }
   .modal h3 { margin: 0 0 14px; font-size: 16px; }
@@ -422,8 +428,18 @@
     updateViewportInset = () => {
       const offset = Math.max(0, Math.min(150, window.innerHeight - (vv.height + vv.offsetTop)));
       document.documentElement.style.setProperty("--vv-bottom-offset", offset + "px");
+      // The clamp above is deliberately tight, sized for Safari's toolbar.
+      // The on-screen keyboard is more than twice that, so anything that
+      // has to clear the keyboard needs the real numbers instead: a modal
+      // using the clamped value ends up behind the keyboard with its
+      // buttons off-screen entirely.
+      document.documentElement.style.setProperty("--vv-height", vv.height + "px");
+      document.documentElement.style.setProperty("--vv-top", vv.offsetTop + "px");
     };
     vv.addEventListener("resize", updateViewportInset);
+    // offsetTop shifts as the page scrolls under a raised keyboard, so the
+    // modal has to follow it, not just react to the keyboard appearing.
+    vv.addEventListener("scroll", updateViewportInset);
     updateViewportInset();
   }
 
