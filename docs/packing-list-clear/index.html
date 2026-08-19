@@ -98,7 +98,7 @@
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
   import {
-    getFirestore, doc, setDoc, updateDoc, deleteField, onSnapshot
+    getFirestore, doc, setDoc, updateDoc, deleteField, deleteDoc, onSnapshot
   } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
 
   // Same Firebase project as docs/packing-list/index.html and this folder's
@@ -226,10 +226,37 @@
     try {
       await updateDoc(indexRef, { [`lists.${id}`]: deleteField() });
       showUndoToast(id, entry);
+      scheduleFinalPurge(id);
     } catch (err) {
       console.error(err);
       alert("Couldn't delete the list — try again.");
     }
+  }
+
+  // Deleting only removes a list's entry from the index above -- its actual
+  // items are left alone so Undo can restore them exactly. But a "deleted"
+  // list should eventually really be gone, not just hidden forever, so once
+  // the undo window (below) closes without being used, permanently erase
+  // its data too. Each deletion's purge runs on its own independent timer
+  // (not tied to whatever the shared toast happens to be showing), so
+  // deleting a second list before the first one's window closes doesn't
+  // cancel the first one's purge.
+  const PURGE_DELAY_MS = 6000;
+  const purgeTimers = new Map(); // id -> timeout handle
+
+  function scheduleFinalPurge(id) {
+    const handle = setTimeout(() => {
+      purgeTimers.delete(id);
+      deleteDoc(doc(db, "packingLists", id)).catch(err => console.error(err));
+    }, PURGE_DELAY_MS);
+    purgeTimers.set(id, handle);
+  }
+
+  function cancelFinalPurge(id) {
+    const handle = purgeTimers.get(id);
+    if (handle === undefined) return;
+    clearTimeout(handle);
+    purgeTimers.delete(id);
   }
 
   // ---------- Undo ----------
@@ -244,7 +271,7 @@
     undoToastText.textContent = `Deleted "${entry ? entry.name : "list"}"`;
     undoToast.classList.add("show");
     clearTimeout(undoTimer);
-    undoTimer = setTimeout(() => { undoToast.classList.remove("show"); pendingUndo = null; }, 6000);
+    undoTimer = setTimeout(() => { undoToast.classList.remove("show"); pendingUndo = null; }, PURGE_DELAY_MS);
   }
 
   undoToastBtn.addEventListener("click", async e => {
@@ -254,6 +281,7 @@
     clearTimeout(undoTimer);
     undoToast.classList.remove("show");
     pendingUndo = null;
+    cancelFinalPurge(id);
     try {
       await setDoc(indexRef, { lists: { [id]: entry } }, { merge: true });
     } catch (err) {
