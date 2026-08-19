@@ -1181,17 +1181,16 @@
   });
 
   // ---------- Toast (quick undo for swipe-delete) ----------
+  // No time limit -- stays up until tapped, or until a later delete
+  // replaces it with a newer one, same as the list-delete toast on My Lists.
   const toastEl = document.getElementById("toast");
   const toastText = document.getElementById("toast-text");
   const toastUndoBtn = document.getElementById("toast-undo");
-  let toastTimer = null;
 
   function showUndoToast(name) {
     toastText.textContent = `Deleted "${name}"`;
     updateViewportInset();
     toastEl.classList.add("show");
-    clearTimeout(toastTimer);
-    toastTimer = setTimeout(() => toastEl.classList.remove("show"), 5000);
   }
   toastUndoBtn.addEventListener("click", () => {
     toastEl.classList.remove("show");
