@@ -41,6 +41,16 @@
   .list-row.commit { transition: transform 0.2s ease-out, opacity 0.2s ease-out; }
   .list-row .chev { opacity: 0.7; font-weight: 400; flex: none; }
 
+  .inline-add-input-wrap { flex: 1; min-width: 0; }
+  .inline-add-input {
+    width: 100%; display: block; font: inherit; font-size: 19px; font-weight: 700; color: #fff;
+    background: transparent; border: none; padding: 0; margin: 0; -webkit-appearance: none; appearance: none;
+    font-family: inherit; line-height: inherit; resize: none; overflow: hidden;
+    -webkit-user-select: none; user-select: none; -webkit-touch-callout: none;
+  }
+  .inline-add-input:focus { outline: none; }
+  .inline-add-input::placeholder { color: rgba(255,255,255,0.65); font-weight: 700; }
+
   .empty-state { color: var(--ink-muted); font-size: 14px; padding: 30px 4px; }
 
   .undo-toast {
@@ -136,21 +146,109 @@
   const root = document.getElementById("list-root");
   let lists = {};
 
+  // A pending "new list" entry, edited inline as its own orange row (same
+  // idea as adding an item on the list page) rather than a native prompt()
+  // popup, which looked/felt like a totally separate window.
+  let pendingAdd = false;
+
+  function autoGrowInlineTextarea(el) {
+    el.style.height = "auto";
+    el.style.height = el.scrollHeight + "px";
+  }
+
   function render() {
     const entries = Object.entries(lists).sort((a, b) => (a[1].order ?? 0) - (b[1].order ?? 0));
-    if (entries.length === 0) {
+    if (entries.length === 0 && !pendingAdd) {
       root.innerHTML = '<div class="empty-state">No lists yet. Tap anywhere to create one.</div>';
       return;
     }
-    root.innerHTML = entries.map(([id, l], i) => `
+    const rowsHtml = entries.map(([id, l], i) => `
       <div class="swipe-row" data-list-id="${escapeAttr(id)}" data-list-name="${escapeAttr(l.name || "")}">
         <div class="bg-delete">Delete</div>
         <button type="button" class="list-row" style="background:${gradientRowColor(i, entries.length)}">
           <span>${escapeHtml(l.name || "Untitled list")}</span><span class="chev">›</span>
         </button>
       </div>`).join("");
-    root.querySelectorAll(".swipe-row").forEach(row => attachDeleteSwipe(row, row.dataset.listId));
+    const inlineAddHtml = pendingAdd ? `
+      <div class="swipe-row">
+        <div class="list-row" style="background:${gradientRowColor(entries.length, entries.length + 1)}">
+          <div class="inline-add-input-wrap"><textarea id="inline-add-input" class="inline-add-input" rows="1" placeholder="New list"></textarea></div>
+        </div>
+      </div>` : "";
+    root.innerHTML = rowsHtml + inlineAddHtml;
+    root.querySelectorAll(".swipe-row[data-list-id]").forEach(row => attachDeleteSwipe(row, row.dataset.listId));
+
+    if (pendingAdd) {
+      const input = document.getElementById("inline-add-input");
+      autoGrowInlineTextarea(input);
+      input.focus();
+      input.addEventListener("input", () => autoGrowInlineTextarea(input));
+      input.addEventListener("keydown", e => {
+        if (e.key === "Enter") { e.preventDefault(); input.blur(); }
+        else if (e.key === "Escape") { e.preventDefault(); input.dataset.cancelled = "1"; input.blur(); }
+      });
+      input.addEventListener("blur", () => {
+        const cancelled = input.dataset.cancelled === "1";
+        const name = input.value.trim();
+        pendingAdd = false;
+        if (!cancelled && name) { commitNewList(name); return; }
+        render();
+      });
+    }
   }
+
+  function startInlineAdd() {
+    if (pendingAdd) return;
+    pendingAdd = true;
+    render();
+  }
+
+  // Discards whatever's typed instead of committing it -- reuses the exact
+  // mechanism the field's own Escape handler uses (mark cancelled, then
+  // blur), so the blur handler above is the single place that decides
+  // commit vs. discard.
+  function cancelPendingInlineAdd() {
+    const input = document.getElementById("inline-add-input");
+    if (input) { input.dataset.cancelled = "1"; input.blur(); }
+  }
+
+  async function commitNewList(name) {
+    const id = uid();
+    const order = Object.keys(lists).length;
+    try {
+      await setDoc(indexRef, { lists: { [id]: { name, order } } }, { merge: true });
+      location.href = `list.html?id=${encodeURIComponent(id)}&name=${encodeURIComponent(name)}`;
+    } catch (err) {
+      console.error(err);
+      alert("Couldn't create the list — try again.");
+    }
+  }
+
+  // Tapping anywhere while the inline-add row is open dismisses it instead
+  // of doing whatever that tap would otherwise do -- capture phase, on
+  // pointerdown, for the same reason this pattern is used on the list
+  // page: the browser's own default blur-on-tap happens well before a
+  // "click" would ever fire, so waiting for click means whatever was typed
+  // already committed via the field's default (non-cancelled) blur.
+  //
+  // A tap landing on an existing row only cancels on that tap -- it
+  // doesn't also navigate. The synchronous render() this triggers (via the
+  // field's blur handler) detaches the very row element mid-dispatch,
+  // which silently stops the browser's click from ever firing for it, so
+  // trying to also act on it here would be unreliable. A plain second tap
+  // on the now-ordinary row navigates normally right after.
+  // The flag is reset on a timeout as well as on next-click consumption --
+  // some targets (e.g. the undo toast's own button) call stopPropagation(),
+  // so the click never reaches the listener below to clear it there. Left
+  // set, it would wrongly swallow the next unrelated tap-to-add.
+  let suppressNextClick = false;
+  document.addEventListener("pointerdown", e => {
+    if (!pendingAdd) return;
+    if (e.target.closest("#inline-add-input")) return;
+    suppressNextClick = true;
+    setTimeout(() => { suppressNextClick = false; }, 0);
+    cancelPendingInlineAdd();
+  }, { capture: true });
 
   root.addEventListener("click", e => {
     const row = e.target.closest("[data-list-id]");
@@ -286,27 +384,14 @@
     root.innerHTML = '<div class="empty-state">Couldn\'t load your lists. Check your connection and reload.</div>';
   });
 
-  async function createList() {
-    const name = prompt("Name this list:");
-    if (!name || !name.trim()) return;
-    const id = uid();
-    const order = Object.keys(lists).length;
-    try {
-      await setDoc(indexRef, { lists: { [id]: { name: name.trim(), order } } }, { merge: true });
-      location.href = `list.html?id=${encodeURIComponent(id)}&name=${encodeURIComponent(name.trim())}`;
-    } catch (err) {
-      console.error(err);
-      alert("Couldn't create the list — try again.");
-    }
-  }
-
   // Tap anywhere that isn't an existing list row to create a new one --
   // no separate "+" button needed. A tap that ends a pull-to-add drag
   // (below) doesn't double-fire this: preventDefault() on that drag's
   // touchmove suppresses the browser's compatibility click for it.
   document.addEventListener("click", e => {
+    if (suppressNextClick) { suppressNextClick = false; return; }
     if (e.target.closest("[data-list-id]")) return;
-    createList();
+    startInlineAdd();
   });
 
   // ---------- Pull down to add (same gesture as the list page) ----------
@@ -333,7 +418,7 @@
 
   document.addEventListener("touchstart", e => {
     if (e.touches.length !== 1) return;
-    if (window.scrollY > 0 || e.target.closest("[data-list-id]")) { pullTouchId = null; return; }
+    if (window.scrollY > 0 || e.target.closest("[data-list-id], #inline-add-input")) { pullTouchId = null; return; }
     const t = e.touches[0];
     if (!t) return;
     pullTouchId = t.identifier;
@@ -364,7 +449,7 @@
     pullTouchId = null;
     const shouldAdd = pullActive && pullDist >= PULL_TRIGGER;
     resetPull();
-    if (shouldAdd) createList();
+    if (shouldAdd) startInlineAdd();
   }
   document.addEventListener("touchend", endPull);
   document.addEventListener("touchcancel", endPull);
