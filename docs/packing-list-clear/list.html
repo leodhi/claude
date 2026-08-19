@@ -103,22 +103,6 @@
   .cat-header .cat-count { font-size: 12px; font-weight: 600; opacity: 0.85; white-space: nowrap; }
   .cat-header-hidden { display: none; }
 
-  /* Each category carries its own colour (see CAT_PALETTES), so the
-     heading no longer needs to be a coloured slab to mark the group -- it
-     steps back to a quiet label and lets the items carry the colour. That
-     also removes the old problem of a heading being painted exactly the
-     same colour as its own first row. Niagara keeps its original look. */
-  .tinted .cat-section { border-radius: 0; overflow: visible; box-shadow: none; margin-bottom: 24px; }
-  .tinted .cat-header {
-    background: transparent !important; padding: 0 4px 9px;
-    font-size: 12px; font-weight: 800; letter-spacing: 0.10em;
-    text-transform: uppercase; color: #8e8e97;
-  }
-  .tinted .cat-header .cat-count { font-size: 11px; color: #6f6f77; opacity: 1; }
-  .tinted .cat-header .cat-chevron { font-size: 10px; }
-  .tinted .row-list { border-radius: 14px; overflow: hidden; box-shadow: var(--shadow); }
-  .tinted .swipe-row:first-child { border-top: none; }
-
   /* Swipe a heading left to reveal its delete, same gesture as a row. */
   .cat-header-wrap { position: relative; overflow: hidden; touch-action: pan-y; }
   .cat-bg-delete {
@@ -217,13 +201,6 @@
   #pull-icon.ready { background: var(--accent); border-color: var(--accent); color: #fff; }
   #pull-icon.reset { transition: opacity 0.2s ease, transform 0.2s ease, background 0.15s ease, border-color 0.15s ease, color 0.15s ease; }
 
-  .fab {
-    position: fixed; bottom: calc(64px + env(safe-area-inset-bottom) + var(--vv-bottom-offset, 0px)); right: 20px; width: 56px; height: 56px; border-radius: 50%;
-    background: var(--accent); color: #fff; border: none; font-size: 28px; line-height: 1;
-    box-shadow: 0 4px 16px rgba(0,0,0,0.4); cursor: pointer; z-index: 20;
-    -webkit-transform: translateZ(0); transform: translateZ(0); will-change: transform;
-  }
-  .fab:active { transform: scale(0.94); }
 
   .add-item-row {
     padding: 14px 16px; text-align: center; font-size: 14px; font-weight: 600;
@@ -333,7 +310,6 @@
 </div>
 </div>
 
-<button type="button" id="fab-add" class="fab" aria-label="Add an item">+</button>
 <button type="button" id="scroll-top-btn" class="scroll-top-btn" aria-label="Scroll to top">↑</button>
 
 <div class="toast" id="toast">
@@ -432,7 +408,6 @@
   if (!isNiagara) {
     document.getElementById("assignee-filter").style.display = "none";
     document.getElementById("ci-assignee-group").style.display = "none";
-    document.getElementById("list-root").classList.add("tinted");
   }
 
   const app = initializeApp(firebaseConfig);
@@ -487,62 +462,14 @@
   const GRADIENT_BASE = { h: 8, s: 80, l: 36 };
   const GRADIENT_LIGHT_CAP = 51;
 
-  // Every category used to share this one orange, which made a long list
-  // read as one undifferentiated block -- and made a category's heading
-  // exactly the same colour as its own first row. Each category now gets
-  // its own hue, so groups are told apart by colour before you read a
-  // word. Lightness stays in the same narrow band as the original so white
-  // row text is equally legible on all of them.
-  //
-  // Niagara keeps the single orange it has always had -- it predates all
-  // of this and its look is deliberate.
-  const CAT_PALETTES = [
-    { h: 8,   s: 80, l: 36, drift: 15, cap: 51 }, // the original orange
-    { h: 205, s: 68, l: 34, drift: 10, cap: 46 }, // blue
-    { h: 150, s: 52, l: 28, drift: 10, cap: 37 }, // green
-    { h: 280, s: 42, l: 38, drift: 12, cap: 49 }, // purple
-    { h: 186, s: 62, l: 27, drift: 10, cap: 37 }, // teal
-    { h: 330, s: 55, l: 36, drift: 12, cap: 47 }, // pink
-    { h: 38,  s: 75, l: 30, drift: 8,  cap: 38 }, // amber
-  ];
-
-  // Colours are picked from the name, so a category keeps its own as
-  // others are added, removed or dragged around it -- but a plain hash
-  // hands neighbouring categories the same colour often enough to defeat
-  // the point, so a taken colour steps to the next free one. The first
-  // palette entry is reserved for uncategorized items, so a real category
-  // never gets mistaken for the loose ones at the top.
-  let catColorMap = new Map();
-  function buildCatColorMap(cats) {
-    const map = new Map();
-    if (isNiagara) return map; // one orange for everything, as always
-    const taken = new Set();
-    cats.filter(Boolean).forEach(c => {
-      let h = 0;
-      for (let i = 0; i < c.length; i++) h = (h * 31 + c.charCodeAt(i)) | 0;
-      const choices = CAT_PALETTES.length - 1; // skip index 0
-      let idx = 1 + (Math.abs(h) % choices);
-      for (let n = 0; n < choices && taken.has(idx); n++) idx = 1 + (idx % choices);
-      taken.add(idx);
-      map.set(c, CAT_PALETTES[idx]);
-    });
-    return map;
+  function headerColorForCat() {
+    return `hsl(${GRADIENT_BASE.h}, ${GRADIENT_BASE.s}%, ${GRADIENT_BASE.l}%)`;
   }
-  function paletteForCat(catName) {
-    if (isNiagara || !catName) return CAT_PALETTES[0];
-    return catColorMap.get(catName) || CAT_PALETTES[0];
-  }
-
-  function headerColorForCat(catName) {
-    const p = paletteForCat(catName);
-    return `hsl(${p.h}, ${p.s}%, ${p.l}%)`;
-  }
-  function gradientRowColor(index, total, catName) {
-    const p = paletteForCat(catName);
+  function gradientRowColor(index, total) {
     const t = total <= 1 ? 0 : index / (total - 1);
-    const hue = p.h + t * p.drift;
-    const light = Math.min(p.cap, p.l + t * (p.cap - p.l));
-    return `hsl(${hue.toFixed(1)}, ${p.s}%, ${light}%)`;
+    const hue = GRADIENT_BASE.h + t * 15;
+    const light = Math.min(GRADIENT_LIGHT_CAP, GRADIENT_BASE.l + t * (GRADIENT_LIGHT_CAP - GRADIENT_BASE.l));
+    return `hsl(${hue.toFixed(1)}, ${GRADIENT_BASE.s}%, ${light}%)`;
   }
 
   function uid() { return Math.random().toString(36).slice(2, 10); }
@@ -1323,31 +1250,10 @@
     if (edgeBackDragging) resetEdgeBack();
   });
 
-  const fabAdd = document.getElementById("fab-add");
-  let fabLongPressTimer = null;
-  let fabLongPressFired = false;
-  fabAdd.addEventListener("pointerdown", e => {
-    if (e.button !== undefined && e.button !== 0) return;
-    // Without this, the button's own default "take focus on tap" behavior
-    // fires just after we call .focus() on the inline-add textarea it
-    // opens -- stealing focus back from it a moment later, which fires
-    // that textarea's blur handler and wipes the row before anything can
-    // be typed into it.
-    if (e.cancelable) e.preventDefault();
-    fabLongPressFired = false;
-    clearTimeout(fabLongPressTimer);
-    fabLongPressTimer = setTimeout(() => {
-      fabLongPressFired = true;
-      if (isNiagara) openAddModal(); else startInlineAdd();
-    }, 500);
-  });
-  fabAdd.addEventListener("pointerup", () => {
-    clearTimeout(fabLongPressTimer);
-    if (!fabLongPressFired) startInlineAdd();
-  });
-  fabAdd.addEventListener("pointercancel", () => clearTimeout(fabLongPressTimer));
-  fabAdd.addEventListener("pointerleave", () => clearTimeout(fabLongPressTimer));
-
+  // The floating "+" is gone: every category already has its own
+  // "+ Add item" row, tapping empty space adds one, and pulling down at
+  // the top does too -- it was a fourth way to do the same thing, sitting
+  // on top of the list.
   addForm.addEventListener("submit", async e => {
     e.preventDefault();
     const name = ciName.value.trim();
@@ -2181,7 +2087,6 @@
         return ra === rb ? 0 : ra - rb;
       });
     }
-    catColorMap = buildCatColorMap(categoryOrder);
     renderCatOptions(categoryOrder);
     // "Shown" covers both a category with items in it and one that was
     // created deliberately but is still empty.
@@ -2246,7 +2151,7 @@
       header.className = "cat-header" + (showThisHeader ? "" : " cat-header-hidden");
       header.dataset.catToggle = catName;
       if (showThisHeader) {
-        header.style.background = headerColorForCat(catName);
+        header.style.background = headerColorForCat();
         const doneCount = items.filter(i => i.checked).length;
         header.innerHTML = `<span class="cat-title-text"><span class="cat-chevron">▾</span>${escapeHtml(catName || "No category")}</span><span class="cat-count">${doneCount} / ${items.length}</span>`;
         attachCatDrag(header, catName, section);
@@ -2275,7 +2180,7 @@
         const inlineRow = document.createElement("div");
         inlineRow.className = "swipe-row";
         inlineRow.innerHTML = `
-          <div class="row-fg" style="background:${headerColorForCat(catName)}">
+          <div class="row-fg" style="background:${headerColorForCat()}">
             <div class="inline-add-input-wrap"><textarea id="inline-add-input" class="inline-add-input" rows="1" placeholder="New item"></textarea></div>
           </div>`;
         list.appendChild(inlineRow);
@@ -2302,7 +2207,7 @@
       visibleItems.forEach(item => {
         if (pendingAddCat === catName && pendingAddBeforeId === item.id) appendInlineAddRow();
         const isDone = item.checked || item.na;
-        const bg = isDone ? "var(--bg)" : gradientRowColor(openIdx++, openCount, catName);
+        const bg = isDone ? "var(--bg)" : gradientRowColor(openIdx++, openCount);
         const row = document.createElement("div");
         row.className = "swipe-row";
         row.dataset.itemId = item.id;
