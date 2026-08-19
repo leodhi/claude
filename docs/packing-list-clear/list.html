@@ -545,13 +545,29 @@
   // trigger threshold. Remove once shake-to-undo is confirmed working.
   const SHAKE_DEBUG = new URLSearchParams(location.search).get("debug") === "1";
   let shakeDebugEl = null;
+  const shakeDebugLines = [];
   if (SHAKE_DEBUG) {
+    // Debug mode always starts from a clean permission state -- otherwise
+    // an already-"granted" preference from earlier testing skips straight
+    // past the whole request/response sequence we actually need to see.
+    localStorage.removeItem(SHAKE_PREF_KEY);
     shakeDebugEl = document.createElement("div");
-    shakeDebugEl.style.cssText = "position:fixed;bottom:0;left:0;right:0;background:rgba(0,0,0,0.92);color:#0f0;font:11px/1.5 monospace;padding:8px 10px;z-index:9999;white-space:pre-wrap;pointer-events:none;";
+    shakeDebugEl.style.cssText = "position:fixed; bottom:0; left:0; right:0; max-height:30vh; overflow-y:auto; background:rgba(0,0,0,0.92); color:#0f0; font:11px/1.5 monospace; padding:8px 10px; z-index:9999; white-space:pre-wrap; pointer-events:none;";
     shakeDebugEl.textContent = "shake debug: loading…";
     document.body.appendChild(shakeDebugEl);
   }
-  function shakeDebugLog(msg) { if (shakeDebugEl) shakeDebugEl.textContent = msg; }
+  // Appends rather than overwrites -- the previous version replaced the
+  // text each time, so the very first lines (stored pref, permission
+  // result) were already gone by the time anyone could read them, leaving
+  // only whatever the last line happened to be.
+  function shakeDebugLog(msg) {
+    if (!shakeDebugEl) return;
+    const stamp = new Date().toISOString().slice(11, 23);
+    shakeDebugLines.push(`[${stamp}] ${msg}`);
+    if (shakeDebugLines.length > 40) shakeDebugLines.shift();
+    shakeDebugEl.textContent = shakeDebugLines.join("\n");
+    shakeDebugEl.scrollTop = shakeDebugEl.scrollHeight;
+  }
 
   let shakeListenerAttached = false;
   function startShakeDetection(onShake) {
@@ -566,7 +582,7 @@
       const acc = e.accelerationIncludingGravity;
       if (!acc || acc.x === null) {
         nullAccCount++;
-        shakeDebugLog(`events: ${eventCount} | acc is null/missing (${nullAccCount}x) -- this device/browser isn't giving us real acceleration data`);
+        if (nullAccCount <= 3) shakeDebugLog(`events: ${eventCount} | acc is null/missing (${nullAccCount}x) -- this device/browser isn't giving us real acceleration data`);
         return;
       }
       const now = Date.now();
@@ -575,19 +591,30 @@
         if (dt < 80) return; // sample at a steady rate rather than every event
         const speed = (Math.abs(acc.x - lastX) + Math.abs(acc.y - lastY) + Math.abs(acc.z - lastZ)) / dt * 1000;
         maxSpeed = Math.max(maxSpeed, speed);
-        shakeDebugLog(`events: ${eventCount} | speed: ${speed.toFixed(1)} (need >${SHAKE_THRESHOLD}) | max seen: ${maxSpeed.toFixed(1)} | cooling: ${cooling}`);
+        // Only the notable samples, so a steady stream of idle readings
+        // doesn't scroll the earlier permission lines out of view.
+        if (speed > 3 || eventCount % 25 === 0) {
+          shakeDebugLog(`events: ${eventCount} | speed: ${speed.toFixed(1)} (need >${SHAKE_THRESHOLD}) | max seen: ${maxSpeed.toFixed(1)}`);
+        }
         if (speed > SHAKE_THRESHOLD && !cooling) {
           cooling = true;
+          shakeDebugLog(`*** SHAKE DETECTED (speed ${speed.toFixed(1)}) -- calling undo ***`);
           if (navigator.vibrate) navigator.vibrate(20);
           onShake();
           setTimeout(() => { cooling = false; }, 1000);
         }
       } else {
-        shakeDebugLog(`events: ${eventCount} | first event, acc: ${acc.x?.toFixed(1)}, ${acc.y?.toFixed(1)}, ${acc.z?.toFixed(1)}`);
+        shakeDebugLog(`FIRST EVENT ARRIVED -- acc: ${acc.x?.toFixed(1)}, ${acc.y?.toFixed(1)}, ${acc.z?.toFixed(1)}`);
       }
       lastTime = now; lastX = acc.x; lastY = acc.y; lastZ = acc.z;
     });
     shakeDebugLog("listener attached, waiting for devicemotion events…");
+    // If nothing has arrived after a few seconds, say so explicitly rather
+    // than leaving "waiting…" on screen forever, which is ambiguous
+    // between "not listening" and "listening but the OS sends nothing".
+    setTimeout(() => {
+      if (eventCount === 0) shakeDebugLog("!! 5s later: still ZERO devicemotion events -- the OS/browser is not delivering motion data to this page at all");
+    }, 5000);
   }
 
   // Confirms before actually undoing -- a shake can happen by accident
