@@ -415,30 +415,53 @@
   const SHAKE_PREF_KEY = "packing-clear-shake-undo-pref";
   const shakeModal = document.getElementById("shake-modal");
 
+  // Temporary on-screen diagnostic -- add &debug=1 to the URL to see it.
+  // Same as list.html's copy of this -- see the comment there.
+  const SHAKE_DEBUG = new URLSearchParams(location.search).get("debug") === "1";
+  let shakeDebugEl = null;
+  if (SHAKE_DEBUG) {
+    shakeDebugEl = document.createElement("div");
+    shakeDebugEl.style.cssText = "position:fixed;bottom:0;left:0;right:0;background:rgba(0,0,0,0.92);color:#0f0;font:11px/1.5 monospace;padding:8px 10px;z-index:9999;white-space:pre-wrap;pointer-events:none;";
+    shakeDebugEl.textContent = "shake debug: loading…";
+    document.body.appendChild(shakeDebugEl);
+  }
+  function shakeDebugLog(msg) { if (shakeDebugEl) shakeDebugEl.textContent = msg; }
+
   let shakeListenerAttached = false;
   function startShakeDetection(onShake) {
     if (shakeListenerAttached) return; // re-opening the settings sheet and tapping Enable again shouldn't stack a second listener
     shakeListenerAttached = true;
     let lastX = null, lastY = null, lastZ = null, lastTime = 0;
     let cooling = false;
+    let eventCount = 0, nullAccCount = 0, maxSpeed = 0;
     const SHAKE_THRESHOLD = 18;
     window.addEventListener("devicemotion", e => {
+      eventCount++;
       const acc = e.accelerationIncludingGravity;
-      if (!acc || acc.x === null) return;
+      if (!acc || acc.x === null) {
+        nullAccCount++;
+        shakeDebugLog(`events: ${eventCount} | acc is null/missing (${nullAccCount}x) -- this device/browser isn't giving us real acceleration data`);
+        return;
+      }
       const now = Date.now();
       if (lastTime) {
         const dt = now - lastTime;
         if (dt < 80) return;
         const speed = (Math.abs(acc.x - lastX) + Math.abs(acc.y - lastY) + Math.abs(acc.z - lastZ)) / dt * 1000;
+        maxSpeed = Math.max(maxSpeed, speed);
+        shakeDebugLog(`events: ${eventCount} | speed: ${speed.toFixed(1)} (need >${SHAKE_THRESHOLD}) | max seen: ${maxSpeed.toFixed(1)} | cooling: ${cooling}`);
         if (speed > SHAKE_THRESHOLD && !cooling) {
           cooling = true;
           if (navigator.vibrate) navigator.vibrate(20);
           onShake();
           setTimeout(() => { cooling = false; }, 1000);
         }
+      } else {
+        shakeDebugLog(`events: ${eventCount} | first event, acc: ${acc.x?.toFixed(1)}, ${acc.y?.toFixed(1)}, ${acc.z?.toFixed(1)}`);
       }
       lastTime = now; lastX = acc.x; lastY = acc.y; lastZ = acc.z;
     });
+    shakeDebugLog("listener attached, waiting for devicemotion events…");
   }
 
   // Confirms before actually undoing -- a shake can happen by accident
@@ -488,15 +511,18 @@
   document.getElementById("shake-enable").addEventListener("click", async e => {
     e.stopPropagation();
     closeShakeModal();
+    shakeDebugLog(`DeviceMotionEvent: ${typeof DeviceMotionEvent}, requestPermission: ${typeof DeviceMotionEvent !== "undefined" ? typeof DeviceMotionEvent.requestPermission : "n/a"}`);
     try {
       if (typeof DeviceMotionEvent !== "undefined" && typeof DeviceMotionEvent.requestPermission === "function") {
         const result = await DeviceMotionEvent.requestPermission();
+        shakeDebugLog(`requestPermission() resolved: "${result}"`);
         if (result !== "granted") { localStorage.setItem(SHAKE_PREF_KEY, "declined"); return; }
       }
       localStorage.setItem(SHAKE_PREF_KEY, "granted");
       startShakeDetection(onShakeUndo);
     } catch (err) {
       console.error(err);
+      shakeDebugLog(`requestPermission() threw: ${err.message}`);
       localStorage.setItem(SHAKE_PREF_KEY, "declined");
     }
   });
@@ -513,6 +539,7 @@
   }
 
   const shakePref = localStorage.getItem(SHAKE_PREF_KEY);
+  shakeDebugLog(`stored pref: ${shakePref || "(none yet)"}`);
   if (shakePref === "granted") {
     startShakeDetection(onShakeUndo);
   } else if (!shakePref) {
