@@ -993,6 +993,20 @@
     endPull();
   });
 
+  // Tapping the empty background (not any row, button, or other control)
+  // adds an item too, same as the "+" FAB or the pull-down gesture -- same
+  // idea as My Lists letting you tap anywhere to add a new list. Checked
+  // by exact element identity rather than closest(), so a tap on a button
+  // or row nested way down in .wrap never wrongly counts as "background".
+  document.addEventListener("click", e => {
+    const t = e.target;
+    const isBackground = t === document.body || t === document.documentElement ||
+      t === pullWrap || t === document.querySelector(".scroll-container") ||
+      t === document.getElementById("list-root") || t.classList.contains("empty-state");
+    if (!isBackground) return;
+    startInlineAdd();
+  });
+
   // ---------- Edge-swipe-back (iOS-style) ----------
   // As an installed home-screen app (display: standalone) there's no browser
   // chrome and no native back gesture at all -- the only way back to "My
