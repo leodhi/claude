@@ -88,31 +88,35 @@
   .progress-fill { height: 100%; background: var(--accent); transition: width 0.2s ease; }
   .progress-label { font-size: 12px; color: var(--ink-muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
 
-  .cat-section { border-radius: 16px; overflow: hidden; margin-bottom: 22px; box-shadow: var(--shadow); }
-  /* Italic, a little smaller and a little lighter than the item names, so
-     the heading reads as a label for the group rather than as another,
-     louder row in it. It used to be 17px/900 against 18px/600 items --
-     heavier AND smaller, which is what made the two hard to tell apart. */
+  .cat-section { margin-bottom: 22px; }
+  /* The heading sits on the page background rather than on a coloured bar
+     of its own -- a small italic name with a hairline running out to the
+     count. The only strong shapes left on screen are the item cards, and a
+     heading can no longer be mistaken for the row beneath it, which was the
+     original problem: it used to be painted the very same colour. */
   .cat-header {
-    display: flex; align-items: center; justify-content: space-between; gap: 8px;
-    padding: 14px 16px 12px; font-weight: 700; font-size: 15px; font-style: italic;
-    letter-spacing: -0.01em; color: #fff;
+    display: flex; align-items: center; gap: 10px;
+    padding: 3px 6px 9px; min-height: 30px;
+    font-weight: 700; font-size: 13.5px; font-style: italic;
+    letter-spacing: -0.01em; color: #cbb7ae; background: transparent;
     cursor: pointer; user-select: none; touch-action: manipulation;
-    transition: filter 0.1s ease;
+    transition: opacity 0.1s ease;
   }
-  .cat-header:active { filter: brightness(0.9); }
+  .cat-header:active { opacity: 0.6; }
+  /* Fills the gap between the name and the count. */
+  .cat-header .cat-rule { flex: 1; height: 1px; background: rgba(255,255,255,0.14); }
   .cat-header .cat-title-text { display: inline-flex; align-items: center; gap: 8px; }
   .cat-header .cat-chevron { display: inline-block; font-size: 12px; font-style: normal; transition: transform 0.15s ease; opacity: 0.85; }
   .cat-section.collapsed .cat-chevron { transform: rotate(-90deg); }
   .cat-section.collapsed .row-list { display: none; }
-  .cat-header .cat-count { font-size: 12px; font-weight: 600; font-style: normal; opacity: 0.85; white-space: nowrap; }
+  .cat-header .cat-count { font-size: 11.5px; font-weight: 600; font-style: normal; color: #8a8078; white-space: nowrap; }
   .cat-header-hidden { display: none; }
 
   /* Swipe a heading left to reveal its delete, same gesture as a row. */
   .cat-header-wrap { position: relative; overflow: hidden; touch-action: pan-y; }
   .cat-bg-delete {
-    position: absolute; inset: 0; background: var(--delete); display: flex; align-items: center;
-    justify-content: flex-end; padding-right: 20px; font-size: 20px; color: #fff;
+    position: absolute; inset: 0 0 6px 0; background: var(--delete); display: flex; align-items: center;
+    justify-content: flex-end; padding-right: 14px; font-size: 15px; color: #fff;
     opacity: 0; border-radius: 8px; cursor: pointer; touch-action: manipulation;
   }
   .cat-header { position: relative; }
@@ -120,7 +124,9 @@
   .cat-header.snap { transition: transform 0.25s cubic-bezier(.2,.9,.3,1.3); }
   .cat-header.dragging { transition: none; }
 
-  .row-list { display: flex; flex-direction: column; }
+  /* The rounded card is the run of rows itself, so the heading can sit
+     outside it on the page background. */
+  .row-list { display: flex; flex-direction: column; border-radius: 16px; overflow: hidden; box-shadow: var(--shadow); }
 
   .swipe-row { position: relative; overflow: hidden; touch-action: pan-y; border-top: 1px solid rgba(0,0,0,0.18); }
   .swipe-bg {
@@ -2186,9 +2192,8 @@
       header.className = "cat-header" + (showThisHeader ? "" : " cat-header-hidden");
       header.dataset.catToggle = catName;
       if (showThisHeader) {
-        header.style.background = headerColorForCat();
         const doneCount = items.filter(i => i.checked).length;
-        header.innerHTML = `<span class="cat-title-text"><span class="cat-chevron">▾</span>${escapeHtml(catName || "No category")}</span><span class="cat-count">${doneCount} / ${items.length}</span>`;
+        header.innerHTML = `<span class="cat-title-text"><span class="cat-chevron">▾</span>${escapeHtml(catName || "No category")}</span><span class="cat-rule"></span><span class="cat-count">${doneCount} / ${items.length}</span>`;
         attachCatDrag(header, catName, section);
         // Wrapped so the heading can slide aside over a delete button,
         // the same swipe-then-tap-to-confirm used for items and lists.
