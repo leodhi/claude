@@ -246,6 +246,7 @@
   // idea as adding an item on the list page) rather than a native prompt()
   // popup, which looked/felt like a totally separate window.
   let pendingAdd = false;
+  let pendingRenameId = null;
 
   function autoGrowInlineTextarea(el) {
     el.style.height = "auto";
@@ -280,17 +281,32 @@
       root.innerHTML = '<div class="empty-state">No lists yet. Tap anywhere to create one.</div>' + renderTrashHtml();
       return;
     }
-    const rowsHtml = entries.map(([id, l], i) => `
-      <div class="swipe-row" data-list-id="${escapeAttr(id)}" data-list-name="${escapeAttr(l.name || "")}">
+    const rowsHtml = entries.map(([id, l], i) => {
+      const rowBg = gradientRowColor(i, entries.length);
+      const rowAttrs = `data-list-id="${escapeAttr(id)}" data-list-name="${escapeAttr(l.name || "")}"`;
+      // A <div>, not the usual <button>: a textarea nested inside a button is
+      // invalid markup, and taps meant to place the caret get eaten by the
+      // button itself.
+      if (pendingRenameId === id) {
+        return `
+      <div class="swipe-row" ${rowAttrs}>
+        <div class="list-row" style="background:${rowBg}">
+          <div class="inline-add-input-wrap"><textarea id="inline-rename-input" class="inline-add-input" rows="1">${escapeHtml(l.name || "")}</textarea></div>
+        </div>
+      </div>`;
+      }
+      return `
+      <div class="swipe-row" ${rowAttrs}>
         <div class="bg-delete">Delete</div>
-        <button type="button" class="list-row" style="background:${gradientRowColor(i, entries.length)}">
+        <button type="button" class="list-row" style="background:${rowBg}">
           <span>${escapeHtml(l.name || "Untitled list")}</span>
           <span class="list-row-right">
             ${itemCounts[id] != null ? `<span class="item-count">${itemCounts[id]}</span>` : ""}
             <span class="chev">›</span>
           </span>
         </button>
-      </div>`).join("");
+      </div>`;
+    }).join("");
     const inlineAddHtml = pendingAdd ? `
       <div class="swipe-row">
         <div class="list-row" style="background:${gradientRowColor(entries.length, entries.length + 1)}">
@@ -303,7 +319,37 @@
     // stale -- reset the tracking, not just the DOM.
     revealedListId = null;
     closeRevealedList = null;
-    root.querySelectorAll(".swipe-row[data-list-id]").forEach(row => attachDeleteSwipe(row, row.dataset.listId));
+    root.querySelectorAll(".swipe-row[data-list-id]").forEach(row => {
+      if (row.dataset.listId === pendingRenameId) return; // no swipe-to-delete mid-rename
+      attachDeleteSwipe(row, row.dataset.listId);
+    });
+
+    if (pendingRenameId !== null) {
+      const renameInput = document.getElementById("inline-rename-input");
+      if (renameInput) {
+        const renameId = pendingRenameId;
+        autoGrowInlineTextarea(renameInput);
+        renameInput.focus();
+        renameInput.setSelectionRange(renameInput.value.length, renameInput.value.length);
+        renameInput.addEventListener("input", () => autoGrowInlineTextarea(renameInput));
+        renameInput.addEventListener("keydown", ev => {
+          if (ev.key === "Enter") { ev.preventDefault(); renameInput.blur(); }
+          else if (ev.key === "Escape") { ev.preventDefault(); renameInput.dataset.cancelled = "1"; renameInput.blur(); }
+        });
+        // Saving re-renders, and pulling the still-focused field out of the
+        // page fires blur a second time -- once is all this can ever mean.
+        let renameHandled = false;
+        renameInput.addEventListener("blur", () => {
+          if (renameHandled) return;
+          renameHandled = true;
+          const cancelled = renameInput.dataset.cancelled === "1";
+          const newName = renameInput.value.trim();
+          pendingRenameId = null;
+          if (!cancelled && newName) commitRenameList(renameId, newName);
+          render();
+        });
+      }
+    }
 
     if (pendingAdd) {
       const input = document.getElementById("inline-add-input");
@@ -342,6 +388,8 @@
   function dismissPendingInlineAdd() {
     const input = document.getElementById("inline-add-input");
     if (input) input.blur();
+    const renameInput = document.getElementById("inline-rename-input");
+    if (renameInput) renameInput.blur();
   }
 
   async function commitNewList(name) {
@@ -372,6 +420,38 @@
     }
   }
 
+  // ---------- Rename a list (press and hold) ----------
+  // Press-and-hold rather than the double-tap that renames a category on the
+  // list page: a single tap here opens the list, and unlike a collapse that
+  // can be quietly toggled back when a second tap lands, a navigation can't
+  // be taken back.
+  async function commitRenameList(id, name) {
+    const entry = lists[id];
+    // Nothing to do if it's already this name -- which is also what makes a
+    // double commit harmless, since both the field's blur and the tap-away
+    // handler finish an open rename.
+    if (!entry || entry.name === name) return;
+    try {
+      // The name lives in two places -- see commitNewList() above. Both move
+      // together so the index and the list's own document can't drift apart
+      // and hand recovery the stale name later (see reconcileLists()).
+      await Promise.all([
+        updateDoc(indexRef, { [`lists.${id}.name`]: name }),
+        setDoc(doc(db, "packingLists", id), { name }, { merge: true })
+      ]);
+    } catch (err) {
+      console.error(err);
+      alert("Couldn't rename the list — try again.");
+    }
+  }
+
+  function startRenameList(id) {
+    if (pendingAdd) dismissPendingInlineAdd();
+    if (revealedListId !== null && closeRevealedList) closeRevealedList();
+    pendingRenameId = id;
+    render(); // focuses the field
+  }
+
   // Tapping anywhere while the inline-add row is open dismisses it instead
   // of doing whatever that tap would otherwise do -- capture phase, on
   // pointerdown, for the same reason this pattern is used on the list
@@ -391,8 +471,8 @@
   // set, it would wrongly swallow the next unrelated tap-to-add.
   let suppressNextClick = false;
   document.addEventListener("pointerdown", e => {
-    if (!pendingAdd) return;
-    if (e.target.closest("#inline-add-input")) return;
+    if (!pendingAdd && pendingRenameId === null) return;
+    if (e.target.closest("#inline-add-input") || e.target.closest("#inline-rename-input")) return;
     suppressNextClick = true;
     setTimeout(() => { suppressNextClick = false; }, 0);
     dismissPendingInlineAdd();
@@ -414,6 +494,12 @@
     // A row parked open awaiting delete confirmation isn't a navigation
     // target -- the tap that closes it shouldn't also open the list.
     if (revealedListId !== null) return;
+    // Nor is one being renamed: the tap that finishes the rename shouldn't
+    // also walk into the list. Checked as state rather than via a
+    // suppress-the-next-click flag, because starting a rename re-renders and
+    // detaches the row mid-gesture -- the click that would clear such a flag
+    // may never arrive, leaving it set to swallow some later, unrelated tap.
+    if (pendingRenameId !== null) return;
     location.href = `list.html?id=${encodeURIComponent(row.dataset.listId)}&name=${encodeURIComponent(row.dataset.listName)}`;
   });
 
@@ -442,7 +528,10 @@
   // tap doesn't ALSO navigate into the list or open the new-list row.
   let suppressNextRowClick = false;
 
+  const HOLD_TO_RENAME_MS = 400;
+
   function attachDeleteSwipe(swipeRow, id) {
+    let holdTimer = null, held = false;
     const rowFg = swipeRow.querySelector(".list-row");
     const bgDelete = swipeRow.querySelector(".bg-delete");
     let startX = 0, startY = 0, dx = 0, dragging = null;
@@ -505,12 +594,24 @@
       startX = e.clientX; startY = e.clientY; dx = 0; dragging = null;
       pointerId = e.pointerId;
       rowFg.classList.remove("snap", "commit");
+      clearTimeout(holdTimer);
+      // Hold still for a moment and this stops being a tap or a swipe and
+      // becomes a rename. Same 400ms as holding a category heading to drag it.
+      if (!dismissOnly) {
+        holdTimer = setTimeout(() => {
+          if (held || pointerId === null) return;
+          held = true;
+          pointerId = null; // hand the gesture over -- no tap, no swipe
+          startRenameList(id);
+        }, HOLD_TO_RENAME_MS);
+      }
     });
 
     rowFg.addEventListener("pointermove", e => {
       if (pointerId === null || e.pointerId !== pointerId) return;
       const curDx = e.clientX - startX;
       const curDy = e.clientY - startY;
+      if (Math.abs(curDx) > 8 || Math.abs(curDy) > 8) clearTimeout(holdTimer);
       if (dragging === null) {
         if (Math.abs(curDx) < 8 && Math.abs(curDy) < 8) return;
         dragging = Math.abs(curDx) > Math.abs(curDy);
@@ -527,6 +628,7 @@
     });
 
     function endDrag(e) {
+      clearTimeout(holdTimer);
       if (pointerId === null) return;
       pointerId = null;
       if (dragging === null || !dragging) {
