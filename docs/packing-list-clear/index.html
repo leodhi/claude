@@ -54,7 +54,7 @@
   .empty-state { color: var(--ink-muted); font-size: 14px; padding: 30px 4px; }
 
   .undo-toast {
-    position: fixed; left: 14px; right: 14px; bottom: calc(20px + env(safe-area-inset-bottom));
+    position: fixed; left: 14px; right: 14px; bottom: calc(20px + env(safe-area-inset-bottom) + var(--vv-bottom-offset, 0px));
     max-width: 612px; margin: 0 auto;
     background: #2c2c2e; border: 1px solid #3a3a3c; border-radius: 14px;
     padding: 14px 10px 14px 16px; display: flex; align-items: center; justify-content: space-between; gap: 12px;
@@ -93,6 +93,7 @@
     position: fixed; inset: 0; background: rgba(0,0,0,0.55);
     display: flex; align-items: flex-end; justify-content: center; z-index: 25;
     opacity: 0; visibility: hidden; pointer-events: none; transition: opacity 0.2s ease;
+    padding-bottom: var(--vv-bottom-offset, 0px);
   }
   .modal-backdrop.show { opacity: 1; visibility: visible; pointer-events: auto; }
   .modal {
@@ -170,6 +171,21 @@
   const app = initializeApp(firebaseConfig);
   const db = getFirestore(app);
   const indexRef = doc(db, "packingLists", "_index");
+
+  // Mobile Safari's bottom toolbar can be partially collapsed (e.g. mid
+  // scroll) without fully hiding, leaving a gap between the visible screen
+  // edge and where a plain `position: fixed; bottom: 0` element renders --
+  // same fix as list.html's copy of this, needed here too since the undo
+  // toast and shake modals are both fixed to the bottom.
+  if (window.visualViewport) {
+    const vv = window.visualViewport;
+    function updateViewportInset() {
+      const offset = Math.max(0, window.innerHeight - (vv.height + vv.offsetTop));
+      document.documentElement.style.setProperty("--vv-bottom-offset", offset + "px");
+    }
+    vv.addEventListener("resize", updateViewportInset);
+    updateViewportInset();
+  }
 
   function uid() { return Math.random().toString(36).slice(2, 10); }
   function escapeHtml(s) { return String(s).replace(/[&<>"]/g, c => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;" }[c])); }
