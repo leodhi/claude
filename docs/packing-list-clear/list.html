@@ -335,6 +335,20 @@
   </div>
 </div>
 
+<div class="modal-backdrop" id="category-modal">
+  <div class="modal">
+    <h3>New category</h3>
+    <form id="category-form">
+      <label for="new-cat-name">Category name</label>
+      <input type="text" id="new-cat-name" placeholder="e.g. Costco" autocomplete="off">
+      <div class="modal-actions">
+        <button type="button" class="btn-cancel" id="category-cancel">Cancel</button>
+        <button type="submit" class="btn-save">Add</button>
+      </div>
+    </form>
+  </div>
+</div>
+
 <div class="modal-backdrop" id="assignee-modal">
   <div class="modal">
     <h3>Assign to</h3>
@@ -587,13 +601,44 @@
     }
   });
 
+  // Adding a category asks for one thing: its name. It used to reuse the
+  // whole Add-item modal with the category dropdown pre-set, which meant
+  // filling in an item and a category to create a category.
+  const categoryModal = document.getElementById("category-modal");
+  const newCatName = document.getElementById("new-cat-name");
+
+  function closeCategoryModal() { categoryModal.classList.remove("show"); }
+
   document.getElementById("add-category-btn").addEventListener("click", () => {
     finishAnyPendingInlineEntry();
-    openAddModal();
-    ciCat.value = NEW_CAT_VALUE;
-    ciCatNewWrap.style.display = "";
-    ciCatNew.required = true;
-    ciCatNew.focus();
+    newCatName.value = "";
+    updateViewportInset();
+    categoryModal.classList.add("show");
+    newCatName.focus();
+  });
+  document.getElementById("category-cancel").addEventListener("click", closeCategoryModal);
+  categoryModal.addEventListener("click", e => { if (e.target === categoryModal) closeCategoryModal(); });
+
+  document.getElementById("category-form").addEventListener("submit", async e => {
+    e.preventDefault();
+    const name = newCatName.value.trim();
+    if (!name) return;
+    closeCategoryModal();
+    // Categories live in catOrder, so one can exist before anything is in
+    // it -- a brand new category shows up as an empty section with its own
+    // "+ Add item" row, rather than only springing into being once an item
+    // happens to name it.
+    const base = [...new Set([...savedCatOrder, ...currentSectionOrder()])];
+    if (base.includes(name)) return; // already there -- nothing to create
+    const next = [...base, name];
+    setStatus("syncing", "Saving…");
+    try {
+      await updateDoc(listRef, { catOrder: next });
+      pushAction({ type: "catOrder", from: base, to: next });
+    } catch (err) {
+      console.error(err);
+      setStatus("error", "Couldn't save");
+    }
   });
 
   // ---------- Search ----------
@@ -1895,6 +1940,10 @@
     // fallback) needs a section to render into even though there's nothing
     // in byCat for it yet.
     if (pendingAddCat !== null && !categoryOrder.includes(pendingAddCat)) categoryOrder = [...categoryOrder, pendingAddCat];
+    // Categories named via "+ Category" live in catOrder and exist before
+    // anything is in them, so a new one shows up right away as an empty
+    // section with its own "+ Add item" row.
+    savedCatOrder.forEach(c => { if (c && !categoryOrder.includes(c)) categoryOrder = [...categoryOrder, c]; });
     // A hand-dragged order wins over the default one. Uncategorized items
     // always stay pinned at the top -- they have no heading to grab, so
     // they can't be dragged, and letting a dragged category land above
@@ -1910,18 +1959,24 @@
       });
     }
     renderCatOptions(categoryOrder);
-    const nonEmptyCats = categoryOrder.filter(c => byCat[c] && byCat[c].length > 0);
+    // "Shown" covers both a category with items in it and one that was
+    // created deliberately but is still empty.
+    const isDeclared = c => c && savedCatOrder.includes(c);
+    const shownCats = categoryOrder.filter(c => (byCat[c] && byCat[c].length > 0) || isDeclared(c));
     // Category chrome (headers, jump chips) only appears once a list
     // actually has more than one category -- a list that's never used the
     // feature still renders as one plain flat list, same as before it
     // existed. Niagara always shows it, even with just one category, since
     // that's how it's always looked.
-    const showCatChrome = isNiagara || nonEmptyCats.length > 1;
+    // Any named category at all earns headings: naming one is an explicit
+    // ask to see it labelled. A list with nothing but loose items still
+    // renders as one plain flat list, exactly as before.
+    const showCatChrome = isNiagara || shownCats.some(c => c !== "");
     // Uncategorized items get no heading and no jump chip -- "No category"
     // isn't a category anyone created, it's just the absence of one, so it
     // reads as clutter. Those items simply sit loose at the top above
     // whatever real categories exist.
-    const namedCats = nonEmptyCats.filter(c => c);
+    const namedCats = shownCats.filter(c => c);
     document.getElementById("category-jump").style.display = showCatChrome && namedCats.length > 0 ? "" : "none";
     renderCategoryJump(namedCats);
 
@@ -1940,14 +1995,18 @@
     categoryOrder.forEach(catName => {
       const items = byCat[catName] || [];
       const isPendingHere = pendingAddCat === catName;
-      if (items.length === 0 && !isPendingHere) return;
+      if (items.length === 0 && !isPendingHere && !isDeclared(catName)) return;
       total += items.length;
       checkedCount += items.filter(i => i.checked).length;
 
       let visibleItems = items;
       if (searchQuery) visibleItems = visibleItems.filter(i => i.name.toLowerCase().includes(searchQuery));
       if (assigneeFilters.size > 0) visibleItems = visibleItems.filter(i => assigneeFilters.has(i.assignee));
-      if (visibleItems.length === 0 && !isPendingHere) return;
+      // A filter or search that empties a category hides it, but an empty
+      // category that was created on purpose still shows (with nothing
+      // filtered, there's nothing to hide) so it can be added to.
+      const filtering = !!searchQuery || assigneeFilters.size > 0;
+      if (visibleItems.length === 0 && !isPendingHere && !(isDeclared(catName) && !filtering)) return;
       anySectionShown = true;
 
       const isCollapsed = collapsedCats.has(catName);
