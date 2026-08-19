@@ -121,6 +121,7 @@
   .row-fg.dragging { transition: none; }
   .row-fg.snap { transition: transform 0.25s cubic-bezier(.2,.9,.3,1.3); }
   .row-fg.commit { transition: transform 0.2s ease-out, opacity 0.2s ease-out; }
+  .row-fg.revealed { transition: transform 0.2s cubic-bezier(.2,.9,.3,1.1); }
 
   .swipe-row.reorder-source-hidden { opacity: 0; pointer-events: none; }
   .reorder-ghost {
@@ -265,7 +266,7 @@
   <header>
     <a class="back-link" href="./index.html">&larr; My Lists</a>
     <h1 id="list-title">Packing List</h1>
-    <p>Swipe right to pack, swipe left to delete.</p>
+    <p>Swipe right to pack, swipe left then tap the trash can to delete.</p>
     <div class="status-row">
       <span class="status" id="status"><span class="dot"></span><span id="status-text">Connecting…</span></span>
       <div class="header-actions">
@@ -1477,6 +1478,12 @@
     }
   }
 
+  // Which row (if any) is currently swiped open showing its delete
+  // confirmation, and how to close it -- shared across all rows so opening
+  // one closes whatever else was open, tap-away-to-close style.
+  let revealedRowId = null;
+  let closeRevealedRow = null;
+
   function attachSwipe(swipeRow, id) {
     const rowFg = swipeRow.querySelector(".row-fg");
     const bgComplete = swipeRow.querySelector(".bg-complete");
@@ -1486,14 +1493,59 @@
     let longPressTimer = null;
     let longPressFired = false;
     let avatarTapTarget = false;
+    let dismissOnly = false; // this pointerdown landed on an already-revealed row -- just close it, don't also edit
 
     function resetBg() {
       bgComplete.style.opacity = "0";
       bgDelete.style.opacity = "0";
     }
 
+    // Swiping left past the threshold no longer deletes outright -- it
+    // reveals the trash button and parks the row there, so an accidental
+    // far swipe can't delete something without a second, deliberate tap.
+    function revealForDelete() {
+      if (revealedRowId !== null && revealedRowId !== id && closeRevealedRow) closeRevealedRow();
+      rowFg.classList.add("revealed");
+      rowFg.style.transform = `translateX(-${SWIPE_COMMIT_PX}px)`;
+      bgDelete.style.opacity = "1";
+      bgComplete.style.opacity = "0";
+      revealedRowId = id;
+      closeRevealedRow = () => closeReveal(false);
+    }
+
+    // instant=true skips the closing animation -- used when the same row
+    // that's already revealed gets touched again, so a fresh drag starts
+    // clean from translateX(0) instead of jumping from the revealed offset.
+    function closeReveal(instant) {
+      if (instant) rowFg.classList.remove("revealed");
+      rowFg.style.transform = "translateX(0)";
+      resetBg();
+      if (revealedRowId === id) { revealedRowId = null; closeRevealedRow = null; }
+      if (!instant) setTimeout(() => rowFg.classList.remove("revealed"), 220);
+    }
+
+    // The actual delete confirmation: tapping the revealed trash button.
+    bgDelete.addEventListener("click", e => {
+      if (revealedRowId !== id) return;
+      e.stopPropagation();
+      revealedRowId = null;
+      closeRevealedRow = null;
+      rowFg.classList.remove("revealed");
+      rowFg.classList.add("commit");
+      rowFg.style.transform = "translateX(-100%)";
+      rowFg.style.opacity = "0";
+      setTimeout(() => deleteItem(id), 150);
+    });
+
     rowFg.addEventListener("pointerdown", e => {
       if (e.button !== undefined && e.button !== 0) return;
+      dismissOnly = false;
+      if (revealedRowId === id) {
+        closeReveal(true);
+        dismissOnly = true;
+      } else if (revealedRowId !== null && closeRevealedRow) {
+        closeRevealedRow();
+      }
       if (pendingAddCat !== null || pendingEditId !== null) {
         // Another row (or the add field) is mid-edit -- this tap just
         // dismisses that, like tapping away/pressing Enter would. It
@@ -1556,8 +1608,13 @@
       if (reorderActive && reorderId === id) { finishReorderDrag(); dragging = null; return; }
       if (longPressFired) { dragging = null; return; } // reorder drag already started by the long-press
       if (dragging === null) {
-        // No meaningful movement -- treat as a tap. Avatar taps open the
-        // assignee picker; anything else edits the item's name inline.
+        // No meaningful movement -- treat as a tap. If this tap landed on
+        // an already-revealed row, its pointerdown already closed the
+        // reveal above -- that's the whole effect of this tap, don't also
+        // open the assignee picker or edit.
+        if (dismissOnly) { dismissOnly = false; return; }
+        // Avatar taps open the assignee picker; anything else edits the
+        // item's name inline.
         if (avatarTapTarget) {
           // The browser still fires a synthetic trailing "click" for this
           // same tap after we act on pointerup -- without suppressing it,
@@ -1580,10 +1637,7 @@
         rowFg.style.opacity = "0";
         setTimeout(() => toggleChecked(id), 150);
       } else if (dx < -SWIPE_COMMIT_PX) {
-        rowFg.classList.add("commit");
-        rowFg.style.transform = `translateX(-100%)`;
-        rowFg.style.opacity = "0";
-        setTimeout(() => deleteItem(id), 150);
+        revealForDelete();
       } else {
         rowFg.classList.add("snap");
         rowFg.style.transform = `translateX(0)`;
@@ -1596,10 +1650,26 @@
     rowFg.addEventListener("pointercancel", endDrag);
   }
 
+  // Tapping anywhere outside a row that's showing its delete confirmation
+  // closes it without deleting, same as tapping the row itself does. Capture
+  // phase + closest() (rather than relying on each row's own listeners)
+  // catches taps on completely unrelated controls -- the FAB, a category
+  // header, empty space below the list -- not just other rows.
+  document.addEventListener("pointerdown", e => {
+    if (revealedRowId === null) return;
+    if (e.target.closest && e.target.closest(`.swipe-row[data-item-id="${revealedRowId}"]`)) return;
+    if (closeRevealedRow) closeRevealedRow();
+  }, { capture: true });
+
   // ---------- Render ----------
   function render() {
     const root = document.getElementById("list-root");
     root.innerHTML = "";
+    // A full rebuild detaches whatever row was showing its delete
+    // confirmation, so the reference to it (and the closure that would
+    // close it) goes stale -- reset the tracking, not just the DOM.
+    revealedRowId = null;
+    closeRevealedRow = null;
     let total = 0, checkedCount = 0;
 
     const byCat = {};
