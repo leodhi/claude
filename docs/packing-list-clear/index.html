@@ -60,6 +60,35 @@
 
   .empty-state { color: var(--ink-muted); font-size: 14px; padding: 30px 4px; }
 
+  .trash-block { margin-top: 22px; }
+  .trash-toggle {
+    display: flex; align-items: center; justify-content: space-between; gap: 8px; width: 100%;
+    font: inherit; font-size: 13px; font-weight: 600; color: var(--ink-muted);
+    background: none; border: none; padding: 10px 4px; cursor: pointer; touch-action: manipulation;
+    transition: color 0.15s ease;
+  }
+  .trash-toggle:active { color: var(--ink); }
+  .trash-chev { display: inline-block; transition: transform 0.2s cubic-bezier(.2,.9,.3,1.1); opacity: 0.7; }
+  .trash-block.open .trash-chev { transform: rotate(90deg); }
+  .trash-items {
+    display: grid; grid-template-rows: 0fr;
+    transition: grid-template-rows 0.25s cubic-bezier(.2,.9,.3,1.1);
+  }
+  .trash-block.open .trash-items { grid-template-rows: 1fr; }
+  .trash-items > * { overflow: hidden; }
+  .trash-row {
+    display: flex; align-items: center; justify-content: space-between; gap: 10px;
+    background: #1c1c1e; border: 1px solid #2c2c2e; border-radius: 10px;
+    padding: 12px 12px 12px 14px; margin-bottom: 8px;
+  }
+  .trash-name { font-size: 15px; color: var(--ink-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .trash-restore {
+    font: inherit; font-size: 13px; font-weight: 700; color: var(--accent);
+    background: none; border: none; cursor: pointer; padding: 4px 6px; flex: none;
+    touch-action: manipulation; transition: transform 0.1s ease;
+  }
+  .trash-restore:active { transform: scale(0.94); }
+
   .undo-toast {
     position: fixed; left: 14px; right: 14px; bottom: calc(20px + env(safe-area-inset-bottom) + var(--vv-bottom-offset, 0px));
     max-width: 612px; margin: 0 auto;
@@ -175,6 +204,14 @@
 
   const root = document.getElementById("list-root");
   let lists = {};
+  // Deleting a list keeps a record of it here (in the same index document)
+  // rather than dropping it on the floor. The Undo toast only lives in
+  // this page's memory, so a refresh used to make a deleted list
+  // unrecoverable without reading the database by hand -- this is the
+  // durable backstop for that. The list's items were always left intact in
+  // packingLists/{id}; this just remembers its name so it can be put back.
+  let deletedLists = {};
+  let trashOpen = false;
 
   // Item counts come from each list's own document, not the index (which
   // only has name/order), so a small listener per list keeps them live.
@@ -209,10 +246,28 @@
     el.style.height = el.scrollHeight + "px";
   }
 
+  function renderTrashHtml() {
+    const deleted = Object.entries(deletedLists).sort((a, b) => (b[1].deletedAt ?? 0) - (a[1].deletedAt ?? 0));
+    if (deleted.length === 0) return "";
+    return `
+      <div class="trash-block${trashOpen ? " open" : ""}">
+        <button type="button" class="trash-toggle" id="trash-toggle">
+          <span>Recently deleted (${deleted.length})</span><span class="trash-chev">›</span>
+        </button>
+        <div class="trash-items"><div class="trash-items-inner">
+          ${deleted.map(([id, e]) => `
+            <div class="trash-row">
+              <span class="trash-name">${escapeHtml(e.name || "Untitled list")}</span>
+              <button type="button" class="trash-restore" data-restore-id="${escapeAttr(id)}">Restore</button>
+            </div>`).join("")}
+        </div></div>
+      </div>`;
+  }
+
   function render() {
     const entries = Object.entries(lists).sort((a, b) => (a[1].order ?? 0) - (b[1].order ?? 0));
     if (entries.length === 0 && !pendingAdd) {
-      root.innerHTML = '<div class="empty-state">No lists yet. Tap anywhere to create one.</div>';
+      root.innerHTML = '<div class="empty-state">No lists yet. Tap anywhere to create one.</div>' + renderTrashHtml();
       return;
     }
     const rowsHtml = entries.map(([id, l], i) => `
@@ -232,7 +287,7 @@
           <div class="inline-add-input-wrap"><textarea id="inline-add-input" class="inline-add-input" rows="1" placeholder="New list"></textarea></div>
         </div>
       </div>` : "";
-    root.innerHTML = rowsHtml + inlineAddHtml;
+    root.innerHTML = rowsHtml + inlineAddHtml + renderTrashHtml();
     // A rebuild detaches whatever row was parked open awaiting delete
     // confirmation, so the reference to it (and its close closure) goes
     // stale -- reset the tracking, not just the DOM.
@@ -321,6 +376,9 @@
   }, { capture: true });
 
   root.addEventListener("click", e => {
+    const restoreBtn = e.target.closest("[data-restore-id]");
+    if (restoreBtn) { restoreList(restoreBtn.dataset.restoreId); return; }
+    if (e.target.closest("#trash-toggle")) { trashOpen = !trashOpen; render(); return; }
     if (suppressNextRowClick) { suppressNextRowClick = false; return; }
     const row = e.target.closest("[data-list-id]");
     if (!row) return;
@@ -468,11 +526,37 @@
   // or until a later delete replaces it with a newer one.
   async function deleteList(id, entry) {
     try {
-      await updateDoc(indexRef, { [`lists.${id}`]: deleteField() });
+      // One write does both halves, so a list can never be dropped from
+      // the visible index without simultaneously being recorded as
+      // recoverable.
+      await updateDoc(indexRef, {
+        [`lists.${id}`]: deleteField(),
+        [`deletedLists.${id}`]: {
+          name: entry ? (entry.name || "") : "",
+          order: entry ? (entry.order ?? 0) : 0,
+          deletedAt: Date.now()
+        }
+      });
       showUndoToast(id, entry);
     } catch (err) {
       console.error(err);
       alert("Couldn't delete the list — try again.");
+    }
+  }
+
+  // Put a deleted list back. Its items were never touched, so restoring the
+  // index entry is a complete restore, not a fresh empty list.
+  async function restoreList(id) {
+    const entry = deletedLists[id];
+    if (!entry) return;
+    try {
+      await updateDoc(indexRef, {
+        [`lists.${id}`]: { name: entry.name || "", order: entry.order ?? 0 },
+        [`deletedLists.${id}`]: deleteField()
+      });
+    } catch (err) {
+      console.error(err);
+      alert("Couldn't restore the list — try again.");
     }
   }
 
@@ -495,7 +579,12 @@
     undoToast.classList.remove("show");
     pendingUndo = null;
     try {
-      await setDoc(indexRef, { lists: { [id]: entry } }, { merge: true });
+      // Also clears the "recently deleted" record -- undoing means it was
+      // never really deleted, so it shouldn't linger in the trash too.
+      await updateDoc(indexRef, {
+        [`lists.${id}`]: { name: entry ? (entry.name || "") : "", order: entry ? (entry.order ?? 0) : 0 },
+        [`deletedLists.${id}`]: deleteField()
+      });
     } catch (err) {
       console.error(err);
       alert("Couldn't undo — try again.");
@@ -539,6 +628,7 @@
       return; // onSnapshot fires again once that write lands
     }
     lists = snap.data().lists || {};
+    deletedLists = snap.data().deletedLists || {};
     syncItemCountListeners();
     render();
   }, err => {
@@ -553,6 +643,9 @@
   document.addEventListener("click", e => {
     if (suppressNextClick) { suppressNextClick = false; return; }
     if (e.target.closest("[data-list-id]")) return;
+    // The trash block is a control, not background -- tapping Restore or
+    // the disclosure shouldn't also open a new-list row underneath it.
+    if (e.target.closest(".trash-block")) return;
     startInlineAdd();
   });
 

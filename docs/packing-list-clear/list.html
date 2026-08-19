@@ -1707,8 +1707,13 @@
     // existed. Niagara always shows it, even with just one category, since
     // that's how it's always looked.
     const showCatChrome = isNiagara || nonEmptyCats.length > 1;
-    document.getElementById("category-jump").style.display = showCatChrome ? "" : "none";
-    renderCategoryJump(nonEmptyCats);
+    // Uncategorized items get no heading and no jump chip -- "No category"
+    // isn't a category anyone created, it's just the absence of one, so it
+    // reads as clutter. Those items simply sit loose at the top above
+    // whatever real categories exist.
+    const namedCats = nonEmptyCats.filter(c => c);
+    document.getElementById("category-jump").style.display = showCatChrome && namedCats.length > 0 ? "" : "none";
+    renderCategoryJump(namedCats);
 
     if (isNiagara) {
       const allAssignees = getAllAssignees();
@@ -1740,13 +1745,14 @@
       section.className = "cat-section" + (isCollapsed ? " collapsed" : "");
 
       const header = document.createElement("div");
-      header.className = "cat-header" + (showCatChrome ? "" : " cat-header-hidden");
+      // Hidden for a list with only one category in play (or none), and
+      // always for the uncategorized section. Either way the header stays
+      // in the DOM -- collapse state, spread-to-insert, and drag-between-
+      // categories all key off its data-cat-toggle -- it just isn't shown.
+      const showThisHeader = showCatChrome && catName !== "";
+      header.className = "cat-header" + (showThisHeader ? "" : " cat-header-hidden");
       header.dataset.catToggle = catName;
-      // A list with only one category in play (or none) never shows any
-      // category chrome -- the header stays in the DOM (spread-to-insert
-      // and collapse state still key off it) but visually disappears,
-      // leaving what looks like one plain flat list.
-      if (showCatChrome) {
+      if (showThisHeader) {
         header.style.background = headerColorForCat();
         const doneCount = items.filter(i => i.checked).length;
         header.innerHTML = `<span class="cat-title-text"><span class="cat-chevron">▾</span>${escapeHtml(catName || "No category")}</span><span class="cat-count">${doneCount} / ${items.length}</span>`;
