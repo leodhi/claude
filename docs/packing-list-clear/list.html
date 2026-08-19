@@ -233,14 +233,6 @@
   }
   .fab:active { transform: scale(0.94); }
 
-  .scroll-top-btn {
-    position: fixed; bottom: calc(64px + env(safe-area-inset-bottom) + var(--vv-bottom-offset, 0px)); left: 20px; width: 44px; height: 44px; border-radius: 50%;
-    background: #2c2c2e; color: #fff; border: 1px solid #3a3a3c; font-size: 18px; line-height: 1;
-    box-shadow: 0 4px 16px rgba(0,0,0,0.35); cursor: pointer; z-index: 20;
-    display: flex; align-items: center; justify-content: center;
-    -webkit-transform: translateZ(0); transform: translateZ(0); will-change: transform;
-  }
-  .scroll-top-btn:active { transform: scale(0.94); }
 
   .toast {
     position: fixed; left: 50%; bottom: calc(24px + env(safe-area-inset-bottom) + var(--vv-bottom-offset, 0px));
@@ -324,7 +316,6 @@
 </div>
 
 <button type="button" id="fab-add" class="fab" aria-label="Add an item">+</button>
-<button type="button" id="scroll-top-btn" class="scroll-top-btn" aria-label="Scroll to top">↑</button>
 
 <div class="toast" id="toast">
   <span id="toast-text"></span>
@@ -722,12 +713,10 @@
     render();
   });
 
-  // ---------- Scroll to top ----------
-  // Always visible (not conditional on scroll position) -- a scroll-linked
-  // show/hide toggle depends on the browser firing scroll events promptly,
-  // which iOS Safari doesn't reliably do during active momentum scrolling.
-  const scrollTopBtn = document.getElementById("scroll-top-btn");
-  scrollTopBtn.addEventListener("click", () => window.scrollTo({ top: 0, behavior: "smooth" }));
+  // No scroll-to-top button: the page scrolls the document itself rather
+  // than an inner container, so iOS's own "tap the status bar to jump to
+  // the top" already does it -- the button was a second, worse copy of a
+  // gesture the phone already provides, parked over the list.
 
   // ---------- Add / edit item modal ----------
   const addModal = document.getElementById("add-modal");
