@@ -625,11 +625,17 @@
   const undoToastBtn = document.getElementById("undo-toast-btn");
   let pendingUndo = null;
 
+  let undoToastTimer = null;
   function showUndoToast(id, entry) {
     pendingUndo = { id, entry };
     undoToastText.textContent = `Deleted "${entry ? entry.name : "list"}"`;
     updateViewportInset();
     undoToast.classList.add("show");
+    // It used to sit there until tapped or replaced, which read as stuck.
+    // Nothing is lost when it goes -- "Recently deleted" below is the
+    // permanent way back.
+    clearTimeout(undoToastTimer);
+    undoToastTimer = setTimeout(() => undoToast.classList.remove("show"), 6000);
   }
 
   async function performUndo() {
