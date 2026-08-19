@@ -286,6 +286,12 @@
   .modal-actions button:active { transform: scale(0.96); }
   .modal-actions .btn-cancel { background: #2c2c2e; color: var(--ink); }
   .modal-actions .btn-save { background: #fff; color: #111; }
+  .modal-actions .btn-danger { background: var(--delete); color: #fff; }
+  /* Three choices don't fit side by side on a phone, and stacking them
+     also stops the destructive one sitting under a thumb heading for the
+     safe one. */
+  .modal-actions-stacked { flex-direction: column; }
+  .modal-note { margin: 0; font-size: 13.5px; color: var(--ink-muted); line-height: 1.45; }
 </style>
 </head>
 <body>
@@ -356,6 +362,18 @@
         <button type="submit" class="btn-save" id="modal-submit-btn">Add</button>
       </div>
     </form>
+  </div>
+</div>
+
+<div class="modal-backdrop" id="cat-delete-modal">
+  <div class="modal">
+    <h3 id="cat-delete-title">Delete category</h3>
+    <p class="modal-note" id="cat-delete-note"></p>
+    <div class="modal-actions modal-actions-stacked">
+      <button type="button" class="btn-save" id="cat-delete-keep">Delete category, keep the items</button>
+      <button type="button" class="btn-danger" id="cat-delete-all">Delete the items too</button>
+      <button type="button" class="btn-cancel" id="cat-delete-cancel">Cancel</button>
+    </div>
   </div>
 </div>
 
@@ -570,6 +588,10 @@
       const updates = { catOrder: action.from.catOrder };
       action.from.items.forEach(id => { updates[`items.${id}.cat`] = action.catName; });
       await updateDoc(listRef, updates);
+    } else if (action.type === "deleteCatAll") {
+      const updates = { catOrder: action.from.catOrder };
+      action.from.items.forEach(({ id, item }) => { updates[`items.${id}`] = item; });
+      await updateDoc(listRef, updates);
     }
   }
   async function applyForward(action) {
@@ -588,6 +610,10 @@
     } else if (action.type === "deleteCat") {
       const updates = { catOrder: action.to.catOrder };
       action.from.items.forEach(id => { updates[`items.${id}.cat`] = ""; });
+      await updateDoc(listRef, updates);
+    } else if (action.type === "deleteCatAll") {
+      const updates = { catOrder: action.to.catOrder };
+      action.from.items.forEach(({ id }) => { updates[`items.${id}`] = deleteField(); });
       await updateDoc(listRef, updates);
     }
   }
@@ -1754,32 +1780,74 @@
   // being uncategorized, which is recoverable with Undo and can't lose
   // anything -- unlike deleting a list, where the whole point is that the
   // contents go too (and where a trash exists to get them back).
-  async function deleteCategory(catName) {
-    const inCat = Object.entries(currentItems).filter(([, it]) => it.cat === catName);
-    const msg = inCat.length
-      ? `Delete the "${catName}" category? Its ${inCat.length} item${inCat.length === 1 ? "" : "s"} stay on the list, just without a category.`
-      : `Delete the "${catName}" category?`;
-    if (!confirm(msg)) return;
+  // Deleting a category asks what to do with what's inside it: the items
+  // can stay on the list without a category, or go with it. A plain
+  // confirm() only offers yes/no, so this is a small sheet instead.
+  const catDeleteModal = document.getElementById("cat-delete-modal");
+  let catPendingDelete = null;
 
+  function closeCatDeleteModal() {
+    catDeleteModal.classList.remove("show");
+    catPendingDelete = null;
+  }
+
+  function deleteCategory(catName) {
+    const inCat = Object.entries(currentItems).filter(([, it]) => it.cat === catName);
+    catPendingDelete = catName;
+    document.getElementById("cat-delete-title").textContent = `Delete "${catName}"?`;
+    const keepBtn = document.getElementById("cat-delete-keep");
+    const allBtn = document.getElementById("cat-delete-all");
+    if (inCat.length === 0) {
+      // Nothing inside, so there is nothing to decide.
+      document.getElementById("cat-delete-note").textContent = "This category is empty.";
+      keepBtn.textContent = "Delete category";
+      allBtn.style.display = "none";
+    } else {
+      const n = inCat.length, plural = n === 1 ? "" : "s";
+      document.getElementById("cat-delete-note").textContent =
+        `It has ${n} item${plural}. Keep them and they move to the top of the list, without a category.`;
+      keepBtn.textContent = `Delete category, keep the ${n} item${plural}`;
+      allBtn.textContent = `Delete the ${n} item${plural} too`;
+      allBtn.style.display = "";
+    }
+    updateViewportInset();
+    catDeleteModal.classList.add("show");
+  }
+
+  // alsoItems=false moves the items out of the category; true removes them
+  // with it. Either way it is one write, and either way Undo puts it back.
+  async function performCategoryDelete(catName, alsoItems) {
+    const inCat = Object.entries(currentItems).filter(([, it]) => it.cat === catName);
     const base = [...new Set([...savedCatOrder, ...currentSectionOrder()])];
     const next = base.filter(c => c !== catName);
     const updates = { catOrder: next };
-    inCat.forEach(([id]) => { updates[`items.${id}.cat`] = ""; });
+    if (alsoItems) inCat.forEach(([id]) => { updates[`items.${id}`] = deleteField(); });
+    else inCat.forEach(([id]) => { updates[`items.${id}.cat`] = ""; });
 
     setStatus("syncing", "Saving…");
     try {
       await updateDoc(listRef, updates);
-      pushAction({
-        type: "deleteCat",
-        from: { catOrder: base, items: inCat.map(([id]) => id) },
-        to: { catOrder: next },
-        catName
-      });
+      pushAction(alsoItems
+        ? { type: "deleteCatAll", catName, to: { catOrder: next },
+            // The whole item is kept, not just its id -- undoing has to
+            // recreate rows that no longer exist anywhere.
+            from: { catOrder: base, items: inCat.map(([id, it]) => ({ id, item: { ...it } })) } }
+        : { type: "deleteCat", catName, to: { catOrder: next },
+            from: { catOrder: base, items: inCat.map(([id]) => id) } });
     } catch (err) {
       console.error(err);
       setStatus("error", "Couldn't save");
     }
   }
+
+  document.getElementById("cat-delete-keep").addEventListener("click", () => {
+    const c = catPendingDelete; closeCatDeleteModal(); if (c !== null) performCategoryDelete(c, false);
+  });
+  document.getElementById("cat-delete-all").addEventListener("click", () => {
+    const c = catPendingDelete; closeCatDeleteModal(); if (c !== null) performCategoryDelete(c, true);
+  });
+  document.getElementById("cat-delete-cancel").addEventListener("click", closeCatDeleteModal);
+  catDeleteModal.addEventListener("click", e => { if (e.target === catDeleteModal) closeCatDeleteModal(); });
 
   // Which category heading (if any) is swiped open, so opening one closes
   // any other and a tap elsewhere closes it -- same rules as the rows.
