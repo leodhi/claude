@@ -101,6 +101,7 @@
   .cat-section.collapsed .cat-chevron { transform: rotate(-90deg); }
   .cat-section.collapsed .row-list { display: none; }
   .cat-header .cat-count { font-size: 12px; font-weight: 600; opacity: 0.85; white-space: nowrap; }
+  .cat-header-hidden { display: none; }
 
   .row-list { display: flex; flex-direction: column; }
 
@@ -363,14 +364,17 @@
     document.getElementById("list-title").textContent = listName;
   }
 
-  // PRESET_ASSIGNEES, like CUSTOM_CATEGORIES, is specific to the original
-  // Niagara trip -- the whole "who's it for" feature only makes sense
-  // there. Every other list hides it entirely rather than showing family
-  // members' names on an unrelated list.
-  const showAssignees = listId === "family";
-  if (!showAssignees) {
+  // Assignees, categories, and the full add-item modal are all specific to
+  // the original Niagara trip -- that complexity only makes sense there.
+  // Every other list hides all of it: no assignee filter/field/avatars, no
+  // category headers/jump chips/add-category button, and adding an item is
+  // always the plain inline row, never the modal (see startInlineAdd()).
+  const isNiagara = listId === "family";
+  if (!isNiagara) {
     document.getElementById("assignee-filter").style.display = "none";
     document.getElementById("ci-assignee-group").style.display = "none";
+    document.getElementById("category-jump").style.display = "none";
+    document.getElementById("add-category-btn").style.display = "none";
   }
 
   const app = initializeApp(firebaseConfig);
@@ -814,7 +818,15 @@
 
   function startInlineAdd() {
     const section = getCurrentCategorySection();
-    if (!section) { openAddModal(); return; }
+    if (!section) {
+      // Niagara falls back to the full modal (categories/assignment matter
+      // there); every other list has nowhere to fall back to since it
+      // never shows that modal at all -- just start typing into the one
+      // (uncategorized) section, creating it for the first time if needed.
+      if (isNiagara) { openAddModal(); return; }
+      startInlineAddBefore("", null);
+      return;
+    }
     const catName = section.querySelector("[data-cat-toggle]").dataset.catToggle;
     startInlineAddBefore(catName, null);
   }
@@ -1112,7 +1124,7 @@
     clearTimeout(fabLongPressTimer);
     fabLongPressTimer = setTimeout(() => {
       fabLongPressFired = true;
-      openAddModal();
+      if (isNiagara) openAddModal(); else startInlineAdd();
     }, 500);
   });
   fabAdd.addEventListener("pointerup", () => {
@@ -1588,32 +1600,38 @@
     // "+ New category…".
     const presetCats = listId === "family" ? CUSTOM_CATEGORIES : [];
     const extraCats = Object.keys(byCat).filter(c => !presetCats.includes(c)).sort();
-    const categoryOrder = [...presetCats, ...extraCats];
+    let categoryOrder = [...presetCats, ...extraCats];
+    // A pending inline-add on a category with literally zero items (the
+    // very first item on a brand-new list, or Niagara's own "start typing"
+    // fallback) needs a section to render into even though there's nothing
+    // in byCat for it yet.
+    if (pendingAddCat !== null && !categoryOrder.includes(pendingAddCat)) categoryOrder = [...categoryOrder, pendingAddCat];
     renderCatOptions(categoryOrder);
     renderCategoryJump(categoryOrder.filter(c => byCat[c] && byCat[c].length > 0));
 
-    if (showAssignees) {
+    if (isNiagara) {
       const allAssignees = getAllAssignees();
       renderAssigneeOptions(allAssignees);
       renderAssigneeFilter(allAssignees);
     }
 
-    if (Object.keys(currentItems).length === 0) {
+    if (Object.keys(currentItems).length === 0 && pendingAddCat === null) {
       root.innerHTML = '<div class="empty-state">No items yet. Tap + to add one.</div>';
     }
 
     let anySectionShown = false;
 
     categoryOrder.forEach(catName => {
-      const items = byCat[catName];
-      if (!items || items.length === 0) return;
+      const items = byCat[catName] || [];
+      const isPendingHere = pendingAddCat === catName;
+      if (items.length === 0 && !isPendingHere) return;
       total += items.length;
       checkedCount += items.filter(i => i.checked).length;
 
       let visibleItems = items;
       if (searchQuery) visibleItems = visibleItems.filter(i => i.name.toLowerCase().includes(searchQuery));
       if (assigneeFilters.size > 0) visibleItems = visibleItems.filter(i => assigneeFilters.has(i.assignee));
-      if (visibleItems.length === 0) return;
+      if (visibleItems.length === 0 && !isPendingHere) return;
       anySectionShown = true;
 
       const isCollapsed = collapsedCats.has(catName);
@@ -1621,11 +1639,18 @@
       section.className = "cat-section" + (isCollapsed ? " collapsed" : "");
 
       const header = document.createElement("div");
-      header.className = "cat-header";
+      header.className = "cat-header" + (isNiagara ? "" : " cat-header-hidden");
       header.dataset.catToggle = catName;
-      header.style.background = headerColorForCat();
-      const doneCount = items.filter(i => i.checked).length;
-      header.innerHTML = `<span class="cat-title-text"><span class="cat-chevron">▾</span>${escapeHtml(catName || "No category")}</span><span class="cat-count">${doneCount} / ${items.length}</span>`;
+      // Non-Niagara lists never show any category chrome at all (no
+      // headers, no jump chips) -- there's only ever the one implicit
+      // section, so the header stays in the DOM (spread-to-insert and
+      // collapse state still key off it) but visually disappears, leaving
+      // what looks like one plain flat list.
+      if (isNiagara) {
+        header.style.background = headerColorForCat();
+        const doneCount = items.filter(i => i.checked).length;
+        header.innerHTML = `<span class="cat-title-text"><span class="cat-chevron">▾</span>${escapeHtml(catName || "No category")}</span><span class="cat-count">${doneCount} / ${items.length}</span>`;
+      }
       section.appendChild(header);
 
       const list = document.createElement("div");
@@ -1678,7 +1703,7 @@
               ? `<div class="inline-add-input-wrap"><textarea id="inline-edit-input" class="inline-add-input" rows="1">${escapeHtml(item.name)}</textarea></div>`
               : `<span class="row-name">${escapeHtml(item.name)}</span>`}
             ${item.na ? '<span class="row-na-tag">N/A</span>' : ""}
-            ${showAssignees ? `<span class="row-avatar${item.assignee ? "" : " unassigned"}">${item.assignee ? escapeHtml(item.assignee.slice(0, 1).toUpperCase()) : "+"}</span>` : ""}
+            ${isNiagara ? `<span class="row-avatar${item.assignee ? "" : " unassigned"}">${item.assignee ? escapeHtml(item.assignee.slice(0, 1).toUpperCase()) : "+"}</span>` : ""}
           </div>`;
         list.appendChild(row);
         if (isEditingThis) {
