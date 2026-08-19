@@ -763,14 +763,19 @@
   // Also flags the click that follows this same tap so the
   // tap-background-to-add listener doesn't immediately reopen a fresh row
   // right after this one was just dismissed -- one tap should mean
-  // "never mind", not "never mind, start a new one instead".
+  // "never mind", not "never mind, start a new one instead". Cleared
+  // solely by that click actually consuming it (see the click listener
+  // below) -- NOT also on a timer. A zero-delay timeout raced against the
+  // real click event on iOS in practice: the timer could fire and clear
+  // the flag before the click arrived, letting the reopen slip through
+  // right after the row had visibly just closed.
   let suppressNextBackgroundAdd = false;
   document.addEventListener("pointerdown", e => {
+    suppressNextBackgroundAdd = false; // a fresh gesture always starts clean
     if (pendingAddCat === null && pendingEditId === null) return;
     if (!isBackgroundTarget(e.target) && e.target.closest(".wrap")) return;
     cancelPendingInlineEntry();
     suppressNextBackgroundAdd = true;
-    setTimeout(() => { suppressNextBackgroundAdd = false; }, 0);
   }, { capture: true });
 
   function finishPendingInlineAdd() {
