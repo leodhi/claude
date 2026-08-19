@@ -854,11 +854,11 @@
       // never shows that modal at all -- just start typing into the one
       // (uncategorized) section, creating it for the first time if needed.
       if (isNiagara) { openAddModal(); return; }
-      startInlineAddBefore("", null);
+      startInlineAddBefore("", INSERT_AT_END);
       return;
     }
     const catName = section.querySelector("[data-cat-toggle]").dataset.catToggle;
-    startInlineAddBefore(catName, null);
+    startInlineAddBefore(catName, INSERT_AT_END);
   }
 
   // ---------- Inline edit (tap an item) vs. full modal (long-press) ----------
@@ -1580,18 +1580,10 @@
         rowFg.style.opacity = "0";
         setTimeout(() => toggleChecked(id), 150);
       } else if (dx < -SWIPE_COMMIT_PX) {
-        const item = currentItems[id];
-        const itemName = item ? item.name : "this item";
-        if (confirm(`Delete "${itemName}"?`)) {
-          rowFg.classList.add("commit");
-          rowFg.style.transform = `translateX(-100%)`;
-          rowFg.style.opacity = "0";
-          setTimeout(() => deleteItem(id), 150);
-        } else {
-          rowFg.classList.add("snap");
-          rowFg.style.transform = `translateX(0)`;
-          resetBg();
-        }
+        rowFg.classList.add("commit");
+        rowFg.style.transform = `translateX(-100%)`;
+        rowFg.style.opacity = "0";
+        setTimeout(() => deleteItem(id), 150);
       } else {
         rowFg.classList.add("snap");
         rowFg.style.transform = `translateX(0)`;
