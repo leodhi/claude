@@ -1027,6 +1027,12 @@
   }
 
   function startInlineAdd() {
+    // A pull-to-add isn't aimed at any particular category, so it makes a
+    // plain uncategorized item rather than dropping into whichever category
+    // happens to be scrolled to the top. Once a list had a category, an item
+    // added this way silently joined it with no way to say "no category".
+    // Tapping a category's own "+ Add item" row still adds to that category.
+    if (!isNiagara) { startInlineAddBefore("", INSERT_AT_END); return; }
     const section = getCurrentCategorySection();
     if (!section) {
       // Niagara falls back to the full modal (categories/assignment matter
@@ -1678,14 +1684,19 @@
     reorderTargetCat = catName;
     reorderTargetBeforeId = beforeEl ? beforeEl.dataset.itemId : null;
 
+    // Dropping at the end of a category means above its "+ Add item" row,
+    // not below it -- otherwise the row being dragged sits under the add row
+    // mid-drag and jumps on release.
+    const addRowEl = list.querySelector(".add-item-row");
     const alreadyThere = beforeEl
       ? beforeEl.previousElementSibling === reorderRow
-      : list.lastElementChild === reorderRow;
+      : (addRowEl ? addRowEl.previousElementSibling === reorderRow : list.lastElementChild === reorderRow);
     if (alreadyThere) return;
 
     const affectedLists = new Set([list, reorderRow.parentElement]);
     flipMove(() => {
       if (beforeEl) list.insertBefore(reorderRow, beforeEl);
+      else if (addRowEl) list.insertBefore(reorderRow, addRowEl);
       else list.appendChild(reorderRow);
     }, affectedLists);
   }
@@ -2296,6 +2307,10 @@
     // anything is in them, so a new one shows up right away as an empty
     // section with its own "+ Add item" row.
     savedCatOrder.forEach(c => { if (c && !categoryOrder.includes(c)) categoryOrder = [...categoryOrder, c]; });
+    // Uncategorized is always a candidate, even with nothing in it -- the loop
+    // below decides whether to actually draw it, but it can't consider a
+    // category that was never in the running.
+    if (!categoryOrder.includes("")) categoryOrder = ["", ...categoryOrder];
     // A hand-dragged order wins over the default one. Uncategorized items
     // always stay pinned at the top -- they have no heading to grab, so
     // they can't be dragged, and letting a dragged category land above
@@ -2347,7 +2362,14 @@
     categoryOrder.forEach(catName => {
       const items = byCat[catName] || [];
       const isPendingHere = pendingAddCat === catName;
-      if (items.length === 0 && !isPendingHere && !isDeclared(catName)) return;
+      // Once the list has a real category, the uncategorized section stays on
+      // screen even when empty. It is the only place to drop an item to take
+      // it back OUT of a category -- with no section there was no drop target
+      // at all, so an item that went into a category was stuck there -- and
+      // its "+ Add item" row is how to add an item belonging to no category.
+      // Left off Niagara, whose layout is deliberately unchanged.
+      const alwaysShowUncategorized = catName === "" && showCatChrome && !isNiagara;
+      if (items.length === 0 && !isPendingHere && !isDeclared(catName) && !alwaysShowUncategorized) return;
       total += items.length;
       checkedCount += items.filter(i => i.checked).length;
 
@@ -2358,7 +2380,10 @@
       // category that was created on purpose still shows (with nothing
       // filtered, there's nothing to hide) so it can be added to.
       const filtering = !!searchQuery || assigneeFilters.size > 0;
-      if (visibleItems.length === 0 && !isPendingHere && !(isDeclared(catName) && !filtering)) return;
+      // The always-on uncategorized section follows the same rule as a
+      // deliberately-created empty category: it stays while nothing is being
+      // filtered, and gets out of the way of a search that empties it.
+      if (visibleItems.length === 0 && !isPendingHere && !((isDeclared(catName) || alwaysShowUncategorized) && !filtering)) return;
       anySectionShown = true;
 
       const isCollapsed = collapsedCats.has(catName);
