@@ -39,6 +39,8 @@
   .list-row.dragging { transition: none; }
   .list-row.snap { transition: transform 0.25s cubic-bezier(.2,.9,.3,1.2); }
   .list-row.commit { transition: transform 0.2s ease-out, opacity 0.2s ease-out; }
+  .list-row.revealed { transition: transform 0.2s cubic-bezier(.2,.9,.3,1.1); }
+  .bg-delete { cursor: pointer; touch-action: manipulation; }
   .list-row .chev { opacity: 0.7; font-weight: 400; flex: none; }
   .list-row-right { display: flex; align-items: center; gap: 8px; flex: none; }
   .list-row .item-count {
@@ -231,6 +233,11 @@
         </div>
       </div>` : "";
     root.innerHTML = rowsHtml + inlineAddHtml;
+    // A rebuild detaches whatever row was parked open awaiting delete
+    // confirmation, so the reference to it (and its close closure) goes
+    // stale -- reset the tracking, not just the DOM.
+    revealedListId = null;
+    closeRevealedList = null;
     root.querySelectorAll(".swipe-row[data-list-id]").forEach(row => attachDeleteSwipe(row, row.dataset.listId));
 
     if (pendingAdd) {
@@ -314,22 +321,93 @@
   }, { capture: true });
 
   root.addEventListener("click", e => {
+    if (suppressNextRowClick) { suppressNextRowClick = false; return; }
     const row = e.target.closest("[data-list-id]");
     if (!row) return;
+    // A row parked open awaiting delete confirmation isn't a navigation
+    // target -- the tap that closes it shouldn't also open the list.
+    if (revealedListId !== null) return;
     location.href = `list.html?id=${encodeURIComponent(row.dataset.listId)}&name=${encodeURIComponent(row.dataset.listName)}`;
   });
 
+  // Tapping anywhere outside a row that's showing its Delete button closes
+  // it without deleting. Capture phase so it beats the row/document
+  // handlers, and it flags the follow-up click so that same tap doesn't
+  // also open the new-list row.
+  document.addEventListener("pointerdown", e => {
+    if (revealedListId === null) return;
+    if (e.target.closest && e.target.closest(`[data-list-id="${revealedListId}"]`)) return;
+    if (closeRevealedList) closeRevealedList();
+    suppressNextRowClick = true;
+    suppressNextClick = true;
+    setTimeout(() => { suppressNextRowClick = false; suppressNextClick = false; }, 0);
+  }, { capture: true });
+
   // ---------- Swipe left to delete (same gesture/confirm as list items) ----------
   const SWIPE_COMMIT_PX = 84;
+
+  // Which row (if any) is swiped open showing its Delete button, and how to
+  // close it -- shared across rows so opening one closes any other, and a
+  // tap anywhere else closes it without deleting.
+  let revealedListId = null;
+  let closeRevealedList = null;
+  // Set when a tap's only effect was closing an open reveal, so that same
+  // tap doesn't ALSO navigate into the list or open the new-list row.
+  let suppressNextRowClick = false;
 
   function attachDeleteSwipe(swipeRow, id) {
     const rowFg = swipeRow.querySelector(".list-row");
     const bgDelete = swipeRow.querySelector(".bg-delete");
     let startX = 0, startY = 0, dx = 0, dragging = null;
     let pointerId = null;
+    let dismissOnly = false;
+
+    // Swiping past the threshold parks the row open rather than deleting --
+    // deleting a whole list now takes a second, deliberate tap on the
+    // Delete button, instead of the two stacked confirm() popups this used
+    // to throw (which were easy to blow through by reflex).
+    function revealForDelete() {
+      if (revealedListId !== null && revealedListId !== id && closeRevealedList) closeRevealedList();
+      rowFg.classList.add("revealed");
+      rowFg.style.transform = `translateX(-${SWIPE_COMMIT_PX}px)`;
+      bgDelete.style.opacity = "1";
+      revealedListId = id;
+      closeRevealedList = () => closeReveal(false);
+    }
+
+    // instant=true skips the closing animation, so a fresh drag on an
+    // already-open row starts cleanly from zero rather than jumping.
+    function closeReveal(instant) {
+      if (instant) rowFg.classList.remove("revealed");
+      rowFg.style.transform = "translateX(0)";
+      bgDelete.style.opacity = "0";
+      if (revealedListId === id) { revealedListId = null; closeRevealedList = null; }
+      if (!instant) setTimeout(() => rowFg.classList.remove("revealed"), 220);
+    }
+
+    bgDelete.addEventListener("click", e => {
+      if (revealedListId !== id) return;
+      e.stopPropagation(); // don't let this bubble to the row's navigate-on-click
+      const entry = lists[id];
+      revealedListId = null;
+      closeRevealedList = null;
+      rowFg.classList.remove("revealed");
+      rowFg.classList.add("commit");
+      rowFg.style.transform = "translateX(-100%)";
+      rowFg.style.opacity = "0";
+      setTimeout(() => deleteList(id, entry), 150);
+    });
 
     rowFg.addEventListener("pointerdown", e => {
       if (e.button !== undefined && e.button !== 0) return;
+      dismissOnly = false;
+      if (revealedListId === id) {
+        closeReveal(true);
+        dismissOnly = true;
+      } else if (revealedListId !== null && closeRevealedList) {
+        closeRevealedList();
+        dismissOnly = true;
+      }
       startX = e.clientX; startY = e.clientY; dx = 0; dragging = null;
       pointerId = e.pointerId;
       rowFg.classList.remove("snap", "commit");
@@ -357,24 +435,21 @@
     function endDrag(e) {
       if (pointerId === null) return;
       pointerId = null;
-      if (dragging === null || !dragging) { dragging = null; return; } // plain tap -- the row's own click handles it
+      if (dragging === null || !dragging) {
+        // Plain tap. Normally the row's own click navigates into the list;
+        // if this tap's only job was closing an open reveal, swallow it so
+        // it doesn't navigate too.
+        if (dismissOnly) {
+          dismissOnly = false;
+          suppressNextRowClick = true;
+          setTimeout(() => { suppressNextRowClick = false; }, 0);
+        }
+        dragging = null;
+        return;
+      }
       rowFg.classList.remove("dragging");
       if (dx < -SWIPE_COMMIT_PX) {
-        const entry = lists[id];
-        const name = entry ? entry.name : "this list";
-        // Deleting a whole list is a bigger move than deleting one item, so
-        // it gets a second, more explicit confirmation on top of the usual
-        // one, rather than the single generic dialog used everywhere else.
-        if (confirm(`Delete "${name}"?`) && confirm(`This removes "${name}" and everything in it from My Lists. Delete anyway?`)) {
-          rowFg.classList.add("commit");
-          rowFg.style.transform = "translateX(-100%)";
-          rowFg.style.opacity = "0";
-          setTimeout(() => deleteList(id, entry), 150);
-        } else {
-          rowFg.classList.add("snap");
-          rowFg.style.transform = "translateX(0)";
-          bgDelete.style.opacity = "0";
-        }
+        revealForDelete();
       } else {
         rowFg.classList.add("snap");
         rowFg.style.transform = "translateX(0)";
@@ -436,13 +511,28 @@
   // document exists yet), seed it with the one list that already existed
   // before multi-list support did, so nothing needs a manual migration
   // step and no existing data is at risk.
+  //
+  // Two guards here, both load-bearing -- without them this seeding path
+  // silently destroyed real data twice:
+  //
+  // 1. merge: true. A plain setDoc REPLACES the whole document, so seeding
+  //    over an existing index wiped every list except "family" (their item
+  //    documents survived, but they vanished from this screen, which reads
+  //    only this index). Merging can only ever add the family entry back.
+  // 2. Don't seed from a cache-only snapshot. Firestore delivers its first
+  //    snapshot from the local cache, and on a cold or empty cache (fresh
+  //    load, cleared Safari data, offline/flaky connection) that snapshot
+  //    reports the document as non-existent even though the server has it.
+  //    That false "it doesn't exist" is what triggered the seed in the
+  //    first place, so only ever act on a confirmed server read.
   let seeding = false;
   onSnapshot(indexRef, async snap => {
     if (!snap.exists()) {
+      if (snap.metadata && snap.metadata.fromCache) return; // unconfirmed -- wait for the server
       if (seeding) return;
       seeding = true;
       try {
-        await setDoc(indexRef, { lists: { family: { name: "Niagara Packing List", order: 0 } } });
+        await setDoc(indexRef, { lists: { family: { name: "Niagara Packing List", order: 0 } } }, { merge: true });
       } catch (err) {
         console.error(err);
       }
