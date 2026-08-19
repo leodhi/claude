@@ -103,6 +103,34 @@
   .cat-header .cat-count { font-size: 12px; font-weight: 600; opacity: 0.85; white-space: nowrap; }
   .cat-header-hidden { display: none; }
 
+  /* Each category carries its own colour (see CAT_PALETTES), so the
+     heading no longer needs to be a coloured slab to mark the group -- it
+     steps back to a quiet label and lets the items carry the colour. That
+     also removes the old problem of a heading being painted exactly the
+     same colour as its own first row. Niagara keeps its original look. */
+  .tinted .cat-section { border-radius: 0; overflow: visible; box-shadow: none; margin-bottom: 24px; }
+  .tinted .cat-header {
+    background: transparent !important; padding: 0 4px 9px;
+    font-size: 12px; font-weight: 800; letter-spacing: 0.10em;
+    text-transform: uppercase; color: #8e8e97;
+  }
+  .tinted .cat-header .cat-count { font-size: 11px; color: #6f6f77; opacity: 1; }
+  .tinted .cat-header .cat-chevron { font-size: 10px; }
+  .tinted .row-list { border-radius: 14px; overflow: hidden; box-shadow: var(--shadow); }
+  .tinted .swipe-row:first-child { border-top: none; }
+
+  /* Swipe a heading left to reveal its delete, same gesture as a row. */
+  .cat-header-wrap { position: relative; overflow: hidden; touch-action: pan-y; }
+  .cat-bg-delete {
+    position: absolute; inset: 0; background: var(--delete); display: flex; align-items: center;
+    justify-content: flex-end; padding-right: 20px; font-size: 20px; color: #fff;
+    opacity: 0; border-radius: 8px; cursor: pointer; touch-action: manipulation;
+  }
+  .cat-header { position: relative; }
+  .cat-header.revealed { transition: transform 0.2s cubic-bezier(.2,.9,.3,1.1); }
+  .cat-header.snap { transition: transform 0.25s cubic-bezier(.2,.9,.3,1.3); }
+  .cat-header.dragging { transition: none; }
+
   .row-list { display: flex; flex-direction: column; }
 
   .swipe-row { position: relative; overflow: hidden; touch-action: pan-y; border-top: 1px solid rgba(0,0,0,0.18); }
@@ -404,6 +432,7 @@
   if (!isNiagara) {
     document.getElementById("assignee-filter").style.display = "none";
     document.getElementById("ci-assignee-group").style.display = "none";
+    document.getElementById("list-root").classList.add("tinted");
   }
 
   const app = initializeApp(firebaseConfig);
@@ -457,14 +486,63 @@
   // read there.
   const GRADIENT_BASE = { h: 8, s: 80, l: 36 };
   const GRADIENT_LIGHT_CAP = 51;
-  function headerColorForCat() {
-    return `hsl(${GRADIENT_BASE.h}, ${GRADIENT_BASE.s}%, ${GRADIENT_BASE.l}%)`;
+
+  // Every category used to share this one orange, which made a long list
+  // read as one undifferentiated block -- and made a category's heading
+  // exactly the same colour as its own first row. Each category now gets
+  // its own hue, so groups are told apart by colour before you read a
+  // word. Lightness stays in the same narrow band as the original so white
+  // row text is equally legible on all of them.
+  //
+  // Niagara keeps the single orange it has always had -- it predates all
+  // of this and its look is deliberate.
+  const CAT_PALETTES = [
+    { h: 8,   s: 80, l: 36, drift: 15, cap: 51 }, // the original orange
+    { h: 205, s: 68, l: 34, drift: 10, cap: 46 }, // blue
+    { h: 150, s: 52, l: 28, drift: 10, cap: 37 }, // green
+    { h: 280, s: 42, l: 38, drift: 12, cap: 49 }, // purple
+    { h: 186, s: 62, l: 27, drift: 10, cap: 37 }, // teal
+    { h: 330, s: 55, l: 36, drift: 12, cap: 47 }, // pink
+    { h: 38,  s: 75, l: 30, drift: 8,  cap: 38 }, // amber
+  ];
+
+  // Colours are picked from the name, so a category keeps its own as
+  // others are added, removed or dragged around it -- but a plain hash
+  // hands neighbouring categories the same colour often enough to defeat
+  // the point, so a taken colour steps to the next free one. The first
+  // palette entry is reserved for uncategorized items, so a real category
+  // never gets mistaken for the loose ones at the top.
+  let catColorMap = new Map();
+  function buildCatColorMap(cats) {
+    const map = new Map();
+    if (isNiagara) return map; // one orange for everything, as always
+    const taken = new Set();
+    cats.filter(Boolean).forEach(c => {
+      let h = 0;
+      for (let i = 0; i < c.length; i++) h = (h * 31 + c.charCodeAt(i)) | 0;
+      const choices = CAT_PALETTES.length - 1; // skip index 0
+      let idx = 1 + (Math.abs(h) % choices);
+      for (let n = 0; n < choices && taken.has(idx); n++) idx = 1 + (idx % choices);
+      taken.add(idx);
+      map.set(c, CAT_PALETTES[idx]);
+    });
+    return map;
   }
-  function gradientRowColor(index, total) {
+  function paletteForCat(catName) {
+    if (isNiagara || !catName) return CAT_PALETTES[0];
+    return catColorMap.get(catName) || CAT_PALETTES[0];
+  }
+
+  function headerColorForCat(catName) {
+    const p = paletteForCat(catName);
+    return `hsl(${p.h}, ${p.s}%, ${p.l}%)`;
+  }
+  function gradientRowColor(index, total, catName) {
+    const p = paletteForCat(catName);
     const t = total <= 1 ? 0 : index / (total - 1);
-    const hue = GRADIENT_BASE.h + t * 15;
-    const light = Math.min(GRADIENT_LIGHT_CAP, GRADIENT_BASE.l + t * (GRADIENT_LIGHT_CAP - GRADIENT_BASE.l));
-    return `hsl(${hue.toFixed(1)}, ${GRADIENT_BASE.s}%, ${light}%)`;
+    const hue = p.h + t * p.drift;
+    const light = Math.min(p.cap, p.l + t * (p.cap - p.l));
+    return `hsl(${hue.toFixed(1)}, ${p.s}%, ${light}%)`;
   }
 
   function uid() { return Math.random().toString(36).slice(2, 10); }
@@ -547,6 +625,10 @@
       await updateDoc(listRef, { [`items.${action.id}.cat`]: action.from.cat, [`items.${action.id}.order`]: action.from.order });
     } else if (action.type === "catOrder") {
       await updateDoc(listRef, { catOrder: action.from });
+    } else if (action.type === "deleteCat") {
+      const updates = { catOrder: action.from.catOrder };
+      action.from.items.forEach(id => { updates[`items.${id}.cat`] = action.catName; });
+      await updateDoc(listRef, updates);
     }
   }
   async function applyForward(action) {
@@ -562,6 +644,10 @@
       await updateDoc(listRef, { [`items.${action.id}.cat`]: action.to.cat, [`items.${action.id}.order`]: action.to.order });
     } else if (action.type === "catOrder") {
       await updateDoc(listRef, { catOrder: action.to });
+    } else if (action.type === "deleteCat") {
+      const updates = { catOrder: action.to.catOrder };
+      action.from.items.forEach(id => { updates[`items.${id}.cat`] = ""; });
+      await updateDoc(listRef, updates);
     }
   }
   async function performUndo() {
@@ -1714,6 +1800,119 @@
     }
   }
 
+  // Deleting a category never deletes what's in it. Its items move back to
+  // being uncategorized, which is recoverable with Undo and can't lose
+  // anything -- unlike deleting a list, where the whole point is that the
+  // contents go too (and where a trash exists to get them back).
+  async function deleteCategory(catName) {
+    const inCat = Object.entries(currentItems).filter(([, it]) => it.cat === catName);
+    const msg = inCat.length
+      ? `Delete the "${catName}" category? Its ${inCat.length} item${inCat.length === 1 ? "" : "s"} stay on the list, just without a category.`
+      : `Delete the "${catName}" category?`;
+    if (!confirm(msg)) return;
+
+    const base = [...new Set([...savedCatOrder, ...currentSectionOrder()])];
+    const next = base.filter(c => c !== catName);
+    const updates = { catOrder: next };
+    inCat.forEach(([id]) => { updates[`items.${id}.cat`] = ""; });
+
+    setStatus("syncing", "Saving…");
+    try {
+      await updateDoc(listRef, updates);
+      pushAction({
+        type: "deleteCat",
+        from: { catOrder: base, items: inCat.map(([id]) => id) },
+        to: { catOrder: next },
+        catName
+      });
+    } catch (err) {
+      console.error(err);
+      setStatus("error", "Couldn't save");
+    }
+  }
+
+  // Which category heading (if any) is swiped open, so opening one closes
+  // any other and a tap elsewhere closes it -- same rules as the rows.
+  let revealedCat = null;
+  let closeRevealedCat = null;
+
+  function attachCatSwipeDelete(wrap, header, bgDelete, catName) {
+    const COMMIT = 84;
+    let startX = 0, startY = 0, dx = 0, dragging = null, pointerId = null, dismissOnly = false;
+
+    function reveal() {
+      if (revealedCat !== null && revealedCat !== catName && closeRevealedCat) closeRevealedCat();
+      header.classList.remove("snap");
+      header.classList.add("revealed");
+      header.style.transform = `translateX(-${COMMIT}px)`;
+      bgDelete.style.opacity = "1";
+      revealedCat = catName;
+      closeRevealedCat = () => close(false);
+    }
+    function close(instant) {
+      if (instant) header.classList.remove("revealed");
+      header.style.transform = "translateX(0)";
+      bgDelete.style.opacity = "0";
+      if (revealedCat === catName) { revealedCat = null; closeRevealedCat = null; }
+      if (!instant) setTimeout(() => header.classList.remove("revealed"), 220);
+    }
+
+    bgDelete.addEventListener("click", e => {
+      if (revealedCat !== catName) return;
+      e.stopPropagation();
+      revealedCat = null;
+      closeRevealedCat = null;
+      deleteCategory(catName);
+    });
+
+    header.addEventListener("pointerdown", e => {
+      if (e.button !== undefined && e.button !== 0) return;
+      dismissOnly = false;
+      if (revealedCat === catName) { close(true); dismissOnly = true; }
+      else if (revealedCat !== null && closeRevealedCat) { closeRevealedCat(); dismissOnly = true; }
+      startX = e.clientX; startY = e.clientY; dx = 0; dragging = null; pointerId = e.pointerId;
+      header.classList.remove("snap");
+    });
+
+    header.addEventListener("pointermove", e => {
+      if (pointerId === null || e.pointerId !== pointerId || catDragActive) return;
+      const cdx = e.clientX - startX, cdy = e.clientY - startY;
+      if (dragging === null) {
+        if (Math.abs(cdx) < 8 && Math.abs(cdy) < 8) return;
+        dragging = Math.abs(cdx) > Math.abs(cdy);
+        if (dragging) {
+          if (header.setPointerCapture) header.setPointerCapture(pointerId);
+          header.classList.add("dragging");
+        }
+      }
+      if (!dragging) return;
+      e.preventDefault();
+      dx = Math.min(0, cdx); // leftward only -- nothing lives to the right
+      header.style.transform = `translateX(${dx}px)`;
+      bgDelete.style.opacity = String(Math.min(1, Math.abs(dx) / COMMIT));
+    });
+
+    function end() {
+      if (pointerId === null) return;
+      pointerId = null;
+      header.classList.remove("dragging");
+      if (dragging === null || !dragging) {
+        // A tap. If it only closed an open reveal, that's its whole job --
+        // don't also collapse the category.
+        if (dismissOnly) { catDragSuppressClick = true; dismissOnly = false; }
+        dragging = null;
+        return;
+      }
+      if (dx < -COMMIT) reveal();
+      else { header.classList.add("snap"); header.style.transform = "translateX(0)"; bgDelete.style.opacity = "0"; }
+      // A swipe is never also a collapse tap.
+      catDragSuppressClick = true;
+      dragging = null;
+    }
+    header.addEventListener("pointerup", end);
+    header.addEventListener("pointercancel", end);
+  }
+
   function attachCatDrag(header, catName, section) {
     let timer = null, startX = 0, startY = 0, pid = null, moved = false;
     header.addEventListener("pointerdown", e => {
@@ -1921,6 +2120,12 @@
     if (closeRevealedRow) closeRevealedRow();
   }, { capture: true });
 
+  document.addEventListener("pointerdown", e => {
+    if (revealedCat === null) return;
+    if (e.target.closest && e.target.closest(".cat-header-wrap")) return;
+    if (closeRevealedCat) closeRevealedCat();
+  }, { capture: true });
+
   // ---------- Render ----------
   function render() {
     const root = document.getElementById("list-root");
@@ -1930,6 +2135,8 @@
     // close it) goes stale -- reset the tracking, not just the DOM.
     revealedRowId = null;
     closeRevealedRow = null;
+    revealedCat = null;
+    closeRevealedCat = null;
     let total = 0, checkedCount = 0;
 
     const byCat = {};
@@ -1974,6 +2181,7 @@
         return ra === rb ? 0 : ra - rb;
       });
     }
+    catColorMap = buildCatColorMap(categoryOrder);
     renderCatOptions(categoryOrder);
     // "Shown" covers both a category with items in it and one that was
     // created deliberately but is still empty.
@@ -2038,12 +2246,24 @@
       header.className = "cat-header" + (showThisHeader ? "" : " cat-header-hidden");
       header.dataset.catToggle = catName;
       if (showThisHeader) {
-        header.style.background = headerColorForCat();
+        header.style.background = headerColorForCat(catName);
         const doneCount = items.filter(i => i.checked).length;
         header.innerHTML = `<span class="cat-title-text"><span class="cat-chevron">▾</span>${escapeHtml(catName || "No category")}</span><span class="cat-count">${doneCount} / ${items.length}</span>`;
         attachCatDrag(header, catName, section);
+        // Wrapped so the heading can slide aside over a delete button,
+        // the same swipe-then-tap-to-confirm used for items and lists.
+        const headWrap = document.createElement("div");
+        headWrap.className = "cat-header-wrap";
+        const catBgDelete = document.createElement("div");
+        catBgDelete.className = "cat-bg-delete";
+        catBgDelete.textContent = "🗑";
+        headWrap.appendChild(catBgDelete);
+        headWrap.appendChild(header);
+        section.appendChild(headWrap);
+        attachCatSwipeDelete(headWrap, header, catBgDelete, catName);
+      } else {
+        section.appendChild(header);
       }
-      section.appendChild(header);
 
       const list = document.createElement("div");
       list.className = "row-list";
@@ -2055,7 +2275,7 @@
         const inlineRow = document.createElement("div");
         inlineRow.className = "swipe-row";
         inlineRow.innerHTML = `
-          <div class="row-fg" style="background:${headerColorForCat()}">
+          <div class="row-fg" style="background:${headerColorForCat(catName)}">
             <div class="inline-add-input-wrap"><textarea id="inline-add-input" class="inline-add-input" rows="1" placeholder="New item"></textarea></div>
           </div>`;
         list.appendChild(inlineRow);
@@ -2082,7 +2302,7 @@
       visibleItems.forEach(item => {
         if (pendingAddCat === catName && pendingAddBeforeId === item.id) appendInlineAddRow();
         const isDone = item.checked || item.na;
-        const bg = isDone ? "var(--bg)" : gradientRowColor(openIdx++, openCount);
+        const bg = isDone ? "var(--bg)" : gradientRowColor(openIdx++, openCount, catName);
         const row = document.createElement("div");
         row.className = "swipe-row";
         row.dataset.itemId = item.id;
