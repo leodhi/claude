@@ -144,7 +144,7 @@
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
   import {
-    getFirestore, doc, setDoc, updateDoc, deleteField, onSnapshot
+    getFirestore, doc, setDoc, updateDoc, deleteField, onSnapshot, collection, getDocs
   } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
 
   // Same Firebase project as docs/packing-list/index.html and this folder's
@@ -340,7 +340,11 @@
       // like it was created fine but silently couldn't be added to.
       await Promise.all([
         setDoc(indexRef, { lists: { [id]: { name, order } } }, { merge: true }),
-        setDoc(doc(db, "packingLists", id), { items: {} })
+        // The name is stored on the list's own document as well as in the
+        // index. The index is only a convenience (names + order in one
+        // read); a list that knows its own name can always be recovered
+        // from it alone if the index is ever lost -- see reconcileLists().
+        setDoc(doc(db, "packingLists", id), { items: {}, name })
       ]);
       location.href = `list.html?id=${encodeURIComponent(id)}&name=${encodeURIComponent(name)}`;
     } catch (err) {
@@ -603,6 +607,47 @@
     performUndo();
   });
 
+  // Self-healing: the index is a convenience copy (names + order in a
+  // single read), NOT the record of which lists exist -- the list
+  // documents themselves are. A stale client running an older build, a bad
+  // write, or any future bug can drop an entry from the index without
+  // touching the list it points at, which used to make that list look
+  // permanently gone even though all its data was sitting right there.
+  //
+  // So on load, enumerate the list documents and put back anything the
+  // index has lost. Deliberate deletions are recorded in deletedLists, so
+  // those stay deleted rather than resurrecting themselves. Documents with
+  // neither a name nor any items are skipped -- an abandoned empty list
+  // shouldn't reappear as a mystery row.
+  let reconciling = false;
+  async function reconcileLists() {
+    if (reconciling) return;
+    reconciling = true;
+    try {
+      const snap = await getDocs(collection(db, "packingLists"));
+      const restored = {};
+      let nextOrder = Object.keys(lists).length;
+      snap.forEach(d => {
+        const id = d.id;
+        if (id === "_index") return;
+        if (id in lists) return;
+        if (id in deletedLists) return; // deleted on purpose -- leave it deleted
+        const data = d.data() || {};
+        const itemCount = Object.keys(data.items || {}).length;
+        if (!data.name && itemCount === 0) return;
+        restored[id] = { name: data.name || "Recovered list", order: nextOrder++ };
+      });
+      if (Object.keys(restored).length === 0) return;
+      console.warn("Restoring lists missing from the index:", Object.keys(restored));
+      await setDoc(indexRef, { lists: restored }, { merge: true });
+    } catch (err) {
+      // Never fatal -- this is a repair pass, not the load path.
+      console.error("Couldn't reconcile lists:", err);
+    } finally {
+      reconciling = false;
+    }
+  }
+
   // Self-initializing: the very first time this page ever loads (no index
   // document exists yet), seed it with the one list that already existed
   // before multi-list support did, so nothing needs a manual migration
@@ -638,6 +683,10 @@
     deletedLists = snap.data().deletedLists || {};
     syncItemCountListeners();
     render();
+    // Runs after the first real (server-confirmed) index read. Any repair
+    // it makes writes to the index, which re-enters here -- by then the
+    // restored entries are in `lists`, so it finds nothing and stops.
+    if (!snap.metadata || !snap.metadata.fromCache) reconcileLists();
   }, err => {
     console.error(err);
     root.innerHTML = '<div class="empty-state">Couldn\'t load your lists. Check your connection and reload.</div>';
