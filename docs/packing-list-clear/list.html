@@ -1549,8 +1549,14 @@
       return (a.order ?? 0) - (b.order ?? 0);
     }));
 
-    const extraCats = Object.keys(byCat).filter(c => !CUSTOM_CATEGORIES.includes(c)).sort();
-    const categoryOrder = [...CUSTOM_CATEGORIES, ...extraCats];
+    // CUSTOM_CATEGORIES is specific to the original Niagara list ("family")
+    // -- it predates multi-list support, back when this was the only list
+    // that existed. Every other list starts with no preset categories at
+    // all, building up its own set purely from whatever gets added via
+    // "+ New category…".
+    const presetCats = listId === "family" ? CUSTOM_CATEGORIES : [];
+    const extraCats = Object.keys(byCat).filter(c => !presetCats.includes(c)).sort();
+    const categoryOrder = [...presetCats, ...extraCats];
     renderCatOptions(categoryOrder);
     renderCategoryJump(categoryOrder.filter(c => byCat[c] && byCat[c].length > 0));
 
