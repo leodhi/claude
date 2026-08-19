@@ -147,7 +147,7 @@
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
   import {
-    getFirestore, doc, setDoc, updateDoc, deleteDoc, deleteField, onSnapshot, collection, getDocs
+    getFirestore, doc, setDoc, updateDoc, deleteDoc, deleteField, onSnapshot, collection, getDocsFromServer
   } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
 
   // Same Firebase project as docs/packing-list/index.html and this folder's
@@ -614,6 +614,10 @@
     if (!entry) return;
     const name = entry.name || "this list";
     if (!confirm(`Permanently delete "${name}" and everything in it? This can't be undone.`)) return;
+    // Marked before the writes, not after: the snapshot from clearing the
+    // trash entry re-enters reconcileLists(), which must already know this
+    // id is gone for good rather than a list to be rescued.
+    purgedIds.add(id);
     try {
       // Document first. If this fails, the entry stays in the trash and
       // nothing has visibly changed, so it can just be retried. Doing it
@@ -681,12 +685,24 @@
   // those stay deleted rather than resurrecting themselves. Documents with
   // neither a name nor any items are skipped -- an abandoned empty list
   // shouldn't reappear as a mystery row.
+  // Ids purged in this session. "Delete forever" removes both the list
+  // document and its trash entry -- but the enumeration below can still
+  // hand back a just-deleted document from Firestore's local cache, and
+  // with the trash entry already gone there is nothing left marking it as
+  // deliberately deleted, so the repair pass would put it straight back as
+  // a live list. That is exactly what happened: deleting forever appeared
+  // to do nothing, because the list reappeared a moment later.
+  const purgedIds = new Set();
+
   let reconciling = false;
   async function reconcileLists() {
     if (reconciling) return;
     reconciling = true;
     try {
-      const snap = await getDocs(collection(db, "packingLists"));
+      // From the server, not the cache. A repair pass that acts on stale
+      // reads does more harm than good -- if the network is down there is
+      // nothing to repair from, and the throw below simply skips it.
+      const snap = await getDocsFromServer(collection(db, "packingLists"));
       const restored = {};
       let nextOrder = Object.keys(lists).length;
       snap.forEach(d => {
@@ -694,6 +710,7 @@
         if (id === "_index") return;
         if (id in lists) return;
         if (id in deletedLists) return; // deleted on purpose -- leave it deleted
+        if (purgedIds.has(id)) return;  // deleted forever in this session
         const data = d.data() || {};
         const itemCount = Object.keys(data.items || {}).length;
         if (!data.name && itemCount === 0) return;
