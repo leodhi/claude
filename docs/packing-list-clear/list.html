@@ -95,28 +95,27 @@
      heavier AND smaller, which is what made the two hard to tell apart. */
   .cat-header {
     display: flex; align-items: center; justify-content: space-between; gap: 8px;
-    padding: 14px 16px 12px; font-weight: 700; font-size: 15px; font-style: italic;
+    padding: 9px 11px; font-weight: 700; font-size: 13px; font-style: italic;
     letter-spacing: -0.01em; color: #fff;
     cursor: pointer; user-select: none; touch-action: manipulation;
     transition: filter 0.1s ease;
   }
   .cat-header:active { filter: brightness(0.9); }
-  .cat-header .cat-title-text { display: inline-flex; align-items: center; gap: 8px; }
+  /* The name sits in a dark rounded pill on the coloured bar, so it reads
+     as a label for the group rather than as another row in it -- the bar
+     itself used to be painted the very same colour as the row below it.
+     The bar stays full width, so it is still a big target for collapsing,
+     dragging the category and swiping it away. */
+  .cat-header .cat-title-text {
+    display: inline-flex; align-items: center; gap: 8px;
+    background: rgba(0,0,0,0.34); border-radius: 999px; padding: 5px 13px;
+  }
   .cat-header .cat-chevron { display: inline-block; font-size: 12px; font-style: normal; transition: transform 0.15s ease; opacity: 0.85; }
   .cat-section.collapsed .cat-chevron { transform: rotate(-90deg); }
   .cat-section.collapsed .row-list { display: none; }
-  .cat-header .cat-count { font-size: 12px; font-weight: 600; font-style: normal; opacity: 0.85; white-space: nowrap; }
+  .cat-header .cat-count { font-size: 12px; font-weight: 600; font-style: normal; color: rgba(255,255,255,0.78); white-space: nowrap; }
   .cat-header-hidden { display: none; }
 
-  /* Trial on the "Test" list only: the heading bar keeps its colour,
-     but the name sits in a dark rounded pill on it, so the label reads as a
-     label while the bar stays a big target for collapsing, dragging the
-     category and swiping it away. Niagara keeps the plain bar. */
-  .pill-heads .cat-header { padding: 9px 11px; }
-  .pill-heads .cat-header .cat-title-text {
-    background: rgba(0,0,0,0.34); border-radius: 999px; padding: 5px 13px; font-size: 13px;
-  }
-  .pill-heads .cat-header .cat-count { color: rgba(255,255,255,0.78); opacity: 1; }
 
   /* Swipe a heading left to reveal its delete, same gesture as a row. */
   .cat-header-wrap { position: relative; overflow: hidden; touch-action: pan-y; }
@@ -420,14 +419,6 @@
   // in render() below -- so lists that don't want this stay exactly as
   // simple as they always were, and it only shows up once actually used.
   const isNiagara = listId === "family";
-
-  // Lists trying out the inset-pill category heading. Keyed by list id so
-  // renaming a list can't switch it on or off by accident, and so it stays
-  // confined to the one list being tried it out on.
-  const PILL_HEADING_LISTS = ["ev2ismea"]; // "Test"
-  if (PILL_HEADING_LISTS.includes(listId)) {
-    document.getElementById("list-root").classList.add("pill-heads");
-  }
   if (!isNiagara) {
     document.getElementById("assignee-filter").style.display = "none";
     document.getElementById("ci-assignee-group").style.display = "none";
