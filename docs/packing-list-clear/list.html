@@ -115,6 +115,17 @@
   .cat-section.collapsed .row-list { display: none; }
   .cat-header .cat-count { font-size: 12px; font-weight: 600; font-style: normal; color: rgba(255,255,255,0.78); white-space: nowrap; }
   .cat-header-hidden { display: none; }
+  /* Renaming: the name inside the pill becomes an editable field, the same
+     in-place edit as tapping an item's name. Sized to match the heading text
+     so the pill doesn't resize the moment it turns into a field. The
+     user-select override matters -- .cat-header sets user-select:none (it is
+     a drag handle), which on iOS also blocks placing a caret in a field
+     nested inside it. */
+  .cat-header .cat-title-text.editing { flex: 1; }
+  .cat-rename-input {
+    font-size: 13px; font-weight: 700; font-style: italic; letter-spacing: -0.01em;
+    -webkit-user-select: text; user-select: text; -webkit-touch-callout: default;
+  }
 
 
   /* Swipe a heading left to reveal its delete, same gesture as a row. */
@@ -592,6 +603,10 @@
       const updates = { catOrder: action.from.catOrder };
       action.from.items.forEach(({ id, item }) => { updates[`items.${id}`] = item; });
       await updateDoc(listRef, updates);
+    } else if (action.type === "renameCat") {
+      const updates = { catOrder: action.from.catOrder };
+      action.ids.forEach(id => { updates[`items.${id}.cat`] = action.from.name; });
+      await updateDoc(listRef, updates);
     }
   }
   async function applyForward(action) {
@@ -614,6 +629,10 @@
     } else if (action.type === "deleteCatAll") {
       const updates = { catOrder: action.to.catOrder };
       action.from.items.forEach(({ id }) => { updates[`items.${id}`] = deleteField(); });
+      await updateDoc(listRef, updates);
+    } else if (action.type === "renameCat") {
+      const updates = { catOrder: action.to.catOrder };
+      action.ids.forEach(id => { updates[`items.${id}.cat`] = action.to.name; });
       await updateDoc(listRef, updates);
     }
   }
@@ -647,20 +666,45 @@
   undoBtn.addEventListener("click", performUndo);
   redoBtn.addEventListener("click", performRedo);
 
+  // A single tap on a heading collapses it; a second tap in quick succession
+  // means rename instead. The first tap's collapse is applied immediately
+  // rather than waiting out the double-tap window -- a quarter-second of lag
+  // on every collapse is a worse trade than the brief flicker when the second
+  // tap arrives and toggles it straight back.
+  const CAT_DOUBLE_TAP_MS = 320;
+  let lastCatTapName = null;
+  let lastCatTapAt = 0;
+
   document.getElementById("list-root").addEventListener("click", e => {
     const catHeader = e.target.closest("[data-cat-toggle]");
     if (catHeader) {
       // The tap that ended a category drag isn't also a collapse tap.
       if (catDragSuppressClick) { catDragSuppressClick = false; return; }
       const catName = catHeader.dataset.catToggle;
-      if (collapsedCats.has(catName)) collapsedCats.delete(catName); else collapsedCats.add(catName);
-      saveCollapsed();
+      // Taps inside the rename field are for placing the caret, not for
+      // collapsing the very category being renamed.
+      if (pendingRenameCat === catName) return;
+      const toggleCollapse = () => {
+        if (collapsedCats.has(catName)) collapsedCats.delete(catName); else collapsedCats.add(catName);
+        saveCollapsed();
+      };
+      const now = Date.now();
+      if (lastCatTapName === catName && now - lastCatTapAt < CAT_DOUBLE_TAP_MS) {
+        lastCatTapName = null;
+        lastCatTapAt = 0;
+        toggleCollapse(); // undo the first tap's collapse -- this was a rename
+        startCatRename(catName);
+        return;
+      }
+      lastCatTapName = catName;
+      lastCatTapAt = now;
+      toggleCollapse();
       render();
       return;
     }
     const addRow = e.target.closest("[data-add-cat]");
     if (addRow) {
-      if (pendingAddCat !== null || pendingEditId !== null) {
+      if (pendingAddCat !== null || pendingEditId !== null || pendingRenameCat !== null) {
         finishAnyPendingInlineEntry();
         if (pendingRerenderNeeded) pendingRerenderNeeded = false;
         render();
@@ -833,6 +877,7 @@
   let pendingAddCat = null;
   let pendingAddBeforeId = null; // null = top of category, INSERT_AT_END = bottom, else insert before that item id
   let pendingEditId = null;
+  let pendingRenameCat = null;
   let pendingRerenderNeeded = false;
 
   // A long name is meant to wrap across lines in the static display, but a
@@ -848,6 +893,7 @@
   function finishAnyPendingInlineEntry() {
     finishPendingInlineAdd();
     finishPendingInlineEdit();
+    finishPendingCatRename();
   }
 
   // Just blurs, WITHOUT marking cancelled -- the field's own blur handler
@@ -860,6 +906,8 @@
     if (addInput) addInput.blur();
     const editInput = document.getElementById("inline-edit-input");
     if (editInput) editInput.blur();
+    const catInput = document.getElementById("inline-cat-input");
+    if (catInput) catInput.blur();
   }
 
   // Shared by the cancel-on-outside-tap listener below and the
@@ -908,7 +956,7 @@
   let suppressNextBackgroundAdd = false;
   document.addEventListener("pointerdown", e => {
     suppressNextBackgroundAdd = false; // a fresh gesture always starts clean
-    if (pendingAddCat === null && pendingEditId === null) return;
+    if (pendingAddCat === null && pendingEditId === null && pendingRenameCat === null) return;
     if (!isBackgroundTarget(e.target) && e.target.closest(".wrap")) return;
     dismissPendingInlineEntry();
     suppressNextBackgroundAdd = true;
@@ -1027,6 +1075,69 @@
     if (input) { autoGrowInlineTextarea(input); input.focus(); input.setSelectionRange(input.value.length, input.value.length); }
   }
 
+  // ---------- Rename a category (double-tap its heading) ----------
+  // Mirrors the item inline edit above: the name becomes a field in place,
+  // Enter or tapping away keeps it, Escape throws it away.
+  function finishPendingCatRename() {
+    if (pendingRenameCat === null) return;
+    const input = document.getElementById("inline-cat-input");
+    const name = input ? input.value.trim() : "";
+    const oldName = pendingRenameCat;
+    pendingRenameCat = null;
+    if (name) commitCatRename(oldName, name);
+  }
+
+  async function commitCatRename(oldName, newName) {
+    if (newName === oldName) return;
+    // Which categories exist, read from the data rather than from the page.
+    // This has to be DOM-free: the second call described below arrives from a
+    // blur fired *during* a re-render, when the page still holds the old
+    // heading, so currentSectionOrder() would answer with names that no longer
+    // exist and both guards would read the situation backwards.
+    const known = new Set(savedCatOrder);
+    Object.values(currentItems).forEach(it => { if (it.cat) known.add(it.cat); });
+    // Two paths both finish an open rename -- the field's own blur, and
+    // finishAnyPendingInlineEntry() when a tap elsewhere closes it -- and a
+    // single tap on the background sets off both. The second to run finds the
+    // rename already done, so there is nothing left to rename and it must do
+    // nothing. Without this it fell through to the check below and reported
+    // the name it had itself just saved as "already exists". Also the right
+    // answer if the category was deleted on another device mid-rename.
+    if (!known.has(oldName)) return;
+    // Renaming onto a name already in use would silently merge two
+    // categories together, which is a surprising amount to happen from a
+    // typo. Refuse it and say so instead.
+    if (known.has(newName)) { setStatus("error", `"${newName}" already exists`); return; }
+    const base = [...new Set([...savedCatOrder, ...currentSectionOrder()])];
+    const ids = Object.entries(currentItems)
+      .filter(([, it]) => it.cat === oldName)
+      .map(([id]) => id);
+    const next = base.map(c => (c === oldName ? newName : c));
+    if (!next.includes(newName)) next.push(newName);
+    const updates = { catOrder: next };
+    ids.forEach(id => { updates[`items.${id}.cat`] = newName; });
+    setStatus("syncing", "Saving…");
+    try {
+      await updateDoc(listRef, updates);
+      // Collapse state is keyed by name, so carry it across or a collapsed
+      // category springs open the moment it is renamed.
+      if (collapsedCats.has(oldName)) { collapsedCats.delete(oldName); collapsedCats.add(newName); saveCollapsed(); }
+      pushAction({ type: "renameCat", ids, from: { name: oldName, catOrder: base }, to: { name: newName, catOrder: next } });
+    } catch (err) {
+      console.error(err);
+      setStatus("error", "Couldn't save");
+    }
+  }
+
+  function startCatRename(catName) {
+    finishAnyPendingInlineEntry();
+    if (revealedCat !== null && closeRevealedCat) closeRevealedCat();
+    pendingRenameCat = catName;
+    render();
+    const input = document.getElementById("inline-cat-input");
+    if (input) { autoGrowInlineTextarea(input); input.focus(); input.setSelectionRange(input.value.length, input.value.length); }
+  }
+
   // ---------- Pull down at top to add (Clear-app style) ----------
   // Native pull-to-refresh doesn't apply here: overscroll-behavior-y: contain
   // (set on html/body above) already kills the browser's rubber-band bounce,
@@ -1070,7 +1181,7 @@
   let spreadGap = 0;
 
   function tryStartSpread(e) {
-    if (reorderActive || pendingAddCat !== null || pendingEditId !== null) return;
+    if (reorderActive || pendingAddCat !== null || pendingEditId !== null || pendingRenameCat !== null) return;
     const [t1, t2] = [...e.touches];
     const el1 = document.elementFromPoint(t1.clientX, t1.clientY)?.closest(".swipe-row");
     const el2 = document.elementFromPoint(t2.clientX, t2.clientY)?.closest(".swipe-row");
@@ -1251,7 +1362,7 @@
   document.addEventListener("pointerdown", e => {
     if (e.pointerType === "mouse" && e.button !== 0) return;
     if (e.clientX > EDGE_ZONE) return;
-    if (catDragActive || reorderActive || spreadActive || pendingAddCat !== null || pendingEditId !== null) return;
+    if (catDragActive || reorderActive || spreadActive || pendingAddCat !== null || pendingEditId !== null || pendingRenameCat !== null) return;
     edgeBackPointerId = e.pointerId;
     edgeBackStartX = e.clientX;
     edgeBackStartY = e.clientY;
@@ -2023,7 +2134,7 @@
       } else if (revealedRowId !== null && closeRevealedRow) {
         closeRevealedRow();
       }
-      if (pendingAddCat !== null || pendingEditId !== null) {
+      if (pendingAddCat !== null || pendingEditId !== null || pendingRenameCat !== null) {
         // Another row (or the add field) is mid-edit -- this tap just
         // dismisses that, like tapping away/pressing Enter would. It
         // shouldn't ALSO start editing whatever was tapped; that takes a
@@ -2262,7 +2373,37 @@
       const showThisHeader = showCatChrome && catName !== "";
       header.className = "cat-header" + (showThisHeader ? "" : " cat-header-hidden");
       header.dataset.catToggle = catName;
-      if (showThisHeader) {
+      if (showThisHeader && pendingRenameCat === catName) {
+        // Mid-rename: the name turns into a field in place. Deliberately
+        // skips attachCatDrag/attachCatSwipeDelete -- press-and-hold and
+        // swipe would both fight the tap that puts the caret in the field.
+        header.style.background = headerColorForCat();
+        const doneCount = items.filter(i => i.checked).length;
+        header.innerHTML = `<span class="cat-title-text editing"><textarea id="inline-cat-input" class="inline-add-input cat-rename-input" rows="1">${escapeHtml(catName)}</textarea></span><span class="cat-count">${doneCount} / ${items.length}</span>`;
+        section.appendChild(header);
+        const catInput = header.querySelector("#inline-cat-input");
+        catInput.addEventListener("input", () => autoGrowInlineTextarea(catInput));
+        catInput.addEventListener("keydown", ev => {
+          if (ev.key === "Enter") { ev.preventDefault(); catInput.blur(); }
+          else if (ev.key === "Escape") { ev.preventDefault(); catInput.dataset.cancelled = "1"; catInput.blur(); }
+        });
+        // Saving re-renders the list, which pulls this still-focused field out
+        // of the page -- and removing a focused element fires blur a second
+        // time. Without this latch that second blur re-commits the very same
+        // rename, which then trips the "already exists" guard against the name
+        // it just saved. One blur per field is all that can ever be meant.
+        let catRenameHandled = false;
+        catInput.addEventListener("blur", () => {
+          if (catRenameHandled) return;
+          catRenameHandled = true;
+          const cancelled = catInput.dataset.cancelled === "1";
+          const newName = catInput.value.trim();
+          pendingRenameCat = null;
+          if (!cancelled && newName) commitCatRename(catName, newName);
+          if (pendingRerenderNeeded) { pendingRerenderNeeded = false; }
+          render();
+        });
+      } else if (showThisHeader) {
         header.style.background = headerColorForCat();
         const doneCount = items.filter(i => i.checked).length;
         header.innerHTML = `<span class="cat-title-text"><span class="cat-chevron">▾</span>${escapeHtml(catName || "No category")}</span><span class="cat-count">${doneCount} / ${items.length}</span>`;
@@ -2385,7 +2526,7 @@
     currentItems = snap.data().items || {};
     savedCatOrder = Array.isArray(snap.data().catOrder) ? snap.data().catOrder : [];
     setStatus("synced", "Synced");
-    if (pendingAddCat || pendingEditId || reorderActive || catDragActive) { pendingRerenderNeeded = true; } else { render(); }
+    if (pendingAddCat !== null || pendingEditId !== null || pendingRenameCat !== null || reorderActive || catDragActive) { pendingRerenderNeeded = true; } else { render(); }
   }, err => {
     console.error(err);
     setStatus("error", "Connection error");
