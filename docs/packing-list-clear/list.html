@@ -332,6 +332,17 @@
   </div>
 </div>
 
+<div class="modal-backdrop" id="shake-modal">
+  <div class="modal">
+    <h3>Shake to undo?</h3>
+    <p style="color:var(--ink-muted);font-size:13px;margin:0 0 14px;">Give your phone a shake any time to undo your last change, same as the Undo button.</p>
+    <div class="modal-actions">
+      <button type="button" class="btn-cancel" id="shake-skip">Not now</button>
+      <button type="button" class="btn-save" id="shake-enable">Enable</button>
+    </div>
+  </div>
+</div>
+
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
   import {
@@ -505,6 +516,77 @@
   }
   undoBtn.addEventListener("click", performUndo);
   redoBtn.addEventListener("click", performRedo);
+
+  // ---------- Shake to undo (like the real Clear app) ----------
+  // iOS gates motion-sensor access behind an explicit, user-gesture-
+  // triggered permission request (DeviceMotionEvent.requestPermission()) --
+  // it can't be requested silently on load. So the first time this app is
+  // ever opened, ask once via this modal; the choice (localStorage,
+  // shared across this page and My Lists) is remembered from then on and
+  // it's never asked again.
+  const SHAKE_PREF_KEY = "packing-clear-shake-undo-pref";
+  const shakeModal = document.getElementById("shake-modal");
+
+  function startShakeDetection(onShake) {
+    let lastX = null, lastY = null, lastZ = null, lastTime = 0;
+    let cooling = false;
+    const SHAKE_THRESHOLD = 18; // tuned by feel, not measured on a real device -- report back if it's too twitchy or too stiff
+    window.addEventListener("devicemotion", e => {
+      const acc = e.accelerationIncludingGravity;
+      if (!acc || acc.x === null) return;
+      const now = Date.now();
+      if (lastTime) {
+        const dt = now - lastTime;
+        if (dt < 80) return; // sample at a steady rate rather than every event
+        const speed = (Math.abs(acc.x - lastX) + Math.abs(acc.y - lastY) + Math.abs(acc.z - lastZ)) / dt * 1000;
+        if (speed > SHAKE_THRESHOLD && !cooling) {
+          cooling = true;
+          if (navigator.vibrate) navigator.vibrate(20);
+          onShake();
+          setTimeout(() => { cooling = false; }, 1000);
+        }
+      }
+      lastTime = now; lastX = acc.x; lastY = acc.y; lastZ = acc.z;
+    });
+  }
+
+  function closeShakeModal() { shakeModal.classList.remove("show"); }
+
+  document.getElementById("shake-skip").addEventListener("click", () => {
+    localStorage.setItem(SHAKE_PREF_KEY, "declined");
+    closeShakeModal();
+  });
+  shakeModal.addEventListener("click", e => { if (e.target === shakeModal) { localStorage.setItem(SHAKE_PREF_KEY, "declined"); closeShakeModal(); } });
+
+  document.getElementById("shake-enable").addEventListener("click", async () => {
+    closeShakeModal();
+    try {
+      if (typeof DeviceMotionEvent !== "undefined" && typeof DeviceMotionEvent.requestPermission === "function") {
+        const result = await DeviceMotionEvent.requestPermission();
+        if (result !== "granted") { localStorage.setItem(SHAKE_PREF_KEY, "declined"); return; }
+      }
+      localStorage.setItem(SHAKE_PREF_KEY, "granted");
+      startShakeDetection(performUndo);
+    } catch (err) {
+      console.error(err);
+      localStorage.setItem(SHAKE_PREF_KEY, "declined");
+    }
+  });
+
+  // Deferred (not skipped) if the item-delete undo toast is already up --
+  // both are full-width overlays near the same area, and the toast is the
+  // one with something time-sensitive to act on.
+  function maybeShowShakePrompt() {
+    if (toastEl.classList.contains("show")) { setTimeout(maybeShowShakePrompt, 1000); return; }
+    shakeModal.classList.add("show");
+  }
+
+  const shakePref = localStorage.getItem(SHAKE_PREF_KEY);
+  if (shakePref === "granted") {
+    startShakeDetection(performUndo);
+  } else if (!shakePref) {
+    setTimeout(maybeShowShakePrompt, 900);
+  }
 
   document.getElementById("list-root").addEventListener("click", e => {
     const catHeader = e.target.closest("[data-cat-toggle]");
