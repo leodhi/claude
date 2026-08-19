@@ -22,7 +22,17 @@
   body { margin: 0; color: var(--ink); font-family: -apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif; font-size: 16px; line-height: 1.4; }
   .wrap { max-width: 640px; margin: 0 auto; padding: calc(24px + env(safe-area-inset-top)) 14px calc(96px + env(safe-area-inset-bottom)); }
 
-  h1 { font-weight: 700; font-size: 32px; margin: 0 0 20px; letter-spacing: -0.01em; }
+  .header-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 20px; }
+  h1 { font-weight: 700; font-size: 32px; margin: 0; letter-spacing: -0.01em; }
+
+  .icon-btn {
+    background: #2c2c2e; border: 1px solid #3a3a3c; color: var(--ink); border-radius: 50%;
+    width: 30px; height: 30px; font-size: 14px; cursor: pointer; flex: none;
+    display: flex; align-items: center; justify-content: center;
+    transition: border-color 0.15s ease, transform 0.1s ease; touch-action: manipulation;
+  }
+  .icon-btn:hover { border-color: var(--accent); }
+  .icon-btn:active { transform: scale(0.92); }
 
   .swipe-row { position: relative; margin-bottom: 10px; border-radius: 14px; overflow: hidden; box-shadow: var(--shadow); touch-action: pan-y; }
   .bg-delete {
@@ -117,7 +127,10 @@
 <div class="scroll-container">
   <div class="pull-indicator"><div id="pull-icon">+</div></div>
   <div class="wrap">
-    <h1>My Lists</h1>
+    <div class="header-row">
+      <h1>My Lists</h1>
+      <button type="button" id="shake-settings-btn" class="icon-btn" aria-label="Shake to undo settings">📳</button>
+    </div>
     <div id="list-root"></div>
   </div>
 </div>
@@ -405,7 +418,10 @@
   const SHAKE_PREF_KEY = "packing-clear-shake-undo-pref";
   const shakeModal = document.getElementById("shake-modal");
 
+  let shakeListenerAttached = false;
   function startShakeDetection(onShake) {
+    if (shakeListenerAttached) return; // re-opening the settings sheet and tapping Enable again shouldn't stack a second listener
+    shakeListenerAttached = true;
     let lastX = null, lastY = null, lastZ = null, lastTime = 0;
     let cooling = false;
     const SHAKE_THRESHOLD = 18;
@@ -452,20 +468,41 @@
     closeShakeModal();
   });
 
+  // Failures here are shown, not swallowed -- silently marking "declined"
+  // and saying nothing left a real dead end for anyone whose grant failed
+  // (a known iOS quirk: Settings > Safari > Motion & Orientation Access
+  // being off makes requestPermission() resolve "denied" with no other
+  // signal, even after tapping Allow) since the sheet only showed once.
+  // The 📳 header button re-opens this at any time to retry.
   document.getElementById("shake-enable").addEventListener("click", async e => {
     e.stopPropagation();
     closeShakeModal();
     try {
-      if (typeof DeviceMotionEvent !== "undefined" && typeof DeviceMotionEvent.requestPermission === "function") {
+      if (typeof DeviceMotionEvent === "undefined") {
+        localStorage.setItem(SHAKE_PREF_KEY, "declined");
+        alert("This device or browser doesn't support motion sensing, so shake to undo isn't available here.");
+        return;
+      }
+      if (typeof DeviceMotionEvent.requestPermission === "function") {
         const result = await DeviceMotionEvent.requestPermission();
-        if (result !== "granted") { localStorage.setItem(SHAKE_PREF_KEY, "declined"); return; }
+        if (result !== "granted") {
+          localStorage.setItem(SHAKE_PREF_KEY, "declined");
+          alert("Motion access wasn't granted, so shake to undo won't work yet. Check Settings → Safari → Motion & Orientation Access is turned on, then tap 📳 to try again.");
+          return;
+        }
       }
       localStorage.setItem(SHAKE_PREF_KEY, "granted");
       startShakeDetection(onShakeUndo);
     } catch (err) {
       console.error(err);
       localStorage.setItem(SHAKE_PREF_KEY, "declined");
+      alert("Couldn't enable shake to undo — tap 📳 to try again.");
     }
+  });
+
+  document.getElementById("shake-settings-btn").addEventListener("click", e => {
+    e.stopPropagation(); // don't also trigger the document-level tap-to-add handler
+    shakeModal.classList.add("show");
   });
 
   // Deferred (not skipped) if the delete-list undo toast is already up --
