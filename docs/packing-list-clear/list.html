@@ -312,11 +312,13 @@
         <label for="ci-cat-new">New category name</label>
         <input type="text" id="ci-cat-new" placeholder="e.g. Beach house">
       </div>
-      <label for="ci-assignee">Assign to</label>
-      <select id="ci-assignee"></select>
-      <div id="ci-assignee-new-wrap" style="display:none;">
-        <label for="ci-assignee-new">Name</label>
-        <input type="text" id="ci-assignee-new" placeholder="e.g. Elana">
+      <div id="ci-assignee-group">
+        <label for="ci-assignee">Assign to</label>
+        <select id="ci-assignee"></select>
+        <div id="ci-assignee-new-wrap" style="display:none;">
+          <label for="ci-assignee-new">Name</label>
+          <input type="text" id="ci-assignee-new" placeholder="e.g. Elana">
+        </div>
       </div>
       <div class="modal-actions">
         <button type="button" class="btn-cancel" id="add-cancel">Cancel</button>
@@ -359,6 +361,16 @@
   if (listName) {
     document.title = listName + " — Clear style";
     document.getElementById("list-title").textContent = listName;
+  }
+
+  // PRESET_ASSIGNEES, like CUSTOM_CATEGORIES, is specific to the original
+  // Niagara trip -- the whole "who's it for" feature only makes sense
+  // there. Every other list hides it entirely rather than showing family
+  // members' names on an unrelated list.
+  const showAssignees = listId === "family";
+  if (!showAssignees) {
+    document.getElementById("assignee-filter").style.display = "none";
+    document.getElementById("ci-assignee-group").style.display = "none";
   }
 
   const app = initializeApp(firebaseConfig);
@@ -446,7 +458,7 @@
   // ---------- Category jump chips ----------
   function renderCategoryJump(categoryOrder) {
     const el = document.getElementById("category-jump");
-    el.innerHTML = categoryOrder.map(c => `<button type="button" class="jump-chip" data-jump-cat="${escapeAttr(c)}">${escapeHtml(c)}</button>`).join("");
+    el.innerHTML = categoryOrder.map(c => `<button type="button" class="jump-chip" data-jump-cat="${escapeAttr(c)}">${escapeHtml(c || "No category")}</button>`).join("");
   }
   document.getElementById("category-jump").addEventListener("click", e => {
     const btn = e.target.closest("[data-jump-cat]");
@@ -637,6 +649,12 @@
   function renderCatOptions(categories) {
     const prevValue = ciCat.value;
     ciCat.innerHTML = "";
+    // Category is optional -- "No category" up front, same idea as
+    // "Unassigned" being the default for who it's assigned to, rather than
+    // forcing a choice before an item can be saved at all.
+    const noneOpt = document.createElement("option");
+    noneOpt.value = ""; noneOpt.textContent = "No category";
+    ciCat.appendChild(noneOpt);
     categories.forEach(c => {
       const opt = document.createElement("option");
       opt.value = c; opt.textContent = c;
@@ -646,7 +664,7 @@
     newOpt.value = NEW_CAT_VALUE;
     newOpt.textContent = "+ New category…";
     ciCat.appendChild(newOpt);
-    if (categories.includes(prevValue) || prevValue === NEW_CAT_VALUE) ciCat.value = prevValue;
+    if (categories.includes(prevValue) || prevValue === NEW_CAT_VALUE || prevValue === "") ciCat.value = prevValue;
   }
   ciCat.addEventListener("change", () => {
     const isNew = ciCat.value === NEW_CAT_VALUE;
@@ -1109,7 +1127,7 @@
     const name = ciName.value.trim();
     const assignee = ciAssignee.value === NEW_ASSIGNEE_VALUE ? ciAssigneeNew.value.trim() : ciAssignee.value;
     const cat = ciCat.value === NEW_CAT_VALUE ? ciCatNew.value.trim() : ciCat.value;
-    if (!name || !cat) return;
+    if (!name) return; // category is optional -- "" just means uncategorized
     closeItemModal();
     setStatus("syncing", "Saving…");
     try {
@@ -1574,9 +1592,11 @@
     renderCatOptions(categoryOrder);
     renderCategoryJump(categoryOrder.filter(c => byCat[c] && byCat[c].length > 0));
 
-    const allAssignees = getAllAssignees();
-    renderAssigneeOptions(allAssignees);
-    renderAssigneeFilter(allAssignees);
+    if (showAssignees) {
+      const allAssignees = getAllAssignees();
+      renderAssigneeOptions(allAssignees);
+      renderAssigneeFilter(allAssignees);
+    }
 
     if (Object.keys(currentItems).length === 0) {
       root.innerHTML = '<div class="empty-state">No items yet. Tap + to add one.</div>';
@@ -1605,7 +1625,7 @@
       header.dataset.catToggle = catName;
       header.style.background = headerColorForCat();
       const doneCount = items.filter(i => i.checked).length;
-      header.innerHTML = `<span class="cat-title-text"><span class="cat-chevron">▾</span>${escapeHtml(catName)}</span><span class="cat-count">${doneCount} / ${items.length}</span>`;
+      header.innerHTML = `<span class="cat-title-text"><span class="cat-chevron">▾</span>${escapeHtml(catName || "No category")}</span><span class="cat-count">${doneCount} / ${items.length}</span>`;
       section.appendChild(header);
 
       const list = document.createElement("div");
@@ -1658,7 +1678,7 @@
               ? `<div class="inline-add-input-wrap"><textarea id="inline-edit-input" class="inline-add-input" rows="1">${escapeHtml(item.name)}</textarea></div>`
               : `<span class="row-name">${escapeHtml(item.name)}</span>`}
             ${item.na ? '<span class="row-na-tag">N/A</span>' : ""}
-            <span class="row-avatar${item.assignee ? "" : " unassigned"}">${item.assignee ? escapeHtml(item.assignee.slice(0, 1).toUpperCase()) : "+"}</span>
+            ${showAssignees ? `<span class="row-avatar${item.assignee ? "" : " unassigned"}">${item.assignee ? escapeHtml(item.assignee.slice(0, 1).toUpperCase()) : "+"}</span>` : ""}
           </div>`;
         list.appendChild(row);
         if (isEditingThis) {
