@@ -730,10 +730,23 @@
     if (editInput) { editInput.dataset.cancelled = "1"; editInput.blur(); }
   }
 
+  // Shared by the cancel-on-outside-tap listener below and the
+  // tap-background-to-add listener further down: true for a tap that
+  // landed on genuine empty space (not any row, button, or other
+  // control), checked by exact element identity rather than closest() so
+  // a tap on something nested way down in .wrap never wrongly counts.
+  function isBackgroundTarget(t) {
+    return t === document.body || t === document.documentElement ||
+      t === document.querySelector(".wrap") || t === document.querySelector(".scroll-container") ||
+      t === document.getElementById("list-root") || t.classList.contains("empty-state");
+  }
+
   // On wide screens (iPad) the list column is capped at 640px and centered,
-  // leaving empty margin on either side. Tapping that margin while adding
-  // or editing an item now cancels it outright, the way tapping outside a
-  // sheet/modal normally would -- previously it did nothing at all.
+  // leaving empty margin on either side, and on any screen there's often
+  // blank space below a short list. Tapping either while adding or editing
+  // an item cancels it outright, the way tapping outside a sheet/modal
+  // normally would -- previously only the iPad margin (outside .wrap) did
+  // anything; blank space inside .wrap's own padding didn't.
   //
   // pointerdown, in the capture phase, not a plain "click": the browser's
   // own default behavior already blurs the focused textarea as part of
@@ -746,10 +759,18 @@
   // here would see a detached e.target and wrongly think .wrap wasn't
   // matched. Running on pointerdown, in capture, beats both problems --
   // it sees the intact DOM and sets the flag before any blur can happen.
+  //
+  // Also flags the click that follows this same tap so the
+  // tap-background-to-add listener doesn't immediately reopen a fresh row
+  // right after this one was just dismissed -- one tap should mean
+  // "never mind", not "never mind, start a new one instead".
+  let suppressNextBackgroundAdd = false;
   document.addEventListener("pointerdown", e => {
     if (pendingAddCat === null && pendingEditId === null) return;
-    if (e.target.closest(".wrap")) return;
+    if (!isBackgroundTarget(e.target) && e.target.closest(".wrap")) return;
     cancelPendingInlineEntry();
+    suppressNextBackgroundAdd = true;
+    setTimeout(() => { suppressNextBackgroundAdd = false; }, 0);
   }, { capture: true });
 
   function finishPendingInlineAdd() {
@@ -1025,15 +1046,13 @@
 
   // Tapping the empty background (not any row, button, or other control)
   // adds an item too, same as the "+" FAB or the pull-down gesture -- same
-  // idea as My Lists letting you tap anywhere to add a new list. Checked
-  // by exact element identity rather than closest(), so a tap on a button
-  // or row nested way down in .wrap never wrongly counts as "background".
+  // idea as My Lists letting you tap anywhere to add a new list. Skipped
+  // right after that same tap just cancelled a pending add/edit (see
+  // suppressNextBackgroundAdd above) -- dismissing one shouldn't
+  // immediately open another.
   document.addEventListener("click", e => {
-    const t = e.target;
-    const isBackground = t === document.body || t === document.documentElement ||
-      t === pullWrap || t === document.querySelector(".scroll-container") ||
-      t === document.getElementById("list-root") || t.classList.contains("empty-state");
-    if (!isBackground) return;
+    if (suppressNextBackgroundAdd) { suppressNextBackgroundAdd = false; return; }
+    if (!isBackgroundTarget(e.target)) return;
     startInlineAdd();
   });
 
