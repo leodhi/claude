@@ -1940,7 +1940,9 @@ var mp = {
   timeLeft: 0,
   timerRoundKey: null,
   drawTimerHandle: null,
-  drawTimeLeft: 0
+  drawTimeLeft: 0,
+  revealMinWaitKey: null,
+  revealMinWaitHandle: null
 };
 
 function roomRef(code) { return ref(db, "rooms/" + code); }
@@ -2401,7 +2403,8 @@ async function startMpRound() {
       useTrace: wantsTrace,
       difficulties: difficulties,
       skipUsed: false,
-      settled: false
+      settled: false,
+      startedAt: Date.now()
     }
   });
 }
@@ -2907,6 +2910,14 @@ function renderRevealGuessesScreen() {
   if (mp.isHost) {
     hostNav.style.display = "flex";
     waiting.style.display = "none";
+    var revealKey = round.startedAt;
+    if (mp.revealMinWaitKey !== revealKey) {
+      mp.revealMinWaitKey = revealKey;
+      var nextBtn = $("btn-next-round");
+      nextBtn.disabled = true;
+      clearTimeout(mp.revealMinWaitHandle);
+      mp.revealMinWaitHandle = setTimeout(function () { nextBtn.disabled = false; }, 3000);
+    }
   } else {
     hostNav.style.display = "none";
     waiting.style.display = "";
@@ -2915,7 +2926,7 @@ function renderRevealGuessesScreen() {
 }
 
 $("btn-next-round").addEventListener("click", function () {
-  if (!mp.isHost) return;
+  if (!mp.isHost || this.disabled) return;
   var room = mp.room;
   var entries = Object.keys(room.scores).map(function (uid) { return { uid: uid, score: room.scores[uid] }; });
   entries.sort(function (a, b) { return b.score - a.score; });
@@ -3076,7 +3087,9 @@ $("local-btn-back-home").addEventListener("click", function () { showScreen("scr
     // this game's drawings for the end-of-game gallery — kept in memory only,
     // never persisted to the refresh-resume checkpoint (dataURLs would blow
     // past localStorage's quota after a handful of rounds)
-    gallery: []
+    gallery: [],
+    revealMinWaitKey: null,
+    revealMinWaitHandle: null
   };
 
   // ---------- Refresh-resume persistence ----------
@@ -3385,7 +3398,8 @@ $("local-btn-back-home").addEventListener("click", function () { showScreen("scr
       artistIdx: artistIdx,
       useTrace: wantsTrace,
       difficulties: difficulties,
-      skipUsed: false
+      skipUsed: false,
+      startedAt: Date.now()
     };
     localGoToReveal();
   }
@@ -3807,6 +3821,15 @@ $("local-btn-back-home").addEventListener("click", function () { showScreen("scr
     localState.scores[artistName] += correctPoints;
     localState.gallery.push({ word: round.word, artist: artistName, image: round.image });
 
+    var revealKey = round.startedAt;
+    if (localState.revealMinWaitKey !== revealKey) {
+      localState.revealMinWaitKey = revealKey;
+      var nextBtn = $("local-btn-next-round");
+      nextBtn.disabled = true;
+      clearTimeout(localState.revealMinWaitHandle);
+      localState.revealMinWaitHandle = setTimeout(function () { nextBtn.disabled = false; }, 3000);
+    }
+
     showScreen("local-screen-reveal-guesses");
   }
 
@@ -3887,6 +3910,7 @@ $("local-btn-back-home").addEventListener("click", function () { showScreen("scr
   }
 
   $("local-btn-next-round").addEventListener("click", function () {
+    if (this.disabled) return;
     var result = localComputeWinner();
     if (result) {
       // the actual winning score can be higher than the original target score

@@ -806,7 +806,9 @@ var mp = {
   timerHandle: null,
   timerRemaining: 0,
   timerRoundKey: null,
-  historyLoggedKey: null
+  historyLoggedKey: null,
+  revealMinWaitKey: null,
+  revealMinWaitHandle: null
 };
 
 function roomRef(code) { return ref(db, "rooms/" + code); }
@@ -1305,7 +1307,17 @@ function renderRevealScreen() {
 
   var hostNav = $("reveal-host-nav");
   var waiting = $("reveal-waiting");
-  if (mp.isHost) { hostNav.style.display = "flex"; waiting.style.display = "none"; }
+  if (mp.isHost) {
+    hostNav.style.display = "flex";
+    waiting.style.display = "none";
+    if (mp.revealMinWaitKey !== key) {
+      mp.revealMinWaitKey = key;
+      var nextBtn = $("btn-next-round");
+      nextBtn.disabled = true;
+      clearTimeout(mp.revealMinWaitHandle);
+      mp.revealMinWaitHandle = setTimeout(function () { nextBtn.disabled = false; }, 3000);
+    }
+  }
   else { hostNav.style.display = "none"; waiting.style.display = ""; }
 
   var repeatBtn = $("btn-repeat-word");
@@ -1335,7 +1347,7 @@ $("btn-repeat-word").addEventListener("click", function () {
 });
 
 $("btn-next-round").addEventListener("click", function () {
-  if (!mp.isHost) return;
+  if (!mp.isHost || this.disabled) return;
   var room = mp.room;
   var round = room.round;
   var scoreUpdates = {};
@@ -1486,7 +1498,9 @@ var localState = {
   currentMode: "choice",
   choiceSelected: null,
   timerHandle: null,
-  timerRemaining: 0
+  timerRemaining: 0,
+  revealMinWaitKey: null,
+  revealMinWaitHandle: null
 };
 
 function localRenderGuessModeChips() {
@@ -1705,6 +1719,15 @@ $("local-btn-show-answer").addEventListener("click", function () {
   repeatBtn.textContent = "🔁 Repeat this word within 5 rounds";
   repeatBtn.disabled = false;
 
+  var revealKey = String(word[0]);
+  if (localState.revealMinWaitKey !== revealKey) {
+    localState.revealMinWaitKey = revealKey;
+    var nextBtn = $("local-btn-next-round");
+    nextBtn.disabled = true;
+    clearTimeout(localState.revealMinWaitHandle);
+    localState.revealMinWaitHandle = setTimeout(function () { nextBtn.disabled = false; }, 3000);
+  }
+
   showScreen("local-screen-reveal");
 });
 
@@ -1746,6 +1769,7 @@ function localRenderJudgeList() {
 }
 
 $("local-btn-next-round").addEventListener("click", function () {
+  if (this.disabled) return;
   localState.players.forEach(function (name) {
     var score = localState.scores[name] || 0;
     var streak = localState.wrongStreaks[name] || 0;

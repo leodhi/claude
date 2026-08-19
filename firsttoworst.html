@@ -809,7 +809,9 @@ var mp = {
   name: "",
   roomCode: null,
   isHost: false,
-  room: null
+  room: null,
+  revealMinWaitKey: null,
+  revealMinWaitHandle: null
 };
 
 function roomRef(code) { return ref(db, "rooms/" + code); }
@@ -1200,7 +1202,8 @@ async function startMpRound() {
       guesses: {},
       sharedGuessDraft: null,
       sharedGuessLocked: false,
-      settled: false
+      settled: false,
+      startedAt: Date.now()
     }
   });
 }
@@ -1506,6 +1509,14 @@ function renderRevealScreen() {
   if (mp.isHost) {
     hostNav.style.display = "flex";
     waiting.style.display = "none";
+    var revealKey = round.startedAt;
+    if (mp.revealMinWaitKey !== revealKey) {
+      mp.revealMinWaitKey = revealKey;
+      var nextBtn = $("btn-next-round");
+      nextBtn.disabled = true;
+      clearTimeout(mp.revealMinWaitHandle);
+      mp.revealMinWaitHandle = setTimeout(function () { nextBtn.disabled = false; }, 3000);
+    }
   } else {
     hostNav.style.display = "none";
     waiting.style.display = "";
@@ -1514,7 +1525,7 @@ function renderRevealScreen() {
 }
 
 $("btn-next-round").addEventListener("click", function () {
-  if (!mp.isHost) return;
+  if (!mp.isHost || this.disabled) return;
   var room = mp.room;
   var sorted = mpPlayerUids().slice().sort(function (a, b) { return (room.scores[b] || 0) - (room.scores[a] || 0); });
   var topScore = room.scores[sorted[0]] || 0;
@@ -1652,7 +1663,9 @@ $("local-btn-back-home").addEventListener("click", function () { showScreen("scr
     turnQueue: [],
     turnPos: 0,
     currentRankOrder: [],
-    canResume: false
+    canResume: false,
+    revealMinWaitKey: null,
+    revealMinWaitHandle: null
   };
 
   var LOCAL_GUESS_MODES = [
@@ -1781,7 +1794,7 @@ $("local-btn-back-home").addEventListener("click", function () { showScreen("scr
     var picks = shuffled(available).slice(0, ITEMS_PER_ROUND);
     picks.forEach(function (it) { localState.usedItems.push(it); });
 
-    localState.round = { items: picks };
+    localState.round = { items: picks, startedAt: Date.now() };
     localState.rankerIndex = (localState.rankerIndex + 1) % localState.players.length;
     localState.rankerOrder = null;
     localState.guesses = {};
@@ -2086,6 +2099,15 @@ $("local-btn-back-home").addEventListener("click", function () { showScreen("scr
       "<span class=\"ppts\">+" + (anyPerfect ? items.length : 0) + "</span>";
     standings.appendChild(rankerRow);
 
+    var revealKey = localState.round.startedAt;
+    if (localState.revealMinWaitKey !== revealKey) {
+      localState.revealMinWaitKey = revealKey;
+      var nextBtn = $("local-btn-next-round");
+      nextBtn.disabled = true;
+      clearTimeout(localState.revealMinWaitHandle);
+      localState.revealMinWaitHandle = setTimeout(function () { nextBtn.disabled = false; }, 3000);
+    }
+
     showScreen("local-screen-reveal");
   }
 
@@ -2116,6 +2138,7 @@ $("local-btn-back-home").addEventListener("click", function () { showScreen("scr
   }
 
   $("local-btn-next-round").addEventListener("click", function () {
+    if (this.disabled) return;
     var winnerIdx = localComputeWinner();
     if (winnerIdx !== null) {
       localState.lastWinningScore = localState.scores[winnerIdx];
