@@ -281,7 +281,6 @@
         <button type="button" id="undo-btn" class="pill-btn" disabled>Undo</button>
         <button type="button" id="redo-btn" class="pill-btn" disabled>Redo</button>
         <button type="button" id="search-toggle" class="icon-btn" aria-label="Search items">🔍</button>
-        <button type="button" id="delete-list-btn" class="icon-btn" aria-label="Delete this list">🗑️</button>
       </div>
     </div>
     <div class="search-wrap" id="search-wrap">
@@ -374,7 +373,6 @@
   const app = initializeApp(firebaseConfig);
   const db = getFirestore(app);
   const listRef = doc(db, "packingLists", listId);
-  const indexRef = doc(db, "packingLists", "_index");
 
   const CUSTOM_CATEGORIES = [
     "To do in the week before", "Before we leave", "Questions to resolve", "Documents & border", "Electronics & chargers",
@@ -546,27 +544,6 @@
     ciCatNewWrap.style.display = "";
     ciCatNew.required = true;
     ciCatNew.focus();
-  });
-
-  // ---------- Delete this whole list ----------
-  // Removes it from the packingLists/_index doc (same operation as
-  // swiping it away on the "My Lists" home screen), then hands off to
-  // that screen for the undo toast + grace-period purge -- it's the
-  // single source of truth for that, so a delete started from here ends
-  // up exactly as undoable/permanent as one started there. The handoff
-  // is a one-shot flag in sessionStorage since navigating away from this
-  // page ends this script's own execution, timers included.
-  document.getElementById("delete-list-btn").addEventListener("click", async () => {
-    const name = listName || document.getElementById("list-title").textContent;
-    if (!confirm(`Delete "${name}"?`)) return;
-    try {
-      await updateDoc(indexRef, { [`lists.${listId}`]: deleteField() });
-      sessionStorage.setItem("pendingListDelete", JSON.stringify({ id: listId, name }));
-      location.href = "./index.html";
-    } catch (err) {
-      console.error(err);
-      alert("Couldn't delete the list — try again.");
-    }
   });
 
   // ---------- Search ----------
