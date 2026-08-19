@@ -172,17 +172,56 @@
   const db = getFirestore(app);
   const indexRef = doc(db, "packingLists", "_index");
 
-  // Mobile Safari's bottom toolbar can be partially collapsed (e.g. mid
-  // scroll) without fully hiding, leaving a gap between the visible screen
-  // edge and where a plain `position: fixed; bottom: 0` element renders --
-  // same fix as list.html's copy of this, needed here too since the undo
-  // toast and shake modals are both fixed to the bottom.
+  // Temporary on-screen diagnostic -- add &debug=1 to the URL to see it.
+  // Same as list.html's copy of this -- see the comment there. Declared up
+  // here (ahead of the viewport-inset code below, which calls
+  // shakeDebugLog immediately on page load) rather than down in the
+  // shake-to-undo section where it conceptually belongs -- defining it
+  // later than its first real caller is exactly the ordering bug this file
+  // hit once already.
+  const SHAKE_PREF_KEY = "packing-clear-shake-undo-pref";
+  const SHAKE_DEBUG = new URLSearchParams(location.search).get("debug") === "1";
+  let shakeDebugEl = null;
+  const shakeDebugLines = [];
+  if (SHAKE_DEBUG) {
+    // Debug mode always starts from a clean permission state -- otherwise
+    // an already-"granted" preference from earlier testing skips straight
+    // past the whole request/response sequence we actually need to see.
+    localStorage.removeItem(SHAKE_PREF_KEY);
+    shakeDebugEl = document.createElement("div");
+    shakeDebugEl.style.cssText = "position:fixed; bottom:0; left:0; right:0; max-height:30vh; overflow-y:auto; background:rgba(0,0,0,0.92); color:#0f0; font:11px/1.5 monospace; padding:8px 10px; z-index:9999; white-space:pre-wrap; pointer-events:none;";
+    shakeDebugEl.textContent = "shake debug: loading…";
+    document.body.appendChild(shakeDebugEl);
+  }
+  function shakeDebugLog(msg) {
+    if (!shakeDebugEl) return;
+    const stamp = new Date().toISOString().slice(11, 23);
+    shakeDebugLines.push(`[${stamp}] ${msg}`);
+    if (shakeDebugLines.length > 40) shakeDebugLines.shift();
+    shakeDebugEl.textContent = shakeDebugLines.join("\n");
+    shakeDebugEl.scrollTop = shakeDebugEl.scrollHeight;
+  }
+
+  // Mobile Safari can shrink the visible viewport from the bottom (its
+  // toolbar reappearing as you scroll up) without the layout viewport
+  // changing, which leaves plain `position: fixed; bottom: 0` elements
+  // rendered partly behind it mid-transition. Track the gap via the
+  // VisualViewport API and feed it into a CSS variable so those elements
+  // stay fully clear of it. Exposed as a real function (not just a
+  // resize-event listener) so anything that pops up on a delay -- a modal
+  // shown by a setTimeout, for instance -- can force a fresh read right
+  // before it appears, rather than trusting whatever value happened to be
+  // set last, which may be stale from page-load settling. Clamped to a
+  // sane maximum so a bad reading can't shove something further off
+  // -screen than the un-compensated bug did in the first place.
+  let updateViewportInset = () => {};
   if (window.visualViewport) {
     const vv = window.visualViewport;
-    function updateViewportInset() {
-      const offset = Math.max(0, window.innerHeight - (vv.height + vv.offsetTop));
+    updateViewportInset = () => {
+      const offset = Math.max(0, Math.min(150, window.innerHeight - (vv.height + vv.offsetTop)));
       document.documentElement.style.setProperty("--vv-bottom-offset", offset + "px");
-    }
+      shakeDebugLog(`viewport inset: ${offset}px (innerHeight=${window.innerHeight}, vv.height=${vv.height.toFixed(0)}, vv.offsetTop=${vv.offsetTop.toFixed(0)})`);
+    };
     vv.addEventListener("resize", updateViewportInset);
     updateViewportInset();
   }
@@ -403,6 +442,7 @@
   function showUndoToast(id, entry) {
     pendingUndo = { id, entry };
     undoToastText.textContent = `Deleted "${entry ? entry.name : "list"}"`;
+    updateViewportInset();
     undoToast.classList.add("show");
   }
 
@@ -428,36 +468,7 @@
   // Same permission flow and shared localStorage preference as list.html's
   // copy of this -- see the comment there for why the ask only ever
   // happens once, from a genuine tap, rather than automatically.
-  const SHAKE_PREF_KEY = "packing-clear-shake-undo-pref";
   const shakeModal = document.getElementById("shake-modal");
-
-  // Temporary on-screen diagnostic -- add &debug=1 to the URL to see it.
-  // Same as list.html's copy of this -- see the comment there.
-  const SHAKE_DEBUG = new URLSearchParams(location.search).get("debug") === "1";
-  let shakeDebugEl = null;
-  const shakeDebugLines = [];
-  if (SHAKE_DEBUG) {
-    // Debug mode always starts from a clean permission state -- otherwise
-    // an already-"granted" preference from earlier testing skips straight
-    // past the whole request/response sequence we actually need to see.
-    localStorage.removeItem(SHAKE_PREF_KEY);
-    shakeDebugEl = document.createElement("div");
-    shakeDebugEl.style.cssText = "position:fixed; bottom:0; left:0; right:0; max-height:30vh; overflow-y:auto; background:rgba(0,0,0,0.92); color:#0f0; font:11px/1.5 monospace; padding:8px 10px; z-index:9999; white-space:pre-wrap; pointer-events:none;";
-    shakeDebugEl.textContent = "shake debug: loading…";
-    document.body.appendChild(shakeDebugEl);
-  }
-  // Appends rather than overwrites -- the previous version replaced the
-  // text each time, so the very first lines (stored pref, permission
-  // result) were already gone by the time anyone could read them, leaving
-  // only whatever the last line happened to be.
-  function shakeDebugLog(msg) {
-    if (!shakeDebugEl) return;
-    const stamp = new Date().toISOString().slice(11, 23);
-    shakeDebugLines.push(`[${stamp}] ${msg}`);
-    if (shakeDebugLines.length > 40) shakeDebugLines.shift();
-    shakeDebugEl.textContent = shakeDebugLines.join("\n");
-    shakeDebugEl.scrollTop = shakeDebugEl.scrollHeight;
-  }
 
   let shakeListenerAttached = false;
   function startShakeDetection(onShake) {
@@ -525,6 +536,7 @@
     const name = pendingUndo.entry ? pendingUndo.entry.name : "this list";
     pendingShakeUndo = true;
     shakeUndoText.textContent = `Undo deleting "${name}"?`;
+    updateViewportInset();
     shakeUndoModal.classList.add("show");
   }
 
@@ -578,6 +590,7 @@
   // of it; if the page gets closed first, it just tries again next visit.
   function maybeShowShakePrompt() {
     if (undoToast.classList.contains("show")) { setTimeout(maybeShowShakePrompt, 1000); return; }
+    updateViewportInset();
     shakeModal.classList.add("show");
   }
 

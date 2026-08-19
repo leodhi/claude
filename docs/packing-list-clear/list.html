@@ -386,6 +386,67 @@
   const db = getFirestore(app);
   const listRef = doc(db, "packingLists", listId);
 
+  // Temporary on-screen diagnostic -- add &debug=1 to the URL to see it.
+  // Guessing at the failure blind hasn't worked twice in a row, so this
+  // shows exactly what's happening on the actual device instead: whether
+  // motion events are arriving at all, whether they carry real
+  // acceleration data, and the live shake-speed number against the
+  // trigger threshold. Remove once shake-to-undo is confirmed working.
+  // Declared up here (ahead of the viewport-inset code below, which calls
+  // shakeDebugLog immediately on page load) rather than down in the
+  // shake-to-undo section where it conceptually belongs -- defining it
+  // later than its first real caller is exactly the kind of ordering bug
+  // this file has already hit once.
+  const SHAKE_PREF_KEY = "packing-clear-shake-undo-pref";
+  const SHAKE_DEBUG = new URLSearchParams(location.search).get("debug") === "1";
+  let shakeDebugEl = null;
+  const shakeDebugLines = [];
+  if (SHAKE_DEBUG) {
+    // Debug mode always starts from a clean permission state -- otherwise
+    // an already-"granted" preference from earlier testing skips straight
+    // past the whole request/response sequence we actually need to see.
+    localStorage.removeItem(SHAKE_PREF_KEY);
+    shakeDebugEl = document.createElement("div");
+    shakeDebugEl.style.cssText = "position:fixed; bottom:0; left:0; right:0; max-height:30vh; overflow-y:auto; background:rgba(0,0,0,0.92); color:#0f0; font:11px/1.5 monospace; padding:8px 10px; z-index:9999; white-space:pre-wrap; pointer-events:none;";
+    shakeDebugEl.textContent = "shake debug: loading…";
+    document.body.appendChild(shakeDebugEl);
+  }
+  // Appends rather than overwrites -- an earlier version replaced the text
+  // each time, so the very first lines (stored pref, permission result)
+  // were already gone by the time anyone could read them.
+  function shakeDebugLog(msg) {
+    if (!shakeDebugEl) return;
+    const stamp = new Date().toISOString().slice(11, 23);
+    shakeDebugLines.push(`[${stamp}] ${msg}`);
+    if (shakeDebugLines.length > 40) shakeDebugLines.shift();
+    shakeDebugEl.textContent = shakeDebugLines.join("\n");
+    shakeDebugEl.scrollTop = shakeDebugEl.scrollHeight;
+  }
+
+  // Mobile Safari can shrink the visible viewport from the bottom (its
+  // toolbar reappearing as you scroll up) without the layout viewport
+  // changing, which leaves plain `position: fixed; bottom: 0` elements
+  // rendered partly behind it mid-transition. Track the gap via the
+  // VisualViewport API and feed it into a CSS variable so those elements
+  // stay fully clear of it. Exposed as a real function (not just a
+  // resize-event listener) so anything that pops up on a delay -- a modal
+  // shown by a setTimeout, for instance -- can force a fresh read right
+  // before it appears, rather than trusting whatever value happened to be
+  // set last, which may be stale from page-load settling. Clamped to a
+  // sane maximum so a bad reading can't shove something further off
+  // -screen than the un-compensated bug did in the first place.
+  let updateViewportInset = () => {};
+  if (window.visualViewport) {
+    const vv = window.visualViewport;
+    updateViewportInset = () => {
+      const offset = Math.max(0, Math.min(150, window.innerHeight - (vv.height + vv.offsetTop)));
+      document.documentElement.style.setProperty("--vv-bottom-offset", offset + "px");
+      shakeDebugLog(`viewport inset: ${offset}px (innerHeight=${window.innerHeight}, vv.height=${vv.height.toFixed(0)}, vv.offsetTop=${vv.offsetTop.toFixed(0)})`);
+    };
+    vv.addEventListener("resize", updateViewportInset);
+    updateViewportInset();
+  }
+
   const CUSTOM_CATEGORIES = [
     "To do in the week before", "Before we leave", "Questions to resolve", "Documents & border", "Electronics & chargers",
     "Clothing", "Toiletries & meds", "Judaica", "Food & snacks", "Kitchen & dining",
@@ -535,40 +596,7 @@
   // ever opened, ask once via this modal; the choice (localStorage,
   // shared across this page and My Lists) is remembered from then on and
   // it's never asked again.
-  const SHAKE_PREF_KEY = "packing-clear-shake-undo-pref";
   const shakeModal = document.getElementById("shake-modal");
-
-  // Temporary on-screen diagnostic -- add &debug=1 to the URL to see it.
-  // Guessing at the failure blind hasn't worked twice in a row, so this
-  // shows exactly what's happening on the actual device instead: whether
-  // motion events are arriving at all, whether they carry real
-  // acceleration data, and the live shake-speed number against the
-  // trigger threshold. Remove once shake-to-undo is confirmed working.
-  const SHAKE_DEBUG = new URLSearchParams(location.search).get("debug") === "1";
-  let shakeDebugEl = null;
-  const shakeDebugLines = [];
-  if (SHAKE_DEBUG) {
-    // Debug mode always starts from a clean permission state -- otherwise
-    // an already-"granted" preference from earlier testing skips straight
-    // past the whole request/response sequence we actually need to see.
-    localStorage.removeItem(SHAKE_PREF_KEY);
-    shakeDebugEl = document.createElement("div");
-    shakeDebugEl.style.cssText = "position:fixed; bottom:0; left:0; right:0; max-height:30vh; overflow-y:auto; background:rgba(0,0,0,0.92); color:#0f0; font:11px/1.5 monospace; padding:8px 10px; z-index:9999; white-space:pre-wrap; pointer-events:none;";
-    shakeDebugEl.textContent = "shake debug: loading…";
-    document.body.appendChild(shakeDebugEl);
-  }
-  // Appends rather than overwrites -- the previous version replaced the
-  // text each time, so the very first lines (stored pref, permission
-  // result) were already gone by the time anyone could read them, leaving
-  // only whatever the last line happened to be.
-  function shakeDebugLog(msg) {
-    if (!shakeDebugEl) return;
-    const stamp = new Date().toISOString().slice(11, 23);
-    shakeDebugLines.push(`[${stamp}] ${msg}`);
-    if (shakeDebugLines.length > 40) shakeDebugLines.shift();
-    shakeDebugEl.textContent = shakeDebugLines.join("\n");
-    shakeDebugEl.scrollTop = shakeDebugEl.scrollHeight;
-  }
 
   let shakeListenerAttached = false;
   function startShakeDetection(onShake) {
@@ -633,6 +661,7 @@
   function onShakeUndo() {
     if (!undoStack.length) return;
     pendingShakeUndo = true;
+    updateViewportInset();
     shakeUndoModal.classList.add("show");
   }
 
@@ -675,6 +704,7 @@
   // one with something time-sensitive to act on.
   function maybeShowShakePrompt() {
     if (toastEl.classList.contains("show")) { setTimeout(maybeShowShakePrompt, 1000); return; }
+    updateViewportInset();
     shakeModal.classList.add("show");
   }
 
@@ -761,26 +791,6 @@
   const scrollTopBtn = document.getElementById("scroll-top-btn");
   scrollTopBtn.addEventListener("click", () => window.scrollTo({ top: 0, behavior: "smooth" }));
 
-  // Mobile Safari can shrink the visible viewport from the bottom (its toolbar
-  // reappearing as you scroll up) without the layout viewport changing, which
-  // leaves plain `position: fixed; bottom: 0` elements rendered partly behind
-  // it mid-transition. Track the gap via the VisualViewport API and feed it
-  // into the fixed buttons' bottom offset so they stay fully clear of it.
-  // Only listens for "resize" (fired when the toolbar's size actually
-  // changes) rather than "scroll" (fired continuously during any scroll) --
-  // writing a style property on every scroll tick is itself the kind of
-  // main-thread work that can make iOS stop compositing fixed elements
-  // smoothly, which would fight the fix rather than help it.
-  if (window.visualViewport) {
-    const vv = window.visualViewport;
-    function updateViewportInset() {
-      const offset = Math.max(0, window.innerHeight - (vv.height + vv.offsetTop));
-      document.documentElement.style.setProperty("--vv-bottom-offset", offset + "px");
-    }
-    vv.addEventListener("resize", updateViewportInset);
-    updateViewportInset();
-  }
-
   // ---------- Add / edit item modal ----------
   const addModal = document.getElementById("add-modal");
   const addForm = document.getElementById("add-form");
@@ -805,6 +815,7 @@
     ciName.value = "";
     ciAssignee.value = "";
     ciAssigneeNewWrap.style.display = "none";
+    updateViewportInset();
     addModal.classList.add("show");
     ciName.focus();
   }
@@ -1322,6 +1333,7 @@
       `<button type="button" class="assignee-option-btn${current === "" ? " current" : ""}" data-assignee-pick="">Unassigned${current === "" ? '<span class="check">✓</span>' : ""}</button>` +
       names.map(n => `<button type="button" class="assignee-option-btn${current === n ? " current" : ""}" data-assignee-pick="${escapeAttr(n)}">${escapeHtml(n)}${current === n ? '<span class="check">✓</span>' : ""}</button>`).join("") +
       `<button type="button" class="assignee-option-btn" id="assignee-pick-other">+ Someone else…</button>`;
+    updateViewportInset();
     assigneeModal.classList.add("show");
     assigneeModalOpenedAt = Date.now();
   }
@@ -1362,6 +1374,7 @@
 
   function showUndoToast(name) {
     toastText.textContent = `Deleted "${name}"`;
+    updateViewportInset();
     toastEl.classList.add("show");
     clearTimeout(toastTimer);
     toastTimer = setTimeout(() => toastEl.classList.remove("show"), 5000);
