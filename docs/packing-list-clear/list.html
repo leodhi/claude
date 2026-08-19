@@ -2220,12 +2220,39 @@
           </div>`;
         list.appendChild(inlineRow);
         const inlineInput = inlineRow.querySelector("#inline-add-input");
-        inlineInput.addEventListener("input", () => autoGrowInlineTextarea(inlineInput));
+
+        // An untouched empty row closes itself. Opening one is supposed to
+        // put you straight into typing, but iOS can refuse to focus a field
+        // right after a touch gesture -- and with no keyboard and no focus
+        // there is no blur to close it either, so it just sits there
+        // looking like an item called "New item" (the placeholder) that
+        // nobody added. Only ever fires while the field is still untouched
+        // and empty, so it can't interrupt someone mid-thought.
+        let idleClose = setTimeout(() => {
+          if (pendingAddCat === null) return;         // already resolved
+          if (inlineInput.value.trim() !== "") return; // something typed
+          if (document.activeElement === inlineInput) {
+            inlineInput.dataset.cancelled = "1";
+            inlineInput.blur();                        // its blur handler tidies up
+          } else {
+            pendingAddCat = null;
+            pendingAddBeforeId = null;
+            if (pendingRerenderNeeded) pendingRerenderNeeded = false;
+            render();
+          }
+        }, 6000);
+        const cancelIdleClose = () => { clearTimeout(idleClose); idleClose = null; };
+
+        inlineInput.addEventListener("input", () => {
+          cancelIdleClose(); // typing means it's wanted -- never close underneath
+          autoGrowInlineTextarea(inlineInput);
+        });
         inlineInput.addEventListener("keydown", e => {
           if (e.key === "Enter") { e.preventDefault(); inlineInput.blur(); }
           else if (e.key === "Escape") { e.preventDefault(); inlineInput.dataset.cancelled = "1"; inlineInput.blur(); }
         });
         inlineInput.addEventListener("blur", () => {
+          cancelIdleClose();
           const cancelled = inlineInput.dataset.cancelled === "1";
           const name = inlineInput.value.trim();
           const beforeId = pendingAddBeforeId;
