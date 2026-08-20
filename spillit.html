@@ -58,7 +58,7 @@
     touch-action: manipulation; transition: transform 0.15s cubic-bezier(.2,.9,.3,1.1);
   }
   button.secondary:active { transform: scale(0.96); }
-  button.danger { background: var(--accent-2); color: #2a0713; }
+  button.danger { background: var(--accent-2); color: #2a0713; border: none; font-weight: 700; }
   button.link {
     background: none; border: none; color: var(--text-dim); text-decoration: underline;
     font-size: 0.8rem; cursor: pointer; padding: 6px; touch-action: manipulation;
@@ -72,8 +72,21 @@
   }
   .chip:active { transform: scale(0.94); }
   .chip.selected { background: var(--accent); color: #1c1230; border-color: var(--accent); font-weight: 600; }
+  .chip.static { cursor: default; }
+  .chip.static:active { transform: none; }
   .center { text-align: center; }
   .big-name { font-size: 1.8rem; font-weight: 800; margin: 6px 0; }
+  .room-code {
+    font-size: 2.6rem; font-weight: 800; letter-spacing: 0.2em; text-align: center;
+    color: var(--accent); margin: 8px 0;
+  }
+  .player-chip-list { display: flex; flex-wrap: wrap; gap: 8px; }
+  .player-chip {
+    background: var(--panel-2); border: 1px solid var(--border); border-radius: 999px;
+    padding: 7px 14px; font-size: 0.85rem;
+  }
+  .host-badge { color: var(--accent); font-size: 0.7rem; margin-left: 4px; }
+  .waiting-text { color: var(--text-dim); text-align: center; padding: 16px 0; }
   .reveal-box { background: var(--panel-2); border: 1px solid var(--border); border-radius: 14px; padding: 20px; text-align: center; }
   .category-label { color: var(--text-dim); font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.06em; }
   .prompt-text { font-size: 1.2rem; font-weight: 700; margin: 10px 0; line-height: 1.4; }
@@ -85,16 +98,40 @@
     touch-action: manipulation; transition: transform 0.15s cubic-bezier(.2,.9,.3,1.1);
   }
   .prompt-row:active { transform: scale(0.98); }
+  .prompt-row.static { cursor: default; }
+  .prompt-row.static:active { transform: none; }
   .prompt-row input[type="checkbox"] { width: 18px; height: 18px; flex-shrink: 0; accent-color: var(--accent); }
   .prompt-row .txt { flex: 1; font-size: 0.9rem; }
+  .prompt-row .byline { font-size: 0.7rem; color: var(--text-dim); }
   .prompt-row .remove-x {
     background: none; border: none; color: var(--text-dim); font-size: 1rem; cursor: pointer;
     flex-shrink: 0; padding: 4px; touch-action: manipulation;
   }
+  .vote-list { display: flex; flex-direction: column; gap: 8px; }
+  .vote-btn {
+    background: var(--panel-2); border: 1px solid var(--border); color: var(--text);
+    padding: 14px; border-radius: 10px; font-size: 1rem; cursor: pointer; text-align: left; width: 100%;
+    touch-action: manipulation; transition: transform 0.15s cubic-bezier(.2,.9,.3,1.1);
+  }
+  .vote-btn:active { transform: scale(0.98); }
+  .vote-btn.selected { background: var(--accent); color: #1c1230; border-color: var(--accent); font-weight: 700; }
+  .guess-row {
+    display: flex; justify-content: space-between; align-items: center; gap: 10px;
+    padding: 10px 12px; background: var(--panel-2); border: 1px solid var(--border);
+    border-radius: 10px; margin-bottom: 8px;
+  }
+  .guess-row:last-child { margin-bottom: 0; }
+  .guess-row.correct { border-color: var(--accent); }
+  .guess-row .pname { font-weight: 700; font-size: 0.95rem; }
+  .guess-row .guessed { font-size: 0.78rem; color: var(--text-dim); }
+  .guess-row .mark { font-size: 1.2rem; font-weight: 800; flex-shrink: 0; }
+  .guess-row.correct .mark { color: var(--accent); }
+  .guess-row .mark { color: var(--text-dim); }
   .result-banner {
     text-align: center; padding: 18px; border-radius: 14px; font-weight: 800; font-size: 1.15rem;
     margin-bottom: 4px; background: rgba(180,142,255,0.15); border: 1px solid var(--accent); color: var(--accent);
   }
+  .result-banner.stumped { background: rgba(255,143,163,0.15); border-color: var(--accent-2); color: var(--accent-2); }
   .scoreboard { display: flex; flex-direction: column; gap: 6px; }
   .score-row { display: flex; justify-content: space-between; padding: 6px 4px; }
   .score-row.winner { color: var(--accent); font-weight: 800; }
@@ -102,6 +139,7 @@
   .footer-nav button { flex: 1; }
   small.hint { color: var(--text-dim); display: block; margin-top: 4px; font-size: 0.78rem; }
   .progress-label { color: var(--text-dim); font-size: 0.8rem; text-align: center; }
+  .status-line { color: var(--text-dim); font-size: 0.85rem; text-align: center; }
   .rules-link-row { text-align: center; margin: -8px 0 14px; }
   .rules-link-btn {
     background: none; border: none; color: var(--text-dim); font-size: 0.8rem;
@@ -129,6 +167,7 @@
     color: var(--accent); font-weight: 600; margin-bottom: 4px;
   }
   .rules-modal-close { width: 100%; margin-top: 6px; }
+
   #home-toggle {
     position: fixed; left: 16px; bottom: 16px; z-index: 40;
     width: 52px; height: 52px; border-radius: 50%;
@@ -139,138 +178,356 @@
     transition: transform 0.15s cubic-bezier(.2,.9,.3,1.1);
   }
   #home-toggle:active { transform: scale(0.92); }
+  #chat-toggle {
+    position: fixed; right: 16px; bottom: 16px; z-index: 40;
+    width: 52px; height: 52px; border-radius: 50%;
+    background: var(--accent); color: #1c1230; border: none;
+    font-size: 1.4rem; cursor: pointer; touch-action: manipulation;
+    box-shadow: 0 4px 14px rgba(0,0,0,0.35);
+    display: none; align-items: center; justify-content: center;
+    transition: transform 0.15s cubic-bezier(.2,.9,.3,1.1);
+  }
+  #chat-toggle:active { transform: scale(0.92); }
+  @keyframes chat-bounce {
+    0%, 100% { transform: translateY(0); }
+    25% { transform: translateY(-7px); }
+    50% { transform: translateY(0); }
+  }
+  #chat-toggle.has-unread { background: var(--accent-2); animation: chat-bounce 0.6s ease-in-out infinite; }
+  #chat-badge {
+    position: absolute; top: -2px; right: -2px;
+    background: var(--accent-2); color: #fff;
+    border-radius: 999px; min-width: 18px; height: 18px;
+    font-size: 0.68rem; font-weight: 800; line-height: 18px;
+    text-align: center; padding: 0 4px; display: none;
+  }
+  #chat-panel {
+    position: fixed; right: 16px; bottom: 78px; z-index: 40;
+    width: min(320px, calc(100vw - 32px)); max-height: min(440px, calc(100vh - 140px));
+    background: var(--panel); border: 1px solid var(--border); border-radius: 16px;
+    flex-direction: column; overflow: hidden; display: flex;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.45);
+    opacity: 0; visibility: hidden; pointer-events: none;
+    transform: translateY(12px) scale(0.96); transform-origin: bottom right;
+    transition: opacity 0.22s ease, transform 0.28s cubic-bezier(.2,.9,.3,1.1);
+  }
+  #chat-panel.open { opacity: 1; visibility: visible; pointer-events: auto; transform: translateY(0) scale(1); }
+  #chat-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 10px 12px; border-bottom: 1px solid var(--border);
+    font-size: 0.85rem; font-weight: 700; color: var(--text-dim);
+    text-transform: uppercase; letter-spacing: 0.06em;
+  }
+  #chat-close { background: none; border: none; color: var(--text-dim); font-size: 1rem; cursor: pointer; padding: 2px 6px; }
+  #chat-messages { flex: 1; overflow-y: auto; padding: 10px 12px; display: flex; flex-direction: column; gap: 8px; }
+  .chat-msg { font-size: 0.85rem; line-height: 1.35; }
+  .chat-msg .chat-name { font-weight: 700; color: var(--accent); }
+  .chat-msg.chat-mine .chat-name { color: var(--accent-2); }
+  #chat-input-row { display: flex; gap: 6px; padding: 10px; border-top: 1px solid var(--border); }
+  #chat-input {
+    flex: 1; background: var(--panel-2); border: 1px solid var(--border);
+    color: var(--text); padding: 9px 10px; border-radius: 10px; font-size: 0.9rem;
+  }
+  #chat-send {
+    background: var(--accent); color: #1c1230; border: none;
+    border-radius: 10px; padding: 0 14px; font-weight: 700; cursor: pointer; font-size: 0.85rem;
+  }
 </style>
 </head>
 <body>
 <div id="app">
   <h1>🙊 Spill<span> It!</span></h1>
-  <div class="subtitle">Family trivia — about you. Pass one phone around the table.</div>
+  <div class="subtitle">Family trivia — about each other</div>
   <div class="rules-link-row"><button type="button" class="rules-link-btn" id="rules-btn">Rules</button></div>
   <div class="rules-modal-backdrop" id="rules-modal-backdrop">
     <div class="rules-modal">
       <h2>🙊 How to Play</h2>
       <div class="rules-section">
         <div class="rules-section-label">Setup</div>
-        Everyone privately answers the same set of prompts, one at a time — the device gets passed around the table so only one person looks at a time.
+        Everyone privately answers the same set of prompts about themselves. On one shared device the phone gets passed around; across devices everyone answers on their own phone at the same time.
       </div>
       <div class="rules-section">
         <div class="rules-section-label">Each round</div>
-        The group reads one person's answer to a prompt out loud (no name attached) and everyone shouts a guess for who wrote it. Tap Reveal to find out who it really was.
+        One answer is shown with no name attached, and everyone guesses who wrote it.
       </div>
       <div class="rules-section">
         <div class="rules-section-label">Scoring</div>
-        Everyone who guessed correctly gets <strong>+1 point</strong>. If nobody guesses correctly, the person who wrote it gets <strong>+1 point</strong> for stumping the table.
+        Everyone who guesses correctly gets <strong>+1 point</strong>. If nobody guesses correctly, the person who wrote it gets <strong>+1 point</strong> for stumping the table.
       </div>
       <div class="rules-section">
         <div class="rules-section-label">Winning</div>
-        After every answer has had its round, whoever has the most points wins.
+        Every answer gets its own round. When they've all been played, whoever has the most points wins.
       </div>
       <button class="secondary rules-modal-close" id="rules-modal-close" type="button">Got it</button>
     </div>
   </div>
 
-  <button id="home-toggle" type="button" aria-label="Start over">🏠</button>
+  <button id="home-toggle" type="button" aria-label="Back to start screen">🏠</button>
+  <button id="chat-toggle" type="button" aria-label="Room chat">💬<span id="chat-badge"></span></button>
+  <div id="chat-panel">
+    <div id="chat-header">
+      <span>Room Chat</span>
+      <button id="chat-close" type="button" aria-label="Close chat">✕</button>
+    </div>
+    <div id="chat-messages"></div>
+    <div id="chat-input-row">
+      <input type="text" id="chat-input" placeholder="Message..." maxlength="200">
+      <button id="chat-send" type="button">Send</button>
+    </div>
+  </div>
 
+  <!-- HOME -->
   <div class="screen active" id="screen-home">
-    <div class="card center">
-      <div style="font-size:2.4rem;margin:6px 0;">🙊</div>
-      <div>Everyone privately answers a few prompts about themselves. Then the group guesses who wrote what.</div>
-    </div>
-    <button class="primary" id="btn-start" type="button">Start</button>
-  </div>
-
-  <div class="screen" id="screen-players">
     <div class="card">
-      <label>Players (3+)</label>
-      <div id="player-list"></div>
-      <button class="secondary" id="btn-add-player" type="button">+ Add player</button>
+      <button class="primary" id="btn-local-mode" type="button">Play on One Device</button>
+      <small class="hint">Pass the phone around the table — classic pass-and-play.</small>
     </div>
-    <button class="primary" id="btn-players-continue" type="button" disabled>Continue</button>
-    <button class="link" id="btn-players-back" type="button">Back</button>
+    <div class="center" style="color:var(--text-dim);font-size:0.8rem;">— or play across devices —</div>
+    <div class="card">
+      <label>Your name</label>
+      <input type="text" id="input-name" maxlength="20" placeholder="Enter your name">
+      <button class="secondary" id="btn-create-room" type="button" style="margin-top:10px">Create Room</button>
+    </div>
+    <div class="card">
+      <label>Join a room</label>
+      <input type="text" id="input-join-name" maxlength="20" placeholder="Your name">
+      <button class="secondary" id="btn-join-room" type="button" style="margin-top:10px">Join Room</button>
+    </div>
+    <div class="center status-line" id="home-status"></div>
   </div>
 
-  <div class="screen" id="screen-prompts">
+  <!-- JOIN CODE -->
+  <div class="screen" id="screen-join-code">
+    <div class="card">
+      <label>Room code</label>
+      <input type="text" id="input-join-code" maxlength="4" placeholder="4-letter room code">
+      <button class="primary" id="btn-join-code-submit" type="button" style="margin-top:10px">Join Room</button>
+    </div>
+    <div class="center status-line" id="join-code-status"></div>
+    <button class="link" id="btn-join-code-back" type="button">Back</button>
+  </div>
+
+  <!-- MP LOBBY -->
+  <div class="screen" id="screen-lobby">
+    <div class="card center">
+      <label>Room code — share with players</label>
+      <div class="room-code" id="lobby-code"></div>
+      <small class="hint">Everyone opens this page on their own device and enters this code to join.</small>
+    </div>
+    <div class="card">
+      <label>Players</label>
+      <div class="player-chip-list" id="lobby-players"></div>
+    </div>
     <div class="card">
       <label>Prompts</label>
-      <div class="prompt-list" id="prompt-list"></div>
+      <div class="prompt-list" id="lobby-prompt-list"></div>
+      <small class="hint" id="lobby-prompt-hint"></small>
+    </div>
+    <div class="card" id="lobby-custom-card">
+      <div class="row" style="justify-content:space-between;">
+        <label style="margin:0;">Let players add their own prompts</label>
+        <input type="checkbox" id="chk-lobby-allow-custom" style="width:20px;height:20px;accent-color:var(--accent);flex-shrink:0;">
+      </div>
+      <div id="lobby-custom-area" style="margin-top:12px;">
+        <div class="row">
+          <input type="text" id="lobby-custom-input" placeholder="Write your own prompt..." maxlength="140">
+          <button class="secondary" id="btn-lobby-add-custom" type="button" style="width:auto;padding:12px 16px;flex-shrink:0;">Add</button>
+        </div>
+        <small class="hint">Anyone in the room can add prompts before the game starts.</small>
+      </div>
+    </div>
+    <div class="center status-line" id="lobby-estimate"></div>
+    <button class="primary" id="btn-start-mp-game" type="button">Start Game</button>
+    <div class="waiting-text" id="lobby-waiting" style="display:none">Waiting for the host to start the game…</div>
+    <div class="center status-line" id="lobby-status"></div>
+    <button class="link" id="btn-leave-room" type="button">Leave room</button>
+  </div>
+
+  <!-- MP WRITING -->
+  <div class="screen" id="screen-mp-writing">
+    <div class="progress-label" id="mp-writing-progress"></div>
+    <div id="mp-writing-form">
+      <div class="reveal-box">
+        <div class="category-label">Answer honestly — nobody sees this until the guessing starts</div>
+        <div class="prompt-text" id="mp-writing-prompt-text"></div>
+        <textarea id="mp-writing-answer-input" placeholder="Type your answer..." maxlength="200"></textarea>
+      </div>
+      <button class="primary" id="btn-mp-writing-next" type="button" style="margin-top:14px" disabled>Next</button>
+      <button class="link" id="btn-mp-writing-skip" type="button">Skip this one</button>
+    </div>
+    <div class="card center" id="mp-writing-done-card" style="display:none">
+      <div style="font-size:2.4rem;margin:6px 0;">✅</div>
+      <div>All done! Waiting for everyone else to finish…</div>
+    </div>
+    <div class="card">
+      <label>Who's Finished</label>
+      <div id="mp-writing-status-list"></div>
+    </div>
+  </div>
+
+  <!-- MP ROUND (guessing) -->
+  <div class="screen" id="screen-mp-round">
+    <div class="progress-label" id="mp-round-progress"></div>
+    <div class="card center">
+      <div class="category-label">Prompt</div>
+      <div class="prompt-text" id="mp-round-prompt-text"></div>
+      <div class="answer-quote" id="mp-round-answer-text"></div>
+    </div>
+    <div class="card" id="mp-guess-card">
+      <label>Who wrote it?</label>
+      <div class="vote-list" id="mp-guess-list"></div>
+      <button class="primary" id="btn-mp-submit-guess" type="button" style="margin-top:12px" disabled>Lock In Guess</button>
+    </div>
+    <div class="card center" id="mp-own-answer-notice" style="display:none">
+      <div style="font-size:2.4rem;margin:6px 0;">🤫</div>
+      <div>This one's yours — sit tight while everyone guesses.</div>
+    </div>
+    <div class="waiting-text" id="mp-guess-waiting" style="display:none">Guess locked in — waiting for everyone else…</div>
+    <div class="card">
+      <label>Who's Guessed</label>
+      <div id="mp-guess-status-list"></div>
+    </div>
+  </div>
+
+  <!-- MP REVEAL -->
+  <div class="screen" id="screen-mp-reveal">
+    <div class="card center">
+      <div>It was</div>
+      <div class="big-name" id="mp-reveal-name"></div>
+    </div>
+    <div class="result-banner" id="mp-reveal-banner"></div>
+    <div class="card">
+      <label>Guesses</label>
+      <div id="mp-reveal-list"></div>
+    </div>
+    <div class="footer-nav" id="mp-reveal-host-nav" style="display:none">
+      <button class="primary" id="btn-mp-next-round" type="button">Next Round</button>
+    </div>
+    <div class="waiting-text" id="mp-reveal-waiting" style="display:none">Waiting for host…</div>
+  </div>
+
+  <!-- MP GAME OVER -->
+  <div class="screen" id="screen-mp-game-over">
+    <div class="result-banner" id="mp-final-banner"></div>
+    <div class="card">
+      <label>Final Scores</label>
+      <div class="scoreboard" id="mp-final-scoreboard"></div>
+    </div>
+    <div class="footer-nav" id="mp-over-host-nav" style="display:none">
+      <button class="primary" id="btn-mp-play-again" type="button">Back to Lobby</button>
+    </div>
+    <div class="waiting-text" id="mp-over-waiting" style="display:none">Waiting for host…</div>
+  </div>
+
+  <!-- LOCAL: players -->
+  <div class="screen" id="local-screen-players">
+    <div class="card">
+      <label>Players (3+)</label>
+      <div id="local-player-list"></div>
+      <button class="secondary" id="local-btn-add-player" type="button">+ Add player</button>
+    </div>
+    <button class="primary" id="local-btn-players-continue" type="button" disabled>Continue</button>
+    <button class="link" id="local-btn-players-back" type="button">Back to home</button>
+  </div>
+
+  <!-- LOCAL: prompts -->
+  <div class="screen" id="local-screen-prompts">
+    <div class="card">
+      <label>Prompts</label>
+      <div class="prompt-list" id="local-prompt-list"></div>
       <small class="hint">Tap to include or exclude. Pick at least 3.</small>
     </div>
     <div class="card">
       <div class="row" style="justify-content:space-between;">
         <label style="margin:0;">Let players add their own prompts</label>
-        <input type="checkbox" id="chk-allow-custom" checked style="width:20px;height:20px;accent-color:var(--accent);flex-shrink:0;">
+        <input type="checkbox" id="local-chk-allow-custom" checked style="width:20px;height:20px;accent-color:var(--accent);flex-shrink:0;">
       </div>
-      <div id="custom-prompt-area" style="margin-top:12px;">
+      <div id="local-custom-prompt-area" style="margin-top:12px;">
         <div class="row">
-          <input type="text" id="custom-prompt-input" placeholder="Write your own prompt..." maxlength="140">
-          <button class="secondary" id="btn-add-custom-prompt" type="button" style="width:auto;padding:12px 16px;flex-shrink:0;">Add</button>
+          <input type="text" id="local-custom-prompt-input" placeholder="Write your own prompt..." maxlength="140">
+          <button class="secondary" id="local-btn-add-custom-prompt" type="button" style="width:auto;padding:12px 16px;flex-shrink:0;">Add</button>
         </div>
       </div>
     </div>
-    <button class="primary" id="btn-prompts-continue" type="button" disabled>Start Answering</button>
-    <button class="link" id="btn-prompts-back" type="button">Back</button>
+    <div class="center status-line" id="local-estimate"></div>
+    <button class="primary" id="local-btn-prompts-continue" type="button" disabled>Start Answering</button>
+    <button class="link" id="local-btn-prompts-back" type="button">Back</button>
   </div>
 
-  <div class="screen" id="screen-pass">
+  <!-- LOCAL: pass device -->
+  <div class="screen" id="local-screen-pass">
     <div class="card center">
       <div style="font-size:3rem;margin:10px 0;">📱➡️</div>
       <div>Pass the device to</div>
-      <div class="big-name" id="pass-name"></div>
-      <small class="hint">Only <span id="pass-name-2"></span> should look at the screen now.</small>
+      <div class="big-name" id="local-pass-name"></div>
+      <small class="hint">Only <span id="local-pass-name-2"></span> should look at the screen now.</small>
     </div>
-    <button class="primary" id="btn-ready" type="button">I'm ready</button>
+    <button class="primary" id="local-btn-ready" type="button">I'm ready</button>
   </div>
 
-  <div class="screen" id="screen-answer">
-    <div class="progress-label" id="answer-progress"></div>
+  <!-- LOCAL: private answering -->
+  <div class="screen" id="local-screen-answer">
+    <div class="progress-label" id="local-answer-progress"></div>
     <div class="reveal-box">
       <div class="category-label">Answer honestly!</div>
-      <div class="prompt-text" id="answer-prompt-text"></div>
-      <textarea id="answer-input" placeholder="Type your answer..." maxlength="200"></textarea>
+      <div class="prompt-text" id="local-answer-prompt-text"></div>
+      <textarea id="local-answer-input" placeholder="Type your answer..." maxlength="200"></textarea>
     </div>
-    <button class="primary" id="btn-answer-next" type="button" disabled>Next</button>
-    <button class="link" id="btn-answer-skip" type="button">Skip this one</button>
+    <button class="primary" id="local-btn-answer-next" type="button" disabled>Next</button>
+    <button class="link" id="local-btn-answer-skip" type="button">Skip this one</button>
   </div>
 
-  <div class="screen" id="screen-round">
-    <div class="progress-label" id="round-progress"></div>
+  <!-- LOCAL: round -->
+  <div class="screen" id="local-screen-round">
+    <div class="progress-label" id="local-round-progress"></div>
     <div class="card center">
       <div class="category-label">Prompt</div>
-      <div class="prompt-text" id="round-prompt-text"></div>
-      <div class="answer-quote" id="round-answer-text"></div>
+      <div class="prompt-text" id="local-round-prompt-text"></div>
+      <div class="answer-quote" id="local-round-answer-text"></div>
     </div>
     <div class="card center">
       <div>Everyone shout your guess — who said it?</div>
     </div>
-    <button class="primary" id="btn-round-reveal" type="button">Reveal Who Said It</button>
+    <button class="primary" id="local-btn-round-reveal" type="button">Reveal Who Said It</button>
   </div>
 
-  <div class="screen" id="screen-round-reveal">
+  <!-- LOCAL: round reveal -->
+  <div class="screen" id="local-screen-round-reveal">
     <div class="card center">
       <div>It was</div>
-      <div class="big-name" id="reveal-name"></div>
+      <div class="big-name" id="local-reveal-name"></div>
     </div>
     <div class="card">
       <label>Who guessed correctly? (tap all that apply)</label>
-      <div class="chip-group" id="guess-chip-group"></div>
+      <div class="chip-group" id="local-guess-chip-group"></div>
     </div>
-    <button class="primary" id="btn-round-next" type="button">Next Round</button>
+    <button class="primary" id="local-btn-round-next" type="button">Next Round</button>
   </div>
 
-  <div class="screen" id="screen-results">
-    <div class="result-banner" id="results-banner"></div>
+  <!-- LOCAL: results -->
+  <div class="screen" id="local-screen-results">
+    <div class="result-banner" id="local-results-banner"></div>
     <div class="card">
       <label>Final Scores</label>
-      <div class="scoreboard" id="results-scoreboard"></div>
+      <div class="scoreboard" id="local-results-scoreboard"></div>
     </div>
     <div class="footer-nav">
-      <button class="secondary" id="btn-play-again" type="button">Play Again</button>
-      <button class="danger" id="btn-new-game" type="button">New Game</button>
+      <button class="secondary" id="local-btn-play-again" type="button">Play Again</button>
+      <button class="danger" id="local-btn-new-game" type="button">New Game</button>
     </div>
   </div>
 </div>
 
 <script type="module">
+import { firebaseConfig } from "./firebase-config.js";
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+import { getDatabase, ref, set, get, update, onValue, push } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
+
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getDatabase(app);
+
 const FIXED_PROMPTS = [
   "My most embarrassing moment is...",
   "The food I secretly can't stand is...",
@@ -294,13 +551,21 @@ const FIXED_PROMPTS = [
   "The strangest dream I remember having is..."
 ];
 
+var CODE_CHARS = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; // no O/0, I/1
+// All the games in this repo share one Firebase project and the same rooms/
+// path, so a 4-letter code could otherwise land on another game's room. Every
+// Spill It room carries game:"spillit" and joining checks it.
+var GAME_ID = "spillit";
+var MIN_PROMPTS = 3;
+var MIN_PLAYERS = 3;
+
 function $(id) { return document.getElementById(id); }
 function showScreen(id) {
   document.querySelectorAll(".screen").forEach(function (s) { s.classList.remove("active"); });
   $(id).classList.add("active");
   var homeBtn = $("home-toggle");
-  var hideOn = { "screen-home": true, "screen-players": true, "screen-prompts": true };
-  if (homeBtn) homeBtn.style.display = hideOn[id] ? "none" : "flex";
+  var hideHomeOn = { "screen-home": true, "screen-join-code": true, "local-screen-players": true, "local-screen-prompts": true };
+  if (homeBtn) homeBtn.style.display = hideHomeOn[id] ? "none" : "flex";
 }
 function shuffle(arr) {
   for (var i = arr.length - 1; i > 0; i--) {
@@ -309,8 +574,749 @@ function shuffle(arr) {
   }
   return arr;
 }
+// Firebase hands arrays back as arrays when the keys are 0..n-1 and as an
+// object when they're not, so normalise both to a plain array.
+function toArray(v) {
+  if (!v) return [];
+  if (Array.isArray(v)) return v.filter(function (x) { return x !== null && x !== undefined; });
+  return Object.keys(v).sort(function (a, b) { return Number(a) - Number(b); }).map(function (k) { return v[k]; });
+}
+function renderScoreboardInto(el, scores) {
+  el.innerHTML = "";
+  var entries = Object.keys(scores).map(function (name) { return { name: name, score: scores[name] }; });
+  entries.sort(function (a, b) { return b.score - a.score; });
+  var top = entries.length ? entries[0].score : 0;
+  entries.forEach(function (e) {
+    var row = document.createElement("div");
+    row.className = "score-row" + (e.score === top ? " winner" : "");
+    var nameSpan = document.createElement("span");
+    nameSpan.textContent = e.name;
+    var scoreSpan = document.createElement("strong");
+    scoreSpan.textContent = String(e.score);
+    row.appendChild(nameSpan);
+    row.appendChild(scoreSpan);
+    el.appendChild(row);
+  });
+}
+function winnerLine(scores) {
+  var names = Object.keys(scores);
+  if (!names.length) return "No scores yet";
+  var top = Math.max.apply(null, names.map(function (n) { return scores[n]; }));
+  var winners = names.filter(function (n) { return scores[n] === top; });
+  var pts = top + " point" + (top === 1 ? "" : "s");
+  return winners.length > 1
+    ? ("It's a tie! " + winners.join(" & ") + " win with " + pts)
+    : ("🏆 " + winners[0] + " wins with " + pts + "!");
+}
 
-var state = {
+$("home-toggle").addEventListener("click", function () {
+  if (!confirm("Back to the start screen? This leaves your current game.")) return;
+  localStorage.removeItem("spillit_room");
+  location.reload();
+});
+$("rules-btn").addEventListener("click", function () { $("rules-modal-backdrop").classList.add("show"); });
+$("rules-modal-close").addEventListener("click", function () { $("rules-modal-backdrop").classList.remove("show"); });
+$("rules-modal-backdrop").addEventListener("click", function (e) { if (e.target === this) this.classList.remove("show"); });
+
+// =========================================================================
+// MULTIPLAYER MODE
+// =========================================================================
+
+var mp = {
+  uid: null,
+  name: "",
+  roomCode: null,
+  isHost: false,
+  room: null,
+  writeRenderedIdx: null,
+  guessSelected: null,
+  guessRenderedRound: null,
+  revealMinWaitKey: null,
+  revealMinWaitHandle: null,
+  // Snapshots can arrive back-to-back, so remember which auto-advance the host
+  // has already fired and never fire the same one twice.
+  autoAdvanceKey: null
+};
+function hostAutoAdvance(key, fn) {
+  if (mp.autoAdvanceKey === key) return;
+  mp.autoAdvanceKey = key;
+  fn();
+}
+
+function roomRef(code) { return ref(db, "rooms/" + code); }
+function generateRoomCode() {
+  var out = "";
+  for (var i = 0; i < 4; i++) out += CODE_CHARS[Math.floor(Math.random() * CODE_CHARS.length)];
+  return out;
+}
+
+signInAnonymously(auth).catch(function (err) {
+  $("home-status").textContent = "Couldn't connect: " + err.message;
+});
+
+onAuthStateChanged(auth, function (user) {
+  if (!user) return;
+  mp.uid = user.uid;
+  tryAutoRejoin();
+});
+
+function tryAutoRejoin() {
+  var saved = null;
+  try { saved = JSON.parse(localStorage.getItem("spillit_room") || "null"); } catch (e) {}
+  if (!saved || !saved.code || !saved.name) return;
+  $("input-name").value = saved.name;
+  get(roomRef(saved.code)).then(function (snap) {
+    if (!snap.exists()) { localStorage.removeItem("spillit_room"); return; }
+    var roomVal = snap.val();
+    if (roomVal.game !== GAME_ID) { localStorage.removeItem("spillit_room"); return; }
+    if (roomVal.players && roomVal.players[mp.uid]) {
+      mp.roomCode = saved.code;
+      mp.name = saved.name;
+      mp.isHost = roomVal.hostUid === mp.uid;
+      subscribeRoom(saved.code);
+    }
+  });
+}
+
+$("btn-create-room").addEventListener("click", function () {
+  var name = $("input-name").value.trim();
+  if (!name) { $("home-status").textContent = "Enter your name first."; return; }
+  if (!mp.uid) { $("home-status").textContent = "Still connecting, try again in a moment."; return; }
+  createRoomFlow(name);
+});
+
+var pendingJoinName = "";
+
+$("btn-join-room").addEventListener("click", function () {
+  var name = $("input-join-name").value.trim();
+  if (!name) { $("home-status").textContent = "Enter your name first."; return; }
+  if (!mp.uid) { $("home-status").textContent = "Still connecting, try again in a moment."; return; }
+  pendingJoinName = name;
+  $("input-join-code").value = "";
+  $("join-code-status").textContent = "";
+  showScreen("screen-join-code");
+});
+$("btn-join-code-back").addEventListener("click", function () { showScreen("screen-home"); });
+$("btn-join-code-submit").addEventListener("click", function () {
+  var code = $("input-join-code").value.trim().toUpperCase();
+  if (!code) { $("join-code-status").textContent = "Enter a room code."; return; }
+  joinRoomFlow(code, pendingJoinName);
+});
+
+async function createRoomFlow(name) {
+  $("home-status").textContent = "Creating room…";
+  var code;
+  do { code = generateRoomCode(); } while ((await get(roomRef(code))).exists());
+  var uid = mp.uid;
+  var allFixed = FIXED_PROMPTS.map(function (_, i) { return i; });
+  await set(roomRef(code), {
+    game: GAME_ID,
+    createdAt: Date.now(),
+    hostUid: uid,
+    phase: "lobby",
+    settings: { fixedPrompts: allFixed, allowCustom: true },
+    players: { [uid]: { name: name, joinedAt: Date.now() } },
+    scores: { [uid]: 0 }
+  });
+  mp.roomCode = code;
+  mp.name = name;
+  mp.isHost = true;
+  localStorage.setItem("spillit_room", JSON.stringify({ code: code, name: name }));
+  subscribeRoom(code);
+}
+
+async function joinRoomFlow(code, name) {
+  $("join-code-status").textContent = "Joining…";
+  var snap = await get(roomRef(code));
+  if (!snap.exists()) { $("join-code-status").textContent = "Room not found."; return; }
+  var val = snap.val();
+  if (val.game !== GAME_ID) {
+    $("join-code-status").textContent = "That code belongs to a different game's room.";
+    return;
+  }
+  if (val.phase !== "lobby" && !(val.players && val.players[mp.uid])) {
+    $("join-code-status").textContent = "That game has already started — ask the host to go back to the lobby.";
+    return;
+  }
+  var uid = mp.uid;
+  await update(ref(db, "rooms/" + code + "/players/" + uid), { name: name, joinedAt: Date.now() });
+  if (!val.scores || val.scores[uid] === undefined) {
+    await update(ref(db, "rooms/" + code + "/scores"), (function () { var o = {}; o[uid] = 0; return o; })());
+  }
+  mp.roomCode = code;
+  mp.name = name;
+  mp.isHost = val.hostUid === uid;
+  localStorage.setItem("spillit_room", JSON.stringify({ code: code, name: name }));
+  subscribeRoom(code);
+}
+
+$("btn-leave-room").addEventListener("click", function () {
+  if (!confirm("Leave this room?")) return;
+  localStorage.removeItem("spillit_room");
+  location.reload();
+});
+
+function subscribeRoom(code) {
+  onValue(roomRef(code), function (snap) {
+    mp.room = snap.val();
+    if (!mp.room) {
+      localStorage.removeItem("spillit_room");
+      showScreen("screen-home");
+      $("home-status").textContent = "Room closed.";
+      $("chat-toggle").style.display = "none";
+      $("chat-panel").classList.remove("open");
+      return;
+    }
+    mp.isHost = mp.room.hostUid === mp.uid;
+    render();
+  });
+  subscribeChat(code);
+  $("chat-toggle").style.display = "flex";
+}
+
+// ---------- Room chat ----------
+var chatSeenCount = 0;
+var chatUnread = 0;
+
+function subscribeChat(code) {
+  onValue(ref(db, "rooms/" + code + "/chat"), function (snap) {
+    var val = snap.val() || {};
+    var messages = Object.keys(val).map(function (key) { return val[key]; })
+      .sort(function (a, b) { return a.ts - b.ts; });
+    var wrap = $("chat-messages");
+    wrap.innerHTML = "";
+    messages.forEach(function (m) {
+      var row = document.createElement("div");
+      row.className = "chat-msg" + (m.uid === mp.uid ? " chat-mine" : "");
+      var nameSpan = document.createElement("span");
+      nameSpan.className = "chat-name";
+      nameSpan.textContent = (m.uid === mp.uid ? "You" : m.name) + ": ";
+      row.appendChild(nameSpan);
+      row.appendChild(document.createTextNode(m.text));
+      wrap.appendChild(row);
+    });
+    wrap.scrollTop = wrap.scrollHeight;
+    if (messages.length > chatSeenCount) {
+      if (!$("chat-panel").classList.contains("open")) {
+        chatUnread += messages.length - chatSeenCount;
+        var badge = $("chat-badge");
+        badge.textContent = chatUnread > 9 ? "9+" : String(chatUnread);
+        badge.style.display = "block";
+        $("chat-toggle").classList.add("has-unread");
+      }
+    }
+    chatSeenCount = messages.length;
+  });
+}
+$("chat-toggle").addEventListener("click", function () {
+  $("chat-panel").classList.add("open");
+  chatUnread = 0;
+  $("chat-badge").style.display = "none";
+  $("chat-toggle").classList.remove("has-unread");
+  $("chat-input").focus();
+});
+$("chat-close").addEventListener("click", function () { $("chat-panel").classList.remove("open"); });
+function sendChatMessage() {
+  var text = $("chat-input").value.trim();
+  if (!text || !mp.roomCode) return;
+  push(ref(db, "rooms/" + mp.roomCode + "/chat"), {
+    uid: mp.uid, name: mp.name, text: text.slice(0, 200), ts: Date.now()
+  });
+  $("chat-input").value = "";
+}
+$("chat-send").addEventListener("click", sendChatMessage);
+$("chat-input").addEventListener("keydown", function (e) {
+  if (e.key === "Enter") { e.preventDefault(); sendChatMessage(); }
+});
+
+function render() {
+  var room = mp.room;
+  if (!room) return;
+  if (room.phase === "lobby") renderLobby();
+  else if (room.phase === "writing") renderWriting();
+  else if (room.phase === "round") renderMpRound();
+  else if (room.phase === "reveal") renderMpReveal();
+  else if (room.phase === "game-over") renderMpGameOver();
+}
+
+function mpPlayerName(uid) {
+  return mp.room.players && mp.room.players[uid] ? mp.room.players[uid].name : "?";
+}
+function mpPlayerUids() { return mp.room.players ? Object.keys(mp.room.players) : []; }
+function mpCustomPrompts() {
+  var cp = mp.room.customPrompts || {};
+  return Object.keys(cp).map(function (k) { return { key: k, text: cp[k].text, uid: cp[k].uid, name: cp[k].name }; });
+}
+function mpSelectedPromptTexts() {
+  var fixedIdx = toArray(mp.room.settings && mp.room.settings.fixedPrompts);
+  var texts = fixedIdx.map(function (i) { return FIXED_PROMPTS[i]; }).filter(Boolean);
+  return texts.concat(mpCustomPrompts().map(function (c) { return c.text; }));
+}
+
+// ---------- Lobby ----------
+function renderLobby() {
+  var room = mp.room;
+  $("lobby-code").textContent = mp.roomCode;
+
+  var list = $("lobby-players");
+  list.innerHTML = "";
+  mpPlayerUids().forEach(function (uid) {
+    var chip = document.createElement("div");
+    chip.className = "player-chip";
+    chip.textContent = mpPlayerName(uid);
+    if (uid === room.hostUid) {
+      var badge = document.createElement("span");
+      badge.className = "host-badge";
+      badge.textContent = "HOST";
+      chip.appendChild(badge);
+    }
+    list.appendChild(chip);
+  });
+
+  var fixedIdx = toArray(room.settings && room.settings.fixedPrompts);
+  var wrap = $("lobby-prompt-list");
+  wrap.innerHTML = "";
+  FIXED_PROMPTS.forEach(function (text, i) {
+    var on = fixedIdx.indexOf(i) !== -1;
+    var row = buildPromptRow(text, on, null, mp.isHost ? function () {
+      var next = fixedIdx.slice();
+      var at = next.indexOf(i);
+      if (at !== -1) next.splice(at, 1); else next.push(i);
+      next.sort(function (a, b) { return a - b; });
+      update(ref(db, "rooms/" + mp.roomCode + "/settings"), { fixedPrompts: next });
+    } : null, null);
+    wrap.appendChild(row);
+  });
+  mpCustomPrompts().forEach(function (c) {
+    var canRemove = mp.isHost || c.uid === mp.uid;
+    var row = buildPromptRow(c.text, true, "added by " + c.name, null, canRemove ? function () {
+      set(ref(db, "rooms/" + mp.roomCode + "/customPrompts/" + c.key), null);
+    } : null);
+    wrap.appendChild(row);
+  });
+
+  var allowCustom = !!(room.settings && room.settings.allowCustom);
+  var chk = $("chk-lobby-allow-custom");
+  chk.checked = allowCustom;
+  chk.disabled = !mp.isHost;
+  $("lobby-custom-area").style.display = allowCustom ? "block" : "none";
+
+  var promptCount = mpSelectedPromptTexts().length;
+  var playerCount = mpPlayerUids().length;
+  $("lobby-prompt-hint").textContent = mp.isHost
+    ? ("Tap to include or exclude. Pick at least " + MIN_PROMPTS + ".")
+    : "The host picks which prompts are used.";
+  $("lobby-estimate").textContent = (playerCount && promptCount)
+    ? ("About " + (playerCount * promptCount) + " rounds with " + playerCount + " player" + (playerCount === 1 ? "" : "s") + " and " + promptCount + " prompt" + (promptCount === 1 ? "" : "s") + ".")
+    : "";
+
+  var startBtn = $("btn-start-mp-game");
+  var waiting = $("lobby-waiting");
+  var status = $("lobby-status");
+  if (mp.isHost) {
+    startBtn.style.display = "";
+    waiting.style.display = "none";
+    var problems = [];
+    if (playerCount < MIN_PLAYERS) problems.push("at least " + MIN_PLAYERS + " players");
+    if (promptCount < MIN_PROMPTS) problems.push("at least " + MIN_PROMPTS + " prompts");
+    startBtn.disabled = problems.length > 0;
+    status.textContent = problems.length ? ("Need " + problems.join(" and ") + " to start.") : "";
+  } else {
+    startBtn.style.display = "none";
+    waiting.style.display = "";
+    status.textContent = "";
+  }
+  showScreen("screen-lobby");
+}
+
+function buildPromptRow(text, checked, byline, onToggle, onRemove) {
+  var row = document.createElement("div");
+  row.className = "prompt-row" + (onToggle ? "" : " static");
+  var box = document.createElement("input");
+  box.type = "checkbox";
+  box.checked = checked;
+  box.disabled = !onToggle;
+  if (onToggle) box.addEventListener("change", onToggle);
+  row.appendChild(box);
+  var txtWrap = document.createElement("div");
+  txtWrap.className = "txt";
+  var txt = document.createElement("div");
+  txt.textContent = text;
+  txtWrap.appendChild(txt);
+  if (byline) {
+    var by = document.createElement("div");
+    by.className = "byline";
+    by.textContent = byline;
+    txtWrap.appendChild(by);
+  }
+  row.appendChild(txtWrap);
+  if (onToggle) row.addEventListener("click", function (e) { if (e.target !== box) onToggle(); });
+  if (onRemove) {
+    var x = document.createElement("button");
+    x.type = "button";
+    x.className = "remove-x";
+    x.textContent = "✕";
+    x.addEventListener("click", function (e) { e.stopPropagation(); onRemove(); });
+    row.appendChild(x);
+  }
+  return row;
+}
+
+$("chk-lobby-allow-custom").addEventListener("change", function () {
+  if (!mp.isHost) return;
+  update(ref(db, "rooms/" + mp.roomCode + "/settings"), { allowCustom: this.checked });
+});
+$("btn-lobby-add-custom").addEventListener("click", function () {
+  var v = $("lobby-custom-input").value.trim();
+  if (!v || !mp.roomCode) return;
+  push(ref(db, "rooms/" + mp.roomCode + "/customPrompts"), { text: v, uid: mp.uid, name: mp.name });
+  $("lobby-custom-input").value = "";
+});
+$("lobby-custom-input").addEventListener("keydown", function (e) {
+  if (e.key === "Enter") { e.preventDefault(); $("btn-lobby-add-custom").click(); }
+});
+
+$("btn-start-mp-game").addEventListener("click", async function () {
+  if (!mp.isHost) return;
+  var prompts = mpSelectedPromptTexts();
+  if (prompts.length < MIN_PROMPTS || mpPlayerUids().length < MIN_PLAYERS) return;
+  var scores = {};
+  mpPlayerUids().forEach(function (uid) { scores[uid] = 0; });
+  await update(roomRef(mp.roomCode), {
+    phase: "writing",
+    prompts: prompts,
+    scores: scores,
+    answers: null,
+    progress: null,
+    writingDone: null,
+    queue: null,
+    queueIndex: 0,
+    round: null,
+    winnerUid: null
+  });
+});
+
+// ---------- Writing (everyone answers privately, on their own device) ----------
+function renderWriting() {
+  var room = mp.room;
+  var prompts = toArray(room.prompts);
+  var myProgress = (room.progress && room.progress[mp.uid]) || 0;
+  var iAmDone = !!(room.writingDone && room.writingDone[mp.uid]) || myProgress >= prompts.length;
+
+  if (iAmDone) {
+    $("mp-writing-form").style.display = "none";
+    $("mp-writing-done-card").style.display = "";
+    $("mp-writing-progress").textContent = "Answers submitted";
+    mp.writeRenderedIdx = null;
+  } else {
+    $("mp-writing-form").style.display = "";
+    $("mp-writing-done-card").style.display = "none";
+    $("mp-writing-progress").textContent = "Prompt " + (myProgress + 1) + " of " + prompts.length;
+    // Only reset the textarea when we actually move to a new prompt — this
+    // render also fires when someone *else* submits, and clearing the box
+    // mid-sentence would wipe what's being typed.
+    if (mp.writeRenderedIdx !== myProgress) {
+      mp.writeRenderedIdx = myProgress;
+      $("mp-writing-prompt-text").textContent = prompts[myProgress];
+      $("mp-writing-answer-input").value = "";
+      $("btn-mp-writing-next").disabled = true;
+    }
+  }
+
+  var statusList = $("mp-writing-status-list");
+  statusList.innerHTML = "";
+  mpPlayerUids().forEach(function (uid) {
+    var done = !!(room.writingDone && room.writingDone[uid]);
+    var row = document.createElement("div");
+    row.className = "score-row";
+    var span = document.createElement("span");
+    span.textContent = (done ? "✅ " : "⏳ ") + mpPlayerName(uid);
+    row.appendChild(span);
+    statusList.appendChild(row);
+  });
+
+  showScreen("screen-mp-writing");
+
+  if (mp.isHost) {
+    var uids = mpPlayerUids();
+    var doneCount = uids.filter(function (uid) { return room.writingDone && room.writingDone[uid]; }).length;
+    if (uids.length > 0 && doneCount >= uids.length) hostAutoAdvance("start-rounds", startMpRounds);
+  }
+}
+
+$("mp-writing-answer-input").addEventListener("input", function () {
+  $("btn-mp-writing-next").disabled = this.value.trim().length === 0;
+});
+function advanceWriting(answerText) {
+  var room = mp.room;
+  var prompts = toArray(room.prompts);
+  var idx = (room.progress && room.progress[mp.uid]) || 0;
+  var updates = {};
+  if (answerText) updates["answers/" + mp.uid + "/" + idx] = answerText;
+  updates["progress/" + mp.uid] = idx + 1;
+  if (idx + 1 >= prompts.length) updates["writingDone/" + mp.uid] = true;
+  update(roomRef(mp.roomCode), updates);
+}
+$("btn-mp-writing-next").addEventListener("click", function () {
+  var val = $("mp-writing-answer-input").value.trim();
+  if (!val) return;
+  advanceWriting(val);
+});
+$("btn-mp-writing-skip").addEventListener("click", function () { advanceWriting(null); });
+
+async function startMpRounds() {
+  var room = mp.room;
+  var queue = [];
+  mpPlayerUids().forEach(function (uid) {
+    var mine = (room.answers && room.answers[uid]) || {};
+    Object.keys(mine).forEach(function (pIdx) {
+      if (mine[pIdx]) queue.push({ uid: uid, pIdx: parseInt(pIdx, 10) });
+    });
+  });
+  shuffle(queue);
+  if (queue.length === 0) {
+    await update(roomRef(mp.roomCode), { phase: "game-over", queue: null, queueIndex: 0, round: null });
+    return;
+  }
+  await update(roomRef(mp.roomCode), {
+    phase: "round", queue: queue, queueIndex: 0, round: { guesses: {}, startedAt: Date.now() }
+  });
+}
+
+// ---------- Round (everyone guesses privately) ----------
+function currentQueueItem() {
+  var queue = toArray(mp.room.queue);
+  var idx = mp.room.queueIndex || 0;
+  return queue[idx] || null;
+}
+function eligibleVoterUids(authorUid) {
+  return mpPlayerUids().filter(function (uid) { return uid !== authorUid; });
+}
+
+function renderMpRound() {
+  var room = mp.room;
+  var item = currentQueueItem();
+  if (!item) {
+    if (mp.isHost) update(roomRef(mp.roomCode), { phase: "game-over" });
+    return;
+  }
+  var prompts = toArray(room.prompts);
+  var queue = toArray(room.queue);
+  var roundNo = (room.queueIndex || 0) + 1;
+  var guesses = (room.round && room.round.guesses) || {};
+  var iAmAuthor = item.uid === mp.uid;
+  var myGuess = guesses[mp.uid];
+
+  $("mp-round-progress").textContent = "Round " + roundNo + " of " + queue.length;
+  $("mp-round-prompt-text").textContent = prompts[item.pIdx] || "";
+  $("mp-round-answer-text").textContent = "“" + ((room.answers && room.answers[item.uid] && room.answers[item.uid][item.pIdx]) || "") + "”";
+
+  var roundToken = (room.round && room.round.startedAt) + ":" + (room.queueIndex || 0);
+  if (mp.guessRenderedRound !== roundToken) {
+    mp.guessRenderedRound = roundToken;
+    mp.guessSelected = null;
+  }
+
+  if (iAmAuthor) {
+    $("mp-guess-card").style.display = "none";
+    $("mp-own-answer-notice").style.display = "";
+    $("mp-guess-waiting").style.display = "none";
+  } else if (myGuess !== undefined) {
+    $("mp-guess-card").style.display = "none";
+    $("mp-own-answer-notice").style.display = "none";
+    $("mp-guess-waiting").style.display = "";
+  } else {
+    $("mp-guess-card").style.display = "";
+    $("mp-own-answer-notice").style.display = "none";
+    $("mp-guess-waiting").style.display = "none";
+    renderGuessOptions();
+  }
+
+  var statusList = $("mp-guess-status-list");
+  statusList.innerHTML = "";
+  eligibleVoterUids(item.uid).forEach(function (uid) {
+    var row = document.createElement("div");
+    row.className = "score-row";
+    var span = document.createElement("span");
+    span.textContent = (guesses[uid] !== undefined ? "✅ " : "⏳ ") + mpPlayerName(uid);
+    row.appendChild(span);
+    statusList.appendChild(row);
+  });
+
+  showScreen("screen-mp-round");
+
+  if (mp.isHost) {
+    var voters = eligibleVoterUids(item.uid);
+    var guessCount = voters.filter(function (uid) { return guesses[uid] !== undefined; }).length;
+    if (voters.length > 0 && guessCount >= voters.length) {
+      hostAutoAdvance("reveal:" + (room.queueIndex || 0), function () {
+        update(roomRef(mp.roomCode), { phase: "reveal" });
+      });
+    }
+  }
+}
+
+// Everyone except me is a candidate — the real author has to be on this list,
+// otherwise there'd be no way to ever guess right.
+function renderGuessOptions() {
+  var wrap = $("mp-guess-list");
+  wrap.innerHTML = "";
+  mpPlayerUids().filter(function (uid) { return uid !== mp.uid; }).forEach(function (uid) {
+    var btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "vote-btn" + (mp.guessSelected === uid ? " selected" : "");
+    btn.textContent = mpPlayerName(uid);
+    btn.addEventListener("click", function () {
+      mp.guessSelected = uid;
+      renderGuessOptions();
+      $("btn-mp-submit-guess").disabled = false;
+    });
+    wrap.appendChild(btn);
+  });
+  $("btn-mp-submit-guess").disabled = !mp.guessSelected;
+}
+
+$("btn-mp-submit-guess").addEventListener("click", function () {
+  if (!mp.guessSelected) return;
+  update(ref(db, "rooms/" + mp.roomCode + "/round/guesses"),
+    (function () { var o = {}; o[mp.uid] = mp.guessSelected; return o; })());
+});
+
+// ---------- Reveal ----------
+// Every client derives the same outcome from round.guesses, so nothing extra
+// needs storing — the host only writes the score deltas on "Next Round".
+function roundOutcome(room) {
+  var item = currentQueueItem();
+  var guesses = (room.round && room.round.guesses) || {};
+  var correct = [];
+  var wrong = [];
+  eligibleVoterUids(item.uid).forEach(function (uid) {
+    if (guesses[uid] === undefined) return;
+    if (guesses[uid] === item.uid) correct.push(uid); else wrong.push(uid);
+  });
+  return { item: item, guesses: guesses, correct: correct, wrong: wrong, stumped: correct.length === 0 };
+}
+
+function renderMpReveal() {
+  var room = mp.room;
+  var item = currentQueueItem();
+  if (!item) {
+    if (mp.isHost) update(roomRef(mp.roomCode), { phase: "game-over" });
+    return;
+  }
+  var out = roundOutcome(room);
+  $("mp-reveal-name").textContent = mpPlayerName(item.uid);
+
+  var banner = $("mp-reveal-banner");
+  if (out.stumped) {
+    banner.className = "result-banner stumped";
+    banner.textContent = "Nobody got it — " + mpPlayerName(item.uid) + " stumps the table, +1 point";
+  } else {
+    banner.className = "result-banner";
+    banner.textContent = out.correct.length + " correct — +1 point each";
+  }
+
+  var wrap = $("mp-reveal-list");
+  wrap.innerHTML = "";
+  eligibleVoterUids(item.uid).forEach(function (uid) {
+    var guessed = out.guesses[uid];
+    var isCorrect = guessed === item.uid;
+    var row = document.createElement("div");
+    row.className = "guess-row" + (isCorrect ? " correct" : "");
+    var left = document.createElement("div");
+    var pname = document.createElement("div");
+    pname.className = "pname";
+    pname.textContent = mpPlayerName(uid);
+    var g = document.createElement("div");
+    g.className = "guessed";
+    g.textContent = guessed === undefined ? "No guess" : ("Guessed: " + mpPlayerName(guessed));
+    left.appendChild(pname);
+    left.appendChild(g);
+    var mark = document.createElement("span");
+    mark.className = "mark";
+    mark.textContent = isCorrect ? "✓" : "✗";
+    row.appendChild(left);
+    row.appendChild(mark);
+    wrap.appendChild(row);
+  });
+
+  var hostNav = $("mp-reveal-host-nav");
+  var waiting = $("mp-reveal-waiting");
+  if (mp.isHost) {
+    hostNav.style.display = "flex";
+    waiting.style.display = "none";
+    // Brief lockout so the table actually gets to read the reveal.
+    var revealKey = (room.round && room.round.startedAt) + ":" + (room.queueIndex || 0);
+    if (mp.revealMinWaitKey !== revealKey) {
+      mp.revealMinWaitKey = revealKey;
+      var nextBtn = $("btn-mp-next-round");
+      nextBtn.disabled = true;
+      clearTimeout(mp.revealMinWaitHandle);
+      mp.revealMinWaitHandle = setTimeout(function () { nextBtn.disabled = false; }, 3000);
+    }
+  } else {
+    hostNav.style.display = "none";
+    waiting.style.display = "";
+  }
+  showScreen("screen-mp-reveal");
+}
+
+$("btn-mp-next-round").addEventListener("click", function () {
+  if (!mp.isHost || this.disabled) return;
+  var room = mp.room;
+  var out = roundOutcome(room);
+  var scores = Object.assign({}, room.scores || {});
+  if (out.stumped) {
+    scores[out.item.uid] = (scores[out.item.uid] || 0) + 1;
+  } else {
+    out.correct.forEach(function (uid) { scores[uid] = (scores[uid] || 0) + 1; });
+  }
+  var nextIndex = (room.queueIndex || 0) + 1;
+  var queue = toArray(room.queue);
+  if (nextIndex >= queue.length) {
+    update(roomRef(mp.roomCode), { phase: "game-over", scores: scores, queueIndex: nextIndex, round: null });
+  } else {
+    update(roomRef(mp.roomCode), {
+      phase: "round", scores: scores, queueIndex: nextIndex, round: { guesses: {}, startedAt: Date.now() }
+    });
+  }
+});
+
+// ---------- Game over ----------
+function renderMpGameOver() {
+  var room = mp.room;
+  var scoresByName = {};
+  mpPlayerUids().forEach(function (uid) { scoresByName[mpPlayerName(uid)] = (room.scores && room.scores[uid]) || 0; });
+  $("mp-final-banner").textContent = winnerLine(scoresByName);
+  renderScoreboardInto($("mp-final-scoreboard"), scoresByName);
+
+  var hostNav = $("mp-over-host-nav");
+  var waiting = $("mp-over-waiting");
+  if (mp.isHost) {
+    hostNav.style.display = "flex";
+    waiting.style.display = "none";
+  } else {
+    hostNav.style.display = "none";
+    waiting.style.display = "";
+  }
+  showScreen("screen-mp-game-over");
+}
+
+$("btn-mp-play-again").addEventListener("click", function () {
+  if (!mp.isHost) return;
+  var scores = {};
+  mpPlayerUids().forEach(function (uid) { scores[uid] = 0; });
+  update(roomRef(mp.roomCode), {
+    phase: "lobby", scores: scores, answers: null, progress: null, writingDone: null,
+    prompts: null, queue: null, queueIndex: 0, round: null, winnerUid: null
+  });
+});
+
+// =========================================================================
+// LOCAL PASS-AND-PLAY MODE
+// =========================================================================
+
+var local = {
   players: ["", "", ""],
   prompts: [],
   customPrompts: [],
@@ -323,26 +1329,17 @@ var state = {
   scores: {},
   guessSelected: {}
 };
-FIXED_PROMPTS.forEach(function (_, i) { state.fixedSelected[i] = true; });
+FIXED_PROMPTS.forEach(function (_, i) { local.fixedSelected[i] = true; });
 
-$("home-toggle").addEventListener("click", function () {
-  if (!confirm("Start over? This ends the current game.")) return;
-  location.reload();
-});
-$("rules-btn").addEventListener("click", function () { $("rules-modal-backdrop").classList.add("show"); });
-$("rules-modal-close").addEventListener("click", function () { $("rules-modal-backdrop").classList.remove("show"); });
-$("rules-modal-backdrop").addEventListener("click", function (e) { if (e.target === this) this.classList.remove("show"); });
-
-$("btn-start").addEventListener("click", function () {
-  renderPlayerList();
-  showScreen("screen-players");
+$("btn-local-mode").addEventListener("click", function () {
+  localRenderPlayerList();
+  showScreen("local-screen-players");
 });
 
-// --- Players screen ---
-function renderPlayerList() {
-  var wrap = $("player-list");
+function localRenderPlayerList() {
+  var wrap = $("local-player-list");
   wrap.innerHTML = "";
-  state.players.forEach(function (name, i) {
+  local.players.forEach(function (name, i) {
     var row = document.createElement("div");
     row.style.cssText = "display:flex;gap:8px;margin-bottom:8px;";
     var input = document.createElement("input");
@@ -352,265 +1349,211 @@ function renderPlayerList() {
     input.maxLength = 20;
     input.style.flex = "1";
     input.addEventListener("input", function () {
-      state.players[i] = input.value;
-      updatePlayersContinueState();
+      local.players[i] = input.value;
+      localUpdatePlayersContinue();
     });
     row.appendChild(input);
-    if (state.players.length > 3) {
+    if (local.players.length > 3) {
       var rm = document.createElement("button");
       rm.type = "button";
       rm.textContent = "✕";
       rm.style.cssText = "background:var(--panel-2);border:1px solid var(--border);color:var(--text-dim);border-radius:10px;width:44px;height:44px;font-size:1.1rem;cursor:pointer;flex-shrink:0;touch-action:manipulation;";
       rm.addEventListener("click", function () {
-        state.players.splice(i, 1);
-        renderPlayerList();
+        local.players.splice(i, 1);
+        localRenderPlayerList();
       });
       row.appendChild(rm);
     }
     wrap.appendChild(row);
   });
-  updatePlayersContinueState();
+  localUpdatePlayersContinue();
 }
-function updatePlayersContinueState() {
-  var filled = state.players.filter(function (n) { return n.trim().length > 0; }).length;
-  $("btn-players-continue").disabled = filled < 3;
+function localUpdatePlayersContinue() {
+  var filled = local.players.filter(function (n) { return n.trim().length > 0; }).length;
+  $("local-btn-players-continue").disabled = filled < MIN_PLAYERS;
 }
-$("btn-add-player").addEventListener("click", function () {
-  if (state.players.length >= 12) return;
-  state.players.push("");
-  renderPlayerList();
+$("local-btn-add-player").addEventListener("click", function () {
+  if (local.players.length >= 12) return;
+  local.players.push("");
+  localRenderPlayerList();
 });
-$("btn-players-back").addEventListener("click", function () { showScreen("screen-home"); });
-$("btn-players-continue").addEventListener("click", function () {
-  state.players = state.players.map(function (n, i) { return n.trim() || ("Player " + (i + 1)); });
-  renderPromptList();
-  showScreen("screen-prompts");
+$("local-btn-players-back").addEventListener("click", function () { showScreen("screen-home"); });
+$("local-btn-players-continue").addEventListener("click", function () {
+  local.players = local.players.map(function (n, i) { return n.trim() || ("Player " + (i + 1)); });
+  localRenderPromptList();
+  showScreen("local-screen-prompts");
 });
 
-// --- Prompts screen ---
-function renderPromptList() {
-  var wrap = $("prompt-list");
+function localRenderPromptList() {
+  var wrap = $("local-prompt-list");
   wrap.innerHTML = "";
   FIXED_PROMPTS.forEach(function (text, i) {
-    wrap.appendChild(buildPromptRow(text, state.fixedSelected[i], function () {
-      state.fixedSelected[i] = !state.fixedSelected[i];
-      renderPromptList();
+    wrap.appendChild(buildPromptRow(text, local.fixedSelected[i], null, function () {
+      local.fixedSelected[i] = !local.fixedSelected[i];
+      localRenderPromptList();
     }, null));
   });
-  state.customPrompts.forEach(function (text, i) {
-    wrap.appendChild(buildPromptRow(text, true, null, function () {
-      state.customPrompts.splice(i, 1);
-      renderPromptList();
+  local.customPrompts.forEach(function (text, i) {
+    wrap.appendChild(buildPromptRow(text, true, null, null, function () {
+      local.customPrompts.splice(i, 1);
+      localRenderPromptList();
     }));
   });
-  updatePromptsContinueState();
+  localUpdatePromptsContinue();
 }
-function buildPromptRow(text, checked, onToggle, onRemove) {
-  var row = document.createElement("div");
-  row.className = "prompt-row";
-  var box = document.createElement("input");
-  box.type = "checkbox";
-  box.checked = checked;
-  box.disabled = !onToggle;
-  if (onToggle) box.addEventListener("change", onToggle);
-  row.appendChild(box);
-  var txt = document.createElement("div");
-  txt.className = "txt";
-  txt.textContent = text;
-  row.appendChild(txt);
-  if (onToggle) {
-    row.addEventListener("click", function (e) { if (e.target !== box) onToggle(); });
-  }
-  if (onRemove) {
-    var x = document.createElement("button");
-    x.type = "button";
-    x.className = "remove-x";
-    x.textContent = "✕";
-    x.addEventListener("click", function (e) { e.stopPropagation(); onRemove(); });
-    row.appendChild(x);
-  }
-  return row;
+function localSelectedPromptCount() {
+  var fixedCount = FIXED_PROMPTS.filter(function (_, i) { return local.fixedSelected[i]; }).length;
+  return fixedCount + local.customPrompts.length;
 }
-function selectedPromptCount() {
-  var fixedCount = FIXED_PROMPTS.filter(function (_, i) { return state.fixedSelected[i]; }).length;
-  return fixedCount + state.customPrompts.length;
+function localUpdatePromptsContinue() {
+  var count = localSelectedPromptCount();
+  $("local-btn-prompts-continue").disabled = count < MIN_PROMPTS;
+  $("local-estimate").textContent = count
+    ? ("About " + (local.players.length * count) + " rounds with " + local.players.length + " players and " + count + " prompt" + (count === 1 ? "" : "s") + ".")
+    : "";
 }
-function updatePromptsContinueState() {
-  $("btn-prompts-continue").disabled = selectedPromptCount() < 3;
-}
-$("chk-allow-custom").addEventListener("change", function () {
-  $("custom-prompt-area").style.display = this.checked ? "block" : "none";
+$("local-chk-allow-custom").addEventListener("change", function () {
+  $("local-custom-prompt-area").style.display = this.checked ? "block" : "none";
 });
-$("btn-add-custom-prompt").addEventListener("click", function () {
-  var v = $("custom-prompt-input").value.trim();
+$("local-btn-add-custom-prompt").addEventListener("click", function () {
+  var v = $("local-custom-prompt-input").value.trim();
   if (!v) return;
-  state.customPrompts.push(v);
-  $("custom-prompt-input").value = "";
-  renderPromptList();
+  local.customPrompts.push(v);
+  $("local-custom-prompt-input").value = "";
+  localRenderPromptList();
 });
-$("custom-prompt-input").addEventListener("keydown", function (e) {
-  if (e.key === "Enter") { e.preventDefault(); $("btn-add-custom-prompt").click(); }
+$("local-custom-prompt-input").addEventListener("keydown", function (e) {
+  if (e.key === "Enter") { e.preventDefault(); $("local-btn-add-custom-prompt").click(); }
 });
-$("btn-prompts-back").addEventListener("click", function () { showScreen("screen-players"); });
-$("btn-prompts-continue").addEventListener("click", function () {
+$("local-btn-prompts-back").addEventListener("click", function () { showScreen("local-screen-players"); });
+$("local-btn-prompts-continue").addEventListener("click", function () {
   var prompts = [];
-  FIXED_PROMPTS.forEach(function (text, i) { if (state.fixedSelected[i]) prompts.push(text); });
-  prompts = prompts.concat(state.customPrompts);
-  state.prompts = prompts;
-  state.answers = {};
-  state.scores = {};
-  state.players.forEach(function (name) { state.scores[name] = 0; });
-  state.revealIndex = 0;
-  state.promptIndex = 0;
-  goToPass();
+  FIXED_PROMPTS.forEach(function (text, i) { if (local.fixedSelected[i]) prompts.push(text); });
+  local.prompts = prompts.concat(local.customPrompts);
+  local.answers = {};
+  local.scores = {};
+  local.players.forEach(function (name) { local.scores[name] = 0; });
+  local.revealIndex = 0;
+  local.promptIndex = 0;
+  localGoToPass();
 });
 
-// --- Private answer collection (pass-the-device loop) ---
-function goToPass() {
-  if (state.revealIndex >= state.players.length) {
-    startRounds();
+function localGoToPass() {
+  if (local.revealIndex >= local.players.length) {
+    localStartRounds();
     return;
   }
-  state.promptIndex = 0;
-  var name = state.players[state.revealIndex];
-  $("pass-name").textContent = name;
-  $("pass-name-2").textContent = name;
-  showScreen("screen-pass");
+  local.promptIndex = 0;
+  var name = local.players[local.revealIndex];
+  $("local-pass-name").textContent = name;
+  $("local-pass-name-2").textContent = name;
+  showScreen("local-screen-pass");
 }
-$("btn-ready").addEventListener("click", function () {
-  renderAnswerScreen();
-  showScreen("screen-answer");
+$("local-btn-ready").addEventListener("click", function () {
+  localRenderAnswerScreen();
+  showScreen("local-screen-answer");
 });
-function renderAnswerScreen() {
-  $("answer-progress").textContent = state.players[state.revealIndex] + " — prompt " + (state.promptIndex + 1) + " of " + state.prompts.length;
-  $("answer-prompt-text").textContent = state.prompts[state.promptIndex];
-  $("answer-input").value = "";
-  $("btn-answer-next").disabled = true;
+function localRenderAnswerScreen() {
+  $("local-answer-progress").textContent = local.players[local.revealIndex] + " — prompt " + (local.promptIndex + 1) + " of " + local.prompts.length;
+  $("local-answer-prompt-text").textContent = local.prompts[local.promptIndex];
+  $("local-answer-input").value = "";
+  $("local-btn-answer-next").disabled = true;
 }
-$("answer-input").addEventListener("input", function () {
-  $("btn-answer-next").disabled = this.value.trim().length === 0;
+$("local-answer-input").addEventListener("input", function () {
+  $("local-btn-answer-next").disabled = this.value.trim().length === 0;
 });
-function advanceAnswerPrompt() {
-  state.promptIndex++;
-  if (state.promptIndex >= state.prompts.length) {
-    state.revealIndex++;
-    goToPass();
+function localAdvanceAnswerPrompt() {
+  local.promptIndex++;
+  if (local.promptIndex >= local.prompts.length) {
+    local.revealIndex++;
+    localGoToPass();
   } else {
-    renderAnswerScreen();
+    localRenderAnswerScreen();
   }
 }
-$("btn-answer-next").addEventListener("click", function () {
-  var val = $("answer-input").value.trim();
+$("local-btn-answer-next").addEventListener("click", function () {
+  var val = $("local-answer-input").value.trim();
   if (!val) return;
-  if (!state.answers[state.revealIndex]) state.answers[state.revealIndex] = {};
-  state.answers[state.revealIndex][state.promptIndex] = val;
-  advanceAnswerPrompt();
+  if (!local.answers[local.revealIndex]) local.answers[local.revealIndex] = {};
+  local.answers[local.revealIndex][local.promptIndex] = val;
+  localAdvanceAnswerPrompt();
 });
-$("btn-answer-skip").addEventListener("click", function () {
-  advanceAnswerPrompt();
-});
+$("local-btn-answer-skip").addEventListener("click", localAdvanceAnswerPrompt);
 
-// --- Rounds ---
-function startRounds() {
+function localStartRounds() {
   var queue = [];
-  state.players.forEach(function (_, playerIdx) {
-    var answered = state.answers[playerIdx] || {};
+  local.players.forEach(function (_, playerIdx) {
+    var answered = local.answers[playerIdx] || {};
     Object.keys(answered).forEach(function (promptIdxStr) {
       queue.push({ playerIdx: playerIdx, promptIdx: parseInt(promptIdxStr, 10) });
     });
   });
-  state.queue = shuffle(queue);
-  state.queueIndex = 0;
-  goToRound();
+  local.queue = shuffle(queue);
+  local.queueIndex = 0;
+  localGoToRound();
 }
-function goToRound() {
-  if (state.queueIndex >= state.queue.length) {
-    showResults();
+function localGoToRound() {
+  if (local.queueIndex >= local.queue.length) {
+    localShowResults();
     return;
   }
-  var item = state.queue[state.queueIndex];
-  $("round-progress").textContent = "Round " + (state.queueIndex + 1) + " of " + state.queue.length;
-  $("round-prompt-text").textContent = state.prompts[item.promptIdx];
-  $("round-answer-text").textContent = "“" + state.answers[item.playerIdx][item.promptIdx] + "”";
-  showScreen("screen-round");
+  var item = local.queue[local.queueIndex];
+  $("local-round-progress").textContent = "Round " + (local.queueIndex + 1) + " of " + local.queue.length;
+  $("local-round-prompt-text").textContent = local.prompts[item.promptIdx];
+  $("local-round-answer-text").textContent = "“" + local.answers[item.playerIdx][item.promptIdx] + "”";
+  showScreen("local-screen-round");
 }
-$("btn-round-reveal").addEventListener("click", function () {
-  var item = state.queue[state.queueIndex];
-  $("reveal-name").textContent = state.players[item.playerIdx];
-  state.guessSelected = {};
-  renderGuessChips(item.playerIdx);
-  showScreen("screen-round-reveal");
+$("local-btn-round-reveal").addEventListener("click", function () {
+  var item = local.queue[local.queueIndex];
+  $("local-reveal-name").textContent = local.players[item.playerIdx];
+  local.guessSelected = {};
+  localRenderGuessChips(item.playerIdx);
+  showScreen("local-screen-round-reveal");
 });
-function renderGuessChips(answererIdx) {
-  var wrap = $("guess-chip-group");
+function localRenderGuessChips(answererIdx) {
+  var wrap = $("local-guess-chip-group");
   wrap.innerHTML = "";
-  state.players.forEach(function (name, idx) {
+  local.players.forEach(function (name, idx) {
     if (idx === answererIdx) return;
     var chip = document.createElement("div");
     chip.className = "chip";
     chip.textContent = name;
     chip.addEventListener("click", function () {
-      state.guessSelected[idx] = !state.guessSelected[idx];
-      chip.classList.toggle("selected", !!state.guessSelected[idx]);
+      local.guessSelected[idx] = !local.guessSelected[idx];
+      chip.classList.toggle("selected", !!local.guessSelected[idx]);
     });
     wrap.appendChild(chip);
   });
 }
-$("btn-round-next").addEventListener("click", function () {
-  var item = state.queue[state.queueIndex];
-  var answererName = state.players[item.playerIdx];
+$("local-btn-round-next").addEventListener("click", function () {
+  var item = local.queue[local.queueIndex];
+  var answererName = local.players[item.playerIdx];
   var correctCount = 0;
-  Object.keys(state.guessSelected).forEach(function (idxStr) {
-    if (state.guessSelected[idxStr]) {
-      var idx = parseInt(idxStr, 10);
-      state.scores[state.players[idx]] += 1;
+  Object.keys(local.guessSelected).forEach(function (idxStr) {
+    if (local.guessSelected[idxStr]) {
+      local.scores[local.players[parseInt(idxStr, 10)]] += 1;
       correctCount++;
     }
   });
-  if (correctCount === 0) {
-    state.scores[answererName] += 1;
-  }
-  state.queueIndex++;
-  goToRound();
+  if (correctCount === 0) local.scores[answererName] += 1;
+  local.queueIndex++;
+  localGoToRound();
 });
 
-// --- Results ---
-function renderScoreboardInto(el, scores) {
-  el.innerHTML = "";
-  var entries = Object.keys(scores).map(function (name) { return { name: name, score: scores[name] }; });
-  entries.sort(function (a, b) { return b.score - a.score; });
-  var top = entries.length ? entries[0].score : 0;
-  entries.forEach(function (e) {
-    var row = document.createElement("div");
-    row.className = "score-row" + (e.score === top ? " winner" : "");
-    var nameSpan = document.createElement("span");
-    nameSpan.textContent = e.name;
-    var scoreSpan = document.createElement("span");
-    scoreSpan.textContent = String(e.score);
-    row.appendChild(nameSpan);
-    row.appendChild(scoreSpan);
-    el.appendChild(row);
-  });
+function localShowResults() {
+  $("local-results-banner").textContent = winnerLine(local.scores);
+  renderScoreboardInto($("local-results-scoreboard"), local.scores);
+  showScreen("local-screen-results");
 }
-function showResults() {
-  var names = Object.keys(state.scores);
-  var top = Math.max.apply(null, names.map(function (n) { return state.scores[n]; }));
-  var winners = names.filter(function (n) { return state.scores[n] === top; });
-  $("results-banner").textContent = winners.length > 1
-    ? ("It's a tie! " + winners.join(" & ") + " win with " + top + " point" + (top === 1 ? "" : "s"))
-    : ("🏆 " + winners[0] + " wins with " + top + " point" + (top === 1 ? "" : "s") + "!");
-  renderScoreboardInto($("results-scoreboard"), state.scores);
-  showScreen("screen-results");
-}
-$("btn-play-again").addEventListener("click", function () {
-  state.answers = {};
-  state.scores = {};
-  state.players.forEach(function (name) { state.scores[name] = 0; });
-  state.revealIndex = 0;
-  state.promptIndex = 0;
-  goToPass();
+$("local-btn-play-again").addEventListener("click", function () {
+  local.answers = {};
+  local.scores = {};
+  local.players.forEach(function (name) { local.scores[name] = 0; });
+  local.revealIndex = 0;
+  local.promptIndex = 0;
+  localGoToPass();
 });
-$("btn-new-game").addEventListener("click", function () {
+$("local-btn-new-game").addEventListener("click", function () {
   if (!confirm("Start a brand new game? This clears players and prompts.")) return;
   location.reload();
 });
