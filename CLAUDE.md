@@ -57,6 +57,10 @@ These apps are used mostly as "Add to Home Screen" pseudo-apps on phones, so app
 - When a user reports data loss or "this used to work," verify what actually changed (git history, live `curl`, Firestore REST reads) before concluding what happened — and before reassuring anyone nothing was lost.
 - **A session's machine gets shut down after a long idle stretch, and it kills anything still running.** Observed in one session: a 45-minute quiet gap survived fine, but a 1h46m gap ended in "The container was restarted... background tasks are now stopped" — which silently killed a `until curl ...; do sleep 10; done` deploy watcher, so a promised deploy confirmation never arrived. Don't leave a long-running watcher as the thing that reports back to the user; finish the check within the turn, or set up a scheduled workflow that doesn't depend on the session staying alive.
 
+## Confirming edits to this file
+
+Whenever CLAUDE.md itself is changed — especially when the user asked for the change — **say so explicitly in the reply**: name the section added or edited and quote the gist of the new wording back. The user can't see the file from their side and has been left unsure whether an update actually landed. A silent edit doesn't count as done.
+
 ## Delivering a finished app (do this every time, without being asked)
 
 Whenever an app is created — or an existing one is given a new icon — finish the job like this:
