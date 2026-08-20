@@ -639,6 +639,17 @@ var DEFAULT_WRITE_SECONDS = 60;
 var GUESS_SECONDS = 30;
 var countdowns = {};
 
+// Every screen that shows a result locks its forward button briefly, so
+// whoever is holding the phone can't skip past before the table has read it.
+var REVEAL_MIN_WAIT_MS = 3000;
+var revealWaitHandles = {};
+function armRevealWait(key, btn) {
+  if (!btn) return;
+  btn.disabled = true;
+  clearTimeout(revealWaitHandles[key]);
+  revealWaitHandles[key] = setTimeout(function () { btn.disabled = false; }, REVEAL_MIN_WAIT_MS);
+}
+
 function stopCountdown(key) {
   if (countdowns[key]) { clearInterval(countdowns[key].handle); delete countdowns[key]; }
 }
@@ -721,7 +732,7 @@ var mp = {
   guessSelected: null,
   guessRenderedRound: null,
   revealMinWaitKey: null,
-  revealMinWaitHandle: null,
+  gameOverWaitArmed: false,
   // Snapshots can arrive back-to-back, so remember which auto-advance the host
   // has already fired and never fire the same one twice.
   autoAdvanceKey: null
@@ -949,6 +960,7 @@ function mpSelectedPromptTexts() {
 // ---------- Lobby ----------
 function renderLobby() {
   var room = mp.room;
+  mp.gameOverWaitArmed = false;   // so a second game re-arms its own lockout
   $("lobby-code").textContent = mp.roomCode;
 
   var list = $("lobby-players");
@@ -1368,10 +1380,7 @@ function renderMpReveal() {
     var revealKey = (room.round && room.round.startedAt) + ":" + (room.queueIndex || 0);
     if (mp.revealMinWaitKey !== revealKey) {
       mp.revealMinWaitKey = revealKey;
-      var nextBtn = $("btn-mp-next-round");
-      nextBtn.disabled = true;
-      clearTimeout(mp.revealMinWaitHandle);
-      mp.revealMinWaitHandle = setTimeout(function () { nextBtn.disabled = false; }, 3000);
+      armRevealWait("mpReveal", $("btn-mp-next-round"));
     }
   } else {
     hostNav.style.display = "none";
@@ -1416,6 +1425,10 @@ function renderMpGameOver() {
   if (mp.isHost) {
     hostNav.style.display = "flex";
     waiting.style.display = "none";
+    if (!mp.gameOverWaitArmed) {
+      mp.gameOverWaitArmed = true;
+      armRevealWait("mpGameOver", $("btn-mp-play-again"));
+    }
   } else {
     hostNav.style.display = "none";
     waiting.style.display = "";
@@ -1424,7 +1437,7 @@ function renderMpGameOver() {
 }
 
 $("btn-mp-play-again").addEventListener("click", function () {
-  if (!mp.isHost) return;
+  if (!mp.isHost || this.disabled) return;
   var scores = {};
   mpPlayerUids().forEach(function (uid) { scores[uid] = 0; });
   update(roomRef(mp.roomCode), {
@@ -1727,6 +1740,7 @@ $("local-btn-round-reveal").addEventListener("click", function () {
   $("local-reveal-name").textContent = local.players[item.playerIdx];
   local.guessSelected = {};
   localRenderGuessChips(item.playerIdx);
+  armRevealWait("localReveal", $("local-btn-round-next"));
   showScreen("local-screen-round-reveal");
 });
 function localRenderGuessChips(answererIdx) {
@@ -1745,6 +1759,7 @@ function localRenderGuessChips(answererIdx) {
   });
 }
 $("local-btn-round-next").addEventListener("click", function () {
+  if (this.disabled) return;          // still inside the read-the-reveal lockout
   var item = local.queue[local.queueIndex];
   var answererName = local.players[item.playerIdx];
   var correctCount = 0;
@@ -1761,6 +1776,7 @@ $("local-btn-round-next").addEventListener("click", function () {
 
 function localShowResults() {
   localSaveCheckpoint("local-screen-results");
+  armRevealWait("localResults", $("local-btn-play-again"));
   $("local-results-banner").textContent = winnerLine(local.scores);
   renderScoreboardInto($("local-results-scoreboard"), local.scores);
   showScreen("local-screen-results");
@@ -1812,6 +1828,7 @@ document.addEventListener("keydown", function (e) {
 });
 
 $("local-btn-play-again").addEventListener("click", function () {
+  if (this.disabled) return;
   local.answers = {};
   local.scores = {};
   local.players.forEach(function (name) { local.scores[name] = 0; });
