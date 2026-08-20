@@ -197,6 +197,46 @@
   }
   .rules-modal-close { width: 100%; margin-top: 6px; }
 
+  /* Reactions: anyone can tap one at any time. They add to the moment without
+     changing anything, so they never need to be host-only. */
+  #reaction-bar {
+    position: fixed; left: 50%; bottom: 18px; z-index: 41;
+    transform: translateX(-50%) translateY(10px);
+    display: flex; gap: 6px; padding: 6px;
+    background: rgba(30,26,46,0.92); border: 1px solid var(--border); border-radius: 999px;
+    box-shadow: 0 6px 20px rgba(0,0,0,0.45);
+    opacity: 0; visibility: hidden; pointer-events: none;
+    transition: opacity 0.2s ease, transform 0.28s cubic-bezier(.2,.9,.3,1.1);
+  }
+  #reaction-bar.show { opacity: 1; visibility: visible; pointer-events: auto; transform: translateX(-50%) translateY(0); }
+  .reaction-btn {
+    width: 44px; height: 44px; border-radius: 50%;
+    background: var(--panel-2); border: 1px solid var(--border);
+    font-size: 1.35rem; line-height: 1; cursor: pointer; padding: 0;
+    touch-action: manipulation; transition: transform 0.15s cubic-bezier(.2,.9,.3,1.1);
+  }
+  .reaction-btn:active { transform: scale(0.86); }
+  #reaction-layer { position: fixed; inset: 0; pointer-events: none; z-index: 42; overflow: hidden; }
+  .reaction-float {
+    position: absolute; font-size: 2rem; will-change: transform, opacity;
+    animation: reaction-rise 1.8s cubic-bezier(.2,.7,.3,1) forwards;
+  }
+  .reaction-float .who {
+    display: block; font-size: 0.6rem; color: var(--text-dim);
+    text-align: center; margin-top: -4px;
+  }
+  @keyframes reaction-rise {
+    0%   { transform: translateY(0) scale(0.6); opacity: 0; }
+    15%  { transform: translateY(-18px) scale(1.15); opacity: 1; }
+    100% { transform: translateY(-190px) scale(0.9); opacity: 0; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .reaction-float { animation-duration: 0.9s; }
+  }
+  /* Ready: everyone says when they've finished looking, and the round moves on
+     by itself once nobody is still reading. */
+  .ready-line { text-align: center; color: var(--text-dim); font-size: 0.85rem; padding: 4px 0; }
+  .ready-line strong { color: var(--accent); }
   #home-toggle {
     position: fixed; left: 16px; bottom: 16px; z-index: 40;
     width: 52px; height: 52px; border-radius: 50%;
@@ -291,6 +331,8 @@
     </div>
   </div>
 
+  <div id="reaction-layer"></div>
+  <div id="reaction-bar"></div>
   <button id="home-toggle" type="button" aria-label="Back to start screen">🏠</button>
   <button id="chat-toggle" type="button" aria-label="Room chat">💬<span id="chat-badge"></span></button>
   <div id="chat-panel">
@@ -452,10 +494,12 @@
       <label>Guesses</label>
       <div id="mp-reveal-list"></div>
     </div>
+    <button class="primary" id="btn-mp-ready" type="button">I'm ready</button>
+    <div class="ready-line" id="mp-ready-line"></div>
     <div class="footer-nav" id="mp-reveal-host-nav" style="display:none">
-      <button class="primary" id="btn-mp-next-round" type="button">Next Round</button>
+      <button class="secondary" id="btn-mp-next-round" type="button">Skip ahead</button>
     </div>
-    <div class="waiting-text" id="mp-reveal-waiting" style="display:none">Waiting for host…</div>
+    <div class="waiting-text" id="mp-reveal-waiting" style="display:none">Waiting for the others…</div>
   </div>
 
   <!-- MP GAME OVER -->
@@ -615,7 +659,7 @@
 import { firebaseConfig } from "./firebase-config.js";
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-import { getDatabase, ref, set, get, update, onValue, push } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
+import { getDatabase, ref, set, get, update, onValue, onChildAdded, push, remove } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
 
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
@@ -849,6 +893,7 @@ function showScreen(id) {
   var homeBtn = $("home-toggle");
   var hideHomeOn = { "screen-home": true, "screen-join-code": true, "local-screen-players": true, "local-screen-prompts": true };
   if (homeBtn) homeBtn.style.display = hideHomeOn[id] ? "none" : "flex";
+  if (typeof updateReactionBar === "function") updateReactionBar(id);
 }
 function shuffle(arr) {
   for (var i = arr.length - 1; i > 0; i--) {
@@ -1103,6 +1148,7 @@ function subscribeRoom(code) {
     render();
   });
   subscribeChat(code);
+  subscribeReactions(code);
   $("chat-toggle").style.display = "flex";
 }
 
@@ -1160,6 +1206,95 @@ $("chat-send").addEventListener("click", sendChatMessage);
 $("chat-input").addEventListener("keydown", function (e) {
   if (e.key === "Enter") { e.preventDefault(); sendChatMessage(); }
 });
+
+// ---------- Reactions ----------
+// Available to everyone, on every screen where the whole room is looking at the
+// same thing. They change nothing about the game, so there's no reason to
+// gate them behind the host.
+var REACTION_EMOJI = ["😂", "👏", "😮", "🤔", "🎉"];
+var REACTION_SCREENS = {
+  "screen-lobby": true,
+  "screen-mp-round": true,
+  "screen-mp-reveal": true,
+  "screen-mp-game-over": true
+};
+var REACTION_LIFETIME_MS = 5000;   // how long one lives in the database
+var REACTION_STALE_MS = 10000;     // older than this and we don't animate it
+var REACTION_THROTTLE_MS = 600;
+var REACTION_MAX_ON_SCREEN = 24;
+var lastReactionAt = 0;
+
+(function buildReactionBar() {
+  var bar = $("reaction-bar");
+  REACTION_EMOJI.forEach(function (emoji) {
+    var btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "reaction-btn";
+    btn.textContent = emoji;
+    btn.setAttribute("aria-label", "React " + emoji);
+    btn.addEventListener("click", function () { sendReaction(emoji); });
+    bar.appendChild(btn);
+  });
+})();
+
+function updateReactionBar(screenId) {
+  $("reaction-bar").classList.toggle("show", !!(mp.roomCode && REACTION_SCREENS[screenId]));
+}
+
+function sendReaction(emoji) {
+  if (!mp.roomCode) return;
+  var now = Date.now();
+  if (now - lastReactionAt < REACTION_THROTTLE_MS) return;   // no spamming
+  lastReactionAt = now;
+  var reactionsRef = ref(db, "rooms/" + mp.roomCode + "/reactions");
+  push(reactionsRef, { emoji: emoji, uid: mp.uid, name: mp.name, ts: now })
+    .then(function (entry) {
+      // Tidy up after itself so an evening's reactions don't pile up.
+      setTimeout(function () {
+        remove(ref(db, "rooms/" + mp.roomCode + "/reactions/" + entry.key)).catch(function () {});
+      }, REACTION_LIFETIME_MS);
+    })
+    .catch(function () {});
+}
+
+function subscribeReactions(code) {
+  var reactionsRef = ref(db, "rooms/" + code + "/reactions");
+  // Note what's already there before listening, so joining the room doesn't
+  // replay a backlog of reactions at you. Done by key rather than by clock so
+  // it doesn't depend on everyone's phone agreeing on the time.
+  get(reactionsRef).then(function (snap) {
+    var alreadyThere = {};
+    Object.keys(snap.val() || {}).forEach(function (key) { alreadyThere[key] = true; });
+    onChildAdded(reactionsRef, function (child) {
+      if (alreadyThere[child.key]) return;
+      var r = child.val();
+      if (!r || !r.emoji) return;
+      // Belt and braces for a reaction left behind by a device that dropped out.
+      if (!r.ts || Date.now() - r.ts > REACTION_STALE_MS) return;
+      floatReaction(r.emoji, r.uid === mp.uid ? "You" : r.name);
+    });
+  }).catch(function () {});
+}
+
+function floatReaction(emoji, who) {
+  var layer = $("reaction-layer");
+  if (layer.childElementCount >= REACTION_MAX_ON_SCREEN) return;
+  var el = document.createElement("div");
+  el.className = "reaction-float";
+  el.textContent = emoji;
+  if (who) {
+    var tag = document.createElement("span");
+    tag.className = "who";
+    tag.textContent = who;
+    el.appendChild(tag);
+  }
+  // Spread them across the lower middle of the screen so they don't stack up.
+  var spread = Math.min(window.innerWidth - 80, 300);
+  el.style.left = (window.innerWidth / 2 - spread / 2 + Math.random() * spread) + "px";
+  el.style.bottom = (70 + Math.random() * 30) + "px";
+  layer.appendChild(el);
+  el.addEventListener("animationend", function () { el.remove(); });
+}
 
 function render() {
   var room = mp.room;
@@ -1659,28 +1794,50 @@ function renderMpReveal() {
     wrap.appendChild(row);
   });
 
+  // Everyone says when they've finished reading. The round moves on by itself
+  // once nobody is still looking, so the host isn't left nagging people.
+  var ready = (room.round && room.round.ready) || {};
+  var uids = mpPlayerUids();
+  var readyCount = uids.filter(function (uid) { return ready[uid]; }).length;
+  var iAmReady = !!ready[mp.uid];
+
+  var readyBtn = $("btn-mp-ready");
+  readyBtn.style.display = iAmReady ? "none" : "";
+  $("mp-ready-line").innerHTML = "<strong>" + readyCount + "</strong> of " + uids.length + " ready";
+
   var hostNav = $("mp-reveal-host-nav");
   var waiting = $("mp-reveal-waiting");
-  if (mp.isHost) {
-    hostNav.style.display = "flex";
-    waiting.style.display = "none";
-    // Brief lockout so the table actually gets to read the reveal.
-    var revealKey = (room.round && room.round.startedAt) + ":" + (room.queueIndex || 0);
-    if (mp.revealMinWaitKey !== revealKey) {
-      mp.revealMinWaitKey = revealKey;
-      armRevealWait("mpReveal", $("btn-mp-next-round"));
-    }
-  } else {
-    hostNav.style.display = "none";
-    waiting.style.display = "";
+  hostNav.style.display = mp.isHost ? "flex" : "none";
+  waiting.style.display = (iAmReady && !mp.isHost) ? "" : "none";
+
+  // Brief lockout so the table actually gets to read the reveal.
+  var revealKey = (room.round && room.round.startedAt) + ":" + (room.queueIndex || 0);
+  if (mp.revealMinWaitKey !== revealKey) {
+    mp.revealMinWaitKey = revealKey;
+    armRevealWait("mpReveal", $("btn-mp-next-round"));
+    armRevealWait("mpReady", readyBtn);
   }
+
   showScreen("screen-mp-reveal");
+
+  if (mp.isHost && uids.length > 0 && readyCount >= uids.length) {
+    hostAutoAdvance("ready:" + (room.queueIndex || 0), advanceMpRound);
+  }
 }
 
-$("btn-mp-next-round").addEventListener("click", function () {
-  if (!mp.isHost || this.disabled) return;
+$("btn-mp-ready").addEventListener("click", function () {
+  if (this.disabled || !mp.roomCode) return;
+  update(ref(db, "rooms/" + mp.roomCode + "/round/ready"),
+    (function () { var o = {}; o[mp.uid] = true; return o; })());
+});
+
+// Applies this round's scores and moves on. Called either because everyone
+// tapped Ready, or because the host skipped ahead.
+function advanceMpRound() {
   var room = mp.room;
+  if (!room || room.phase !== "reveal") return;
   var out = roundOutcome(room);
+  if (!out.item) return;
   var scores = Object.assign({}, room.scores || {});
   if (out.stumped) {
     scores[out.item.uid] = (scores[out.item.uid] || 0) + 1;
@@ -1696,6 +1853,11 @@ $("btn-mp-next-round").addEventListener("click", function () {
       phase: "round", scores: scores, queueIndex: nextIndex, round: { guesses: {}, startedAt: Date.now() }
     });
   }
+}
+
+$("btn-mp-next-round").addEventListener("click", function () {
+  if (!mp.isHost || this.disabled) return;
+  advanceMpRound();
 });
 
 // ---------- Game over ----------
