@@ -105,6 +105,22 @@
   .prompt-row input[type="checkbox"] { width: 18px; height: 18px; flex-shrink: 0; accent-color: var(--accent); }
   .prompt-row .txt { flex: 1; font-size: 0.9rem; }
   .prompt-row .byline { font-size: 0.7rem; color: var(--text-dim); }
+  .count-row { display: flex; align-items: stretch; gap: 8px; }
+  input.count-field {
+    flex: 1; font-size: 2rem; font-weight: 800; text-align: center; padding: 16px; color: var(--accent);
+    background: var(--panel-2); border: 1px solid var(--border); border-radius: 10px;
+    -moz-appearance: textfield;
+  }
+  input.count-field::-webkit-outer-spin-button,
+  input.count-field::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+  .stepper-btn {
+    flex: none; width: 56px; background: var(--panel-2); border: 1px solid var(--border);
+    color: var(--accent); font-size: 1.8rem; font-weight: 700; border-radius: 10px; cursor: pointer;
+    line-height: 1; touch-action: manipulation; transition: transform 0.15s cubic-bezier(.2,.9,.3,1.1);
+  }
+  .stepper-btn:active { transform: scale(0.94); }
+  .stepper-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+  .hint.warn { color: var(--accent-2); }
   .prompt-row .remove-x {
     background: none; border: none; color: var(--text-dim); font-size: 1rem; cursor: pointer;
     flex-shrink: 0; padding: 4px; touch-action: manipulation;
@@ -331,9 +347,19 @@
       <label>Players</label>
       <div class="player-chip-list" id="lobby-players"></div>
     </div>
+    <div class="card" id="lobby-count-card">
+      <label>How many prompts each</label>
+      <div class="count-row">
+        <button class="stepper-btn" id="lobby-btn-count-down" type="button" aria-label="Fewer prompts">&minus;</button>
+        <input type="number" id="lobby-prompt-count" class="count-field" min="3" max="8" value="5" readonly>
+        <button class="stepper-btn" id="lobby-btn-count-up" type="button" aria-label="More prompts">+</button>
+      </div>
+      <small class="hint">This sets how long the game runs.</small>
+    </div>
     <div class="card">
       <label>Prompts</label>
       <div class="prompt-list" id="lobby-prompt-list"></div>
+      <button class="secondary" id="btn-lobby-shuffle" type="button" style="margin-top:10px">🔀 Shuffle all</button>
       <small class="hint" id="lobby-prompt-hint"></small>
     </div>
     <div class="card" id="lobby-custom-card">
@@ -472,9 +498,19 @@
   <!-- LOCAL: prompts -->
   <div class="screen" id="local-screen-prompts">
     <div class="card">
-      <label>Prompts</label>
+      <label>How many prompts each</label>
+      <div class="count-row">
+        <button class="stepper-btn" id="local-btn-count-down" type="button" aria-label="Fewer prompts">&minus;</button>
+        <input type="number" id="local-prompt-count" class="count-field" min="3" max="8" value="5" readonly>
+        <button class="stepper-btn" id="local-btn-count-up" type="button" aria-label="More prompts">+</button>
+      </div>
+      <small class="hint">This sets how long the game runs.</small>
+    </div>
+    <div class="card">
+      <label>Your prompts</label>
       <div class="prompt-list" id="local-prompt-list"></div>
-      <small class="hint">Tap to include or exclude. Pick at least 3.</small>
+      <button class="secondary" id="local-btn-shuffle" type="button" style="margin-top:10px">🔀 Shuffle all</button>
+      <small class="hint">Tap ↻ on any single prompt to swap just that one.</small>
     </div>
     <div class="card">
       <div class="row" style="justify-content:space-between;">
@@ -579,27 +615,174 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getDatabase(app);
 
-const FIXED_PROMPTS = [
-  "My most embarrassing moment is...",
+// Kid-safe by design: every prompt here should be something a 7-year-old and a
+// grandparent can both answer at the same table. Nothing about romance,
+// alcohol, appearance, money worries, or anything that invites picking on a
+// person. If you add to this list, keep to that bar.
+const PROMPT_BANK = [
+  // --- Favourites and preferences ---
   "The food I secretly can't stand is...",
-  "As a kid, I wanted to grow up to be a...",
-  "The worst fashion phase I ever had was...",
+  "The best thing I've ever eaten is...",
   "The weirdest thing I've ever eaten is...",
+  "My perfect breakfast would be...",
+  "A food everyone likes but I really don't get is...",
+  "The sandwich I'd invent and name after myself is...",
+  "My favourite sound in the whole world is...",
+  "The song I'd happily listen to a hundred times is...",
+  "My go-to karaoke song is...",
+  "The film or show I could watch again right now is...",
+  "The best board game or video game ever made is...",
+  "My favourite word to say out loud is...",
+  "The best smell in the world is...",
+  "My favourite season is, and here's why...",
+  "The best day of the week is, because...",
+  "My favourite thing to do on a rainy day is...",
+  "The best ice cream flavour, no arguments, is...",
+  "My favourite thing in my room is...",
+  "The best biscuit for dunking is...",
+  "My comfort meal when I've had a rough day is...",
+
+  // --- Silly hypotheticals ---
   "If I could have any superpower, it'd be...",
-  "My biggest fear (that isn't spiders) is...",
-  "The most trouble I ever got in was...",
-  "My guilty-pleasure show or song is...",
-  "The worst gift I ever gave someone was...",
-  "The most lost I've ever been was...",
-  "My most-used emoji is...",
-  "A harmless white lie I've told recently is...",
+  "If I could talk to one type of animal, I'd pick...",
+  "If I had a robot to do one chore forever, it'd do...",
+  "If I could be really, really good at one thing overnight, it'd be...",
+  "If I could swap lives with someone for a day, it'd be...",
+  "If I found a bag with a thousand pounds in it, the first silly thing I'd buy is...",
+  "If I could make one rule everyone had to follow, it'd be...",
+  "If I had a pet dragon, I'd name it...",
+  "If I could eat only one meal forever, it'd be...",
+  "If I could freeze time, the first thing I'd do is...",
+  "If I could live anywhere in the world, I'd pick...",
+  "If I could invent one new holiday, it'd be...",
+  "If I could be any age forever, I'd choose...",
+  "If our house had a secret room, I'd want it to be...",
+  "If I could bring back one thing from when I was little, it'd be...",
+  "If I had my own island, the first thing I'd build is...",
+  "If I could time travel once, I'd go to...",
+  "If I had to be a kitchen appliance, I'd be...",
+  "If I could swap places with any animal for a day, I'd be...",
+  "If someone made a film about my life, the title would be...",
+  "If I could only wear one outfit for a year, it'd be...",
+  "If I could magically be brilliant at one sport, it'd be...",
+  "If I ran the school for a day, the first thing I'd change is...",
+  "If I could have dinner with anyone, living or from history, I'd pick...",
+  "If I opened a shop, it would sell...",
+
+  // --- Quirks and habits ---
   "My weirdest habit is...",
-  "Something I'm secretly proud of that nobody knows about is...",
-  "If I won the lottery tomorrow, the first silly thing I'd buy is...",
+  "Something I do that probably annoys everyone is...",
+  "The strangest thing I'm scared of is...",
+  "A totally useless talent I have is...",
+  "Something I'm surprisingly good at is...",
+  "The thing I always forget to do is...",
+  "My most-used emoji is...",
+  "The first thing I do when I wake up is...",
+  "The last thing I do before bed is...",
+  "A word I always spell wrong is...",
+  "Something I always say without noticing is...",
+  "The thing I could talk about for an hour straight is...",
+  "My most unusual snack combination is...",
+  "The chore I'll do anything to avoid is...",
+  "The chore I secretly don't mind is...",
+  "Something small that makes me ridiculously happy is...",
+  "Something small that instantly annoys me is...",
+  "A thing I'm weirdly fussy about is...",
+  "The way I organise my things is best described as...",
+  "My hidden superpower around the house is...",
+
+  // --- Memories and stories ---
+  "The most trouble I ever got in was...",
+  "The most lost I've ever been was...",
+  "The strangest dream I remember having is...",
+  "The best birthday I've ever had was...",
+  "My earliest memory is...",
+  "The bravest thing I've ever done is...",
+  "The funniest thing I've ever seen was...",
+  "The best holiday I've been on was...",
+  "A time I laughed so hard I couldn't breathe was...",
+  "The best surprise I've ever had was...",
+  "The worst gift I ever gave someone was...",
+  "The best present I've ever been given is...",
+  "A time I was really proud of myself was...",
+  "The scariest ride or thing I've ever done is...",
+  "The nicest thing anyone's ever done for me is...",
   "My nickname growing up was...",
   "I was almost named...",
-  "My go-to karaoke song is...",
-  "The strangest dream I remember having is..."
+  "The best thing that happened to me this year is...",
+  "A time everything went hilariously wrong was...",
+  "The first thing I remember being really into is...",
+
+  // --- School, work and learning ---
+  "The job I'd love to have one day is...",
+  "The job I would be absolutely terrible at is...",
+  "My favourite subject at school is or was...",
+  "The subject I found hardest is or was...",
+  "The best teacher I ever had was, because...",
+  "Something I'd love to learn how to do is...",
+  "A skill I think everyone should learn is...",
+  "The best school trip I ever went on was...",
+  "Something I know a surprising amount about is...",
+  "If I had to teach a class on anything, it'd be...",
+  "The best excuse I've ever used is...",
+  "A rule I think is completely pointless is...",
+
+  // --- Animals and nature ---
+  "The animal I'd most like as a pet is...",
+  "The animal I'd least like to meet is...",
+  "If I were an animal, I'd be a...",
+  "The best animal noise I can do is...",
+  "My favourite thing about being outside is...",
+  "The coolest creature I've seen in real life is...",
+  "A pet I'd love to have but never will is...",
+  "The best name for a pet goldfish is...",
+
+  // --- Family and home ---
+  "The best family tradition we have is...",
+  "A tradition I'd love us to start is...",
+  "The funniest thing someone in this family has said is...",
+  "The best meal in this house is...",
+  "The thing our family argues about most is...",
+  "Something I'd love us all to do together is...",
+  "The best hiding place in our house is...",
+  "The noisiest person in this house is, and here's my evidence...",
+  "The item in our house I'd rescue first is...",
+  "A thing my family does that other families probably don't is...",
+
+  // --- Feelings and favourites, gently ---
+  "Something I'm secretly proud of that nobody knows about is...",
+  "The thing that always cheers me up is...",
+  "Something I find really relaxing is...",
+  "A thing I worry about more than I should is...",
+  "The thing I'm most looking forward to is...",
+  "Something I've changed my mind about is...",
+  "A thing I wish I was braver about is...",
+  "Something that always makes me laugh is...",
+  "The best advice I've ever been given is...",
+  "A compliment I'd love to receive is...",
+  "Something I'm grateful for today is...",
+  "The person I'd call first with good news is...",
+
+  // --- Odds and ends ---
+  "My most embarrassing moment is...",
+  "The best hiding spot I ever found in hide and seek was...",
+  "The worst haircut I ever had was...",
+  "A trend I never understood is...",
+  "The thing I collect or used to collect is...",
+  "My best ever Halloween or dressing-up costume was...",
+  "The most useless fact I know is...",
+  "The strangest thing in my bag or pocket right now is...",
+  "A thing I've never done that everyone else seems to have is...",
+  "The most beautiful place I've ever been is...",
+  "The best thing about being me is...",
+  "Something I'd put in a time capsule is...",
+  "The emoji that best describes my week is...",
+  "The last photo I took was of...",
+  "My dream breakfast in bed would be...",
+  "The best thing I've made with my own hands is...",
+  "A thing I'd happily queue an hour for is...",
+  "The best gift I could give someone is...",
+  "My idea of a perfect day is..."
 ];
 
 var CODE_CHARS = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; // no O/0, I/1
@@ -607,8 +790,48 @@ var CODE_CHARS = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; // no O/0, I/1
 // path, so a 4-letter code could otherwise land on another game's room. Every
 // Spill It room carries game:"spillit" and joining checks it.
 var GAME_ID = "spillit";
-var MIN_PROMPTS = 3;
 var MIN_PLAYERS = 3;
+var DEFAULT_PROMPT_COUNT = 5;
+var MIN_PROMPT_COUNT = 3;
+var MAX_PROMPT_COUNT = 8;
+// Past this many rounds a game starts to drag, so the setup screens say so.
+var LONG_GAME_ROUNDS = 30;
+
+// Prompts are dealt from the bank rather than picked off a long list — the
+// setup screens stay short and every game gets a different handful.
+function dealPromptIndexes(count, avoid) {
+  var taken = avoid || [];
+  var pool = [];
+  for (var i = 0; i < PROMPT_BANK.length; i++) {
+    if (taken.indexOf(i) === -1) pool.push(i);
+  }
+  shuffle(pool);
+  return pool.slice(0, count);
+}
+// Growing the hand keeps the prompts already on screen and only deals the
+// difference, so bumping the count doesn't throw away ones you liked.
+function resizeDealt(dealt, count) {
+  var out = dealt.slice(0, count);
+  if (out.length < count) out = out.concat(dealPromptIndexes(count - out.length, out));
+  return out;
+}
+function swapDealtAt(dealt, pos) {
+  var replacement = dealPromptIndexes(1, dealt);
+  if (!replacement.length) return dealt;
+  var out = dealt.slice();
+  out[pos] = replacement[0];
+  return out;
+}
+function clampCount(n) {
+  if (!(n > 0)) return DEFAULT_PROMPT_COUNT;
+  return Math.max(MIN_PROMPT_COUNT, Math.min(MAX_PROMPT_COUNT, n));
+}
+function roundsEstimateText(players, promptsEach) {
+  if (!players || !promptsEach) return "";
+  var rounds = players * promptsEach;
+  return "About " + rounds + " rounds — " + players + " player" + (players === 1 ? "" : "s")
+    + " × " + promptsEach + " prompt" + (promptsEach === 1 ? "" : "s") + " each.";
+}
 
 function $(id) { return document.getElementById(id); }
 function showScreen(id) {
@@ -808,13 +1031,13 @@ async function createRoomFlow(name) {
   var code;
   do { code = generateRoomCode(); } while ((await get(roomRef(code))).exists());
   var uid = mp.uid;
-  var allFixed = FIXED_PROMPTS.map(function (_, i) { return i; });
+  var dealt = dealPromptIndexes(DEFAULT_PROMPT_COUNT, []);
   await set(roomRef(code), {
     game: GAME_ID,
     createdAt: Date.now(),
     hostUid: uid,
     phase: "lobby",
-    settings: { fixedPrompts: allFixed, allowCustom: true, writeSeconds: DEFAULT_WRITE_SECONDS },
+    settings: { dealt: dealt, promptCount: dealt.length, allowCustom: true, writeSeconds: DEFAULT_WRITE_SECONDS },
     players: { [uid]: { name: name, joinedAt: Date.now() } },
     scores: { [uid]: 0 }
   });
@@ -951,9 +1174,21 @@ function mpWriteSeconds() {
   var s = mp.room.settings && mp.room.settings.writeSeconds;
   return s === undefined ? DEFAULT_WRITE_SECONDS : s;
 }
+function mpPromptCount() {
+  return clampCount((mp.room.settings && mp.room.settings.promptCount) || DEFAULT_PROMPT_COUNT);
+}
+function mpDealt() {
+  var dealt = toArray(mp.room.settings && mp.room.settings.dealt)
+    .filter(function (i) { return typeof i === "number" && PROMPT_BANK[i]; });
+  // A room made before this screen existed (or a bad write) still needs a hand.
+  if (!dealt.length) dealt = dealPromptIndexes(mpPromptCount(), []);
+  return dealt;
+}
+function mpWriteDealt(dealt) {
+  return update(ref(db, "rooms/" + mp.roomCode + "/settings"), { dealt: dealt, promptCount: dealt.length });
+}
 function mpSelectedPromptTexts() {
-  var fixedIdx = toArray(mp.room.settings && mp.room.settings.fixedPrompts);
-  var texts = fixedIdx.map(function (i) { return FIXED_PROMPTS[i]; }).filter(Boolean);
+  var texts = mpDealt().map(function (i) { return PROMPT_BANK[i]; }).filter(Boolean);
   return texts.concat(mpCustomPrompts().map(function (c) { return c.text; }));
 }
 
@@ -978,26 +1213,19 @@ function renderLobby() {
     list.appendChild(chip);
   });
 
-  var fixedIdx = toArray(room.settings && room.settings.fixedPrompts);
+  var dealt = mpDealt();
   var wrap = $("lobby-prompt-list");
   wrap.innerHTML = "";
-  FIXED_PROMPTS.forEach(function (text, i) {
-    var on = fixedIdx.indexOf(i) !== -1;
-    var row = buildPromptRow(text, on, null, mp.isHost ? function () {
-      var next = fixedIdx.slice();
-      var at = next.indexOf(i);
-      if (at !== -1) next.splice(at, 1); else next.push(i);
-      next.sort(function (a, b) { return a - b; });
-      update(ref(db, "rooms/" + mp.roomCode + "/settings"), { fixedPrompts: next });
-    } : null, null);
-    wrap.appendChild(row);
+  dealt.forEach(function (bankIdx, pos) {
+    wrap.appendChild(buildDealtRow(PROMPT_BANK[bankIdx], mp.isHost ? function () {
+      mpWriteDealt(swapDealtAt(dealt, pos));
+    } : null));
   });
   mpCustomPrompts().forEach(function (c) {
     var canRemove = mp.isHost || c.uid === mp.uid;
-    var row = buildPromptRow(c.text, true, "added by " + c.name, null, canRemove ? function () {
+    wrap.appendChild(buildCustomRow(c.text, "added by " + c.name, canRemove ? function () {
       set(ref(db, "rooms/" + mp.roomCode + "/customPrompts/" + c.key), null);
-    } : null);
-    wrap.appendChild(row);
+    } : null));
   });
 
   var allowCustom = !!(room.settings && room.settings.allowCustom);
@@ -1012,12 +1240,20 @@ function renderLobby() {
 
   var promptCount = mpSelectedPromptTexts().length;
   var playerCount = mpPlayerUids().length;
+  var dealtCount = mpPromptCount();
+
+  $("lobby-prompt-count").value = dealtCount;
+  $("lobby-btn-count-down").disabled = !mp.isHost || dealtCount <= MIN_PROMPT_COUNT;
+  $("lobby-btn-count-up").disabled = !mp.isHost || dealtCount >= MAX_PROMPT_COUNT;
+  $("btn-lobby-shuffle").style.display = mp.isHost ? "" : "none";
   $("lobby-prompt-hint").textContent = mp.isHost
-    ? ("Tap to include or exclude. Pick at least " + MIN_PROMPTS + ".")
-    : "The host picks which prompts are used.";
-  $("lobby-estimate").textContent = (playerCount && promptCount)
-    ? ("About " + (playerCount * promptCount) + " rounds with " + playerCount + " player" + (playerCount === 1 ? "" : "s") + " and " + promptCount + " prompt" + (promptCount === 1 ? "" : "s") + ".")
-    : "";
+    ? "Tap ↻ on any single prompt to swap just that one."
+    : "The host is choosing the prompts.";
+
+  var est = $("lobby-estimate");
+  est.textContent = roundsEstimateText(playerCount, promptCount);
+  est.className = "center status-line"
+    + ((playerCount * promptCount > LONG_GAME_ROUNDS) ? " hint warn" : "");
 
   var startBtn = $("btn-start-mp-game");
   var waiting = $("lobby-waiting");
@@ -1027,7 +1263,7 @@ function renderLobby() {
     waiting.style.display = "none";
     var problems = [];
     if (playerCount < MIN_PLAYERS) problems.push("at least " + MIN_PLAYERS + " players");
-    if (promptCount < MIN_PROMPTS) problems.push("at least " + MIN_PROMPTS + " prompts");
+    if (promptCount < MIN_PROMPT_COUNT) problems.push("at least " + MIN_PROMPT_COUNT + " prompts");
     startBtn.disabled = problems.length > 0;
     status.textContent = problems.length ? ("Need " + problems.join(" and ") + " to start.") : "";
   } else {
@@ -1038,15 +1274,9 @@ function renderLobby() {
   showScreen("screen-lobby");
 }
 
-function buildPromptRow(text, checked, byline, onToggle, onRemove) {
+function promptRowShell(text, byline) {
   var row = document.createElement("div");
-  row.className = "prompt-row" + (onToggle ? "" : " static");
-  var box = document.createElement("input");
-  box.type = "checkbox";
-  box.checked = checked;
-  box.disabled = !onToggle;
-  if (onToggle) box.addEventListener("change", onToggle);
-  row.appendChild(box);
+  row.className = "prompt-row static";
   var txtWrap = document.createElement("div");
   txtWrap.className = "txt";
   var txt = document.createElement("div");
@@ -1059,18 +1289,43 @@ function buildPromptRow(text, checked, byline, onToggle, onRemove) {
     txtWrap.appendChild(by);
   }
   row.appendChild(txtWrap);
-  if (onToggle) row.addEventListener("click", function (e) { if (e.target !== box) onToggle(); });
-  if (onRemove) {
-    var x = document.createElement("button");
-    x.type = "button";
-    x.className = "remove-x";
-    x.textContent = "✕";
-    x.addEventListener("click", function (e) { e.stopPropagation(); onRemove(); });
-    row.appendChild(x);
-  }
+  return row;
+}
+function rowButton(row, label, aria, onClick) {
+  if (!onClick) return;
+  var btn = document.createElement("button");
+  btn.type = "button";
+  btn.className = "remove-x";
+  btn.textContent = label;
+  btn.setAttribute("aria-label", aria);
+  btn.addEventListener("click", function (e) { e.stopPropagation(); onClick(); });
+  row.appendChild(btn);
+}
+// A dealt prompt can be swapped for another from the bank.
+function buildDealtRow(text, onSwap) {
+  var row = promptRowShell(text, null);
+  rowButton(row, "↻", "Swap this prompt for a different one", onSwap);
+  return row;
+}
+// A prompt someone wrote themselves can only be removed.
+function buildCustomRow(text, byline, onRemove) {
+  var row = promptRowShell(text, byline);
+  rowButton(row, "✕", "Remove this prompt", onRemove);
   return row;
 }
 
+$("btn-lobby-shuffle").addEventListener("click", function () {
+  if (!mp.isHost) return;
+  mpWriteDealt(dealPromptIndexes(mpPromptCount(), []));
+});
+$("lobby-btn-count-down").addEventListener("click", function () {
+  if (!mp.isHost) return;
+  mpWriteDealt(resizeDealt(mpDealt(), clampCount(mpPromptCount() - 1)));
+});
+$("lobby-btn-count-up").addEventListener("click", function () {
+  if (!mp.isHost) return;
+  mpWriteDealt(resizeDealt(mpDealt(), clampCount(mpPromptCount() + 1)));
+});
 $("chk-lobby-allow-custom").addEventListener("change", function () {
   if (!mp.isHost) return;
   update(ref(db, "rooms/" + mp.roomCode + "/settings"), { allowCustom: this.checked });
@@ -1092,7 +1347,7 @@ $("lobby-custom-input").addEventListener("keydown", function (e) {
 $("btn-start-mp-game").addEventListener("click", async function () {
   if (!mp.isHost) return;
   var prompts = mpSelectedPromptTexts();
-  if (prompts.length < MIN_PROMPTS || mpPlayerUids().length < MIN_PLAYERS) return;
+  if (prompts.length < MIN_PROMPT_COUNT || mpPlayerUids().length < MIN_PLAYERS) return;
   var scores = {};
   mpPlayerUids().forEach(function (uid) { scores[uid] = 0; });
   await update(roomRef(mp.roomCode), {
@@ -1454,7 +1709,8 @@ var local = {
   players: ["", "", ""],
   prompts: [],
   customPrompts: [],
-  fixedSelected: {},
+  dealt: [],
+  promptCount: DEFAULT_PROMPT_COUNT,
   answers: {},
   revealIndex: 0,
   promptIndex: 0,
@@ -1464,7 +1720,7 @@ var local = {
   guessSelected: {},
   writeSeconds: DEFAULT_WRITE_SECONDS
 };
-FIXED_PROMPTS.forEach(function (_, i) { local.fixedSelected[i] = true; });
+local.dealt = dealPromptIndexes(local.promptCount, []);
 
 // ---------- Local game save / resume ----------
 // Checkpoints are only taken at points that are safe to replay: the pass
@@ -1598,14 +1854,14 @@ $("local-btn-players-continue").addEventListener("click", function () {
 function localRenderPromptList() {
   var wrap = $("local-prompt-list");
   wrap.innerHTML = "";
-  FIXED_PROMPTS.forEach(function (text, i) {
-    wrap.appendChild(buildPromptRow(text, local.fixedSelected[i], null, function () {
-      local.fixedSelected[i] = !local.fixedSelected[i];
+  local.dealt.forEach(function (bankIdx, pos) {
+    wrap.appendChild(buildDealtRow(PROMPT_BANK[bankIdx], function () {
+      local.dealt = swapDealtAt(local.dealt, pos);
       localRenderPromptList();
-    }, null));
+    }));
   });
   local.customPrompts.forEach(function (text, i) {
-    wrap.appendChild(buildPromptRow(text, true, null, null, function () {
+    wrap.appendChild(buildCustomRow(text, null, function () {
       local.customPrompts.splice(i, 1);
       localRenderPromptList();
     }));
@@ -1613,16 +1869,33 @@ function localRenderPromptList() {
   localUpdatePromptsContinue();
 }
 function localSelectedPromptCount() {
-  var fixedCount = FIXED_PROMPTS.filter(function (_, i) { return local.fixedSelected[i]; }).length;
-  return fixedCount + local.customPrompts.length;
+  return local.dealt.length + local.customPrompts.length;
 }
 function localUpdatePromptsContinue() {
   var count = localSelectedPromptCount();
-  $("local-btn-prompts-continue").disabled = count < MIN_PROMPTS;
-  $("local-estimate").textContent = count
-    ? ("About " + (local.players.length * count) + " rounds with " + local.players.length + " players and " + count + " prompt" + (count === 1 ? "" : "s") + ".")
-    : "";
+  $("local-prompt-count").value = local.promptCount;
+  $("local-btn-count-down").disabled = local.promptCount <= MIN_PROMPT_COUNT;
+  $("local-btn-count-up").disabled = local.promptCount >= MAX_PROMPT_COUNT;
+  $("local-btn-prompts-continue").disabled = count < MIN_PROMPT_COUNT;
+  var est = $("local-estimate");
+  est.textContent = roundsEstimateText(local.players.length, count);
+  est.className = "center status-line"
+    + ((local.players.length * count > LONG_GAME_ROUNDS) ? " hint warn" : "");
 }
+$("local-btn-shuffle").addEventListener("click", function () {
+  local.dealt = dealPromptIndexes(local.promptCount, []);
+  localRenderPromptList();
+});
+$("local-btn-count-down").addEventListener("click", function () {
+  local.promptCount = clampCount(local.promptCount - 1);
+  local.dealt = resizeDealt(local.dealt, local.promptCount);
+  localRenderPromptList();
+});
+$("local-btn-count-up").addEventListener("click", function () {
+  local.promptCount = clampCount(local.promptCount + 1);
+  local.dealt = resizeDealt(local.dealt, local.promptCount);
+  localRenderPromptList();
+});
 $("local-chk-allow-custom").addEventListener("change", function () {
   $("local-custom-prompt-area").style.display = this.checked ? "block" : "none";
 });
@@ -1641,8 +1914,7 @@ $("local-timer-select").addEventListener("change", function () {
 });
 $("local-btn-prompts-back").addEventListener("click", function () { showScreen("local-screen-players"); });
 $("local-btn-prompts-continue").addEventListener("click", function () {
-  var prompts = [];
-  FIXED_PROMPTS.forEach(function (text, i) { if (local.fixedSelected[i]) prompts.push(text); });
+  var prompts = local.dealt.map(function (i) { return PROMPT_BANK[i]; }).filter(Boolean);
   local.prompts = prompts.concat(local.customPrompts);
   local.answers = {};
   local.scores = {};
@@ -1843,6 +2115,8 @@ $("local-btn-new-game").addEventListener("click", function () {
   local.players = ["", "", ""];
   local.prompts = [];
   local.customPrompts = [];
+  local.promptCount = DEFAULT_PROMPT_COUNT;
+  local.dealt = dealPromptIndexes(local.promptCount, []);  // a fresh hand for the new game
   local.answers = {};
   local.scores = {};
   local.queue = [];
