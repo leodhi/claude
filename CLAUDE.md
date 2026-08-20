@@ -57,6 +57,16 @@ These apps are used mostly as "Add to Home Screen" pseudo-apps on phones, so app
 - When a user reports data loss or "this used to work," verify what actually changed (git history, live `curl`, Firestore REST reads) before concluding what happened — and before reassuring anyone nothing was lost.
 - **A session's machine gets shut down after a long idle stretch, and it kills anything still running.** Observed in one session: a 45-minute quiet gap survived fine, but a 1h46m gap ended in "The container was restarted... background tasks are now stopped" — which silently killed a `until curl ...; do sleep 10; done` deploy watcher, so a promised deploy confirmation never arrived. Don't leave a long-running watcher as the thing that reports back to the user; finish the check within the turn, or set up a scheduled workflow that doesn't depend on the session staying alive.
 
+## Delivering a finished app (do this every time, without being asked)
+
+Whenever an app is created — or an existing one is given a new icon — finish the job like this:
+
+- **Offer 10 icon options to choose from.** Design them, render them as one contact sheet showing each at large size *and* at actual home-screen size (~60px), and send that image. Small-size legibility is the real test; several designs that look great large turn to mush at 60px, so check the render and redraw the ones that don't hold up rather than shipping them.
+- **Once the user picks**, commit that icon at 180×180 to match the existing `icon-*.png` files, and send the chosen design back as a **1024×1024 PNG** they can save to their photos.
+- **Give a clean, copyable link** to the finished app on its own line, with no surrounding punctuation that would get selected along with it.
+
+Chromium is preinstalled for rendering (see the note about `executablePath` in the environment); there is no ImageMagick or PIL, so draw icons as SVG and screenshot them.
+
 ## Notifications / alerts
 
 - The user has the [ntfy](https://ntfy.sh) app installed and is fine using it for push notifications (renewal reminders, alerts, etc.) from apps in this repo. Since these are static sites with no backend, the pattern is: a GitHub Actions scheduled workflow does the periodic check and POSTs to the user's ntfy topic — see the subscription-renewal-alerts feature for the reference implementation (Firebase service account as a GitHub secret, ntfy topic as a GitHub secret, never hardcoded in a workflow file since this repo is public). Default to proposing ntfy for any future "remind me about X" idea rather than re-deriving alerting options from scratch.

@@ -14,8 +14,17 @@ import { getFirestore } from "firebase-admin/firestore";
 const ntfyTopic = process.env.NTFY_TOPIC;
 if (!ntfyTopic) throw new Error("NTFY_TOPIC is not set");
 
-// Days before the date at which to speak up, largest first.
-const RENEWAL_THRESHOLDS = [30, 7, 0];
+// Renewals carry their own notice period -- an inspection wants a month, a
+// quick errand wants a few days -- so the steps are built per item from
+// whatever the app saved, plus a nearer nudge and one on the day.
+const DEFAULT_LEAD_DAYS = 30;
+function renewalThresholds(item) {
+  const lead = Math.max(1, Number(item.leadDays) || DEFAULT_LEAD_DAYS);
+  // A short notice period shouldn't get a "7 days" step that fires at the same
+  // time as the first one, so the middle nudge scales with the lead.
+  const mid = lead > 14 ? 7 : lead > 3 ? 2 : null;
+  return [...new Set([lead, mid, 0].filter(v => v !== null))];
+}
 // Return windows are short and missing one costs real money, so it nags later
 // and closer in.
 const RETURN_THRESHOLDS = [3, 1, 0];
@@ -53,14 +62,39 @@ function thresholdReached(days, thresholds) {
   return null;
 }
 
-async function sendNtfy(title, message, tag) {
+// ntfy's "http" action button isn't honoured reliably across clients, so
+// snoozing uses the "view" action every client supports: it opens a small page
+// on this site that re-publishes the same alert after a delay. Same page the
+// subscription alerts already use.
+function snoozeAction(title, message, delay) {
+  const url = "https://leodhi.github.io/claude/docs/subscriptions/snooze.html"
+    + `?topic=${encodeURIComponent(ntfyTopic)}`
+    + `&title=${encodeURIComponent(title)}`
+    + `&message=${encodeURIComponent(message)}`
+    + `&delay=${encodeURIComponent(delay)}`;
+  return { action: "view", label: `Snooze ${delay}`, url, clear: true };
+}
+
+async function sendNtfy(title, message, tag, snoozeDelay) {
   const url = `https://ntfy.sh/${encodeURIComponent(ntfyTopic)}`
     + `?title=${encodeURIComponent(title)}&priority=3&tags=${encodeURIComponent(tag)}`;
-  const res = await fetch(url, { method: "POST", body: message });
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { Actions: JSON.stringify([snoozeAction(title, message, snoozeDelay || "24h")]) },
+    body: message
+  });
   if (!res.ok) throw new Error(`ntfy publish failed: ${res.status} ${await res.text()}`);
 }
 
-async function checkDoc(db, docId, thresholds, tag, buildAlert) {
+// Snoozing must not push the reminder past the deadline itself. Anything due
+// tomorrow or sooner snoozes by hours, not a day.
+function snoozeDelayFor(days) {
+  if (days === null || days <= 0) return "3h";
+  if (days === 1) return "6h";
+  return "24h";
+}
+
+async function checkDoc(db, docId, thresholdsFor, tag, buildAlert) {
   const ref = db.collection("homeApps").doc(docId);
   const snap = await ref.get();
   if (!snap.exists) {
@@ -74,7 +108,7 @@ async function checkDoc(db, docId, thresholds, tag, buildAlert) {
   for (const [id, item] of Object.entries(items)) {
     if (!item || !item.date || item.done) continue;
     const days = daysUntil(item.date, today);
-    const reached = thresholdReached(days, thresholds);
+    const reached = thresholdReached(days, thresholdsFor(item));
     if (reached === null) continue;
 
     // One alert per threshold per date -- moving the date (or renewing)
@@ -83,7 +117,7 @@ async function checkDoc(db, docId, thresholds, tag, buildAlert) {
     if (item.lastAlerted === stamp) continue;
 
     const { title, message } = buildAlert(item, days);
-    await sendNtfy(title, message, tag);
+    await sendNtfy(title, message, tag, snoozeDelayFor(days));
     await ref.set({ items: { [id]: { lastAlerted: stamp } } }, { merge: true });
     console.log(`Alerted (${docId}): ${item.name} — ${days} day(s) out`);
     sent++;
@@ -123,8 +157,8 @@ async function main() {
   initializeApp({ credential: cert(serviceAccount) });
   const db = getFirestore();
 
-  const renewals = await checkDoc(db, "renewals", RENEWAL_THRESHOLDS, "calendar", renewalAlert);
-  const returns = await checkDoc(db, "returns", RETURN_THRESHOLDS, "package", returnAlert);
+  const renewals = await checkDoc(db, "renewals", renewalThresholds, "calendar", renewalAlert);
+  const returns = await checkDoc(db, "returns", () => RETURN_THRESHOLDS, "package", returnAlert);
   console.log(`Done. ${renewals} renewal alert(s), ${returns} return alert(s).`);
 }
 

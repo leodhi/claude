@@ -64,6 +64,13 @@
   const topic = params.get("topic");
   const title = params.get("title") || "Reminder";
   const message = params.get("message") || "";
+  // Older links carry no delay, so 24h stays the default. Newer alerts pass a
+  // shorter one when the deadline itself is close, so a snooze can't land
+  // after the thing it's reminding you about.
+  const delay = /^\d+[mhd]$/.test(params.get("delay") || "") ? params.get("delay") : "24h";
+  const delayWords = delay.endsWith("m") ? parseInt(delay) + " minutes"
+    : delay.endsWith("h") ? parseInt(delay) + " hours"
+    : parseInt(delay) + " days";
   const card = document.getElementById("card");
 
   function render(ok, heading, body) {
@@ -77,11 +84,11 @@
     render(false, "Missing info", "This link is missing what it needs to snooze — go back and try the original reminder again.");
   } else {
     const url = `https://ntfy.sh/${encodeURIComponent(topic)}`
-      + `?delay=24h&title=${encodeURIComponent(title)}&priority=3&tags=bell`;
+      + `?delay=${encodeURIComponent(delay)}&title=${encodeURIComponent(title)}&priority=3&tags=bell`;
     fetch(url, { method: "POST", body: message })
       .then(res => {
         if (!res.ok) throw new Error("ntfy responded " + res.status);
-        render(true, "Snoozed", `“${title}” will remind you again tomorrow. You can close this page.`);
+        render(true, "Snoozed", `“${title}” will remind you again in ${delayWords}. You can close this page.`);
       })
       .catch(() => {
         render(false, "Couldn't snooze", "Something went wrong reaching ntfy. Try tapping the button again, or just wait for the next check.");

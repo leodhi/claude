@@ -133,6 +133,8 @@
     background: var(--surface-2); border: 1px solid var(--border); color: var(--ink-muted);
     border-radius: 10px; width: 42px; height: 42px; font-size: 1rem; cursor: pointer; flex: none;
   }
+  .med-presets { margin: 0 0 10px; }
+  .med-hint { margin-bottom: 10px; }
   .med-help { font-size: 0.72rem; color: var(--ink-faint); margin: 9px 0 10px; line-height: 1.45; }
 </style>
 </head>
@@ -220,7 +222,7 @@
     <button class="btn secondary small" id="btn-add-person" type="button" style="margin:4px 0 18px;">+ Add person</button>
 
     <label>Medicines</label>
-    <div class="med-help">Hours is the smallest gap between doses, and max is how many are allowed in 24 hours. <strong>Set these from the bottle</strong> — the starting values are only common defaults.</div>
+    <div class="med-help">Medicines show as a short label of your choosing, never a drug name, so nobody glancing at your phone can tell what's being taken. Tap <strong>⋯</strong> to pick a label or add a private reminder to yourself.<br><br>Hours is the smallest gap between doses, and max is how many are allowed in 24 hours. <strong>Set these from the bottle</strong> — the starting values are only common defaults.</div>
     <div id="meds-editor"></div>
     <button class="btn secondary small" id="btn-add-med" type="button" style="margin:4px 0 18px;">+ Add medicine</button>
 
@@ -270,9 +272,13 @@ const DAY = 86400000;
 // grow forever.
 const KEEP_MS = 7 * DAY;
 
+// Medicines are shown by whatever short label you choose, never a drug name,
+// so a glance at the phone doesn't tell anyone what's being taken or why. The
+// defaults are deliberately meaningless; you decide what "Blue" means.
+const NICKNAME_PRESETS = ["Blue", "Pink", "Red", "Green", "Purple", "Orange", "White", "A", "B", "C", "1", "2"];
 const DEFAULT_MEDS = [
-  { id: "m1", name: "Paracetamol", gapHours: 4, maxPer24: 4 },
-  { id: "m2", name: "Ibuprofen", gapHours: 6, maxPer24: 3 }
+  { id: "m1", name: "Blue", gapHours: 4, maxPer24: 4, hint: "" },
+  { id: "m2", name: "Pink", gapHours: 6, maxPer24: 3, hint: "" }
 ];
 
 let state = { people: [], meds: [], doses: {} };
@@ -661,29 +667,55 @@ function renderSettings() {
     const row = document.createElement("div");
     row.className = "settings-row";
     const name = document.createElement("input");
-    name.type = "text"; name.value = m.name; name.maxLength = 24; name.placeholder = "Medicine";
+    name.type = "text"; name.value = m.name; name.maxLength = 24; name.placeholder = "Label";
     const gap = document.createElement("input");
     gap.type = "number"; gap.min = "0"; gap.max = "48"; gap.step = "0.5"; gap.value = m.gapHours; gap.title = "Hours between doses";
     const max = document.createElement("input");
     max.type = "number"; max.min = "0"; max.max = "24"; max.value = m.maxPer24; max.title = "Max in 24 hours";
+    const hint = document.createElement("input");
+    hint.type = "text"; hint.value = m.hint || ""; hint.maxLength = 40;
+    hint.placeholder = "Private reminder to yourself (optional)";
+    hint.className = "med-hint hide";
     const commit = () => {
       const meds = state.meds.map((x, j) => j === i ? {
         ...x,
         name: name.value.trim() || x.name,
         gapHours: Number(gap.value) || 0,
-        maxPer24: Number(max.value) || 0
+        maxPer24: Number(max.value) || 0,
+        hint: hint.value.trim()
       } : x);
       save({ meds });
     };
-    [name, gap, max].forEach(el => el.addEventListener("change", commit));
+    [name, gap, max, hint].forEach(el => el.addEventListener("change", commit));
+
+    // Tapping the label offers the neutral presets rather than making you type.
+    const presets = document.createElement("div");
+    presets.className = "chips med-presets hide";
+    NICKNAME_PRESETS.forEach(word => {
+      const c = document.createElement("button");
+      c.type = "button";
+      c.className = "chip" + (word === m.name ? " on" : "");
+      c.textContent = word;
+      c.addEventListener("click", () => { name.value = word; commit(); });
+      presets.appendChild(c);
+    });
+    const toggle = document.createElement("button");
+    toggle.className = "icon-btn"; toggle.type = "button"; toggle.textContent = "⋯";
+    toggle.title = "Pick a label, or add a private reminder";
+    toggle.addEventListener("click", () => {
+      presets.classList.toggle("hide");
+      hint.classList.toggle("hide");
+    });
     const del = document.createElement("button");
     del.className = "icon-btn"; del.type = "button"; del.textContent = "✕";
     del.addEventListener("click", () => {
       if (!confirm("Remove " + m.name + "?")) return;
       save({ meds: state.meds.filter((_, j) => j !== i) });
     });
-    row.append(name, gap, max, del);
+    row.append(name, gap, max, toggle, del);
     me.appendChild(row);
+    me.appendChild(presets);
+    me.appendChild(hint);
   });
 }
 
@@ -694,9 +726,12 @@ $("btn-add-person").addEventListener("click", () => {
   setTimeout(renderSettings, 250);
 });
 $("btn-add-med").addEventListener("click", () => {
-  const name = (prompt("Medicine name?") || "").trim();
+  // Suggest an unused neutral label so nothing identifying gets typed by reflex.
+  const taken = state.meds.map(m => m.name);
+  const suggestion = NICKNAME_PRESETS.find(w => !taken.includes(w)) || "New";
+  const name = (prompt("Label for it? Keep it vague — you'll know what it means.", suggestion) || "").trim();
   if (!name) return;
-  save({ meds: [...state.meds, { id: newId(), name, gapHours: 4, maxPer24: 4 }] });
+  save({ meds: [...state.meds, { id: newId(), name, gapHours: 4, maxPer24: 4, hint: "" }] });
   setTimeout(renderSettings, 250);
 });
 </script>
