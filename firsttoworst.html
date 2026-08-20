@@ -265,6 +265,8 @@
   @media (prefers-reduced-motion: reduce) {
     .reaction-float { animation-duration: 0.9s; }
   }
+  .ready-line { text-align: center; color: var(--text-dim); font-size: 0.85rem; padding: 4px 0; }
+  .ready-line strong { color: var(--accent); }
   #home-toggle {
     position: fixed; left: 16px; bottom: 16px; z-index: 40;
     width: 52px; height: 52px; border-radius: 50%;
@@ -471,8 +473,10 @@
       <div id="standings-list"></div>
       <div class="callout" id="round-callout"></div>
     </div>
+    <button class="primary" id="btn-mp-ready" type="button">I'm ready</button>
+    <div class="ready-line" id="mp-ready-line"></div>
     <div class="footer-nav" id="reveal-host-nav" style="display:none">
-      <button class="primary" id="btn-next-round" type="button">Next Round</button>
+      <button class="secondary" id="btn-next-round" type="button">Skip ahead</button>
     </div>
     <div class="waiting-text" id="reveal-waiting" style="display:none">Waiting for host…</div>
   </div>
@@ -1293,7 +1297,10 @@ function renderRankPhase() {
   // Must run before any early return below — otherwise a host who is also
   // the ranker (or whose screen returns early) never checks whether every
   // guess is already in, and the round gets stuck on "waiting" forever.
-  if (mp.isHost) checkGuessingDone();
+  // Deferred out of this render: it can flip the phase to "reveal", and the
+  // render we're inside would otherwise finish by putting this screen back
+  // over the top of the reveal — which left the ranker stuck on "waiting".
+  if (mp.isHost) setTimeout(checkGuessingDone, 0);
 
   if (iAmRanker) {
     if (round.rankerOrder) {
@@ -1546,21 +1553,7 @@ function renderRevealScreen() {
 
   var hostNav = $("reveal-host-nav");
   var waiting = $("reveal-waiting");
-  if (mp.isHost) {
-    hostNav.style.display = "flex";
-    waiting.style.display = "none";
-    var revealKey = round.startedAt;
-    if (mp.revealMinWaitKey !== revealKey) {
-      mp.revealMinWaitKey = revealKey;
-      var nextBtn = $("btn-next-round");
-      nextBtn.disabled = true;
-      clearTimeout(mp.revealMinWaitHandle);
-      mp.revealMinWaitHandle = setTimeout(function () { nextBtn.disabled = false; }, 3000);
-    }
-  } else {
-    hostNav.style.display = "none";
-    waiting.style.display = "";
-  }
+  renderReadyPanel(round, hostNav, waiting, null);
   showScreen("screen-reveal");
 }
 
@@ -2475,6 +2468,76 @@ function floatReaction(emoji, who) {
   layer.appendChild(el);
   el.addEventListener("animationend", function () { el.remove(); });
 }
+
+
+// ---------- Ready ----------
+// Everyone says when they've finished reading the reveal, and the round moves
+// on by itself once nobody is still looking. The host keeps a Skip ahead
+// button for when someone has wandered off. Nothing here can be reached by two
+// people at once, so it can't clash.
+var readyAdvanceArmed = false;
+
+// AI players can't tap anything, so they must not be counted or the round
+// would wait for them forever.
+function readyEligibleUids() {
+  var room = mp.room;
+  var players = (room && room.players) || {};
+  return Object.keys(players).filter(function (uid) { return !players[uid].isBot; });
+}
+
+function renderReadyPanel(round, hostNav, waiting, waitingText) {
+  var ready = (round && round.ready) || {};
+  var uids = readyEligibleUids();
+  var readyCount = uids.filter(function (uid) { return ready[uid]; }).length;
+  var iAmReady = !!ready[mp.uid];
+  var readyBtn = $("btn-mp-ready");
+  var line = $("mp-ready-line");
+
+  // A fresh round clears the list, which is the cue to re-arm the auto-advance.
+  if (readyCount === 0) readyAdvanceArmed = false;
+
+  if (readyBtn) readyBtn.style.display = iAmReady ? "none" : "";
+  if (line) line.innerHTML = "<strong>" + readyCount + "</strong> of " + uids.length + " ready";
+
+  hostNav.style.display = mp.isHost ? "flex" : "none";
+  waiting.style.display = (iAmReady && !mp.isHost) ? "" : "none";
+  if (waitingText) waiting.textContent = waitingText;
+
+  // Brief lockout so the table actually gets to read the reveal.
+  var revealKey = round && round.startedAt;
+  if (mp.revealMinWaitKey !== revealKey) {
+    mp.revealMinWaitKey = revealKey;
+    var nextBtn = $("btn-next-round");
+    clearTimeout(mp.revealMinWaitHandle);
+    if (nextBtn) nextBtn.disabled = true;
+    if (readyBtn) readyBtn.disabled = true;
+    mp.revealMinWaitHandle = setTimeout(function () {
+      if (nextBtn) nextBtn.disabled = false;
+      if (readyBtn) readyBtn.disabled = false;
+    }, 3000);
+  }
+
+  if (mp.isHost && uids.length > 0 && readyCount >= uids.length && !readyAdvanceArmed) {
+    readyAdvanceArmed = true;
+    // Deferred out of this render: advancing re-renders straight away, and the
+    // render we're inside would otherwise finish by putting the reveal screen
+    // back over the top of it.
+    setTimeout(function () {
+      var advanceBtn = $("btn-next-round");
+      if (!advanceBtn) return;
+      // Everyone has confirmed they're done reading, so the lockout has served
+      // its purpose — go straight through the existing next-round handler.
+      advanceBtn.disabled = false;
+      advanceBtn.click();
+    }, 0);
+  }
+}
+
+$("btn-mp-ready").addEventListener("click", function () {
+  if (this.disabled || !mp.roomCode) return;
+  update(ref(db, "rooms/" + mp.roomCode + "/round/ready"),
+    (function () { var o = {}; o[mp.uid] = true; return o; })());
+});
 
 </script>
 </body>
