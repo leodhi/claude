@@ -1,0 +1,704 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+<title>Medicine Timer</title>
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#f6f4ef">
+<style>
+  :root {
+    --paper: #f6f4ef;
+    --surface: #ffffff;
+    --surface-2: #fbf9f4;
+    --ink: #241f18;
+    --ink-muted: #766c5c;
+    --ink-faint: #a89d89;
+    --border: #e6ddc9;
+    --accent: #8a5a2b;
+    --accent-soft: #f1e4d0;
+    --warn: #b23a3a;
+    --warn-soft: #f5dede;
+    --good: #3a7d5c;
+    --good-soft: #e1ede6;
+    --shadow: 0 1px 2px rgba(36,31,24,0.06), 0 8px 24px rgba(36,31,24,0.06);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --paper: #161310; --surface: #1e1a15; --surface-2: #241f19;
+      --ink: #efe9df; --ink-muted: #b3a790; --ink-faint: #766c5a;
+      --border: #322c22; --accent: #d99a54; --accent-soft: rgba(217,154,84,0.14);
+      --warn: #e28080; --warn-soft: rgba(226,128,128,0.12);
+      --good: #6cc190; --good-soft: rgba(108,193,144,0.12);
+      --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 8px 24px rgba(0,0,0,0.35);
+    }
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body {
+    margin: 0; padding: 0; min-height: 100%;
+    background: var(--paper); color: var(--ink);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    overscroll-behavior-y: contain;
+  }
+  #wrap { max-width: 560px; margin: 0 auto; padding: 20px 16px calc(40px + env(safe-area-inset-bottom)); }
+  header { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; margin-bottom: 4px; }
+  h1 { font-size: 1.35rem; margin: 0; letter-spacing: -0.01em; }
+  .sub { color: var(--ink-muted); font-size: 0.85rem; margin: 2px 0 16px; }
+  .card {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 16px;
+    padding: 16px; box-shadow: var(--shadow); margin-bottom: 12px;
+  }
+  label { display: block; font-size: 0.72rem; color: var(--ink-muted); text-transform: uppercase; letter-spacing: 0.07em; margin-bottom: 6px; }
+  input[type="text"], input[type="email"], input[type="password"], input[type="number"], input[type="datetime-local"] {
+    width: 100%; background: var(--surface-2); border: 1px solid var(--border); color: var(--ink);
+    padding: 12px; border-radius: 10px; font-size: 1rem; font-family: inherit;
+  }
+  input:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+  button { font-family: inherit; touch-action: manipulation; transition: transform 0.15s cubic-bezier(.2,.9,.3,1.1); }
+  button:active { transform: scale(0.96); }
+  .btn {
+    background: var(--accent); color: var(--paper); border: none; padding: 14px;
+    border-radius: 12px; font-size: 1rem; font-weight: 650; cursor: pointer; width: 100%;
+  }
+  .btn.secondary { background: transparent; color: var(--ink); border: 1px solid var(--border); }
+  .btn.danger { background: var(--warn); color: #fff; }
+  .btn:disabled { opacity: 0.45; cursor: not-allowed; }
+  .btn.small { width: auto; padding: 9px 14px; font-size: 0.85rem; border-radius: 999px; }
+  .link { background: none; border: none; color: var(--ink-muted); text-decoration: underline; font-size: 0.82rem; cursor: pointer; padding: 6px; }
+  .row { display: flex; gap: 8px; align-items: center; }
+  .hide { display: none !important; }
+
+  /* Person cards */
+  .person {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 16px;
+    padding: 16px; box-shadow: var(--shadow); margin-bottom: 12px;
+    border-left: 5px solid var(--border);
+  }
+  .person.ready { border-left-color: var(--good); }
+  .person.soon { border-left-color: var(--accent); }
+  .person.wait { border-left-color: var(--warn); }
+  .person-top { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; }
+  .person-name { font-size: 1.15rem; font-weight: 700; }
+  .status { font-size: 0.95rem; font-weight: 650; }
+  .person.ready .status { color: var(--good); }
+  .person.soon .status { color: var(--accent); }
+  .person.wait .status { color: var(--warn); }
+  .last-dose { color: var(--ink-muted); font-size: 0.85rem; margin-top: 6px; line-height: 1.45; }
+  .person-actions { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
+  .countdown { font-variant-numeric: tabular-nums; }
+
+  .chip {
+    padding: 9px 14px; border-radius: 999px; border: 1px solid var(--border);
+    background: var(--surface-2); color: var(--ink-muted); font-size: 0.88rem; cursor: pointer;
+    touch-action: manipulation; transition: transform 0.15s cubic-bezier(.2,.9,.3,1.1);
+  }
+  .chip:active { transform: scale(0.94); }
+  .chip.on { background: var(--accent); color: var(--paper); border-color: var(--accent); font-weight: 650; }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; }
+
+  .log-row { display: flex; justify-content: space-between; gap: 10px; padding: 9px 0; border-bottom: 1px solid var(--border); font-size: 0.9rem; }
+  .log-row:last-child { border-bottom: none; }
+  .log-when { color: var(--ink-muted); white-space: nowrap; font-variant-numeric: tabular-nums; }
+  .log-del { background: none; border: none; color: var(--ink-faint); cursor: pointer; font-size: 0.9rem; padding: 0 4px; }
+
+  .note {
+    background: var(--accent-soft); border: 1px solid var(--border); border-radius: 12px;
+    padding: 12px 14px; font-size: 0.82rem; color: var(--ink-muted); line-height: 1.5; margin-bottom: 12px;
+  }
+  .note strong { color: var(--ink); }
+  .empty { color: var(--ink-muted); font-size: 0.9rem; text-align: center; padding: 18px 0; }
+  .status-line { color: var(--ink-muted); font-size: 0.85rem; text-align: center; padding: 6px 0; min-height: 1.2em; }
+  .status-line.err { color: var(--warn); }
+
+  /* Sheet */
+  .sheet-back {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 50;
+    display: flex; align-items: flex-end; justify-content: center;
+    opacity: 0; visibility: hidden; pointer-events: none; transition: opacity 0.22s ease;
+  }
+  .sheet-back.open { opacity: 1; visibility: visible; pointer-events: auto; }
+  .sheet {
+    background: var(--surface); width: 100%; max-width: 560px;
+    border-radius: 20px 20px 0 0; padding: 20px 16px calc(24px + env(safe-area-inset-bottom));
+    transform: translateY(18px); transition: transform 0.3s cubic-bezier(.2,.9,.3,1.1);
+    max-height: 88vh; overflow-y: auto;
+  }
+  .sheet-back.open .sheet { transform: translateY(0); }
+  .sheet h2 { margin: 0 0 14px; font-size: 1.1rem; }
+  .settings-row { display: flex; gap: 8px; align-items: center; margin-bottom: 8px; }
+  .settings-row input[type="text"] { flex: 1; }
+  .settings-row input[type="number"] { width: 74px; text-align: center; }
+  .icon-btn {
+    background: var(--surface-2); border: 1px solid var(--border); color: var(--ink-muted);
+    border-radius: 10px; width: 42px; height: 42px; font-size: 1rem; cursor: pointer; flex: none;
+  }
+  .med-help { font-size: 0.72rem; color: var(--ink-faint); margin: 9px 0 10px; line-height: 1.45; }
+</style>
+</head>
+<body>
+<div id="wrap">
+
+  <!-- SIGN IN -->
+  <div id="signin-gate">
+    <header><h1>💊 Medicine Timer</h1></header>
+    <div class="sub">A shared log of who has had what, and when.</div>
+    <div class="card">
+      <div class="note" style="margin-bottom:14px;">
+        This is <strong>private to your family</strong> — sign in once on each phone and you'll stay signed in.
+      </div>
+      <button class="btn" id="btn-google" type="button">Continue with Google</button>
+      <div style="text-align:center;color:var(--ink-faint);font-size:0.78rem;margin:14px 0 10px;">— or with an email and password —</div>
+      <label for="in-email">Email</label>
+      <input type="email" id="in-email" autocomplete="username" placeholder="you@example.com">
+      <label for="in-pass" style="margin-top:10px;">Password</label>
+      <input type="password" id="in-pass" autocomplete="current-password" placeholder="Your password">
+      <div class="row" style="margin-top:12px;">
+        <button class="btn secondary" id="btn-signin" type="button">Sign in</button>
+        <button class="btn secondary" id="btn-register" type="button">Create account</button>
+      </div>
+      <div style="text-align:center;"><button class="link" id="btn-reset" type="button">Forgot password?</button></div>
+      <div class="status-line" id="signin-status"></div>
+    </div>
+  </div>
+
+  <!-- APP -->
+  <div id="app-wrap" class="hide">
+    <header>
+      <h1>💊 Medicine Timer</h1>
+      <button class="link" id="btn-signout" type="button">Sign out</button>
+    </header>
+    <div class="sub" id="app-sub">Tap a name to log a dose.</div>
+
+    <div class="note">
+      <strong>This is a log, not medical advice.</strong> It only remembers when a dose was given.
+      Always follow the instructions on the packaging or from your doctor or pharmacist.
+    </div>
+
+    <div id="people-list"></div>
+    <div class="empty hide" id="no-people">No one added yet. Tap Settings below to add someone.</div>
+
+    <div class="card">
+      <label>Last 24 hours</label>
+      <div id="history"></div>
+    </div>
+
+    <div class="row">
+      <button class="btn secondary" id="btn-settings" type="button">Settings</button>
+    </div>
+    <div class="status-line" id="app-status"></div>
+  </div>
+</div>
+
+<!-- LOG A DOSE -->
+<div class="sheet-back" id="dose-sheet">
+  <div class="sheet">
+    <h2 id="dose-title">Log a dose</h2>
+    <label>Medicine</label>
+    <div class="chips" id="dose-meds"></div>
+    <div class="med-help" id="dose-gap-help"></div>
+    <label style="margin-top:14px;">How much (optional)</label>
+    <input type="text" id="dose-amount" placeholder="e.g. 5ml, 1 tablet" maxlength="40">
+    <label style="margin-top:14px;">When</label>
+    <div class="chips" style="margin-bottom:8px;">
+      <button class="chip on" id="chip-now" type="button">Just now</button>
+      <button class="chip" id="chip-earlier" type="button">Earlier…</button>
+    </div>
+    <input type="datetime-local" id="dose-time" class="hide">
+    <div class="status-line err" id="dose-warn"></div>
+    <button class="btn" id="btn-save-dose" type="button" style="margin-top:6px;">Save dose</button>
+    <button class="btn secondary" id="btn-cancel-dose" type="button" style="margin-top:8px;">Cancel</button>
+  </div>
+</div>
+
+<!-- SETTINGS -->
+<div class="sheet-back" id="settings-sheet">
+  <div class="sheet">
+    <h2>Settings</h2>
+    <label>Who takes medicine</label>
+    <div id="people-editor"></div>
+    <button class="btn secondary small" id="btn-add-person" type="button" style="margin:4px 0 18px;">+ Add person</button>
+
+    <label>Medicines</label>
+    <div class="med-help">Hours is the smallest gap between doses, and max is how many are allowed in 24 hours. <strong>Set these from the bottle</strong> — the starting values are only common defaults.</div>
+    <div id="meds-editor"></div>
+    <button class="btn secondary small" id="btn-add-med" type="button" style="margin:4px 0 18px;">+ Add medicine</button>
+
+    <button class="btn" id="btn-close-settings" type="button">Done</button>
+  </div>
+</div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
+import { getFirestore, doc, onSnapshot, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
+import {
+  getAuth, GoogleAuthProvider, signInWithPopup, signInWithRedirect, getRedirectResult,
+  signOut, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword,
+  sendPasswordResetEmail
+} from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
+
+// iOS Safari ignores the viewport zoom restrictions, so block the gestures.
+document.addEventListener("gesturestart", e => e.preventDefault());
+document.addEventListener("touchmove", e => { if (e.touches.length > 1) e.preventDefault(); }, { passive: false });
+let lastTouchEnd = 0;
+document.addEventListener("touchend", e => {
+  const now = Date.now();
+  if (now - lastTouchEnd <= 300) e.preventDefault();
+  lastTouchEnd = now;
+}, false);
+
+const firebaseConfig = {
+  apiKey: "AIzaSyDFJ_4r2c5P2w4F3TJg4CRNHP-yiDsRiRQ",
+  authDomain: "packing-list-3c532.firebaseapp.com",
+  projectId: "packing-list-3c532",
+  storageBucket: "packing-list-3c532.firebasestorage.app",
+  messagingSenderId: "209304705485",
+  appId: "1:209304705485:web:20c59e9f08465822c58c84"
+};
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+const authClient = getAuth(app);
+// All three home utilities live under homeApps so one Firestore rule covers
+// them. Ownership works the same way as the subscriptions ledger: whoever
+// signs in first claims the document.
+const docRef = doc(db, "homeApps", "medicine");
+
+const $ = id => document.getElementById(id);
+const HOUR = 3600000;
+const DAY = 86400000;
+// Doses older than this are dropped on the next write, so the document can't
+// grow forever.
+const KEEP_MS = 7 * DAY;
+
+const DEFAULT_MEDS = [
+  { id: "m1", name: "Paracetamol", gapHours: 4, maxPer24: 4 },
+  { id: "m2", name: "Ibuprofen", gapHours: 6, maxPer24: 3 }
+];
+
+let state = { people: [], meds: [], doses: {} };
+let unsubscribe = null;
+let currentUser = null;
+let doseFor = null;      // person id the sheet is open for
+let doseMedId = null;
+let tickHandle = null;
+
+function isMobileBrowser() { return /iPhone|iPad|iPod|Android/i.test(navigator.userAgent); }
+function newId() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
+
+// ---------- Auth ----------
+$("btn-google").addEventListener("click", async () => {
+  setStatus("signin-status", "Opening Google…");
+  try {
+    if (isMobileBrowser()) await signInWithRedirect(authClient, new GoogleAuthProvider());
+    else await signInWithPopup(authClient, new GoogleAuthProvider());
+  } catch (e) { setStatus("signin-status", friendlyAuthError(e), true); }
+});
+$("btn-signin").addEventListener("click", async () => {
+  const { email, pass } = creds();
+  if (!email || !pass) return setStatus("signin-status", "Enter your email and password.", true);
+  setStatus("signin-status", "Signing in…");
+  try { await signInWithEmailAndPassword(authClient, email, pass); }
+  catch (e) { setStatus("signin-status", friendlyAuthError(e), true); }
+});
+$("btn-register").addEventListener("click", async () => {
+  const { email, pass } = creds();
+  if (!email || !pass) return setStatus("signin-status", "Enter an email and a password.", true);
+  setStatus("signin-status", "Creating your account…");
+  try { await createUserWithEmailAndPassword(authClient, email, pass); }
+  catch (e) { setStatus("signin-status", friendlyAuthError(e), true); }
+});
+$("btn-reset").addEventListener("click", async () => {
+  const { email } = creds();
+  if (!email) return setStatus("signin-status", "Type your email first, then tap this again.", true);
+  try {
+    await sendPasswordResetEmail(authClient, email);
+    setStatus("signin-status", "Password reset email sent.");
+  } catch (e) { setStatus("signin-status", friendlyAuthError(e), true); }
+});
+$("btn-signout").addEventListener("click", () => signOut(authClient));
+
+function creds() {
+  return { email: $("in-email").value.trim(), pass: $("in-pass").value };
+}
+function setStatus(id, msg, isError) {
+  const el = $(id);
+  el.textContent = msg || "";
+  el.classList.toggle("err", !!isError);
+}
+function friendlyAuthError(e) {
+  const code = (e && e.code) || "";
+  if (code.includes("wrong-password") || code.includes("invalid-credential")) return "That email and password don't match.";
+  if (code.includes("user-not-found")) return "No account with that email — tap Create account.";
+  if (code.includes("email-already-in-use")) return "That email already has an account — tap Sign in.";
+  if (code.includes("weak-password")) return "Pick a longer password (at least 6 characters).";
+  if (code.includes("invalid-email")) return "That doesn't look like an email address.";
+  if (code.includes("popup-blocked") || code.includes("popup-closed")) return "The Google window was blocked — try the email and password option.";
+  if (code.includes("network-request-failed")) return "Couldn't reach Google — try the email and password option.";
+  return (e && e.message) || "Something went wrong.";
+}
+
+getRedirectResult(authClient).catch(e => setStatus("signin-status", friendlyAuthError(e), true));
+
+onAuthStateChanged(authClient, async user => {
+  currentUser = user;
+  if (unsubscribe) { unsubscribe(); unsubscribe = null; }
+  if (!user) {
+    $("signin-gate").classList.remove("hide");
+    $("app-wrap").classList.add("hide");
+    stopTicking();
+    return;
+  }
+  $("signin-gate").classList.add("hide");
+  $("app-wrap").classList.remove("hide");
+  setStatus("app-status", "");
+  try { await claimIfUnclaimed(user); } catch (e) { /* rule will report below */ }
+  unsubscribe = onSnapshot(docRef, snap => {
+    const d = snap.data() || {};
+    state.people = Array.isArray(d.people) ? d.people : [];
+    state.meds = Array.isArray(d.meds) && d.meds.length ? d.meds : DEFAULT_MEDS.slice();
+    state.doses = d.doses && typeof d.doses === "object" ? d.doses : {};
+    render();
+  }, err => {
+    setStatus("app-status", "Can't read your data: " + err.message, true);
+  });
+  startTicking();
+});
+
+// Whoever signs in first claims it; everyone after is checked against that.
+async function claimIfUnclaimed(user) {
+  const snap = await getDoc(docRef);
+  if (!snap.exists()) {
+    await setDoc(docRef, {
+      ownerUid: user.uid, ownerEmail: user.email || null,
+      people: [], meds: DEFAULT_MEDS, doses: {}
+    });
+  }
+}
+
+async function save(patch) {
+  try {
+    await setDoc(docRef, patch, { merge: true });
+    setStatus("app-status", "");
+  } catch (e) {
+    setStatus("app-status", "Couldn't save: " + e.message, true);
+  }
+}
+
+// ---------- Dose maths ----------
+function dosesFor(personId, medId, sinceMs) {
+  return Object.entries(state.doses)
+    .map(([id, v]) => ({ id, ...v }))
+    .filter(x => x.personId === personId && (!medId || x.medId === medId) && x.at >= sinceMs)
+    .sort((a, b) => b.at - a.at);
+}
+function medById(id) { return state.meds.find(m => m.id === id) || null; }
+
+// The soonest a person may have anything again, given each medicine's own gap.
+// Returns null when nothing is due.
+function nextDueFor(personId) {
+  const now = Date.now();
+  let soonest = null;
+  for (const med of state.meds) {
+    const recent = dosesFor(personId, med.id, now - DAY);
+    if (!recent.length) continue;
+    const gapMs = (Number(med.gapHours) || 0) * HOUR;
+    const due = recent[0].at + gapMs;
+    if (due > now && (soonest === null || due < soonest.due)) soonest = { due, med };
+  }
+  return soonest;
+}
+function countIn24(personId, medId) {
+  return dosesFor(personId, medId, Date.now() - DAY).length;
+}
+function fmtAgo(ms) {
+  const mins = Math.round(ms / 60000);
+  if (mins < 1) return "just now";
+  if (mins < 60) return mins + (mins === 1 ? " min ago" : " mins ago");
+  const h = Math.floor(mins / 60), m = mins % 60;
+  return h + "h" + (m ? " " + m + "m" : "") + " ago";
+}
+function fmtCountdown(ms) {
+  const total = Math.max(0, Math.ceil(ms / 1000));
+  const h = Math.floor(total / 3600), m = Math.floor((total % 3600) / 60), s = total % 60;
+  if (h > 0) return h + "h " + String(m).padStart(2, "0") + "m";
+  return m + "m " + String(s).padStart(2, "0") + "s";
+}
+function fmtClock(ts) {
+  return new Date(ts).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+}
+
+// ---------- Render ----------
+function render() {
+  const wrap = $("people-list");
+  wrap.innerHTML = "";
+  $("no-people").classList.toggle("hide", state.people.length > 0);
+
+  state.people.forEach(p => {
+    const card = document.createElement("div");
+    card.className = "person";
+    const next = nextDueFor(p.id);
+    const lastAny = dosesFor(p.id, null, Date.now() - DAY)[0];
+
+    let statusText, cls;
+    if (!next) { statusText = "OK to give"; cls = "ready"; }
+    else {
+      const left = next.due - Date.now();
+      statusText = "Wait " + fmtCountdown(left);
+      cls = left <= 15 * 60000 ? "soon" : "wait";
+    }
+    card.classList.add(cls);
+
+    const top = document.createElement("div");
+    top.className = "person-top";
+    const nameEl = document.createElement("div");
+    nameEl.className = "person-name";
+    nameEl.textContent = p.name;
+    const statusEl = document.createElement("div");
+    statusEl.className = "status countdown";
+    statusEl.textContent = statusText;
+    top.append(nameEl, statusEl);
+    card.appendChild(top);
+
+    const last = document.createElement("div");
+    last.className = "last-dose";
+    if (!lastAny) last.textContent = "Nothing given in the last 24 hours.";
+    else {
+      const med = medById(lastAny.medId);
+      const bits = [(med ? med.name : "Medicine") + (lastAny.amount ? " " + lastAny.amount : "")];
+      bits.push(fmtAgo(Date.now() - lastAny.at) + " (" + fmtClock(lastAny.at) + ")");
+      last.textContent = "Last: " + bits.join(" · ");
+      if (next) last.textContent += " — next " + medById(next.med.id).name + " from " + fmtClock(next.due);
+    }
+    card.appendChild(last);
+
+    // Any medicine already at its 24-hour maximum gets called out.
+    const maxed = state.meds.filter(m => Number(m.maxPer24) > 0 && countIn24(p.id, m.id) >= Number(m.maxPer24));
+    if (maxed.length) {
+      const w = document.createElement("div");
+      w.className = "last-dose";
+      w.style.color = "var(--warn)";
+      w.textContent = "At the 24-hour maximum for " + maxed.map(m => m.name).join(" and ") + ".";
+      card.appendChild(w);
+    }
+
+    const actions = document.createElement("div");
+    actions.className = "person-actions";
+    const logBtn = document.createElement("button");
+    logBtn.className = "btn small";
+    logBtn.type = "button";
+    logBtn.textContent = "Log a dose";
+    logBtn.addEventListener("click", () => openDoseSheet(p.id));
+    actions.appendChild(logBtn);
+    card.appendChild(actions);
+
+    wrap.appendChild(card);
+  });
+
+  renderHistory();
+}
+
+function renderHistory() {
+  const box = $("history");
+  box.innerHTML = "";
+  const recent = Object.entries(state.doses)
+    .map(([id, v]) => ({ id, ...v }))
+    .filter(x => x.at >= Date.now() - DAY)
+    .sort((a, b) => b.at - a.at);
+  if (!recent.length) {
+    box.innerHTML = '<div class="empty">Nothing logged in the last 24 hours.</div>';
+    return;
+  }
+  recent.forEach(d => {
+    const person = state.people.find(p => p.id === d.personId);
+    const med = medById(d.medId);
+    const row = document.createElement("div");
+    row.className = "log-row";
+    const left = document.createElement("div");
+    left.textContent = (person ? person.name : "—") + " · " + (med ? med.name : "Medicine") + (d.amount ? " " + d.amount : "");
+    const right = document.createElement("div");
+    right.className = "row";
+    const when = document.createElement("span");
+    when.className = "log-when";
+    when.textContent = fmtClock(d.at);
+    const del = document.createElement("button");
+    del.className = "log-del";
+    del.type = "button";
+    del.textContent = "✕";
+    del.title = "Remove this entry";
+    del.addEventListener("click", () => {
+      if (!confirm("Remove this entry? Only do this if it was logged by mistake.")) return;
+      const next = { ...state.doses };
+      delete next[d.id];
+      save({ doses: next });
+    });
+    right.append(when, del);
+    row.append(left, right);
+    box.appendChild(row);
+  });
+}
+
+function startTicking() {
+  stopTicking();
+  // Re-render once a second so the countdowns stay live.
+  tickHandle = setInterval(() => { if (state.people.length) render(); }, 1000);
+}
+function stopTicking() { if (tickHandle) { clearInterval(tickHandle); tickHandle = null; } }
+
+// ---------- Dose sheet ----------
+function openDoseSheet(personId) {
+  doseFor = personId;
+  doseMedId = state.meds.length ? state.meds[0].id : null;
+  const person = state.people.find(p => p.id === personId);
+  $("dose-title").textContent = "Log a dose for " + (person ? person.name : "");
+  $("dose-amount").value = "";
+  $("dose-time").value = toLocalInput(Date.now());
+  $("dose-time").classList.add("hide");
+  $("chip-now").classList.add("on");
+  $("chip-earlier").classList.remove("on");
+  renderDoseMeds();
+  $("dose-sheet").classList.add("open");
+}
+function renderDoseMeds() {
+  const wrap = $("dose-meds");
+  wrap.innerHTML = "";
+  state.meds.forEach(m => {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.className = "chip" + (m.id === doseMedId ? " on" : "");
+    b.textContent = m.name;
+    b.addEventListener("click", () => { doseMedId = m.id; renderDoseMeds(); });
+    wrap.appendChild(b);
+  });
+  const med = medById(doseMedId);
+  const warn = $("dose-warn");
+  warn.textContent = "";
+  if (med && doseFor) {
+    const recent = dosesFor(doseFor, med.id, Date.now() - DAY);
+    const gapMs = (Number(med.gapHours) || 0) * HOUR;
+    $("dose-gap-help").textContent =
+      med.name + ": at least " + med.gapHours + "h apart, up to " + med.maxPer24 + " in 24 hours. Check the bottle.";
+    if (recent.length && recent[0].at + gapMs > Date.now()) {
+      warn.textContent = "That's earlier than the " + med.gapHours + "h gap — last one was " + fmtAgo(Date.now() - recent[0].at) + ".";
+    } else if (Number(med.maxPer24) > 0 && recent.length >= Number(med.maxPer24)) {
+      warn.textContent = "Already had " + recent.length + " in 24 hours.";
+    }
+  } else {
+    $("dose-gap-help").textContent = "";
+  }
+}
+$("chip-now").addEventListener("click", () => {
+  $("chip-now").classList.add("on");
+  $("chip-earlier").classList.remove("on");
+  $("dose-time").classList.add("hide");
+});
+$("chip-earlier").addEventListener("click", () => {
+  $("chip-earlier").classList.add("on");
+  $("chip-now").classList.remove("on");
+  $("dose-time").classList.remove("hide");
+});
+$("btn-cancel-dose").addEventListener("click", () => $("dose-sheet").classList.remove("open"));
+$("dose-sheet").addEventListener("click", e => { if (e.target === $("dose-sheet")) $("dose-sheet").classList.remove("open"); });
+
+$("btn-save-dose").addEventListener("click", () => {
+  if (!doseFor || !doseMedId) return;
+  let at = Date.now();
+  if (!$("dose-time").classList.contains("hide")) {
+    const v = $("dose-time").value;
+    if (v) at = new Date(v).getTime();
+    if (!at || isNaN(at)) at = Date.now();
+  }
+  const next = pruneOld({ ...state.doses });
+  next[newId()] = { personId: doseFor, medId: doseMedId, amount: $("dose-amount").value.trim(), at };
+  save({ doses: next });
+  $("dose-sheet").classList.remove("open");
+});
+
+function pruneOld(doses) {
+  const cutoff = Date.now() - KEEP_MS;
+  Object.keys(doses).forEach(k => { if (!doses[k] || doses[k].at < cutoff) delete doses[k]; });
+  return doses;
+}
+function toLocalInput(ts) {
+  const d = new Date(ts - new Date().getTimezoneOffset() * 60000);
+  return d.toISOString().slice(0, 16);
+}
+
+// ---------- Settings ----------
+$("btn-settings").addEventListener("click", () => { renderSettings(); $("settings-sheet").classList.add("open"); });
+$("btn-close-settings").addEventListener("click", () => $("settings-sheet").classList.remove("open"));
+$("settings-sheet").addEventListener("click", e => { if (e.target === $("settings-sheet")) $("settings-sheet").classList.remove("open"); });
+
+function renderSettings() {
+  const pe = $("people-editor");
+  pe.innerHTML = "";
+  state.people.forEach((p, i) => {
+    const row = document.createElement("div");
+    row.className = "settings-row";
+    const inp = document.createElement("input");
+    inp.type = "text";
+    inp.value = p.name;
+    inp.maxLength = 24;
+    inp.placeholder = "Name";
+    inp.addEventListener("change", () => {
+      const people = state.people.map((x, j) => j === i ? { ...x, name: inp.value.trim() || x.name } : x);
+      save({ people });
+    });
+    const del = document.createElement("button");
+    del.className = "icon-btn";
+    del.type = "button";
+    del.textContent = "✕";
+    del.addEventListener("click", () => {
+      if (!confirm("Remove " + p.name + "? Their dose history stays until it ages out.")) return;
+      save({ people: state.people.filter((_, j) => j !== i) });
+    });
+    row.append(inp, del);
+    pe.appendChild(row);
+  });
+
+  const me = $("meds-editor");
+  me.innerHTML = "";
+  state.meds.forEach((m, i) => {
+    const row = document.createElement("div");
+    row.className = "settings-row";
+    const name = document.createElement("input");
+    name.type = "text"; name.value = m.name; name.maxLength = 24; name.placeholder = "Medicine";
+    const gap = document.createElement("input");
+    gap.type = "number"; gap.min = "0"; gap.max = "48"; gap.step = "0.5"; gap.value = m.gapHours; gap.title = "Hours between doses";
+    const max = document.createElement("input");
+    max.type = "number"; max.min = "0"; max.max = "24"; max.value = m.maxPer24; max.title = "Max in 24 hours";
+    const commit = () => {
+      const meds = state.meds.map((x, j) => j === i ? {
+        ...x,
+        name: name.value.trim() || x.name,
+        gapHours: Number(gap.value) || 0,
+        maxPer24: Number(max.value) || 0
+      } : x);
+      save({ meds });
+    };
+    [name, gap, max].forEach(el => el.addEventListener("change", commit));
+    const del = document.createElement("button");
+    del.className = "icon-btn"; del.type = "button"; del.textContent = "✕";
+    del.addEventListener("click", () => {
+      if (!confirm("Remove " + m.name + "?")) return;
+      save({ meds: state.meds.filter((_, j) => j !== i) });
+    });
+    row.append(name, gap, max, del);
+    me.appendChild(row);
+  });
+}
+
+$("btn-add-person").addEventListener("click", () => {
+  const name = (prompt("Name?") || "").trim();
+  if (!name) return;
+  save({ people: [...state.people, { id: newId(), name }] });
+  setTimeout(renderSettings, 250);
+});
+$("btn-add-med").addEventListener("click", () => {
+  const name = (prompt("Medicine name?") || "").trim();
+  if (!name) return;
+  save({ meds: [...state.meds, { id: newId(), name, gapHours: 4, maxPer24: 4 }] });
+  setTimeout(renderSettings, 250);
+});
+</script>
+</body>
+</html>
