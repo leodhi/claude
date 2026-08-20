@@ -50,11 +50,11 @@
     padding: 16px; box-shadow: var(--shadow); margin-bottom: 12px;
   }
   label { display: block; font-size: 0.72rem; color: var(--ink-muted); text-transform: uppercase; letter-spacing: 0.07em; margin-bottom: 6px; }
-  input[type="text"], input[type="email"], input[type="password"], input[type="number"], input[type="datetime-local"] {
+  input[type="text"], input[type="email"], input[type="password"], input[type="number"], input[type="datetime-local"], select {
     width: 100%; background: var(--surface-2); border: 1px solid var(--border); color: var(--ink);
     padding: 12px; border-radius: 10px; font-size: 1rem; font-family: inherit;
   }
-  input:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+  input:focus, select:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
   button { font-family: inherit; touch-action: manipulation; transition: transform 0.15s cubic-bezier(.2,.9,.3,1.1); }
   button:active { transform: scale(0.96); }
   .btn {
@@ -133,7 +133,19 @@
     background: var(--surface-2); border: 1px solid var(--border); color: var(--ink-muted);
     border-radius: 10px; width: 42px; height: 42px; font-size: 1rem; cursor: pointer; flex: none;
   }
+  .med-panel {
+    background: var(--surface-2); border: 1px solid var(--border); border-radius: 12px;
+    padding: 12px; margin: 0 0 12px;
+  }
+  .med-panel label { display: block; font-size: 0.74rem; color: var(--ink-faint); margin: 0 0 6px; }
+  .med-panel label + * { margin-bottom: 12px; }
+  .med-panel > *:last-child { margin-bottom: 0; }
+  .med-timing {
+    font-size: 0.82rem; color: var(--ink); font-weight: 600;
+    margin: 0 0 12px; line-height: 1.4;
+  }
   .med-presets { margin: 0 0 10px; }
+  .med-pick { width: 100%; }
   .med-hint { margin-bottom: 10px; }
   .med-help { font-size: 0.72rem; color: var(--ink-faint); margin: 9px 0 10px; line-height: 1.45; }
 </style>
@@ -222,7 +234,7 @@
     <button class="btn secondary small" id="btn-add-person" type="button" style="margin:4px 0 18px;">+ Add person</button>
 
     <label>Medicines</label>
-    <div class="med-help">Medicines show as a short label of your choosing, never a drug name, so nobody glancing at your phone can tell what's being taken. Tap <strong>⋯</strong> to pick a label or add a private reminder to yourself.<br><br>Hours is the smallest gap between doses, and max is how many are allowed in 24 hours. <strong>Set these from the bottle</strong> — the starting values are only common defaults.</div>
+    <div class="med-help">Medicines show as a short label of your choosing, never a drug name, so nobody glancing at your phone can tell what's being taken. Tap <strong>⋯</strong> to change the label, fill the timing in from a list of common medicines, or add a private reminder that only ever appears here in Settings.<br><br>Hours is the smallest gap between doses, and max is how many are allowed in 24 hours. Picking from the list fills those two in with the usual figures off the packet — <strong>always check them against your own box</strong>, and change them if they differ. Nothing here tells you <em>how much</em> to take; that only ever comes off the packaging.</div>
     <div id="meds-editor"></div>
     <button class="btn secondary small" id="btn-add-med" type="button" style="margin:4px 0 18px;">+ Add medicine</button>
 
@@ -276,6 +288,44 @@ const KEEP_MS = 7 * DAY;
 // so a glance at the phone doesn't tell anyone what's being taken or why. The
 // defaults are deliberately meaningless; you decide what "Blue" means.
 const NICKNAME_PRESETS = ["Blue", "Pink", "Red", "Green", "Purple", "Orange", "White", "A", "B", "C", "1", "2"];
+// Timing presets for common household medicines. These fill in only the two
+// numbers printed on the packet -- the smallest gap between doses, and how
+// many doses are allowed in 24 hours. The app deliberately never suggests an
+// amount: no mg, no ml, and no working a child's dose out from their weight.
+// That always comes off the box in your hand. Every value here is the common
+// label figure, is marked as such, and stays editable afterwards.
+const MEDICINE_PRESETS = [
+  { group: "Pain and fever", items: [
+    { label: "Paracetamol / Tylenol (regular)", gapHours: 4, maxPer24: 4 },
+    { label: "Tylenol Extra Strength", gapHours: 6, maxPer24: 3 },
+    { label: "Tylenol 8 HR / Arthritis", gapHours: 8, maxPer24: 3 },
+    { label: "Ibuprofen / Advil / Nurofen", gapHours: 6, maxPer24: 3 },
+    { label: "Naproxen / Aleve", gapHours: 8, maxPer24: 3 },
+    { label: "Aspirin", gapHours: 4, maxPer24: 6 },
+    { label: "Children's paracetamol liquid", gapHours: 4, maxPer24: 4 },
+    { label: "Children's ibuprofen liquid", gapHours: 6, maxPer24: 3 }
+  ] },
+  { group: "Colds and allergies", items: [
+    { label: "Cetirizine / Zyrtec", gapHours: 24, maxPer24: 1 },
+    { label: "Loratadine / Claritin", gapHours: 24, maxPer24: 1 },
+    { label: "Diphenhydramine / Benadryl", gapHours: 6, maxPer24: 4 },
+    { label: "Cough syrup, 4-hourly", gapHours: 4, maxPer24: 6 },
+    { label: "Cough syrup, 12-hourly / Delsym", gapHours: 12, maxPer24: 2 },
+    { label: "Decongestant / Sudafed", gapHours: 6, maxPer24: 4 }
+  ] },
+  { group: "Or just set the pattern", items: [
+    { label: "Once a day", gapHours: 24, maxPer24: 1 },
+    { label: "Twice a day", gapHours: 12, maxPer24: 2 },
+    { label: "Three times a day", gapHours: 8, maxPer24: 3 },
+    { label: "Four times a day", gapHours: 6, maxPer24: 4 },
+    { label: "As directed — no limit set", gapHours: 0, maxPer24: 0 }
+  ] }
+];
+function findPreset(label) {
+  for (const g of MEDICINE_PRESETS) { const hit = g.items.find(i => i.label === label); if (hit) return hit; }
+  return null;
+}
+
 const DEFAULT_MEDS = [
   { id: "m1", name: "Blue", gapHours: 4, maxPer24: 4, hint: "" },
   { id: "m2", name: "Pink", gapHours: 6, maxPer24: 3, hint: "" }
@@ -284,6 +334,24 @@ const DEFAULT_MEDS = [
 let state = { people: [], meds: [], doses: {} };
 let unsubscribe = null;
 let currentUser = null;
+// Which medicines have their ⋯ panel open. Kept outside the render so a
+// save (which re-draws the whole list) doesn't snap them shut again.
+const openMedPanels = new Set();
+function presetTiming(item) {
+  if (!item.gapHours && !item.maxPer24) return "you set the limits";
+  const gap = item.gapHours ? item.gapHours + "h" : "no gap";
+  return item.maxPer24 ? gap + ", max " + item.maxPer24 : gap;
+}
+// The two number boxes on the row are bare digits, so the panel says out loud
+// what they currently mean.
+function timingSentence(gapHours, maxPer24) {
+  const g = Number(gapHours) || 0, m = Number(maxPer24) || 0;
+  if (!g && !m) return "No limits set — nothing will be flagged as too soon.";
+  const gapPart = g ? "At least " + g + " hour" + (g === 1 ? "" : "s") + " between doses"
+                    : "No minimum gap between doses";
+  return gapPart + (m ? ", up to " + m + " in 24 hours." : ", and no daily limit.");
+}
+
 let doseFor = null;      // person id the sheet is open for
 let doseMedId = null;
 let tickHandle = null;
@@ -501,6 +569,16 @@ function render() {
   });
 
   renderHistory();
+
+  // If Settings is open when a change lands -- something deleted here, or
+  // another phone editing the same list -- the rows have to be drawn again.
+  // Left alone, a deleted row stays on screen and still edits by its old
+  // position, so a tap on it changes the wrong medicine. Skipped while a
+  // field in there has focus, or redrawing would wipe what's being typed.
+  const focused = document.activeElement;
+  const typing = focused && $("settings-sheet").contains(focused)
+    && (focused.tagName === "INPUT" || focused.tagName === "SELECT");
+  if ($("settings-sheet").classList.contains("open") && !typing) renderSettings();
 }
 
 function renderHistory() {
@@ -675,22 +753,36 @@ function renderSettings() {
     const hint = document.createElement("input");
     hint.type = "text"; hint.value = m.hint || ""; hint.maxLength = 40;
     hint.placeholder = "Private reminder to yourself (optional)";
-    hint.className = "med-hint hide";
+    hint.className = "med-hint";
     const commit = () => {
       const meds = state.meds.map((x, j) => j === i ? {
         ...x,
         name: name.value.trim() || x.name,
         gapHours: Number(gap.value) || 0,
         maxPer24: Number(max.value) || 0,
+        preset: pick.value,
         hint: hint.value.trim()
       } : x);
       save({ meds });
     };
     [name, gap, max, hint].forEach(el => el.addEventListener("change", commit));
 
-    // Tapping the label offers the neutral presets rather than making you type.
+    // Everything below the row lives in one panel that opens on ⋯, so the
+    // list stays a tidy one-line-per-medicine until you want to change something.
+    const panel = document.createElement("div");
+    panel.className = "med-panel" + (openMedPanels.has(m.id) ? "" : " hide");
+
+    const timing = document.createElement("div");
+    timing.className = "med-timing";
+    const showTiming = () => { timing.textContent = timingSentence(gap.value, max.value); };
+    showTiming();
+    [gap, max].forEach(el => el.addEventListener("input", showTiming));
+
+    // Tapping a chip picks the neutral label rather than making you type one.
+    const presetLabel = document.createElement("label");
+    presetLabel.textContent = "What it's called on this screen";
     const presets = document.createElement("div");
-    presets.className = "chips med-presets hide";
+    presets.className = "chips med-presets";
     NICKNAME_PRESETS.forEach(word => {
       const c = document.createElement("button");
       c.type = "button";
@@ -699,23 +791,62 @@ function renderSettings() {
       c.addEventListener("click", () => { name.value = word; commit(); });
       presets.appendChild(c);
     });
+
+    // The picker fills in the timing only. It never touches the label on the
+    // row, so choosing "Tylenol Extra Strength" here still shows up as "Blue".
+    const pickLabel = document.createElement("label");
+    pickLabel.textContent = "Fill the timing in from a common medicine";
+    const pick = document.createElement("select");
+    pick.className = "med-pick";
+    const blank = document.createElement("option");
+    blank.value = ""; blank.textContent = "Choose one…";
+    pick.appendChild(blank);
+    MEDICINE_PRESETS.forEach(g => {
+      const og = document.createElement("optgroup");
+      og.label = g.group;
+      g.items.forEach(item => {
+        const o = document.createElement("option");
+        o.value = item.label;
+        o.textContent = item.label + " · " + presetTiming(item);
+        og.appendChild(o);
+      });
+      pick.appendChild(og);
+    });
+    pick.value = m.preset && findPreset(m.preset) ? m.preset : "";
+    pick.addEventListener("change", () => {
+      const item = findPreset(pick.value);
+      if (!item) { commit(); return; }
+      gap.value = String(item.gapHours);
+      max.value = String(item.maxPer24);
+      showTiming();
+      // The private reminder is the one place the real name can live, and it's
+      // only ever visible here in Settings -- so fill it in, but never over
+      // something already written.
+      if (!hint.value.trim()) hint.value = item.label;
+      commit();
+    });
+
+    const hintLabel = document.createElement("label");
+    hintLabel.textContent = "Private reminder — only ever shown here in Settings";
+
     const toggle = document.createElement("button");
     toggle.className = "icon-btn"; toggle.type = "button"; toggle.textContent = "⋯";
-    toggle.title = "Pick a label, or add a private reminder";
+    toggle.title = "Pick a label or a medicine, and set a private reminder";
     toggle.addEventListener("click", () => {
-      presets.classList.toggle("hide");
-      hint.classList.toggle("hide");
+      const nowOpen = panel.classList.toggle("hide") === false;
+      if (nowOpen) openMedPanels.add(m.id); else openMedPanels.delete(m.id);
     });
     const del = document.createElement("button");
     del.className = "icon-btn"; del.type = "button"; del.textContent = "✕";
     del.addEventListener("click", () => {
       if (!confirm("Remove " + m.name + "?")) return;
+      openMedPanels.delete(m.id);
       save({ meds: state.meds.filter((_, j) => j !== i) });
     });
     row.append(name, gap, max, toggle, del);
+    panel.append(timing, presetLabel, presets, pickLabel, pick, hintLabel, hint);
     me.appendChild(row);
-    me.appendChild(presets);
-    me.appendChild(hint);
+    me.appendChild(panel);
   });
 }
 
@@ -726,12 +857,13 @@ $("btn-add-person").addEventListener("click", () => {
   setTimeout(renderSettings, 250);
 });
 $("btn-add-med").addEventListener("click", () => {
-  // Suggest an unused neutral label so nothing identifying gets typed by reflex.
+  // No typing to start with: it lands with an unused neutral label already on
+  // it, and its panel opens so the medicine and the timing can be picked.
   const taken = state.meds.map(m => m.name);
-  const suggestion = NICKNAME_PRESETS.find(w => !taken.includes(w)) || "New";
-  const name = (prompt("Label for it? Keep it vague — you'll know what it means.", suggestion) || "").trim();
-  if (!name) return;
-  save({ meds: [...state.meds, { id: newId(), name, gapHours: 4, maxPer24: 4, hint: "" }] });
+  const name = NICKNAME_PRESETS.find(w => !taken.includes(w)) || "New";
+  const id = newId();
+  openMedPanels.add(id);
+  save({ meds: [...state.meds, { id, name, gapHours: 4, maxPer24: 4, preset: "", hint: "" }] });
   setTimeout(renderSettings, 250);
 });
 </script>
