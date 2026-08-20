@@ -1,0 +1,427 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+<title>Renewals</title>
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#f6f4ef">
+<style>
+  :root {
+    --paper: #f6f4ef;
+    --surface: #ffffff;
+    --surface-2: #fbf9f4;
+    --ink: #241f18;
+    --ink-muted: #766c5c;
+    --ink-faint: #a89d89;
+    --border: #e6ddc9;
+    --accent: #8a5a2b;
+    --accent-soft: #f1e4d0;
+    --warn: #b23a3a;
+    --warn-soft: #f5dede;
+    --good: #3a7d5c;
+    --good-soft: #e1ede6;
+    --shadow: 0 1px 2px rgba(36,31,24,0.06), 0 8px 24px rgba(36,31,24,0.06);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --paper: #161310; --surface: #1e1a15; --surface-2: #241f19;
+      --ink: #efe9df; --ink-muted: #b3a790; --ink-faint: #766c5a;
+      --border: #322c22; --accent: #d99a54; --accent-soft: rgba(217,154,84,0.14);
+      --warn: #e28080; --warn-soft: rgba(226,128,128,0.12);
+      --good: #6cc190; --good-soft: rgba(108,193,144,0.12);
+      --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 8px 24px rgba(0,0,0,0.35);
+    }
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body {
+    margin: 0; padding: 0; min-height: 100%;
+    background: var(--paper); color: var(--ink);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    overscroll-behavior-y: contain;
+  }
+  #wrap { max-width: 560px; margin: 0 auto; padding: 20px 16px calc(40px + env(safe-area-inset-bottom)); }
+  header { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; margin-bottom: 4px; }
+  h1 { font-size: 1.35rem; margin: 0; letter-spacing: -0.01em; }
+  .sub { color: var(--ink-muted); font-size: 0.85rem; margin: 2px 0 16px; }
+  .card {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 16px;
+    padding: 16px; box-shadow: var(--shadow); margin-bottom: 12px;
+  }
+  label { display: block; font-size: 0.72rem; color: var(--ink-muted); text-transform: uppercase; letter-spacing: 0.07em; margin-bottom: 6px; }
+  input[type="text"], input[type="email"], input[type="password"], input[type="number"], input[type="datetime-local"] {
+    width: 100%; background: var(--surface-2); border: 1px solid var(--border); color: var(--ink);
+    padding: 12px; border-radius: 10px; font-size: 1rem; font-family: inherit;
+  }
+  input:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+  button { font-family: inherit; touch-action: manipulation; transition: transform 0.15s cubic-bezier(.2,.9,.3,1.1); }
+  button:active { transform: scale(0.96); }
+  .btn {
+    background: var(--accent); color: var(--paper); border: none; padding: 14px;
+    border-radius: 12px; font-size: 1rem; font-weight: 650; cursor: pointer; width: 100%;
+  }
+  .btn.secondary { background: transparent; color: var(--ink); border: 1px solid var(--border); }
+  .btn.danger { background: var(--warn); color: #fff; }
+  .btn:disabled { opacity: 0.45; cursor: not-allowed; }
+  .btn.small { width: auto; padding: 9px 14px; font-size: 0.85rem; border-radius: 999px; }
+  .link { background: none; border: none; color: var(--ink-muted); text-decoration: underline; font-size: 0.82rem; cursor: pointer; padding: 6px; }
+  .row { display: flex; gap: 8px; align-items: center; }
+  .hide { display: none !important; }
+
+
+  .chip {
+    padding: 9px 14px; border-radius: 999px; border: 1px solid var(--border);
+    background: var(--surface-2); color: var(--ink-muted); font-size: 0.88rem; cursor: pointer;
+    touch-action: manipulation; transition: transform 0.15s cubic-bezier(.2,.9,.3,1.1);
+  }
+  .chip:active { transform: scale(0.94); }
+  .chip.on { background: var(--accent); color: var(--paper); border-color: var(--accent); font-weight: 650; }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; }
+
+
+  .note {
+    background: var(--accent-soft); border: 1px solid var(--border); border-radius: 12px;
+    padding: 12px 14px; font-size: 0.82rem; color: var(--ink-muted); line-height: 1.5; margin-bottom: 12px;
+  }
+  .note strong { color: var(--ink); }
+  .empty { color: var(--ink-muted); font-size: 0.9rem; text-align: center; padding: 18px 0; }
+  .status-line { color: var(--ink-muted); font-size: 0.85rem; text-align: center; padding: 6px 0; min-height: 1.2em; }
+  .status-line.err { color: var(--warn); }
+
+  /* Sheet */
+  .sheet-back {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 50;
+    display: flex; align-items: flex-end; justify-content: center;
+    opacity: 0; visibility: hidden; pointer-events: none; transition: opacity 0.22s ease;
+  }
+  .sheet-back.open { opacity: 1; visibility: visible; pointer-events: auto; }
+  .sheet {
+    background: var(--surface); width: 100%; max-width: 560px;
+    border-radius: 20px 20px 0 0; padding: 20px 16px calc(24px + env(safe-area-inset-bottom));
+    transform: translateY(18px); transition: transform 0.3s cubic-bezier(.2,.9,.3,1.1);
+    max-height: 88vh; overflow-y: auto;
+  }
+  .sheet-back.open .sheet { transform: translateY(0); }
+  .sheet h2 { margin: 0 0 14px; font-size: 1.1rem; }
+  .settings-row { display: flex; gap: 8px; align-items: center; margin-bottom: 8px; }
+  .settings-row input[type="text"] { flex: 1; }
+  .settings-row input[type="number"] { width: 74px; text-align: center; }
+  .icon-btn {
+    background: var(--surface-2); border: 1px solid var(--border); color: var(--ink-muted);
+    border-radius: 10px; width: 42px; height: 42px; font-size: 1rem; cursor: pointer; flex: none;
+  }
+
+  .item {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 14px;
+    padding: 14px; box-shadow: var(--shadow); margin-bottom: 10px;
+    border-left: 5px solid var(--border); cursor: pointer;
+    transition: transform 0.15s cubic-bezier(.2,.9,.3,1.1);
+  }
+  .item:active { transform: scale(0.99); }
+  .item.past { border-left-color: var(--warn); }
+  .item.soon { border-left-color: var(--accent); }
+  .item.ok { border-left-color: var(--good); }
+  .item.done { opacity: 0.55; border-left-color: var(--border); }
+  .item-top { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; }
+  .item-name { font-size: 1.05rem; font-weight: 650; }
+  .item-when { font-size: 0.9rem; font-weight: 650; white-space: nowrap; }
+  .item.past .item-when { color: var(--warn); }
+  .item.soon .item-when { color: var(--accent); }
+  .item.ok .item-when { color: var(--good); }
+  .item-sub { color: var(--ink-muted); font-size: 0.84rem; margin-top: 5px; line-height: 1.45; }
+  .item.done .item-name { text-decoration: line-through; }
+  .group-label {
+    font-size: 0.72rem; color: var(--ink-muted); text-transform: uppercase;
+    letter-spacing: 0.07em; margin: 18px 0 8px;
+  }
+  .fab-row { margin-top: 4px; }
+</style>
+</head>
+<body>
+<div id="wrap">
+
+  <div id="signin-gate">
+    <header><h1>📅 Renewals</h1></header>
+    <div class="sub">Passports, MOT, insurance — what's due and when.</div>
+    <div class="card">
+      <div class="note" style="margin-bottom:14px;">
+        This is <strong>private to your family</strong> — sign in once on each phone and you'll stay signed in.
+      </div>
+      <button class="btn" id="btn-google" type="button">Continue with Google</button>
+      <div style="text-align:center;color:var(--ink-faint);font-size:0.78rem;margin:14px 0 10px;">— or with an email and password —</div>
+      <label for="in-email">Email</label>
+      <input type="email" id="in-email" autocomplete="username" placeholder="you@example.com">
+      <label for="in-pass" style="margin-top:10px;">Password</label>
+      <input type="password" id="in-pass" autocomplete="current-password" placeholder="Your password">
+      <div class="row" style="margin-top:12px;">
+        <button class="btn secondary" id="btn-signin" type="button">Sign in</button>
+        <button class="btn secondary" id="btn-register" type="button">Create account</button>
+      </div>
+      <div style="text-align:center;"><button class="link" id="btn-reset" type="button">Forgot password?</button></div>
+      <div class="status-line" id="signin-status"></div>
+    </div>
+  </div>
+
+  <div id="app-wrap" class="hide">
+    <header>
+      <h1>📅 Renewals</h1>
+      <button class="link" id="btn-signout" type="button">Sign out</button>
+    </header>
+    <div class="sub">Passports, MOT, insurance — what's due and when.</div>
+    <div class="note">
+      Anything due within <strong>30 days</strong> is flagged, and you'll get a phone alert 30 days and 7 days before.
+    </div>
+    <div id="items"></div>
+    <div class="empty hide" id="empty">Nothing tracked yet. Add a passport, an MOT, an insurance renewal.</div>
+    <div class="fab-row"><button class="btn" id="btn-add" type="button">+ Add a renewal</button></div>
+    <div class="status-line" id="app-status"></div>
+  </div>
+</div>
+
+<div class="sheet-back" id="edit-sheet">
+  <div class="sheet">
+    <h2 id="edit-title">Add a renewal</h2>
+    <label>What is it</label>
+    <input type="text" id="f-name" placeholder="e.g. Emma's passport" maxlength="60">
+    <label style="margin-top:12px;">Renews or expires on</label>
+    <input type="date" id="f-date">
+    <label style="margin-top:12px;">Renews every</label>
+    <div class="row">
+      <input type="number" id="f-years" min="1" max="20" value="1" style="width:90px;text-align:center;">
+      <span style="color:var(--ink-muted);font-size:0.9rem;">year(s) — used by the Renewed button</span>
+    </div>
+    <label style="margin-top:12px;">Note (optional)</label>
+    <input type="text" id="f-note" placeholder="e.g. renew at the Post Office" maxlength="80">
+    <button class="btn" id="btn-save" type="button" style="margin-top:16px;">Save</button>
+    <button class="btn secondary" id="btn-renewed" type="button" style="margin-top:8px;">Mark renewed — move on a year</button>
+    <button class="btn danger" id="btn-delete" type="button" style="margin-top:8px;">Delete</button>
+    <button class="btn secondary" id="btn-cancel" type="button" style="margin-top:8px;">Cancel</button>
+  </div>
+</div>
+
+<script type="module">
+
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
+import { getFirestore, doc, onSnapshot, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
+import {
+  getAuth, GoogleAuthProvider, signInWithPopup, signInWithRedirect, getRedirectResult,
+  signOut, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword,
+  sendPasswordResetEmail
+} from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
+
+// iOS Safari ignores the viewport zoom restrictions, so block the gestures.
+document.addEventListener("gesturestart", e => e.preventDefault());
+document.addEventListener("touchmove", e => { if (e.touches.length > 1) e.preventDefault(); }, { passive: false });
+let lastTouchEnd = 0;
+document.addEventListener("touchend", e => {
+  const now = Date.now();
+  if (now - lastTouchEnd <= 300) e.preventDefault();
+  lastTouchEnd = now;
+}, false);
+
+const firebaseConfig = {
+  apiKey: "AIzaSyDFJ_4r2c5P2w4F3TJg4CRNHP-yiDsRiRQ",
+  authDomain: "packing-list-3c532.firebaseapp.com",
+  projectId: "packing-list-3c532",
+  storageBucket: "packing-list-3c532.firebasestorage.app",
+  messagingSenderId: "209304705485",
+  appId: "1:209304705485:web:20c59e9f08465822c58c84"
+};
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+const authClient = getAuth(app);
+// All three home utilities live under homeApps so one Firestore rule covers
+// them. Ownership works the same way as the subscriptions ledger: whoever
+// signs in first claims the document.
+
+const $ = id => document.getElementById(id);
+function isMobileBrowser() { return /iPhone|iPad|iPod|Android/i.test(navigator.userAgent); }
+
+// ---------- Auth ----------
+$("btn-google").addEventListener("click", async () => {
+  setStatus("signin-status", "Opening Google…");
+  try {
+    if (isMobileBrowser()) await signInWithRedirect(authClient, new GoogleAuthProvider());
+    else await signInWithPopup(authClient, new GoogleAuthProvider());
+  } catch (e) { setStatus("signin-status", friendlyAuthError(e), true); }
+});
+$("btn-signin").addEventListener("click", async () => {
+  const { email, pass } = creds();
+  if (!email || !pass) return setStatus("signin-status", "Enter your email and password.", true);
+  setStatus("signin-status", "Signing in…");
+  try { await signInWithEmailAndPassword(authClient, email, pass); }
+  catch (e) { setStatus("signin-status", friendlyAuthError(e), true); }
+});
+$("btn-register").addEventListener("click", async () => {
+  const { email, pass } = creds();
+  if (!email || !pass) return setStatus("signin-status", "Enter an email and a password.", true);
+  setStatus("signin-status", "Creating your account…");
+  try { await createUserWithEmailAndPassword(authClient, email, pass); }
+  catch (e) { setStatus("signin-status", friendlyAuthError(e), true); }
+});
+$("btn-reset").addEventListener("click", async () => {
+  const { email } = creds();
+  if (!email) return setStatus("signin-status", "Type your email first, then tap this again.", true);
+  try {
+    await sendPasswordResetEmail(authClient, email);
+    setStatus("signin-status", "Password reset email sent.");
+  } catch (e) { setStatus("signin-status", friendlyAuthError(e), true); }
+});
+$("btn-signout").addEventListener("click", () => signOut(authClient));
+
+function creds() {
+  return { email: $("in-email").value.trim(), pass: $("in-pass").value };
+}
+function setStatus(id, msg, isError) {
+  const el = $(id);
+  el.textContent = msg || "";
+  el.classList.toggle("err", !!isError);
+}
+function friendlyAuthError(e) {
+  const code = (e && e.code) || "";
+  if (code.includes("wrong-password") || code.includes("invalid-credential")) return "That email and password don't match.";
+  if (code.includes("user-not-found")) return "No account with that email — tap Create account.";
+  if (code.includes("email-already-in-use")) return "That email already has an account — tap Sign in.";
+  if (code.includes("weak-password")) return "Pick a longer password (at least 6 characters).";
+  if (code.includes("invalid-email")) return "That doesn't look like an email address.";
+  if (code.includes("popup-blocked") || code.includes("popup-closed")) return "The Google window was blocked — try the email and password option.";
+  if (code.includes("network-request-failed")) return "Couldn't reach Google — try the email and password option.";
+  return (e && e.message) || "Something went wrong.";
+}
+
+getRedirectResult(authClient).catch(e => setStatus("signin-status", friendlyAuthError(e), true));
+
+const docRef = doc(db, "homeApps", "renewals");
+const DAY = 86400000;
+let state = { items: {} };
+let unsubscribe = null, editingId = null;
+
+function newId() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
+function todayUTC() { const d = new Date(); d.setHours(0,0,0,0); return d.getTime(); }
+function parseDate(s) { return s ? new Date(s + "T00:00:00").getTime() : null; }
+function daysUntil(s) { const t = parseDate(s); return t === null ? null : Math.round((t - todayUTC()) / DAY); }
+function fmtDate(s) {
+  const t = parseDate(s);
+  return t === null ? "" : new Date(t).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" });
+}
+function whenLabel(d) {
+  if (d === null) return "";
+  if (d < 0) return Math.abs(d) + (Math.abs(d) === 1 ? " day ago" : " days ago");
+  if (d === 0) return "Today";
+  if (d === 1) return "Tomorrow";
+  if (d < 31) return "In " + d + " days";
+  const months = Math.round(d / 30);
+  if (d < 365) return "In " + months + " month" + (months === 1 ? "" : "s");
+  const years = (d / 365).toFixed(d % 365 === 0 ? 0 : 1);
+  return "In " + years + " year" + (years === "1" ? "" : "s");
+}
+
+onAuthStateChanged(authClient, async user => {
+  if (unsubscribe) { unsubscribe(); unsubscribe = null; }
+  if (!user) {
+    document.getElementById("signin-gate").classList.remove("hide");
+    document.getElementById("app-wrap").classList.add("hide");
+    return;
+  }
+  document.getElementById("signin-gate").classList.add("hide");
+  document.getElementById("app-wrap").classList.remove("hide");
+  try {
+    const snap = await getDoc(docRef);
+    if (!snap.exists()) await setDoc(docRef, { ownerUid: user.uid, ownerEmail: user.email || null, items: {} });
+  } catch (e) { /* reported by the listener below */ }
+  unsubscribe = onSnapshot(docRef, snap => {
+    const d = snap.data() || {};
+    state.items = d.items && typeof d.items === "object" ? d.items : {};
+    render();
+  }, err => setStatus("app-status", "Can't read your data: " + err.message, true));
+});
+
+async function save(patch) {
+  try { await setDoc(docRef, patch, { merge: true }); setStatus("app-status", ""); }
+  catch (e) { setStatus("app-status", "Couldn't save: " + e.message, true); }
+}
+
+function render() {
+  const wrap = document.getElementById("items");
+  wrap.innerHTML = "";
+  const list = Object.entries(state.items).map(([id, v]) => ({ id, ...v }))
+    .sort((a, b) => (parseDate(a.date) || 0) - (parseDate(b.date) || 0));
+  document.getElementById("empty").classList.toggle("hide", list.length > 0);
+  list.forEach(it => {
+    const d = daysUntil(it.date);
+    const card = document.createElement("div");
+    card.className = "item " + (d === null ? "" : d < 0 ? "past" : d <= 30 ? "soon" : "ok");
+    const top = document.createElement("div");
+    top.className = "item-top";
+    const name = document.createElement("div");
+    name.className = "item-name";
+    name.textContent = it.name;
+    const when = document.createElement("div");
+    when.className = "item-when";
+    when.textContent = whenLabel(d);
+    top.append(name, when);
+    const sub = document.createElement("div");
+    sub.className = "item-sub";
+    sub.textContent = fmtDate(it.date) + (it.note ? " · " + it.note : "");
+    card.append(top, sub);
+    card.addEventListener("click", () => openEdit(it.id));
+    wrap.appendChild(card);
+  });
+}
+
+function openEdit(id) {
+  editingId = id;
+  const it = id ? state.items[id] : null;
+  document.getElementById("edit-title").textContent = it ? "Edit renewal" : "Add a renewal";
+  document.getElementById("f-name").value = it ? it.name : "";
+  document.getElementById("f-date").value = it ? it.date : "";
+  document.getElementById("f-years").value = it && it.everyYears ? it.everyYears : 1;
+  document.getElementById("f-note").value = it && it.note ? it.note : "";
+  document.getElementById("btn-delete").classList.toggle("hide", !it);
+  document.getElementById("btn-renewed").classList.toggle("hide", !it);
+  document.getElementById("edit-sheet").classList.add("open");
+}
+function closeEdit() { document.getElementById("edit-sheet").classList.remove("open"); editingId = null; }
+
+document.getElementById("btn-add").addEventListener("click", () => openEdit(null));
+document.getElementById("btn-cancel").addEventListener("click", closeEdit);
+document.getElementById("edit-sheet").addEventListener("click", e => {
+  if (e.target === document.getElementById("edit-sheet")) closeEdit();
+});
+document.getElementById("btn-save").addEventListener("click", () => {
+  const name = document.getElementById("f-name").value.trim();
+  const date = document.getElementById("f-date").value;
+  if (!name || !date) { setStatus("app-status", "Give it a name and a date.", true); return; }
+  const id = editingId || newId();
+  const existing = state.items[id] || {};
+  save({ items: { ...state.items, [id]: {
+    ...existing, name, date,
+    everyYears: Number(document.getElementById("f-years").value) || 1,
+    note: document.getElementById("f-note").value.trim()
+  } } });
+  closeEdit();
+});
+document.getElementById("btn-renewed").addEventListener("click", () => {
+  if (!editingId) return;
+  const it = state.items[editingId];
+  const years = Number(it.everyYears) || 1;
+  const next = new Date(parseDate(it.date));
+  next.setFullYear(next.getFullYear() + years);
+  const iso = next.toISOString().slice(0, 10);
+  // Clearing lastAlerted lets the new cycle alert again.
+  save({ items: { ...state.items, [editingId]: { ...it, date: iso, lastAlerted: null } } });
+  closeEdit();
+});
+document.getElementById("btn-delete").addEventListener("click", () => {
+  if (!editingId) return;
+  if (!confirm("Delete this?")) return;
+  const next = { ...state.items };
+  delete next[editingId];
+  save({ items: next });
+  closeEdit();
+});
+
+</script>
+</body>
+</html>

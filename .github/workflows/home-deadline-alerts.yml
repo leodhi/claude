@@ -1,0 +1,33 @@
+name: Home deadline alerts
+
+on:
+  schedule:
+    # 13:00 UTC, same slot as the subscription renewal alerts.
+    - cron: "0 13 * * *"
+  workflow_dispatch:
+    inputs:
+      test_only:
+        description: "Send one throwaway test notification instead of checking real deadlines"
+        type: boolean
+        default: false
+
+jobs:
+  check-deadlines:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Install dependencies
+        working-directory: .github/scripts
+        run: npm install firebase-admin --no-save
+      - name: Check renewals and returns, and send alerts
+        working-directory: .github/scripts
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
+          TEST_ONLY: ${{ inputs.test_only }}
+        run: node check-home-deadlines.mjs
