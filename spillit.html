@@ -465,8 +465,12 @@
       <label>Final Scores</label>
       <div class="scoreboard" id="mp-final-scoreboard"></div>
     </div>
+    <div id="mp-keep-going-wrap" style="display:none">
+      <button class="primary" id="btn-mp-keep-going" type="button">Keep going — 3 fresh prompts each</button>
+      <small class="hint center" id="mp-keep-going-hint">Scores carry over. Nobody gets a prompt twice.</small>
+    </div>
     <div class="footer-nav" id="mp-over-host-nav" style="display:none">
-      <button class="primary" id="btn-mp-play-again" type="button">Back to Lobby</button>
+      <button class="secondary" id="btn-mp-play-again" type="button">Back to Lobby</button>
     </div>
     <div class="waiting-text" id="mp-over-waiting" style="display:none">Waiting for host…</div>
   </div>
@@ -598,6 +602,8 @@
       <label>Final Scores</label>
       <div class="scoreboard" id="local-results-scoreboard"></div>
     </div>
+    <button class="primary" id="local-btn-keep-going" type="button">Keep going — 3 fresh prompts each</button>
+    <small class="hint center" id="local-keep-going-hint">Scores carry over. Nobody gets a prompt twice.</small>
     <div class="footer-nav">
       <button class="secondary" id="local-btn-play-again" type="button">Play Again</button>
       <button class="danger" id="local-btn-new-game" type="button">New Game</button>
@@ -796,6 +802,9 @@ var MIN_PROMPT_COUNT = 3;
 var MAX_PROMPT_COUNT = 8;
 // Past this many rounds a game starts to drag, so the setup screens say so.
 var LONG_GAME_ROUNDS = 30;
+// "Keep going" tops the game up with a small fresh batch rather than a whole
+// new hand — you're already invested by then.
+var EXTEND_PROMPT_COUNT = 3;
 
 // Prompts are dealt from the bank rather than picked off a long list — the
 // setup screens stay short and every game gets a different handful.
@@ -1354,6 +1363,30 @@ $("btn-start-mp-game").addEventListener("click", async function () {
     phase: "writing",
     prompts: prompts,
     scores: scores,
+    usedBank: mpDealt(),   // so "Keep going" never deals one of these again
+    answers: null,
+    progress: null,
+    writingDone: null,
+    queue: null,
+    queueIndex: 0,
+    round: null,
+    winnerUid: null
+  });
+});
+
+// ---------- Keep going: top up with fresh prompts, carry the scores ----------
+function mpUsedBank() { return toArray(mp.room && mp.room.usedBank); }
+
+$("btn-mp-keep-going").addEventListener("click", async function () {
+  if (!mp.isHost || this.disabled) return;
+  var used = mpUsedBank();
+  var fresh = dealPromptIndexes(EXTEND_PROMPT_COUNT, used);
+  if (!fresh.length) return;
+  await update(roomRef(mp.roomCode), {
+    phase: "writing",
+    // Only the new prompts — everyone answers just these, and scores stay put.
+    prompts: fresh.map(function (i) { return PROMPT_BANK[i]; }),
+    usedBank: used.concat(fresh),
     answers: null,
     progress: null,
     writingDone: null,
@@ -1677,16 +1710,23 @@ function renderMpGameOver() {
 
   var hostNav = $("mp-over-host-nav");
   var waiting = $("mp-over-waiting");
+  var remaining = PROMPT_BANK.length - mpUsedBank().length;
   if (mp.isHost) {
     hostNav.style.display = "flex";
     waiting.style.display = "none";
+    $("mp-keep-going-wrap").style.display = remaining > 0 ? "" : "none";
+    $("mp-keep-going-hint").textContent = remaining >= EXTEND_PROMPT_COUNT
+      ? "Scores carry over. Nobody gets a prompt twice."
+      : ("Only " + remaining + " prompt" + (remaining === 1 ? "" : "s") + " left in the bank.");
     if (!mp.gameOverWaitArmed) {
       mp.gameOverWaitArmed = true;
       armRevealWait("mpGameOver", $("btn-mp-play-again"));
+      armRevealWait("mpKeepGoing", $("btn-mp-keep-going"));
     }
   } else {
     hostNav.style.display = "none";
     waiting.style.display = "";
+    $("mp-keep-going-wrap").style.display = "none";
   }
   showScreen("screen-mp-game-over");
 }
@@ -1697,7 +1737,8 @@ $("btn-mp-play-again").addEventListener("click", function () {
   mpPlayerUids().forEach(function (uid) { scores[uid] = 0; });
   update(roomRef(mp.roomCode), {
     phase: "lobby", scores: scores, answers: null, progress: null, writingDone: null,
-    prompts: null, queue: null, queueIndex: 0, round: null, winnerUid: null
+    prompts: null, queue: null, queueIndex: 0, round: null, winnerUid: null,
+    usedBank: null   // a brand-new game may reuse anything from the bank
   });
 });
 
@@ -1710,6 +1751,7 @@ var local = {
   prompts: [],
   customPrompts: [],
   dealt: [],
+  usedBank: [],   // every bank prompt used this sitting, so top-ups never repeat
   promptCount: DEFAULT_PROMPT_COUNT,
   answers: {},
   revealIndex: 0,
@@ -1741,7 +1783,8 @@ function localSaveCheckpoint(screenId) {
         revealIndex: local.revealIndex,
         promptIndex: local.promptIndex,
         queue: local.queue,
-        queueIndex: local.queueIndex
+        queueIndex: local.queueIndex,
+        usedBank: local.usedBank
       }
     }));
   } catch (e) { /* private browsing or storage full — resume just won't be offered */ }
@@ -1767,6 +1810,7 @@ function localRestoreSaved(saved) {
   local.promptIndex = s.promptIndex || 0;
   local.queue = s.queue || [];
   local.queueIndex = s.queueIndex || 0;
+  local.usedBank = s.usedBank || [];
   hideLocalResumeBanners();
   if (saved.screen === "local-screen-results") localShowResults();
   else if (saved.screen === "local-screen-round") localGoToRound();
@@ -1916,6 +1960,7 @@ $("local-btn-prompts-back").addEventListener("click", function () { showScreen("
 $("local-btn-prompts-continue").addEventListener("click", function () {
   var prompts = local.dealt.map(function (i) { return PROMPT_BANK[i]; }).filter(Boolean);
   local.prompts = prompts.concat(local.customPrompts);
+  local.usedBank = local.dealt.slice();
   local.answers = {};
   local.scores = {};
   local.players.forEach(function (name) { local.scores[name] = 0; });
@@ -2049,6 +2094,13 @@ $("local-btn-round-next").addEventListener("click", function () {
 function localShowResults() {
   localSaveCheckpoint("local-screen-results");
   armRevealWait("localResults", $("local-btn-play-again"));
+  armRevealWait("localKeepGoing", $("local-btn-keep-going"));
+  var remaining = PROMPT_BANK.length - local.usedBank.length;
+  $("local-btn-keep-going").style.display = remaining > 0 ? "" : "none";
+  $("local-keep-going-hint").style.display = remaining > 0 ? "" : "none";
+  $("local-keep-going-hint").textContent = remaining >= EXTEND_PROMPT_COUNT
+    ? "Scores carry over. Nobody gets a prompt twice."
+    : ("Only " + remaining + " prompt" + (remaining === 1 ? "" : "s") + " left in the bank.");
   $("local-results-banner").textContent = winnerLine(local.scores);
   renderScoreboardInto($("local-results-scoreboard"), local.scores);
   showScreen("local-screen-results");
@@ -2099,6 +2151,22 @@ document.addEventListener("keydown", function (e) {
   btn.click();
 });
 
+// Keep going: a fresh batch of prompts, same players, scores untouched.
+$("local-btn-keep-going").addEventListener("click", function () {
+  if (this.disabled) return;
+  var fresh = dealPromptIndexes(EXTEND_PROMPT_COUNT, local.usedBank);
+  if (!fresh.length) return;
+  local.usedBank = local.usedBank.concat(fresh);
+  local.dealt = fresh;
+  local.prompts = fresh.map(function (i) { return PROMPT_BANK[i]; });
+  local.answers = {};          // scores are deliberately left alone
+  local.queue = [];
+  local.queueIndex = 0;
+  local.revealIndex = 0;
+  local.promptIndex = 0;
+  localGoToPass();
+});
+
 $("local-btn-play-again").addEventListener("click", function () {
   if (this.disabled) return;
   local.answers = {};
@@ -2117,6 +2185,7 @@ $("local-btn-new-game").addEventListener("click", function () {
   local.customPrompts = [];
   local.promptCount = DEFAULT_PROMPT_COUNT;
   local.dealt = dealPromptIndexes(local.promptCount, []);  // a fresh hand for the new game
+  local.usedBank = [];
   local.answers = {};
   local.scores = {};
   local.queue = [];
