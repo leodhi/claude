@@ -371,6 +371,42 @@
     background: var(--accent); color: #08130d; border: none;
     border-radius: 10px; padding: 0 14px; font-weight: 700; cursor: pointer; font-size: 0.85rem;
   }
+  /* Reactions: anyone can tap one at any time. They add to the moment without
+     changing anything, so they never need to be host-only. */
+  #reaction-bar {
+    position: fixed; left: 50%; bottom: 18px; z-index: 41;
+    transform: translateX(-50%) translateY(10px);
+    display: flex; gap: 6px; padding: 6px;
+    background: var(--panel); border: 1px solid var(--border); border-radius: 999px;
+    box-shadow: 0 6px 20px rgba(0,0,0,0.45);
+    opacity: 0; visibility: hidden; pointer-events: none;
+    transition: opacity 0.2s ease, transform 0.28s cubic-bezier(.2,.9,.3,1.1);
+  }
+  #reaction-bar.show { opacity: 1; visibility: visible; pointer-events: auto; transform: translateX(-50%) translateY(0); }
+  .reaction-btn {
+    width: 44px; height: 44px; border-radius: 50%;
+    background: var(--panel-2); border: 1px solid var(--border);
+    font-size: 1.35rem; line-height: 1; cursor: pointer; padding: 0;
+    touch-action: manipulation; transition: transform 0.15s cubic-bezier(.2,.9,.3,1.1);
+  }
+  .reaction-btn:active { transform: scale(0.86); }
+  #reaction-layer { position: fixed; inset: 0; pointer-events: none; z-index: 42; overflow: hidden; }
+  .reaction-float {
+    position: absolute; font-size: 2rem; will-change: transform, opacity;
+    animation: reaction-rise 1.8s cubic-bezier(.2,.7,.3,1) forwards;
+  }
+  .reaction-float .who {
+    display: block; font-size: 0.6rem; color: var(--text-dim);
+    text-align: center; margin-top: -4px;
+  }
+  @keyframes reaction-rise {
+    0%   { transform: translateY(0) scale(0.6); opacity: 0; }
+    15%  { transform: translateY(-18px) scale(1.15); opacity: 1; }
+    100% { transform: translateY(-190px) scale(0.9); opacity: 0; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .reaction-float { animation-duration: 0.9s; }
+  }
   #home-toggle {
     position: fixed; left: 16px; bottom: 16px; z-index: 40;
     width: 52px; height: 52px; border-radius: 50%;
@@ -448,6 +484,8 @@
       <button id="chat-send" type="button">Send</button>
     </div>
   </div>
+  <div id="reaction-layer"></div>
+  <div id="reaction-bar"></div>
   <button id="home-toggle" type="button" aria-label="Back to start screen">🏠</button>
 
   <!-- SETUP -->
@@ -891,7 +929,7 @@
 import { firebaseConfig } from "./firebase-config.js";
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-import { getDatabase, ref, set, get, update, onValue, push } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
+import { getDatabase, ref, set, get, update, onValue, onChildAdded, push, remove } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
 
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
@@ -1911,6 +1949,7 @@ function showScreen(id) {
     $("app-header").style.display = (id === "local-screen-setup" || id === "screen-home") ? "" : "none";
     var homeBtn = $("home-toggle");
     if (homeBtn) homeBtn.style.display = (id === "screen-home") ? "none" : "flex";
+  if (typeof updateReactionBar === "function") updateReactionBar(id);
   }
 
 $("home-toggle").addEventListener("click", function () {
@@ -2066,6 +2105,7 @@ function subscribeRoom(code) {
     render();
   });
   subscribeChat(code);
+  subscribeReactions(code);
   $("chat-toggle").style.display = "flex";
 }
 
@@ -4083,6 +4123,93 @@ $("local-btn-back-home").addEventListener("click", function () { showScreen("scr
   localRenderPlayerList();
   localRenderCategoryChips();
   localRenderGuessModeChips();
+
+
+// ---------- Reactions ----------
+// Available to everyone, on every screen where the whole room is looking at the
+// same thing. They change nothing about the game, so there's no reason to gate
+// them behind the host.
+var REACTION_EMOJI = ["😂", "👏", "😮", "🤔", "🎉"];
+var REACTION_SCREENS = { "screen-lobby": true, "screen-artist-waiting": true, "screen-artist-waiting-guesses": true, "screen-guess-waiting": true, "screen-reveal-guesses": true, "screen-scores": true, "screen-game-won": true };
+var REACTION_LIFETIME_MS = 5000;   // how long one lives in the database
+var REACTION_STALE_MS = 10000;     // older than this and we don't animate it
+var REACTION_THROTTLE_MS = 600;
+var REACTION_MAX_ON_SCREEN = 24;
+var lastReactionAt = 0;
+
+(function buildReactionBar() {
+  var bar = $("reaction-bar");
+  if (!bar) return;
+  REACTION_EMOJI.forEach(function (emoji) {
+    var btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "reaction-btn";
+    btn.textContent = emoji;
+    btn.setAttribute("aria-label", "React " + emoji);
+    btn.addEventListener("click", function () { sendReaction(emoji); });
+    bar.appendChild(btn);
+  });
+})();
+
+function updateReactionBar(screenId) {
+  var bar = $("reaction-bar");
+  if (bar) bar.classList.toggle("show", !!(mp.roomCode && REACTION_SCREENS[screenId]));
+}
+
+function sendReaction(emoji) {
+  if (!mp.roomCode) return;
+  var now = Date.now();
+  if (now - lastReactionAt < REACTION_THROTTLE_MS) return;   // no spamming
+  lastReactionAt = now;
+  push(ref(db, "rooms/" + mp.roomCode + "/reactions"),
+    { emoji: emoji, uid: mp.uid, name: mp.name, ts: now })
+    .then(function (entry) {
+      // Tidy up after itself so an evening's reactions don't pile up.
+      setTimeout(function () {
+        remove(ref(db, "rooms/" + mp.roomCode + "/reactions/" + entry.key)).catch(function () {});
+      }, REACTION_LIFETIME_MS);
+    })
+    .catch(function () {});
+}
+
+function subscribeReactions(code) {
+  var reactionsRef = ref(db, "rooms/" + code + "/reactions");
+  // Note what's already there before listening, so joining the room doesn't
+  // replay a backlog of reactions at you. Done by key rather than by clock so
+  // it doesn't depend on everyone's phone agreeing on the time.
+  get(reactionsRef).then(function (snap) {
+    var alreadyThere = {};
+    Object.keys(snap.val() || {}).forEach(function (key) { alreadyThere[key] = true; });
+    onChildAdded(reactionsRef, function (child) {
+      if (alreadyThere[child.key]) return;
+      var r = child.val();
+      if (!r || !r.emoji) return;
+      // Belt and braces for a reaction left behind by a device that dropped out.
+      if (!r.ts || Date.now() - r.ts > REACTION_STALE_MS) return;
+      floatReaction(r.emoji, r.uid === mp.uid ? "You" : r.name);
+    });
+  }).catch(function () {});
+}
+
+function floatReaction(emoji, who) {
+  var layer = $("reaction-layer");
+  if (!layer || layer.childElementCount >= REACTION_MAX_ON_SCREEN) return;
+  var el = document.createElement("div");
+  el.className = "reaction-float";
+  el.textContent = emoji;
+  if (who) {
+    var tag = document.createElement("span");
+    tag.className = "who";
+    tag.textContent = who;
+    el.appendChild(tag);
+  }
+  // Spread them across the lower middle of the screen so they don't stack up.
+  var spread = Math.min(window.innerWidth - 80, 300);
+  el.style.left = (window.innerWidth / 2 - spread / 2 + Math.random() * spread) + "px";
+  el.style.bottom = (70 + Math.random() * 30) + "px";
+  layer.appendChild(el);
+  el.addEventListener("animationend", function () { el.remove(); });
+}
 
 </script>
 </body>
