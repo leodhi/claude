@@ -1,0 +1,619 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>Spill It!</title>
+<link rel="apple-touch-icon" href="icon-spillit.png">
+<style>
+  :root {
+    --bg: #12101c;
+    --panel: #1e1a2e;
+    --panel-2: #2a2440;
+    --accent: #b48eff;
+    --accent-2: #ff8fa3;
+    --text: #f3f0fb;
+    --text-dim: #9d94b8;
+    --border: #392f52;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body {
+    margin: 0; padding: 0; height: 100%;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    overscroll-behavior-y: contain;
+  }
+  #app {
+    max-width: 520px;
+    margin: 0 auto;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    padding: 20px 16px 40px;
+  }
+  h1 { font-size: 1.6rem; margin: 4px 0 2px; letter-spacing: 0.5px; }
+  h1 span { color: var(--accent); }
+  .subtitle { color: var(--text-dim); font-size: 0.85rem; margin-bottom: 18px; }
+  .screen { display: none; flex-direction: column; gap: 14px; flex: 1; }
+  .screen.active { display: flex; }
+  .card { background: var(--panel); border: 1px solid var(--border); border-radius: 14px; padding: 16px; }
+  label { display: block; font-size: 0.8rem; color: var(--text-dim); margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.06em; }
+  input[type="text"], textarea {
+    width: 100%; background: var(--panel-2); border: 1px solid var(--border);
+    color: var(--text); padding: 12px; border-radius: 10px; font-size: 1rem; font-family: inherit;
+  }
+  input[type="text"]:focus, textarea:focus { outline: 2px solid var(--accent); }
+  textarea { resize: vertical; min-height: 90px; }
+  .row { display: flex; gap: 8px; align-items: center; }
+  button.primary {
+    background: var(--accent); color: #1c1230; border: none; padding: 15px; border-radius: 12px;
+    font-size: 1.05rem; font-weight: 700; cursor: pointer; width: 100%;
+    touch-action: manipulation; transition: transform 0.15s cubic-bezier(.2,.9,.3,1.1);
+  }
+  button.primary:active { transform: scale(0.96); }
+  button.secondary {
+    background: transparent; color: var(--text); border: 1px solid var(--border); padding: 13px;
+    border-radius: 12px; font-size: 0.95rem; cursor: pointer; width: 100%;
+    touch-action: manipulation; transition: transform 0.15s cubic-bezier(.2,.9,.3,1.1);
+  }
+  button.secondary:active { transform: scale(0.96); }
+  button.danger { background: var(--accent-2); color: #2a0713; }
+  button.link {
+    background: none; border: none; color: var(--text-dim); text-decoration: underline;
+    font-size: 0.8rem; cursor: pointer; padding: 6px; touch-action: manipulation;
+  }
+  button:disabled { opacity: 0.4; cursor: not-allowed; }
+  .chip-group { display: flex; flex-wrap: wrap; gap: 8px; }
+  .chip {
+    padding: 8px 14px; border-radius: 999px; border: 1px solid var(--border); background: var(--panel-2);
+    color: var(--text-dim); font-size: 0.85rem; cursor: pointer; user-select: none;
+    touch-action: manipulation; transition: transform 0.15s cubic-bezier(.2,.9,.3,1.1);
+  }
+  .chip:active { transform: scale(0.94); }
+  .chip.selected { background: var(--accent); color: #1c1230; border-color: var(--accent); font-weight: 600; }
+  .center { text-align: center; }
+  .big-name { font-size: 1.8rem; font-weight: 800; margin: 6px 0; }
+  .reveal-box { background: var(--panel-2); border: 1px solid var(--border); border-radius: 14px; padding: 20px; text-align: center; }
+  .category-label { color: var(--text-dim); font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.06em; }
+  .prompt-text { font-size: 1.2rem; font-weight: 700; margin: 10px 0; line-height: 1.4; }
+  .answer-quote { font-size: 1.1rem; font-style: italic; color: var(--accent); margin: 12px 0 0; line-height: 1.5; }
+  .prompt-list { display: flex; flex-direction: column; gap: 8px; }
+  .prompt-row {
+    display: flex; align-items: center; gap: 10px; padding: 10px 12px; background: var(--panel-2);
+    border: 1px solid var(--border); border-radius: 10px; cursor: pointer;
+    touch-action: manipulation; transition: transform 0.15s cubic-bezier(.2,.9,.3,1.1);
+  }
+  .prompt-row:active { transform: scale(0.98); }
+  .prompt-row input[type="checkbox"] { width: 18px; height: 18px; flex-shrink: 0; accent-color: var(--accent); }
+  .prompt-row .txt { flex: 1; font-size: 0.9rem; }
+  .prompt-row .remove-x {
+    background: none; border: none; color: var(--text-dim); font-size: 1rem; cursor: pointer;
+    flex-shrink: 0; padding: 4px; touch-action: manipulation;
+  }
+  .result-banner {
+    text-align: center; padding: 18px; border-radius: 14px; font-weight: 800; font-size: 1.15rem;
+    margin-bottom: 4px; background: rgba(180,142,255,0.15); border: 1px solid var(--accent); color: var(--accent);
+  }
+  .scoreboard { display: flex; flex-direction: column; gap: 6px; }
+  .score-row { display: flex; justify-content: space-between; padding: 6px 4px; }
+  .score-row.winner { color: var(--accent); font-weight: 800; }
+  .footer-nav { display: flex; gap: 8px; margin-top: auto; padding-top: 10px; }
+  .footer-nav button { flex: 1; }
+  small.hint { color: var(--text-dim); display: block; margin-top: 4px; font-size: 0.78rem; }
+  .progress-label { color: var(--text-dim); font-size: 0.8rem; text-align: center; }
+  .rules-link-row { text-align: center; margin: -8px 0 14px; }
+  .rules-link-btn {
+    background: none; border: none; color: var(--text-dim); font-size: 0.8rem;
+    text-decoration: underline; cursor: pointer; padding: 4px 8px; font-family: inherit; touch-action: manipulation;
+  }
+  .rules-modal-backdrop {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.55);
+    display: flex; align-items: center; justify-content: center; z-index: 300; padding: 20px;
+    opacity: 0; visibility: hidden; pointer-events: none;
+    transition: opacity 0.25s cubic-bezier(.2,.9,.3,1.1);
+  }
+  .rules-modal-backdrop.show { opacity: 1; visibility: visible; pointer-events: auto; }
+  .rules-modal {
+    background: var(--panel); border: 1px solid var(--border); border-radius: 14px;
+    max-width: 440px; width: 100%; max-height: 82vh; overflow-y: auto; padding: 22px; color: var(--text);
+    transform: scale(0.92) translateY(10px); opacity: 0;
+    transition: transform 0.28s cubic-bezier(.2,.9,.3,1.1), opacity 0.25s ease;
+  }
+  .rules-modal-backdrop.show .rules-modal { transform: scale(1) translateY(0); opacity: 1; }
+  .rules-modal h2 { margin: 0 0 14px; font-size: 1.15rem; }
+  .rules-modal .rules-section { margin-bottom: 14px; line-height: 1.6; font-size: 0.9rem; color: var(--text-dim); }
+  .rules-modal .rules-section strong { color: var(--text); }
+  .rules-modal .rules-section-label {
+    text-transform: uppercase; font-size: 0.72rem; letter-spacing: 0.05em;
+    color: var(--accent); font-weight: 600; margin-bottom: 4px;
+  }
+  .rules-modal-close { width: 100%; margin-top: 6px; }
+  #home-toggle {
+    position: fixed; left: 16px; bottom: 16px; z-index: 40;
+    width: 52px; height: 52px; border-radius: 50%;
+    background: var(--panel-2); color: var(--text); border: 1px solid var(--border);
+    font-size: 1.3rem; cursor: pointer; touch-action: manipulation;
+    box-shadow: 0 4px 14px rgba(0,0,0,0.35);
+    display: none; align-items: center; justify-content: center;
+    transition: transform 0.15s cubic-bezier(.2,.9,.3,1.1);
+  }
+  #home-toggle:active { transform: scale(0.92); }
+</style>
+</head>
+<body>
+<div id="app">
+  <h1>🙊 Spill<span> It!</span></h1>
+  <div class="subtitle">Family trivia — about you. Pass one phone around the table.</div>
+  <div class="rules-link-row"><button type="button" class="rules-link-btn" id="rules-btn">Rules</button></div>
+  <div class="rules-modal-backdrop" id="rules-modal-backdrop">
+    <div class="rules-modal">
+      <h2>🙊 How to Play</h2>
+      <div class="rules-section">
+        <div class="rules-section-label">Setup</div>
+        Everyone privately answers the same set of prompts, one at a time — the device gets passed around the table so only one person looks at a time.
+      </div>
+      <div class="rules-section">
+        <div class="rules-section-label">Each round</div>
+        The group reads one person's answer to a prompt out loud (no name attached) and everyone shouts a guess for who wrote it. Tap Reveal to find out who it really was.
+      </div>
+      <div class="rules-section">
+        <div class="rules-section-label">Scoring</div>
+        Everyone who guessed correctly gets <strong>+1 point</strong>. If nobody guesses correctly, the person who wrote it gets <strong>+1 point</strong> for stumping the table.
+      </div>
+      <div class="rules-section">
+        <div class="rules-section-label">Winning</div>
+        After every answer has had its round, whoever has the most points wins.
+      </div>
+      <button class="secondary rules-modal-close" id="rules-modal-close" type="button">Got it</button>
+    </div>
+  </div>
+
+  <button id="home-toggle" type="button" aria-label="Start over">🏠</button>
+
+  <div class="screen active" id="screen-home">
+    <div class="card center">
+      <div style="font-size:2.4rem;margin:6px 0;">🙊</div>
+      <div>Everyone privately answers a few prompts about themselves. Then the group guesses who wrote what.</div>
+    </div>
+    <button class="primary" id="btn-start" type="button">Start</button>
+  </div>
+
+  <div class="screen" id="screen-players">
+    <div class="card">
+      <label>Players (3+)</label>
+      <div id="player-list"></div>
+      <button class="secondary" id="btn-add-player" type="button">+ Add player</button>
+    </div>
+    <button class="primary" id="btn-players-continue" type="button" disabled>Continue</button>
+    <button class="link" id="btn-players-back" type="button">Back</button>
+  </div>
+
+  <div class="screen" id="screen-prompts">
+    <div class="card">
+      <label>Prompts</label>
+      <div class="prompt-list" id="prompt-list"></div>
+      <small class="hint">Tap to include or exclude. Pick at least 3.</small>
+    </div>
+    <div class="card">
+      <div class="row" style="justify-content:space-between;">
+        <label style="margin:0;">Let players add their own prompts</label>
+        <input type="checkbox" id="chk-allow-custom" checked style="width:20px;height:20px;accent-color:var(--accent);flex-shrink:0;">
+      </div>
+      <div id="custom-prompt-area" style="margin-top:12px;">
+        <div class="row">
+          <input type="text" id="custom-prompt-input" placeholder="Write your own prompt..." maxlength="140">
+          <button class="secondary" id="btn-add-custom-prompt" type="button" style="width:auto;padding:12px 16px;flex-shrink:0;">Add</button>
+        </div>
+      </div>
+    </div>
+    <button class="primary" id="btn-prompts-continue" type="button" disabled>Start Answering</button>
+    <button class="link" id="btn-prompts-back" type="button">Back</button>
+  </div>
+
+  <div class="screen" id="screen-pass">
+    <div class="card center">
+      <div style="font-size:3rem;margin:10px 0;">📱➡️</div>
+      <div>Pass the device to</div>
+      <div class="big-name" id="pass-name"></div>
+      <small class="hint">Only <span id="pass-name-2"></span> should look at the screen now.</small>
+    </div>
+    <button class="primary" id="btn-ready" type="button">I'm ready</button>
+  </div>
+
+  <div class="screen" id="screen-answer">
+    <div class="progress-label" id="answer-progress"></div>
+    <div class="reveal-box">
+      <div class="category-label">Answer honestly!</div>
+      <div class="prompt-text" id="answer-prompt-text"></div>
+      <textarea id="answer-input" placeholder="Type your answer..." maxlength="200"></textarea>
+    </div>
+    <button class="primary" id="btn-answer-next" type="button" disabled>Next</button>
+    <button class="link" id="btn-answer-skip" type="button">Skip this one</button>
+  </div>
+
+  <div class="screen" id="screen-round">
+    <div class="progress-label" id="round-progress"></div>
+    <div class="card center">
+      <div class="category-label">Prompt</div>
+      <div class="prompt-text" id="round-prompt-text"></div>
+      <div class="answer-quote" id="round-answer-text"></div>
+    </div>
+    <div class="card center">
+      <div>Everyone shout your guess — who said it?</div>
+    </div>
+    <button class="primary" id="btn-round-reveal" type="button">Reveal Who Said It</button>
+  </div>
+
+  <div class="screen" id="screen-round-reveal">
+    <div class="card center">
+      <div>It was</div>
+      <div class="big-name" id="reveal-name"></div>
+    </div>
+    <div class="card">
+      <label>Who guessed correctly? (tap all that apply)</label>
+      <div class="chip-group" id="guess-chip-group"></div>
+    </div>
+    <button class="primary" id="btn-round-next" type="button">Next Round</button>
+  </div>
+
+  <div class="screen" id="screen-results">
+    <div class="result-banner" id="results-banner"></div>
+    <div class="card">
+      <label>Final Scores</label>
+      <div class="scoreboard" id="results-scoreboard"></div>
+    </div>
+    <div class="footer-nav">
+      <button class="secondary" id="btn-play-again" type="button">Play Again</button>
+      <button class="danger" id="btn-new-game" type="button">New Game</button>
+    </div>
+  </div>
+</div>
+
+<script type="module">
+const FIXED_PROMPTS = [
+  "My most embarrassing moment is...",
+  "The food I secretly can't stand is...",
+  "As a kid, I wanted to grow up to be a...",
+  "The worst fashion phase I ever had was...",
+  "The weirdest thing I've ever eaten is...",
+  "If I could have any superpower, it'd be...",
+  "My biggest fear (that isn't spiders) is...",
+  "The most trouble I ever got in was...",
+  "My guilty-pleasure show or song is...",
+  "The worst gift I ever gave someone was...",
+  "The most lost I've ever been was...",
+  "My most-used emoji is...",
+  "A harmless white lie I've told recently is...",
+  "My weirdest habit is...",
+  "Something I'm secretly proud of that nobody knows about is...",
+  "If I won the lottery tomorrow, the first silly thing I'd buy is...",
+  "My nickname growing up was...",
+  "I was almost named...",
+  "My go-to karaoke song is...",
+  "The strangest dream I remember having is..."
+];
+
+function $(id) { return document.getElementById(id); }
+function showScreen(id) {
+  document.querySelectorAll(".screen").forEach(function (s) { s.classList.remove("active"); });
+  $(id).classList.add("active");
+  var homeBtn = $("home-toggle");
+  var hideOn = { "screen-home": true, "screen-players": true, "screen-prompts": true };
+  if (homeBtn) homeBtn.style.display = hideOn[id] ? "none" : "flex";
+}
+function shuffle(arr) {
+  for (var i = arr.length - 1; i > 0; i--) {
+    var j = Math.floor(Math.random() * (i + 1));
+    var tmp = arr[i]; arr[i] = arr[j]; arr[j] = tmp;
+  }
+  return arr;
+}
+
+var state = {
+  players: ["", "", ""],
+  prompts: [],
+  customPrompts: [],
+  fixedSelected: {},
+  answers: {},
+  revealIndex: 0,
+  promptIndex: 0,
+  queue: [],
+  queueIndex: 0,
+  scores: {},
+  guessSelected: {}
+};
+FIXED_PROMPTS.forEach(function (_, i) { state.fixedSelected[i] = true; });
+
+$("home-toggle").addEventListener("click", function () {
+  if (!confirm("Start over? This ends the current game.")) return;
+  location.reload();
+});
+$("rules-btn").addEventListener("click", function () { $("rules-modal-backdrop").classList.add("show"); });
+$("rules-modal-close").addEventListener("click", function () { $("rules-modal-backdrop").classList.remove("show"); });
+$("rules-modal-backdrop").addEventListener("click", function (e) { if (e.target === this) this.classList.remove("show"); });
+
+$("btn-start").addEventListener("click", function () {
+  renderPlayerList();
+  showScreen("screen-players");
+});
+
+// --- Players screen ---
+function renderPlayerList() {
+  var wrap = $("player-list");
+  wrap.innerHTML = "";
+  state.players.forEach(function (name, i) {
+    var row = document.createElement("div");
+    row.style.cssText = "display:flex;gap:8px;margin-bottom:8px;";
+    var input = document.createElement("input");
+    input.type = "text";
+    input.placeholder = "Player " + (i + 1);
+    input.value = name;
+    input.maxLength = 20;
+    input.style.flex = "1";
+    input.addEventListener("input", function () {
+      state.players[i] = input.value;
+      updatePlayersContinueState();
+    });
+    row.appendChild(input);
+    if (state.players.length > 3) {
+      var rm = document.createElement("button");
+      rm.type = "button";
+      rm.textContent = "✕";
+      rm.style.cssText = "background:var(--panel-2);border:1px solid var(--border);color:var(--text-dim);border-radius:10px;width:44px;height:44px;font-size:1.1rem;cursor:pointer;flex-shrink:0;touch-action:manipulation;";
+      rm.addEventListener("click", function () {
+        state.players.splice(i, 1);
+        renderPlayerList();
+      });
+      row.appendChild(rm);
+    }
+    wrap.appendChild(row);
+  });
+  updatePlayersContinueState();
+}
+function updatePlayersContinueState() {
+  var filled = state.players.filter(function (n) { return n.trim().length > 0; }).length;
+  $("btn-players-continue").disabled = filled < 3;
+}
+$("btn-add-player").addEventListener("click", function () {
+  if (state.players.length >= 12) return;
+  state.players.push("");
+  renderPlayerList();
+});
+$("btn-players-back").addEventListener("click", function () { showScreen("screen-home"); });
+$("btn-players-continue").addEventListener("click", function () {
+  state.players = state.players.map(function (n, i) { return n.trim() || ("Player " + (i + 1)); });
+  renderPromptList();
+  showScreen("screen-prompts");
+});
+
+// --- Prompts screen ---
+function renderPromptList() {
+  var wrap = $("prompt-list");
+  wrap.innerHTML = "";
+  FIXED_PROMPTS.forEach(function (text, i) {
+    wrap.appendChild(buildPromptRow(text, state.fixedSelected[i], function () {
+      state.fixedSelected[i] = !state.fixedSelected[i];
+      renderPromptList();
+    }, null));
+  });
+  state.customPrompts.forEach(function (text, i) {
+    wrap.appendChild(buildPromptRow(text, true, null, function () {
+      state.customPrompts.splice(i, 1);
+      renderPromptList();
+    }));
+  });
+  updatePromptsContinueState();
+}
+function buildPromptRow(text, checked, onToggle, onRemove) {
+  var row = document.createElement("div");
+  row.className = "prompt-row";
+  var box = document.createElement("input");
+  box.type = "checkbox";
+  box.checked = checked;
+  box.disabled = !onToggle;
+  if (onToggle) box.addEventListener("change", onToggle);
+  row.appendChild(box);
+  var txt = document.createElement("div");
+  txt.className = "txt";
+  txt.textContent = text;
+  row.appendChild(txt);
+  if (onToggle) {
+    row.addEventListener("click", function (e) { if (e.target !== box) onToggle(); });
+  }
+  if (onRemove) {
+    var x = document.createElement("button");
+    x.type = "button";
+    x.className = "remove-x";
+    x.textContent = "✕";
+    x.addEventListener("click", function (e) { e.stopPropagation(); onRemove(); });
+    row.appendChild(x);
+  }
+  return row;
+}
+function selectedPromptCount() {
+  var fixedCount = FIXED_PROMPTS.filter(function (_, i) { return state.fixedSelected[i]; }).length;
+  return fixedCount + state.customPrompts.length;
+}
+function updatePromptsContinueState() {
+  $("btn-prompts-continue").disabled = selectedPromptCount() < 3;
+}
+$("chk-allow-custom").addEventListener("change", function () {
+  $("custom-prompt-area").style.display = this.checked ? "block" : "none";
+});
+$("btn-add-custom-prompt").addEventListener("click", function () {
+  var v = $("custom-prompt-input").value.trim();
+  if (!v) return;
+  state.customPrompts.push(v);
+  $("custom-prompt-input").value = "";
+  renderPromptList();
+});
+$("custom-prompt-input").addEventListener("keydown", function (e) {
+  if (e.key === "Enter") { e.preventDefault(); $("btn-add-custom-prompt").click(); }
+});
+$("btn-prompts-back").addEventListener("click", function () { showScreen("screen-players"); });
+$("btn-prompts-continue").addEventListener("click", function () {
+  var prompts = [];
+  FIXED_PROMPTS.forEach(function (text, i) { if (state.fixedSelected[i]) prompts.push(text); });
+  prompts = prompts.concat(state.customPrompts);
+  state.prompts = prompts;
+  state.answers = {};
+  state.scores = {};
+  state.players.forEach(function (name) { state.scores[name] = 0; });
+  state.revealIndex = 0;
+  state.promptIndex = 0;
+  goToPass();
+});
+
+// --- Private answer collection (pass-the-device loop) ---
+function goToPass() {
+  if (state.revealIndex >= state.players.length) {
+    startRounds();
+    return;
+  }
+  state.promptIndex = 0;
+  var name = state.players[state.revealIndex];
+  $("pass-name").textContent = name;
+  $("pass-name-2").textContent = name;
+  showScreen("screen-pass");
+}
+$("btn-ready").addEventListener("click", function () {
+  renderAnswerScreen();
+  showScreen("screen-answer");
+});
+function renderAnswerScreen() {
+  $("answer-progress").textContent = state.players[state.revealIndex] + " — prompt " + (state.promptIndex + 1) + " of " + state.prompts.length;
+  $("answer-prompt-text").textContent = state.prompts[state.promptIndex];
+  $("answer-input").value = "";
+  $("btn-answer-next").disabled = true;
+}
+$("answer-input").addEventListener("input", function () {
+  $("btn-answer-next").disabled = this.value.trim().length === 0;
+});
+function advanceAnswerPrompt() {
+  state.promptIndex++;
+  if (state.promptIndex >= state.prompts.length) {
+    state.revealIndex++;
+    goToPass();
+  } else {
+    renderAnswerScreen();
+  }
+}
+$("btn-answer-next").addEventListener("click", function () {
+  var val = $("answer-input").value.trim();
+  if (!val) return;
+  if (!state.answers[state.revealIndex]) state.answers[state.revealIndex] = {};
+  state.answers[state.revealIndex][state.promptIndex] = val;
+  advanceAnswerPrompt();
+});
+$("btn-answer-skip").addEventListener("click", function () {
+  advanceAnswerPrompt();
+});
+
+// --- Rounds ---
+function startRounds() {
+  var queue = [];
+  state.players.forEach(function (_, playerIdx) {
+    var answered = state.answers[playerIdx] || {};
+    Object.keys(answered).forEach(function (promptIdxStr) {
+      queue.push({ playerIdx: playerIdx, promptIdx: parseInt(promptIdxStr, 10) });
+    });
+  });
+  state.queue = shuffle(queue);
+  state.queueIndex = 0;
+  goToRound();
+}
+function goToRound() {
+  if (state.queueIndex >= state.queue.length) {
+    showResults();
+    return;
+  }
+  var item = state.queue[state.queueIndex];
+  $("round-progress").textContent = "Round " + (state.queueIndex + 1) + " of " + state.queue.length;
+  $("round-prompt-text").textContent = state.prompts[item.promptIdx];
+  $("round-answer-text").textContent = "“" + state.answers[item.playerIdx][item.promptIdx] + "”";
+  showScreen("screen-round");
+}
+$("btn-round-reveal").addEventListener("click", function () {
+  var item = state.queue[state.queueIndex];
+  $("reveal-name").textContent = state.players[item.playerIdx];
+  state.guessSelected = {};
+  renderGuessChips(item.playerIdx);
+  showScreen("screen-round-reveal");
+});
+function renderGuessChips(answererIdx) {
+  var wrap = $("guess-chip-group");
+  wrap.innerHTML = "";
+  state.players.forEach(function (name, idx) {
+    if (idx === answererIdx) return;
+    var chip = document.createElement("div");
+    chip.className = "chip";
+    chip.textContent = name;
+    chip.addEventListener("click", function () {
+      state.guessSelected[idx] = !state.guessSelected[idx];
+      chip.classList.toggle("selected", !!state.guessSelected[idx]);
+    });
+    wrap.appendChild(chip);
+  });
+}
+$("btn-round-next").addEventListener("click", function () {
+  var item = state.queue[state.queueIndex];
+  var answererName = state.players[item.playerIdx];
+  var correctCount = 0;
+  Object.keys(state.guessSelected).forEach(function (idxStr) {
+    if (state.guessSelected[idxStr]) {
+      var idx = parseInt(idxStr, 10);
+      state.scores[state.players[idx]] += 1;
+      correctCount++;
+    }
+  });
+  if (correctCount === 0) {
+    state.scores[answererName] += 1;
+  }
+  state.queueIndex++;
+  goToRound();
+});
+
+// --- Results ---
+function renderScoreboardInto(el, scores) {
+  el.innerHTML = "";
+  var entries = Object.keys(scores).map(function (name) { return { name: name, score: scores[name] }; });
+  entries.sort(function (a, b) { return b.score - a.score; });
+  var top = entries.length ? entries[0].score : 0;
+  entries.forEach(function (e) {
+    var row = document.createElement("div");
+    row.className = "score-row" + (e.score === top ? " winner" : "");
+    var nameSpan = document.createElement("span");
+    nameSpan.textContent = e.name;
+    var scoreSpan = document.createElement("span");
+    scoreSpan.textContent = String(e.score);
+    row.appendChild(nameSpan);
+    row.appendChild(scoreSpan);
+    el.appendChild(row);
+  });
+}
+function showResults() {
+  var names = Object.keys(state.scores);
+  var top = Math.max.apply(null, names.map(function (n) { return state.scores[n]; }));
+  var winners = names.filter(function (n) { return state.scores[n] === top; });
+  $("results-banner").textContent = winners.length > 1
+    ? ("It's a tie! " + winners.join(" & ") + " win with " + top + " point" + (top === 1 ? "" : "s"))
+    : ("🏆 " + winners[0] + " wins with " + top + " point" + (top === 1 ? "" : "s") + "!");
+  renderScoreboardInto($("results-scoreboard"), state.scores);
+  showScreen("screen-results");
+}
+$("btn-play-again").addEventListener("click", function () {
+  state.answers = {};
+  state.scores = {};
+  state.players.forEach(function (name) { state.scores[name] = 0; });
+  state.revealIndex = 0;
+  state.promptIndex = 0;
+  goToPass();
+});
+$("btn-new-game").addEventListener("click", function () {
+  if (!confirm("Start a brand new game? This clears players and prompts.")) return;
+  location.reload();
+});
+</script>
+</body>
+</html>
