@@ -170,7 +170,8 @@
     </header>
     <div class="sub">Passports, MOT, insurance — what's due and when.</div>
     <div class="note">
-      Anything due within <strong>30 days</strong> is flagged, and you'll get a phone alert 30 days and 7 days before.
+      Each item gets its <strong>own</strong> notice period — a month for an inspection, a few days for something quick.
+      You'll get a phone alert then, again nearer the time, and on the day. Every alert can be snoozed.
     </div>
     <div id="items"></div>
     <div class="empty hide" id="empty">Nothing tracked yet. Add a passport, an MOT, an insurance renewal.</div>
@@ -190,6 +191,12 @@
     <div class="row">
       <input type="number" id="f-years" min="1" max="20" value="1" style="width:90px;text-align:center;">
       <span style="color:var(--ink-muted);font-size:0.9rem;">year(s) — used by the Renewed button</span>
+    </div>
+    <label style="margin-top:12px;">Warn me this far ahead</label>
+    <div class="chips" id="lead-presets" style="margin-bottom:8px;"></div>
+    <div class="row">
+      <input type="number" id="f-lead" min="1" max="365" value="30" style="width:90px;text-align:center;">
+      <span style="color:var(--ink-muted);font-size:0.9rem;">days before</span>
     </div>
     <label style="margin-top:12px;">Note (optional)</label>
     <input type="text" id="f-note" placeholder="e.g. renew at the Post Office" maxlength="80">
@@ -294,6 +301,8 @@ getRedirectResult(authClient).catch(e => setStatus("signin-status", friendlyAuth
 
 const docRef = doc(db, "homeApps", "renewals");
 const DAY = 86400000;
+const DEFAULT_LEAD_DAYS = 30;
+const LEAD_PRESETS = [7, 14, 30, 60, 90];
 let state = { items: {} };
 let unsubscribe = null, editingId = null;
 
@@ -350,8 +359,9 @@ function render() {
   document.getElementById("empty").classList.toggle("hide", list.length > 0);
   list.forEach(it => {
     const d = daysUntil(it.date);
+    const lead = Number(it.leadDays) || DEFAULT_LEAD_DAYS;
     const card = document.createElement("div");
-    card.className = "item " + (d === null ? "" : d < 0 ? "past" : d <= 30 ? "soon" : "ok");
+    card.className = "item " + (d === null ? "" : d < 0 ? "past" : d <= lead ? "soon" : "ok");
     const top = document.createElement("div");
     top.className = "item-top";
     const name = document.createElement("div");
@@ -363,12 +373,33 @@ function render() {
     top.append(name, when);
     const sub = document.createElement("div");
     sub.className = "item-sub";
-    sub.textContent = fmtDate(it.date) + (it.note ? " · " + it.note : "");
+    sub.textContent = [fmtDate(it.date), lead + "d notice", it.note].filter(Boolean).join(" · ");
     card.append(top, sub);
     card.addEventListener("click", () => openEdit(it.id));
     wrap.appendChild(card);
   });
 }
+
+function renderLeadPresets() {
+  const wrap = document.getElementById("lead-presets");
+  const current = Number(document.getElementById("f-lead").value) || DEFAULT_LEAD_DAYS;
+  wrap.innerHTML = "";
+  LEAD_PRESETS.forEach(days => {
+    const c = document.createElement("button");
+    c.type = "button";
+    c.className = "chip" + (days === current ? " on" : "");
+    c.textContent = days + " days";
+    c.addEventListener("click", () => {
+      document.getElementById("f-lead").value = days;
+      renderLeadPresets();
+    });
+    wrap.appendChild(c);
+  });
+}
+document.addEventListener("DOMContentLoaded", () => {
+  const lead = document.getElementById("f-lead");
+  if (lead) lead.addEventListener("input", renderLeadPresets);
+});
 
 function openEdit(id) {
   editingId = id;
@@ -377,6 +408,8 @@ function openEdit(id) {
   document.getElementById("f-name").value = it ? it.name : "";
   document.getElementById("f-date").value = it ? it.date : "";
   document.getElementById("f-years").value = it && it.everyYears ? it.everyYears : 1;
+  document.getElementById("f-lead").value = it && it.leadDays ? it.leadDays : DEFAULT_LEAD_DAYS;
+  renderLeadPresets();
   document.getElementById("f-note").value = it && it.note ? it.note : "";
   document.getElementById("btn-delete").classList.toggle("hide", !it);
   document.getElementById("btn-renewed").classList.toggle("hide", !it);
@@ -395,10 +428,15 @@ document.getElementById("btn-save").addEventListener("click", () => {
   if (!name || !date) { setStatus("app-status", "Give it a name and a date.", true); return; }
   const id = editingId || newId();
   const existing = state.items[id] || {};
+  const leadDays = Math.max(1, Number(document.getElementById("f-lead").value) || DEFAULT_LEAD_DAYS);
+  // Changing the notice period clears the stamp, so a widened window can still
+  // alert for a date that had already gone quiet.
+  const leadChanged = existing.leadDays !== undefined && existing.leadDays !== leadDays;
   save({ items: { ...state.items, [id]: {
-    ...existing, name, date,
+    ...existing, name, date, leadDays,
     everyYears: Number(document.getElementById("f-years").value) || 1,
-    note: document.getElementById("f-note").value.trim()
+    note: document.getElementById("f-note").value.trim(),
+    ...(leadChanged ? { lastAlerted: null } : {})
   } } });
   closeEdit();
 });
