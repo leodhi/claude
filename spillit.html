@@ -141,6 +141,17 @@
   .footer-nav button { flex: 1; }
   small.hint { color: var(--text-dim); display: block; margin-top: 4px; font-size: 0.78rem; }
   .progress-label { color: var(--text-dim); font-size: 0.8rem; text-align: center; }
+  .timer-display {
+    font-size: 1.7rem; font-weight: 800; font-variant-numeric: tabular-nums;
+    color: var(--accent); margin: 4px 0; text-align: center;
+  }
+  .timer-display.low { color: var(--accent-2); }
+  select {
+    width: 100%; background: var(--panel-2); border: 1px solid var(--border);
+    color: var(--text); padding: 12px; border-radius: 10px; font-size: 1rem; font-family: inherit;
+  }
+  select:focus { outline: 2px solid var(--accent); }
+  select:disabled { opacity: 0.6; }
   .status-line { color: var(--text-dim); font-size: 0.85rem; text-align: center; }
   .rules-link-row { text-align: center; margin: -8px 0 14px; }
   .rules-link-btn {
@@ -338,6 +349,17 @@
         <small class="hint">Anyone in the room can add prompts before the game starts.</small>
       </div>
     </div>
+    <div class="card">
+      <label>Time to answer each prompt</label>
+      <select id="lobby-timer-select">
+        <option value="0">No timer</option>
+        <option value="45">45 seconds</option>
+        <option value="60">60 seconds</option>
+        <option value="90">90 seconds</option>
+        <option value="120">120 seconds</option>
+      </select>
+      <small class="hint">When it runs out, whatever's typed is submitted automatically. Guessing always gets 30 seconds.</small>
+    </div>
     <div class="center status-line" id="lobby-estimate"></div>
     <button class="primary" id="btn-start-mp-game" type="button">Start Game</button>
     <div class="waiting-text" id="lobby-waiting" style="display:none">Waiting for the host to start the game…</div>
@@ -349,6 +371,7 @@
   <div class="screen" id="screen-mp-writing">
     <div class="progress-label" id="mp-writing-progress"></div>
     <div id="mp-writing-form">
+      <div class="timer-display" id="mp-writing-timer" style="display:none"></div>
       <div class="reveal-box">
         <div class="category-label">Answer honestly — nobody sees this until the guessing starts</div>
         <div class="prompt-text" id="mp-writing-prompt-text"></div>
@@ -376,6 +399,7 @@
       <div class="answer-quote" id="mp-round-answer-text"></div>
     </div>
     <div class="card" id="mp-guess-card">
+      <div class="timer-display" id="mp-round-timer" style="display:none"></div>
       <label>Who wrote it?</label>
       <div class="vote-list" id="mp-guess-list"></div>
       <button class="primary" id="btn-mp-submit-guess" type="button" style="margin-top:12px" disabled>Lock In Guess</button>
@@ -464,6 +488,17 @@
         </div>
       </div>
     </div>
+    <div class="card">
+      <label>Time to answer each prompt</label>
+      <select id="local-timer-select">
+        <option value="0">No timer</option>
+        <option value="45">45 seconds</option>
+        <option value="60" selected>60 seconds</option>
+        <option value="90">90 seconds</option>
+        <option value="120">120 seconds</option>
+      </select>
+      <small class="hint">When it runs out, whatever's typed is submitted automatically.</small>
+    </div>
     <div class="center status-line" id="local-estimate"></div>
     <button class="primary" id="local-btn-prompts-continue" type="button" disabled>Start Answering</button>
     <button class="link" id="local-btn-prompts-back" type="button">Back</button>
@@ -483,6 +518,7 @@
   <!-- LOCAL: private answering -->
   <div class="screen" id="local-screen-answer">
     <div class="progress-label" id="local-answer-progress"></div>
+    <div class="timer-display" id="local-answer-timer" style="display:none"></div>
     <div class="reveal-box">
       <div class="category-label">Answer honestly!</div>
       <div class="prompt-text" id="local-answer-prompt-text"></div>
@@ -596,6 +632,44 @@ function toArray(v) {
   if (Array.isArray(v)) return v.filter(function (x) { return x !== null && x !== undefined; });
   return Object.keys(v).sort(function (a, b) { return Number(a) - Number(b); }).map(function (k) { return v[k]; });
 }
+// ---------- Countdowns ----------
+// Writing time is configurable (default 60s) so nobody feels rushed into a
+// half-thought answer; guessing is a fixed shorter beat.
+var DEFAULT_WRITE_SECONDS = 60;
+var GUESS_SECONDS = 30;
+var countdowns = {};
+
+function stopCountdown(key) {
+  if (countdowns[key]) { clearInterval(countdowns[key].handle); delete countdowns[key]; }
+}
+function hideCountdown(key, displayEl) {
+  stopCountdown(key);
+  if (displayEl) displayEl.style.display = "none";
+}
+// Restarts only when `token` changes, so a re-render mid-countdown (someone
+// else submitting, say) doesn't silently reset the clock.
+function startCountdown(key, token, seconds, displayEl, onExpire) {
+  if (!seconds || seconds <= 0) { hideCountdown(key, displayEl); return; }
+  if (countdowns[key] && countdowns[key].token === token) return;
+  stopCountdown(key);
+  var remaining = seconds;
+  displayEl.style.display = "";
+  function paint() {
+    var m = Math.floor(remaining / 60), s = remaining % 60;
+    displayEl.textContent = m + ":" + (s < 10 ? "0" : "") + s;
+    displayEl.classList.toggle("low", remaining <= 10);
+  }
+  paint();
+  countdowns[key] = {
+    token: token,
+    handle: setInterval(function () {
+      remaining--;
+      paint();
+      if (remaining <= 0) { stopCountdown(key); onExpire(); }
+    }, 1000)
+  };
+}
+
 function renderScoreboardInto(el, scores) {
   el.innerHTML = "";
   var entries = Object.keys(scores).map(function (name) { return { name: name, score: scores[name] }; });
@@ -729,7 +803,7 @@ async function createRoomFlow(name) {
     createdAt: Date.now(),
     hostUid: uid,
     phase: "lobby",
-    settings: { fixedPrompts: allFixed, allowCustom: true },
+    settings: { fixedPrompts: allFixed, allowCustom: true, writeSeconds: DEFAULT_WRITE_SECONDS },
     players: { [uid]: { name: name, joinedAt: Date.now() } },
     scores: { [uid]: 0 }
   });
@@ -862,6 +936,10 @@ function mpCustomPrompts() {
   var cp = mp.room.customPrompts || {};
   return Object.keys(cp).map(function (k) { return { key: k, text: cp[k].text, uid: cp[k].uid, name: cp[k].name }; });
 }
+function mpWriteSeconds() {
+  var s = mp.room.settings && mp.room.settings.writeSeconds;
+  return s === undefined ? DEFAULT_WRITE_SECONDS : s;
+}
 function mpSelectedPromptTexts() {
   var fixedIdx = toArray(mp.room.settings && mp.room.settings.fixedPrompts);
   var texts = fixedIdx.map(function (i) { return FIXED_PROMPTS[i]; }).filter(Boolean);
@@ -915,6 +993,10 @@ function renderLobby() {
   chk.checked = allowCustom;
   chk.disabled = !mp.isHost;
   $("lobby-custom-area").style.display = allowCustom ? "block" : "none";
+
+  var timerSel = $("lobby-timer-select");
+  timerSel.value = String(mpWriteSeconds());
+  timerSel.disabled = !mp.isHost;
 
   var promptCount = mpSelectedPromptTexts().length;
   var playerCount = mpPlayerUids().length;
@@ -981,6 +1063,10 @@ $("chk-lobby-allow-custom").addEventListener("change", function () {
   if (!mp.isHost) return;
   update(ref(db, "rooms/" + mp.roomCode + "/settings"), { allowCustom: this.checked });
 });
+$("lobby-timer-select").addEventListener("change", function () {
+  if (!mp.isHost) return;
+  update(ref(db, "rooms/" + mp.roomCode + "/settings"), { writeSeconds: parseInt(this.value, 10) || 0 });
+});
 $("btn-lobby-add-custom").addEventListener("click", function () {
   var v = $("lobby-custom-input").value.trim();
   if (!v || !mp.roomCode) return;
@@ -1023,6 +1109,7 @@ function renderWriting() {
     $("mp-writing-done-card").style.display = "";
     $("mp-writing-progress").textContent = "Answers submitted";
     mp.writeRenderedIdx = null;
+    hideCountdown("mpWrite", $("mp-writing-timer"));
   } else {
     $("mp-writing-form").style.display = "";
     $("mp-writing-done-card").style.display = "none";
@@ -1036,6 +1123,10 @@ function renderWriting() {
       $("mp-writing-answer-input").value = "";
       $("btn-mp-writing-next").disabled = true;
     }
+    startCountdown("mpWrite", "w" + myProgress, mpWriteSeconds(), $("mp-writing-timer"), function () {
+      var val = $("mp-writing-answer-input").value.trim();
+      advanceWriting(val || null);
+    });
   }
 
   var statusList = $("mp-writing-status-list");
@@ -1136,15 +1227,20 @@ function renderMpRound() {
     $("mp-guess-card").style.display = "none";
     $("mp-own-answer-notice").style.display = "";
     $("mp-guess-waiting").style.display = "none";
+    hideCountdown("mpGuess", $("mp-round-timer"));
   } else if (myGuess !== undefined) {
     $("mp-guess-card").style.display = "none";
     $("mp-own-answer-notice").style.display = "none";
     $("mp-guess-waiting").style.display = "";
+    hideCountdown("mpGuess", $("mp-round-timer"));
   } else {
     $("mp-guess-card").style.display = "";
     $("mp-own-answer-notice").style.display = "none";
     $("mp-guess-waiting").style.display = "none";
     renderGuessOptions();
+    // Auto-submitting on expiry matters here: one undecided player would
+    // otherwise hold up everyone else's round indefinitely.
+    startCountdown("mpGuess", roundToken, GUESS_SECONDS, $("mp-round-timer"), submitMpGuess);
   }
 
   var statusList = $("mp-guess-status-list");
@@ -1191,10 +1287,15 @@ function renderGuessOptions() {
   $("btn-mp-submit-guess").disabled = !mp.guessSelected;
 }
 
+// An empty string records "ran out of time without picking" — Firebase treats
+// a null write as a delete, which would look like no guess submitted at all.
+function submitMpGuess() {
+  update(ref(db, "rooms/" + mp.roomCode + "/round/guesses"),
+    (function () { var o = {}; o[mp.uid] = mp.guessSelected || ""; return o; })());
+}
 $("btn-mp-submit-guess").addEventListener("click", function () {
   if (!mp.guessSelected) return;
-  update(ref(db, "rooms/" + mp.roomCode + "/round/guesses"),
-    (function () { var o = {}; o[mp.uid] = mp.guessSelected; return o; })());
+  submitMpGuess();
 });
 
 // ---------- Reveal ----------
@@ -1214,6 +1315,7 @@ function roundOutcome(room) {
 
 function renderMpReveal() {
   var room = mp.room;
+  hideCountdown("mpGuess", $("mp-round-timer"));
   var item = currentQueueItem();
   if (!item) {
     if (mp.isHost) update(roomRef(mp.roomCode), { phase: "game-over" });
@@ -1244,7 +1346,9 @@ function renderMpReveal() {
     pname.textContent = mpPlayerName(uid);
     var g = document.createElement("div");
     g.className = "guessed";
-    g.textContent = guessed === undefined ? "No guess" : ("Guessed: " + mpPlayerName(guessed));
+    g.textContent = (guessed === undefined || guessed === "")
+      ? "No guess — ran out of time"
+      : ("Guessed: " + mpPlayerName(guessed));
     left.appendChild(pname);
     left.appendChild(g);
     var mark = document.createElement("span");
@@ -1300,6 +1404,8 @@ $("btn-mp-next-round").addEventListener("click", function () {
 // ---------- Game over ----------
 function renderMpGameOver() {
   var room = mp.room;
+  hideCountdown("mpGuess", $("mp-round-timer"));
+  hideCountdown("mpWrite", $("mp-writing-timer"));
   var scoresByName = {};
   mpPlayerUids().forEach(function (uid) { scoresByName[mpPlayerName(uid)] = (room.scores && room.scores[uid]) || 0; });
   $("mp-final-banner").textContent = winnerLine(scoresByName);
@@ -1342,7 +1448,8 @@ var local = {
   queue: [],
   queueIndex: 0,
   scores: {},
-  guessSelected: {}
+  guessSelected: {},
+  writeSeconds: DEFAULT_WRITE_SECONDS
 };
 FIXED_PROMPTS.forEach(function (_, i) { local.fixedSelected[i] = true; });
 
@@ -1516,6 +1623,9 @@ $("local-btn-add-custom-prompt").addEventListener("click", function () {
 $("local-custom-prompt-input").addEventListener("keydown", function (e) {
   if (e.key === "Enter") { e.preventDefault(); $("local-btn-add-custom-prompt").click(); }
 });
+$("local-timer-select").addEventListener("change", function () {
+  local.writeSeconds = parseInt(this.value, 10) || 0;
+});
 $("local-btn-prompts-back").addEventListener("click", function () { showScreen("local-screen-players"); });
 $("local-btn-prompts-continue").addEventListener("click", function () {
   var prompts = [];
@@ -1538,6 +1648,7 @@ function localGoToPass() {
     return;
   }
   localSaveCheckpoint("local-screen-pass");
+  hideCountdown("localWrite", $("local-answer-timer"));
   var name = local.players[local.revealIndex];
   $("local-pass-name").textContent = name;
   $("local-pass-name-2").textContent = name;
@@ -1552,6 +1663,16 @@ function localRenderAnswerScreen() {
   $("local-answer-prompt-text").textContent = local.prompts[local.promptIndex];
   $("local-answer-input").value = "";
   $("local-btn-answer-next").disabled = true;
+  startCountdown("localWrite", local.revealIndex + ":" + local.promptIndex, local.writeSeconds,
+    $("local-answer-timer"), localTimeUpOnAnswer);
+}
+function localTimeUpOnAnswer() {
+  var val = $("local-answer-input").value.trim();
+  if (val) {
+    if (!local.answers[local.revealIndex]) local.answers[local.revealIndex] = {};
+    local.answers[local.revealIndex][local.promptIndex] = val;
+  }
+  localAdvanceAnswerPrompt();
 }
 $("local-answer-input").addEventListener("input", function () {
   $("local-btn-answer-next").disabled = this.value.trim().length === 0;
@@ -1594,6 +1715,7 @@ function localGoToRound() {
     return;
   }
   localSaveCheckpoint("local-screen-round");
+  hideCountdown("localWrite", $("local-answer-timer"));
   var item = local.queue[local.queueIndex];
   $("local-round-progress").textContent = "Round " + (local.queueIndex + 1) + " of " + local.queue.length;
   $("local-round-prompt-text").textContent = local.prompts[item.promptIdx];
