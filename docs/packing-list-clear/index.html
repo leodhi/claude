@@ -25,6 +25,18 @@
   h1 { font-weight: 700; font-size: 32px; margin: 0 0 20px; letter-spacing: -0.01em; }
 
   .swipe-row { position: relative; margin-bottom: 10px; border-radius: 14px; overflow: hidden; box-shadow: var(--shadow); touch-action: pan-y; }
+  /* Swipe RIGHT to rename. That direction was doing nothing at all here (a
+     list has no "completed" state to swipe towards), so it costs no existing
+     gesture -- which is what freed press-and-hold up for dragging. */
+  .bg-rename {
+    position: absolute; inset: 0; background: #0a84ff; display: flex; align-items: center; justify-content: flex-start;
+    padding-left: 22px; color: #fff; font-size: 15px; font-weight: 700; opacity: 0;
+  }
+  .swipe-row.list-drag-source-hidden { opacity: 0; pointer-events: none; }
+  .list-drag-ghost {
+    pointer-events: none; z-index: 60; border-radius: 14px; overflow: hidden;
+    box-shadow: 0 12px 30px rgba(0,0,0,0.6);
+  }
   .bg-delete {
     position: absolute; inset: 0; background: #ff3b30; display: flex; align-items: center; justify-content: flex-end;
     padding-right: 22px; color: #fff; font-size: 15px; font-weight: 700; opacity: 0;
@@ -297,6 +309,7 @@
       }
       return `
       <div class="swipe-row" ${rowAttrs}>
+        <div class="bg-rename">Rename</div>
         <div class="bg-delete">Delete</div>
         <button type="button" class="list-row" style="background:${rowBg}">
           <span>${escapeHtml(l.name || "Untitled list")}</span>
@@ -500,6 +513,9 @@
     // detaches the row mid-gesture -- the click that would clear such a flag
     // may never arrive, leaving it set to swallow some later, unrelated tap.
     if (pendingRenameId !== null) return;
+    // Nor is a row that was just dragged: the finger lifting at the end of a
+    // drag must not also walk into the list it landed on.
+    if (Date.now() - listDragEndedAt < CLICK_AFTER_DRAG_MS) return;
     location.href = `list.html?id=${encodeURIComponent(row.dataset.listId)}&name=${encodeURIComponent(row.dataset.listName)}`;
   });
 
@@ -528,12 +544,123 @@
   // tap doesn't ALSO navigate into the list or open the new-list row.
   let suppressNextRowClick = false;
 
-  const HOLD_TO_RENAME_MS = 400;
+  const HOLD_TO_DRAG_MS = 400;
+
+  // ---------- Press and hold to drag a list up or down ----------
+  // Mirrors the item reorder on the list page: the row lifts as a ghost that
+  // follows the finger, the rest reflow live underneath it, and the whole
+  // order is written on release. Driven from document-level touch events --
+  // setPointerCapture on the row is silently dropped the moment the live
+  // reflow moves that row elsewhere in the DOM, so its own pointerup stops
+  // arriving partway through exactly the drags that matter.
+  let listDragActive = false;
+  // When the last drag ended. The click that follows the finger lifting has
+  // to be swallowed so it doesn't open the list that was just dropped -- but
+  // as a self-expiring timestamp, not a flag waiting to be consumed: a drag
+  // that ends without any click behind it (a touchcancel, or a re-render that
+  // detaches the row mid-gesture) would leave a flag set to eat some later,
+  // unrelated tap.
+  let listDragEndedAt = 0;
+  const CLICK_AFTER_DRAG_MS = 400;
+  let listDragId = null;
+  let listDragRow = null;
+  let listDragGhost = null;
+  let listDragStartY = 0;
+
+  function startListDrag(id, swipeRow, startClientY) {
+    if (!lists[id]) return;
+    if (revealedListId !== null && closeRevealedList) closeRevealedList();
+    listDragActive = true;
+    listDragId = id;
+    listDragRow = swipeRow;
+    listDragStartY = startClientY;
+
+    const rect = swipeRow.getBoundingClientRect();
+    const ghost = swipeRow.cloneNode(true);
+    ghost.classList.add("list-drag-ghost");
+    ghost.style.position = "fixed";
+    ghost.style.left = rect.left + "px";
+    ghost.style.top = rect.top + "px";
+    ghost.style.width = rect.width + "px";
+    ghost.style.margin = "0";
+    ghost.style.transform = "scale(1.03)";
+    document.body.appendChild(ghost);
+    listDragGhost = ghost;
+    swipeRow.classList.add("list-drag-source-hidden");
+    if (navigator.vibrate) navigator.vibrate(8);
+  }
+
+  // FLIP: note where every row sits, make the DOM change, then jump each
+  // moved row back to where it was and let a transition carry it forward --
+  // otherwise rows only appear to move once the finger lifts.
+  function flipListMove(moveFn) {
+    const rows = [...root.querySelectorAll(".swipe-row[data-list-id]")];
+    const before = new Map(rows.map(r => [r, r.getBoundingClientRect()]));
+    moveFn();
+    rows.forEach(r => {
+      const first = before.get(r);
+      const last = r.getBoundingClientRect();
+      const dy = first.top - last.top;
+      if (Math.abs(dy) < 0.5) return;
+      r.style.transition = "none";
+      r.style.transform = `translateY(${dy}px)`;
+      r.getBoundingClientRect(); // force layout so the line below animates
+      r.style.transition = "transform 0.22s cubic-bezier(.2,.9,.3,1.1)";
+      r.style.transform = "";
+      setTimeout(() => { r.style.transition = ""; r.style.transform = ""; }, 260);
+    });
+  }
+
+  function updateListDrag(clientY) {
+    if (!listDragActive) return;
+    listDragGhost.style.transform = `translateY(${clientY - listDragStartY}px) scale(1.03)`;
+    const rows = [...root.querySelectorAll(".swipe-row[data-list-id]")].filter(r => r !== listDragRow);
+    let beforeEl = null;
+    for (const r of rows) {
+      const rect = r.getBoundingClientRect();
+      if (clientY < rect.top + rect.height / 2) { beforeEl = r; break; }
+    }
+    const alreadyThere = beforeEl
+      ? beforeEl.previousElementSibling === listDragRow
+      : rows.length > 0 && rows[rows.length - 1].nextElementSibling === listDragRow;
+    if (alreadyThere) return;
+    flipListMove(() => {
+      if (beforeEl) root.insertBefore(listDragRow, beforeEl);
+      else if (rows.length) rows[rows.length - 1].after(listDragRow);
+    });
+  }
+
+  async function finishListDrag() {
+    if (!listDragActive) return;
+    const order = [...root.querySelectorAll(".swipe-row[data-list-id]")].map(r => r.dataset.listId);
+    listDragEndedAt = Date.now();
+    if (listDragGhost) listDragGhost.remove();
+    if (listDragRow) listDragRow.classList.remove("list-drag-source-hidden");
+    listDragActive = false;
+    listDragId = null;
+    listDragRow = null;
+    listDragGhost = null;
+
+    // Renumbered from scratch rather than nudged: whole numbers 0..n-1 with
+    // no gaps can't drift the way repeatedly splitting the difference between
+    // two neighbours eventually does.
+    const updates = {};
+    order.forEach((id, i) => { if (lists[id] && (lists[id].order ?? 0) !== i) updates[`lists.${id}.order`] = i; });
+    if (Object.keys(updates).length === 0) { render(); return; }
+    try {
+      await updateDoc(indexRef, updates);
+    } catch (err) {
+      console.error(err);
+      alert("Couldn't save the new order — try again.");
+      render();
+    }
+  }
 
   function attachDeleteSwipe(swipeRow, id) {
     let holdTimer = null, held = false;
     const rowFg = swipeRow.querySelector(".list-row");
     const bgDelete = swipeRow.querySelector(".bg-delete");
+    const bgRename = swipeRow.querySelector(".bg-rename");
     let startX = 0, startY = 0, dx = 0, dragging = null;
     let pointerId = null;
     let dismissOnly = false;
@@ -596,14 +723,16 @@
       rowFg.classList.remove("snap", "commit");
       clearTimeout(holdTimer);
       // Hold still for a moment and this stops being a tap or a swipe and
-      // becomes a rename. Same 400ms as holding a category heading to drag it.
+      // becomes a drag, to move the list up or down the page. Renaming moved
+      // to a right swipe, which was free. Same 400ms as holding a category
+      // heading to drag it on the list page.
       if (!dismissOnly) {
         holdTimer = setTimeout(() => {
-          if (held || pointerId === null) return;
+          if (held || pointerId === null || dragging) return;
           held = true;
           pointerId = null; // hand the gesture over -- no tap, no swipe
-          startRenameList(id);
-        }, HOLD_TO_RENAME_MS);
+          startListDrag(id, swipeRow, startY);
+        }, HOLD_TO_DRAG_MS);
       }
     });
 
@@ -622,9 +751,12 @@
       }
       if (!dragging) return;
       e.preventDefault();
-      dx = Math.min(0, curDx); // only leftward -- there's no "complete" direction for a list
+      dx = curDx; // left reveals Delete, right reveals Rename
       rowFg.style.transform = `translateX(${dx}px)`;
-      bgDelete.style.opacity = String(Math.min(1, Math.abs(dx) / SWIPE_COMMIT_PX));
+      const progress = String(Math.min(1, Math.abs(dx) / SWIPE_COMMIT_PX));
+      if (dx < 0) { bgDelete.style.opacity = progress; bgRename.style.opacity = "0"; }
+      else if (dx > 0) { bgRename.style.opacity = progress; bgDelete.style.opacity = "0"; }
+      else { bgDelete.style.opacity = "0"; bgRename.style.opacity = "0"; }
     });
 
     function endDrag(e) {
@@ -646,10 +778,20 @@
       rowFg.classList.remove("dragging");
       if (dx < -SWIPE_COMMIT_PX) {
         revealForDelete();
+      } else if (dx > SWIPE_COMMIT_PX) {
+        // Rename needs no tap-to-confirm the way Delete does -- it changes
+        // nothing on its own, it just opens the field, and Escape or an
+        // empty field backs straight out. Same as a right swipe on an item,
+        // which acts as soon as it passes the threshold.
+        rowFg.classList.add("snap");
+        rowFg.style.transform = "translateX(0)";
+        bgRename.style.opacity = "0";
+        startRenameList(id);
       } else {
         rowFg.classList.add("snap");
         rowFg.style.transform = "translateX(0)";
         bgDelete.style.opacity = "0";
+        bgRename.style.opacity = "0";
       }
       dragging = null;
     }
@@ -863,7 +1005,10 @@
     lists = snap.data().lists || {};
     deletedLists = snap.data().deletedLists || {};
     syncItemCountListeners();
-    render();
+    // A rebuild mid-drag would tear the row out from under the finger (and
+    // with it the DOM order the drop is about to be read from). The drag's
+    // own release re-renders once the new order is written.
+    if (!listDragActive) render();
     // Runs after the first real (server-confirmed) index read. Any repair
     // it makes writes to the index, which re-enters here -- by then the
     // restored entries are in `lists`, so it finds nothing and stops.
@@ -918,6 +1063,12 @@
   }, { passive: true });
 
   document.addEventListener("touchmove", e => {
+    if (listDragActive) {
+      e.preventDefault();
+      const t = e.touches[0];
+      if (t) updateListDrag(t.clientY);
+      return;
+    }
     if (pullTouchId === null) return;
     const t = [...e.touches].find(x => x.identifier === pullTouchId);
     if (!t) return;
@@ -943,8 +1094,14 @@
     resetPull();
     if (shouldAdd) startInlineAdd();
   }
-  document.addEventListener("touchend", endPull);
-  document.addEventListener("touchcancel", endPull);
+  document.addEventListener("touchend", e => {
+    if (listDragActive) { if (e.touches.length === 0) finishListDrag(); return; }
+    endPull();
+  });
+  document.addEventListener("touchcancel", () => {
+    if (listDragActive) { finishListDrag(); return; }
+    endPull();
+  });
 </script>
 </body>
 </html>
