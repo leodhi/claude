@@ -35,6 +35,8 @@
   h1 { font-size: 1.6rem; margin: 4px 0 2px; letter-spacing: 0.5px; }
   h1 span { color: var(--accent); }
   .subtitle { color: var(--text-dim); font-size: 0.85rem; margin-bottom: 18px; }
+  .top-link { color: var(--text-dim); font-size: 0.8rem; text-decoration: none; }
+  .top-link:hover { color: var(--accent); }
   .screen { display: none; flex-direction: column; gap: 14px; flex: 1; }
   .screen.active { display: flex; }
   .card { background: var(--panel); border: 1px solid var(--border); border-radius: 14px; padding: 16px; }
@@ -237,7 +239,7 @@
 <body>
 <div id="app">
   <h1>🙊 Spill<span> It!</span></h1>
-  <div class="subtitle">Family trivia — about each other</div>
+  <div class="subtitle">Family trivia — about each other &middot; <a class="top-link" href="index.html">&larr; all games</a></div>
   <div class="rules-link-row"><button type="button" class="rules-link-btn" id="rules-btn">Rules</button></div>
   <div class="rules-modal-backdrop" id="rules-modal-backdrop">
     <div class="rules-modal">
@@ -421,6 +423,19 @@
 
   <!-- LOCAL: players -->
   <div class="screen" id="local-screen-players">
+    <div class="card" id="local-refresh-resume-banner" style="display:none;">
+      <div>Looks like the page was refreshed mid-game. Want to keep playing?</div>
+      <div class="row" style="margin-top:10px;">
+        <button class="secondary" id="local-btn-refresh-startnew" type="button">Start New Game</button>
+        <button class="primary" id="local-btn-refresh-continue" type="button">Continue Game</button>
+      </div>
+    </div>
+    <div class="card" id="local-resume-banner" style="display:none;">
+      <div class="row" style="align-items:center; gap:10px;">
+        <div style="flex:1;">Your last game was ended. Was that an accident?</div>
+        <button class="secondary" id="local-btn-resume-game" type="button" style="width:auto; flex:none; padding:10px 14px;">Resume Game</button>
+      </div>
+    </div>
     <div class="card">
       <label>Players (3+)</label>
       <div id="local-player-list"></div>
@@ -1331,9 +1346,85 @@ var local = {
 };
 FIXED_PROMPTS.forEach(function (_, i) { local.fixedSelected[i] = true; });
 
+// ---------- Local game save / resume ----------
+// Checkpoints are only taken at points that are safe to replay: the pass
+// screen (nothing scored yet), the start of a round (that round's scoring
+// hasn't been applied), and the results screen (all scoring already
+// committed). Never mid-scoring, which would double-count points.
+var LOCAL_SAVE_KEY = "spillItSave";
+
+function localSaveCheckpoint(screenId) {
+  try {
+    localStorage.setItem(LOCAL_SAVE_KEY, JSON.stringify({
+      screen: screenId,
+      state: {
+        players: local.players,
+        prompts: local.prompts,
+        answers: local.answers,
+        scores: local.scores,
+        revealIndex: local.revealIndex,
+        promptIndex: local.promptIndex,
+        queue: local.queue,
+        queueIndex: local.queueIndex
+      }
+    }));
+  } catch (e) { /* private browsing or storage full — resume just won't be offered */ }
+}
+function localClearSavedGame() {
+  try { localStorage.removeItem(LOCAL_SAVE_KEY); } catch (e) {}
+}
+function localLoadSavedGame() {
+  try {
+    var raw = localStorage.getItem(LOCAL_SAVE_KEY);
+    var parsed = raw ? JSON.parse(raw) : null;
+    if (!parsed || !parsed.state || !parsed.state.players || !parsed.state.players.length) return null;
+    return parsed;
+  } catch (e) { return null; }
+}
+function localRestoreSaved(saved) {
+  var s = saved.state;
+  local.players = s.players;
+  local.prompts = s.prompts || [];
+  local.answers = s.answers || {};
+  local.scores = s.scores || {};
+  local.revealIndex = s.revealIndex || 0;
+  local.promptIndex = s.promptIndex || 0;
+  local.queue = s.queue || [];
+  local.queueIndex = s.queueIndex || 0;
+  hideLocalResumeBanners();
+  if (saved.screen === "local-screen-results") localShowResults();
+  else if (saved.screen === "local-screen-round") localGoToRound();
+  else localGoToPass();
+}
+function hideLocalResumeBanners() {
+  $("local-refresh-resume-banner").style.display = "none";
+  $("local-resume-banner").style.display = "none";
+}
+
+var localPendingResume = localLoadSavedGame();
+
 $("btn-local-mode").addEventListener("click", function () {
   localRenderPlayerList();
+  hideLocalResumeBanners();
+  if (localPendingResume) $("local-refresh-resume-banner").style.display = "";
   showScreen("local-screen-players");
+});
+$("local-btn-refresh-continue").addEventListener("click", function () {
+  if (!localPendingResume) return;
+  var saved = localPendingResume;
+  localPendingResume = null;
+  localRestoreSaved(saved);
+});
+$("local-btn-refresh-startnew").addEventListener("click", function () {
+  localClearSavedGame();
+  localPendingResume = null;
+  hideLocalResumeBanners();
+});
+$("local-btn-resume-game").addEventListener("click", function () {
+  var saved = localLoadSavedGame();
+  if (!saved) { hideLocalResumeBanners(); return; }
+  localPendingResume = null;
+  localRestoreSaved(saved);
 });
 
 function localRenderPlayerList() {
@@ -1438,12 +1529,15 @@ $("local-btn-prompts-continue").addEventListener("click", function () {
   localGoToPass();
 });
 
+// Note: promptIndex is deliberately NOT reset here — callers moving to a new
+// player zero it themselves, so a resumed game can drop back onto the pass
+// screen and pick up at the prompt the player had actually reached.
 function localGoToPass() {
   if (local.revealIndex >= local.players.length) {
     localStartRounds();
     return;
   }
-  local.promptIndex = 0;
+  localSaveCheckpoint("local-screen-pass");
   var name = local.players[local.revealIndex];
   $("local-pass-name").textContent = name;
   $("local-pass-name-2").textContent = name;
@@ -1466,8 +1560,10 @@ function localAdvanceAnswerPrompt() {
   local.promptIndex++;
   if (local.promptIndex >= local.prompts.length) {
     local.revealIndex++;
+    local.promptIndex = 0;
     localGoToPass();
   } else {
+    localSaveCheckpoint("local-screen-pass");
     localRenderAnswerScreen();
   }
 }
@@ -1497,6 +1593,7 @@ function localGoToRound() {
     localShowResults();
     return;
   }
+  localSaveCheckpoint("local-screen-round");
   var item = local.queue[local.queueIndex];
   $("local-round-progress").textContent = "Round " + (local.queueIndex + 1) + " of " + local.queue.length;
   $("local-round-prompt-text").textContent = local.prompts[item.promptIdx];
@@ -1541,10 +1638,57 @@ $("local-btn-round-next").addEventListener("click", function () {
 });
 
 function localShowResults() {
+  localSaveCheckpoint("local-screen-results");
   $("local-results-banner").textContent = winnerLine(local.scores);
   renderScoreboardInto($("local-results-scoreboard"), local.scores);
   showScreen("local-screen-results");
 }
+// ---------- Enter key advances the current screen ----------
+// Maps each screen to its main forward action, so pressing Enter behaves like
+// tapping that screen's primary button — same convention as the other games.
+var SCREEN_ENTER_TARGETS = {
+  "screen-join-code": "btn-join-code-submit",
+  "screen-lobby": "btn-start-mp-game",
+  "screen-mp-writing": "btn-mp-writing-next",
+  "screen-mp-round": "btn-mp-submit-guess",
+  "screen-mp-reveal": "btn-mp-next-round",
+  "screen-mp-game-over": "btn-mp-play-again",
+  "local-screen-players": "local-btn-players-continue",
+  "local-screen-prompts": "local-btn-prompts-continue",
+  "local-screen-pass": "local-btn-ready",
+  "local-screen-answer": "local-btn-answer-next",
+  "local-screen-round": "local-btn-round-reveal",
+  "local-screen-round-reveal": "local-btn-round-next",
+  "local-screen-results": "local-btn-play-again"
+};
+// Inputs that already do their own thing on Enter.
+var ENTER_EXEMPT_IDS = { "chat-input": 1, "lobby-custom-input": 1, "local-custom-prompt-input": 1 };
+
+function enterTargetIsUsable(btn) {
+  if (!btn || btn.disabled) return false;
+  for (var n = btn; n && n !== document.body; n = n.parentElement) {
+    if (n.style && n.style.display === "none") return false;
+    if (n.classList && n.classList.contains("screen") && !n.classList.contains("active")) return false;
+  }
+  return true;
+}
+
+document.addEventListener("keydown", function (e) {
+  if (e.key !== "Enter") return;
+  if (e.shiftKey) return;                                   // Shift+Enter = newline in a textarea
+  if (e.target && ENTER_EXEMPT_IDS[e.target.id]) return;
+  if ($("rules-modal-backdrop").classList.contains("show")) return;
+  var activeScreen = document.querySelector(".screen.active");
+  if (!activeScreen) return;
+  var btn = $(SCREEN_ENTER_TARGETS[activeScreen.id]);
+  if (!enterTargetIsUsable(btn)) return;
+  // If that button already has focus its own native activation fires, so
+  // clicking it here too would double-submit.
+  if (document.activeElement === btn) return;
+  e.preventDefault();
+  btn.click();
+});
+
 $("local-btn-play-again").addEventListener("click", function () {
   local.answers = {};
   local.scores = {};
@@ -1555,7 +1699,22 @@ $("local-btn-play-again").addEventListener("click", function () {
 });
 $("local-btn-new-game").addEventListener("click", function () {
   if (!confirm("Start a brand new game? This clears players and prompts.")) return;
-  location.reload();
+  // The saved checkpoint is deliberately kept so an accidental tap here can
+  // still be undone from the banner on the setup screen.
+  local.players = ["", "", ""];
+  local.prompts = [];
+  local.customPrompts = [];
+  local.answers = {};
+  local.scores = {};
+  local.queue = [];
+  local.queueIndex = 0;
+  local.revealIndex = 0;
+  local.promptIndex = 0;
+  localPendingResume = null;
+  localRenderPlayerList();
+  hideLocalResumeBanners();
+  if (localLoadSavedGame()) $("local-resume-banner").style.display = "";
+  showScreen("local-screen-players");
 });
 </script>
 </body>
