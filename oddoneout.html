@@ -543,6 +543,8 @@ var CODE_CHARS = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 // are all ___", which is why some read as nouns ("a fruit"/"fruit") and some
 // as adjectives ("red"/"red").
 // =========================================================================
+// The names are American English — they are read out loud to a small child,
+// so "truck", "cookie" and "eggplant" have to be the words he already knows.
 var GROUPS = {
   fruit: { one: "a fruit", many: "fruit", items: [
     ["🍎","apple"],["🍌","banana"],["🍇","grapes"],["🍓","strawberry"],["🍊","orange"],
@@ -550,12 +552,12 @@ var GROUPS = {
     ["🥭","mango"],["🍒","cherries"],["🍋","lemon"]
   ]},
   veg: { one: "a vegetable", many: "vegetables", items: [
-    ["🥕","carrot"],["🥦","broccoli"],["🌽","sweetcorn"],["🥒","cucumber"],["🥔","potato"],
-    ["🧅","onion"],["🫑","pepper"],["🍆","aubergine"],["🥬","lettuce"]
+    ["🥕","carrot"],["🥦","broccoli"],["🌽","corn"],["🥒","cucumber"],["🥔","potato"],
+    ["🧅","onion"],["🫑","bell pepper"],["🍆","eggplant"],["🥬","lettuce"]
   ]},
   farm: { one: "a farm animal", many: "farm animals", items: [
     ["🐄","cow"],["🐖","pig"],["🐔","chicken"],["🐎","horse"],["🐑","sheep"],
-    ["🐐","goat"],["🦆","duck"],["🦃","turkey"],["🐓","cockerel"]
+    ["🐐","goat"],["🦆","duck"],["🦃","turkey"],["🐓","rooster"]
   ]},
   wild: { one: "a wild animal", many: "wild animals", items: [
     ["🦁","lion"],["🐯","tiger"],["🐘","elephant"],["🦒","giraffe"],["🦓","zebra"],
@@ -568,7 +570,7 @@ var GROUPS = {
     ["🦑","squid"],["🐡","pufferfish"]
   ]},
   bug: { one: "a bug", many: "bugs", items: [
-    ["🐛","caterpillar"],["🐝","bee"],["🦋","butterfly"],["🐜","ant"],["🐞","ladybird"],
+    ["🐛","caterpillar"],["🐝","bee"],["🦋","butterfly"],["🐜","ant"],["🐞","ladybug"],
     ["🕷️","spider"],["🦗","grasshopper"],["🐌","snail"]
   ]},
   bird: { one: "a bird", many: "birds", items: [
@@ -576,65 +578,65 @@ var GROUPS = {
     ["🐧","penguin"],["🦢","swan"],["🕊️","dove"]
   ]},
   vehicle: { one: "something you ride in", many: "things you ride in", items: [
-    ["🚗","car"],["🚌","bus"],["🚕","taxi"],["🚓","police car"],["🚚","lorry"],
-    ["🚒","fire engine"],["🚜","tractor"],["🏎️","racing car"],["🚑","ambulance"],["🚐","van"]
+    ["🚗","car"],["🚌","bus"],["🚕","taxi"],["🚓","police car"],["🚚","truck"],
+    ["🚒","fire truck"],["🚜","tractor"],["🏎️","race car"],["🚑","ambulance"],["🚐","van"]
   ]},
   fly: { one: "something that flies", many: "things that fly", items: [
-    ["✈️","aeroplane"],["🚁","helicopter"],["🚀","rocket"],["🎈","balloon"],["🪁","kite"],
+    ["✈️","airplane"],["🚁","helicopter"],["🚀","rocket"],["🎈","balloon"],["🪁","kite"],
     ["🦋","butterfly"],["🐦","bird"],["🦅","eagle"]
   ]},
   boat: { one: "something that goes on the water", many: "boats", items: [
-    ["⛵","sailing boat"],["🚤","speedboat"],["🛶","canoe"],["🚢","ship"],
-    ["🛥️","motor boat"],["🚣","rowing boat"]
+    ["⛵","sailboat"],["🚤","speedboat"],["🛶","canoe"],["🚢","ship"],
+    ["🛥️","motorboat"],["🚣","rowboat"]
   ]},
   clothes: { one: "something you wear", many: "things you wear", items: [
-    ["👕","t-shirt"],["👖","pair of jeans"],["👗","dress"],["🧦","pair of socks"],["👟","trainer"],
-    ["🧢","cap"],["🧤","pair of gloves"],["🧣","scarf"],["👒","sun hat"],["🥾","boot"],
-    ["🩳","pair of shorts"],["🧥","coat"]
+    ["👕","t-shirt"],["👖","jeans"],["👗","dress"],["🧦","socks"],["👟","sneaker"],
+    ["🧢","cap"],["🧤","gloves"],["🧣","scarf"],["👒","sun hat"],["🥾","boot"],
+    ["🩳","shorts"],["🧥","coat"]
   ]},
   toy: { one: "a toy", many: "toys", items: [
-    ["🧸","teddy bear"],["🪀","yo-yo"],["🎈","balloon"],["🪁","kite"],["🧩","jigsaw"],
+    ["🧸","teddy bear"],["🪀","yo-yo"],["🎈","balloon"],["🪁","kite"],["🧩","puzzle"],
     ["🪆","doll"],["🎲","dice"],["🛴","scooter"],["🪃","boomerang"]
   ]},
   ball: { one: "a ball", many: "balls", items: [
-    ["⚽","football"],["🏀","basketball"],["🎾","tennis ball"],["🏈","rugby ball"],
+    ["⚽","soccer ball"],["🏀","basketball"],["🎾","tennis ball"],["🏈","football"],
     ["⚾","baseball"],["🏐","volleyball"],["🎱","pool ball"],["🏉","rugby ball"]
   ]},
   music: { one: "a musical instrument", many: "musical instruments", items: [
     ["🎸","guitar"],["🥁","drum"],["🎺","trumpet"],["🎻","violin"],["🎹","piano"],
     ["🪗","accordion"],["🎷","saxophone"],["🪕","banjo"]
   ]},
-  dinner: { one: "a hot dinner", many: "hot dinners", items: [
-    ["🍕","pizza"],["🍔","burger"],["🍟","bag of chips"],["🌭","hot dog"],["🥪","sandwich"],
-    ["🍝","bowl of spaghetti"],["🌮","taco"],["🍜","bowl of noodles"]
+  dinner: { one: "a dinner food", many: "dinner foods", items: [
+    ["🍕","pizza"],["🍔","burger"],["🍟","french fries"],["🌭","hot dog"],["🥪","sandwich"],
+    ["🍝","spaghetti"],["🌮","taco"],["🍜","noodles"]
   ]},
   sweet: { one: "a treat", many: "treats", items: [
-    ["🍰","slice of cake"],["🍪","biscuit"],["🍭","lollipop"],["🍫","bar of chocolate"],
-    ["🧁","cupcake"],["🍦","ice cream"],["🍩","doughnut"],["🍬","sweet"]
+    ["🍰","cake"],["🍪","cookie"],["🍭","lollipop"],["🍫","chocolate bar"],
+    ["🧁","cupcake"],["🍦","ice cream"],["🍩","donut"],["🍬","piece of candy"]
   ]},
   sky: { one: "something in the sky", many: "things in the sky", items: [
     ["☀️","sun"],["⭐","star"],["🌙","moon"],["☁️","cloud"],["🌈","rainbow"],
-    ["⚡","flash of lightning"],["❄️","snowflake"],["🌧️","rain cloud"]
+    ["⚡","lightning"],["❄️","snowflake"],["🌧️","rain cloud"]
   ]},
   tool: { one: "a tool", many: "tools", items: [
-    ["🔨","hammer"],["🪚","saw"],["🔧","spanner"],["🪛","screwdriver"],["🪓","axe"],
+    ["🔨","hammer"],["🪚","saw"],["🔧","wrench"],["🪛","screwdriver"],["🪓","axe"],
     ["🔩","bolt"],["🧰","toolbox"],["🪜","ladder"]
   ]},
   school: { one: "something you use at school", many: "school things", items: [
-    ["✏️","pencil"],["🖍️","crayon"],["🖌️","paintbrush"],["📚","pile of books"],["🎒","backpack"],
-    ["📐","set square"],["✂️","pair of scissors"],["📕","book"],["📏","ruler"]
+    ["✏️","pencil"],["🖍️","crayon"],["🖌️","paintbrush"],["📚","stack of books"],["🎒","backpack"],
+    ["📐","triangle ruler"],["✂️","scissors"],["📕","book"],["📏","ruler"]
   ]},
   plant: { one: "a plant", many: "plants", items: [
-    ["🌸","blossom"],["🌻","sunflower"],["🌹","rose"],["🌷","tulip"],["🌳","tree"],
+    ["🌸","cherry blossom"],["🌻","sunflower"],["🌹","rose"],["🌷","tulip"],["🌳","tree"],
     ["🌵","cactus"],["🍀","clover"],["🌼","daisy"],["🌴","palm tree"]
   ]},
   home: { one: "something in your house", many: "things in your house", items: [
     ["🛏️","bed"],["🪑","chair"],["🛋️","sofa"],["🚪","door"],["🪟","window"],
-    ["🚽","toilet"],["🛁","bath"],["💡","light bulb"],["🚿","shower"],["🪞","mirror"]
+    ["🚽","toilet"],["🛁","bathtub"],["💡","light bulb"],["🚿","shower"],["🪞","mirror"]
   ]},
   drink: { one: "a drink", many: "drinks", items: [
-    ["🥛","glass of milk"],["🧃","carton of juice"],["☕","cup of coffee"],["🍵","cup of tea"],
-    ["🥤","fizzy drink"],["🧋","bubble tea"],["🍼","baby's bottle"]
+    ["🥛","glass of milk"],["🧃","juice box"],["☕","cup of coffee"],["🍵","cup of tea"],
+    ["🥤","soda"],["🧋","bubble tea"],["🍼","baby bottle"]
   ]},
   body: { one: "a part of your body", many: "parts of your body", items: [
     ["👁️","eye"],["👂","ear"],["👃","nose"],["👄","mouth"],["🦷","tooth"],
@@ -642,24 +644,24 @@ var GROUPS = {
   ]},
   wheels: { one: "something with wheels", many: "things with wheels", items: [
     ["🚗","car"],["🚌","bus"],["🚲","bicycle"],["🛴","scooter"],["🚜","tractor"],
-    ["🏍️","motorbike"],["🚚","lorry"],["🛹","skateboard"],["🚂","train"]
+    ["🏍️","motorcycle"],["🚚","truck"],["🛹","skateboard"],["🚂","train"]
   ]},
   eat: { one: "something you can eat", many: "things you can eat", items: [
-    ["🍎","apple"],["🥕","carrot"],["🍕","pizza"],["🍪","biscuit"],["🧀","piece of cheese"],
-    ["🍞","loaf of bread"],["🍌","banana"],["🥚","egg"],["🍰","slice of cake"]
+    ["🍎","apple"],["🥕","carrot"],["🍕","pizza"],["🍪","cookie"],["🧀","piece of cheese"],
+    ["🍞","loaf of bread"],["🍌","banana"],["🥚","egg"],["🍰","cake"]
   ]},
   hot: { one: "hot", many: "hot", items: [
-    ["☀️","sun"],["🔥","fire"],["🌶️","chilli"],["♨️","puff of steam"],["☕","cup of coffee"],["🕯️","candle"]
+    ["☀️","sun"],["🔥","fire"],["🌶️","chili pepper"],["♨️","steam"],["☕","cup of coffee"],["🕯️","candle"]
   ]},
   cold: { one: "cold", many: "cold", items: [
-    ["❄️","snowflake"],["⛄","snowman"],["🧊","ice cube"],["🍦","ice cream"],["🐧","penguin"],["🥶","frozen face"]
+    ["❄️","snowflake"],["⛄","snowman"],["🧊","ice cube"],["🍦","ice cream"],["🐧","penguin"],["🥶","freezing face"]
   ]},
   red: { one: "red", many: "red", items: [
-    ["🍎","apple"],["🍓","strawberry"],["🌹","rose"],["🚒","fire engine"],
-    ["❤️","heart"],["🍒","cherries"],["🌶️","chilli"],["🐞","ladybird"]
+    ["🍎","apple"],["🍓","strawberry"],["🌹","rose"],["🚒","fire truck"],
+    ["❤️","heart"],["🍒","cherries"],["🌶️","chili pepper"],["🐞","ladybug"]
   ]},
   yellow: { one: "yellow", many: "yellow", items: [
-    ["🍌","banana"],["🌽","sweetcorn"],["🧀","piece of cheese"],["⭐","star"],
+    ["🍌","banana"],["🌽","corn"],["🧀","piece of cheese"],["⭐","star"],
     ["🍋","lemon"],["🌻","sunflower"],["🚕","taxi"],["🐥","chick"]
   ]},
   green: { one: "green", many: "green", items: [
