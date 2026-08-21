@@ -327,12 +327,7 @@
     display: none; align-items: center; justify-content: center;
   }
   #chat-toggle:active { transform: scale(0.94); }
-  @keyframes chat-bounce {
-    0%, 100% { transform: translateY(0); }
-    25% { transform: translateY(-7px); }
-    50% { transform: translateY(0); }
-  }
-  #chat-toggle.has-unread { background: var(--accent-2); animation: chat-bounce 0.6s ease-in-out infinite; }
+  #chat-toggle.has-unread { background: var(--accent-2); }
   #chat-badge {
     position: absolute; top: -2px; right: -2px;
     background: var(--accent-2); color: #fff;
@@ -665,7 +660,7 @@
       <img id="reveal-drawing-img" style="width:100%; display:block;" alt="The finished drawing">
     </div>
     <div class="card">
-      <label>Guesses</label>
+      <label>Guesses (auto-checked — host can tap to correct any calls)</label>
       <div id="guess-tally"></div>
     </div>
     <button class="primary" id="btn-mp-ready" type="button">I'm ready</button>
@@ -866,7 +861,7 @@
       <img id="local-reveal-drawing-img" style="width:100%; display:block;" alt="The finished drawing">
     </div>
     <div class="card">
-      <label>Guesses</label>
+      <label>Guesses (auto-checked — tap to correct any calls)</label>
       <div id="local-guess-tally"></div>
     </div>
     <button class="primary" id="local-btn-next-round" type="button">Next Round</button>
@@ -2904,27 +2899,19 @@ function updateMpTimerDisplay() {
 async function finishMpGuessing() {
   var room = mp.room;
   var round = room.round;
-  var artistName = mpPlayerName(round.artistUid);
   var guesserUids = mpPlayerUids().filter(function (uid) { return uid !== round.artistUid; });
 
-  var scoreUpdates = Object.assign({}, room.scores);
-  var correctPoints = 0;
+  // Auto-check only — scoring itself waits until "Next Round", so a wrong
+  // call still has a chance to be corrected on the reveal screen first.
+  var judged = {};
   guesserUids.forEach(function (uid) {
     var guess = (round.guesses && round.guesses[uid]) || "";
-    var isCorrect = isCloseGuess(guess, round.word);
-    var usedHint = !!(round.hintUsed && round.hintUsed[uid]);
-    if (isCorrect) {
-      var earned = usedHint ? 0.5 : 1;
-      correctPoints += earned;
-      scoreUpdates[uid] = (scoreUpdates[uid] || 0) + earned;
-    }
+    judged[uid] = isCloseGuess(guess, round.word);
   });
-  scoreUpdates[round.artistUid] = (scoreUpdates[round.artistUid] || 0) + correctPoints;
 
   await update(roomRef(mp.roomCode), {
     phase: "reveal-guesses",
-    scores: scoreUpdates,
-    round: Object.assign({}, round, { settled: true })
+    round: Object.assign({}, round, { settled: true, judged: judged })
   });
 }
 
@@ -2939,13 +2926,22 @@ function renderRevealGuessesScreen() {
   tally.innerHTML = "";
   mpPlayerUids().filter(function (uid) { return uid !== round.artistUid; }).forEach(function (uid) {
     var guess = (round.guesses && round.guesses[uid]) || "(no guess)";
-    var isCorrect = isCloseGuess(guess, round.word);
+    var isCorrect = !!(round.judged && round.judged[uid]);
     var usedHint = !!(round.hintUsed && round.hintUsed[uid]);
     var earned = isCorrect ? (usedHint ? 0.5 : 1) : 0;
     var pointsNote = isCorrect ? (" (+" + earned + (usedHint ? ", used hint" : "") + ")") : "";
     var row = document.createElement("div");
     row.className = "tally-row";
     row.innerHTML = "<span>" + (isCorrect ? "✅ " : "❌ ") + mpPlayerName(uid) + pointsNote + "</span><span>" + guess + "</span>";
+    // Host can tap any row to correct a call the auto-check got wrong.
+    if (mp.isHost) {
+      row.style.cursor = "pointer";
+      row.addEventListener("click", function () {
+        var next = Object.assign({}, round.judged);
+        next[uid] = !isCorrect;
+        update(ref(db, "rooms/" + mp.roomCode + "/round"), { judged: next });
+      });
+    }
     tally.appendChild(row);
   });
 
@@ -2958,7 +2954,22 @@ function renderRevealGuessesScreen() {
 $("btn-next-round").addEventListener("click", function () {
   if (!mp.isHost || this.disabled) return;
   var room = mp.room;
-  var entries = Object.keys(room.scores).map(function (uid) { return { uid: uid, score: room.scores[uid] }; });
+  var round = room.round;
+  var guesserUids = mpPlayerUids().filter(function (uid) { return uid !== round.artistUid; });
+
+  var scoreUpdates = Object.assign({}, room.scores);
+  var correctPoints = 0;
+  guesserUids.forEach(function (uid) {
+    if (round.judged && round.judged[uid]) {
+      var usedHint = !!(round.hintUsed && round.hintUsed[uid]);
+      var earned = usedHint ? 0.5 : 1;
+      correctPoints += earned;
+      scoreUpdates[uid] = (scoreUpdates[uid] || 0) + earned;
+    }
+  });
+  scoreUpdates[round.artistUid] = (scoreUpdates[round.artistUid] || 0) + correctPoints;
+
+  var entries = Object.keys(scoreUpdates).map(function (uid) { return { uid: uid, score: scoreUpdates[uid] }; });
   entries.sort(function (a, b) { return b.score - a.score; });
   var maxScore = entries.length ? entries[0].score : 0;
   var winnerUid = null;
@@ -2968,9 +2979,9 @@ $("btn-next-round").addEventListener("click", function () {
   }
   var nextArtistIndex = (room.artistIndex || 0) + 1;
   if (winnerUid) {
-    update(roomRef(mp.roomCode), { phase: "game-won", winnerUid: winnerUid, artistIndex: nextArtistIndex });
+    update(roomRef(mp.roomCode), { phase: "game-won", winnerUid: winnerUid, scores: scoreUpdates, artistIndex: nextArtistIndex });
   } else {
-    update(roomRef(mp.roomCode), { phase: "scores", artistIndex: nextArtistIndex });
+    update(roomRef(mp.roomCode), { phase: "scores", scores: scoreUpdates, artistIndex: nextArtistIndex });
   }
 });
 
@@ -3822,33 +3833,43 @@ $("local-btn-back-home").addEventListener("click", function () { showScreen("scr
 
   
 
+  // Tap any row to correct a call the auto-check got wrong.
+  function localRenderGuessTally() {
+    var round = localState.round;
+    var tally = $("local-guess-tally");
+    tally.innerHTML = "";
+    round.guessOrder.forEach(function (idx) {
+      var name = localState.players[idx];
+      var guess = round.guesses[idx] || "(no guess)";
+      var isCorrect = !!round.judged[idx];
+      var usedHint = !!(round.hintUsed && round.hintUsed[idx]);
+      var earned = isCorrect ? (usedHint ? 0.5 : 1) : 0;
+      var pointsNote = isCorrect ? (" (+" + earned + (usedHint ? ", used hint" : "") + ")") : "";
+      var row = document.createElement("div");
+      row.className = "tally-row";
+      row.style.cursor = "pointer";
+      row.innerHTML = "<span>" + (isCorrect ? "✅ " : "❌ ") + name + pointsNote + "</span><span>" + guess + "</span>";
+      row.addEventListener("click", function () {
+        round.judged[idx] = !round.judged[idx];
+        localRenderGuessTally();
+      });
+      tally.appendChild(row);
+    });
+  }
+
   function localGoToRevealGuesses() {
     var round = localState.round;
     var artistName = localState.players[round.artistIdx];
     $("local-reveal-word").textContent = round.word;
     $("local-reveal-drawing-img").src = round.image;
 
-    var tally = $("local-guess-tally");
-    tally.innerHTML = "";
-    var correctPoints = 0;
+    // Auto-check only — scoring itself waits until "Next Round" is tapped, so
+    // a wrong call still has a chance to be corrected here first.
+    round.judged = {};
     round.guessOrder.forEach(function (idx) {
-      var name = localState.players[idx];
-      var guess = round.guesses[idx] || "(no guess)";
-      var isCorrect = isCloseGuess(guess, round.word);
-      var usedHint = !!(round.hintUsed && round.hintUsed[idx]);
-      var earned = 0;
-      if (isCorrect) {
-        earned = usedHint ? 0.5 : 1;
-        correctPoints += earned;
-        localState.scores[name] += earned;
-      }
-      var row = document.createElement("div");
-      row.className = "tally-row";
-      var pointsNote = isCorrect ? (" (+" + earned + (usedHint ? ", used hint" : "") + ")") : "";
-      row.innerHTML = "<span>" + (isCorrect ? "✅ " : "❌ ") + name + pointsNote + "</span><span>" + guess + "</span>";
-      tally.appendChild(row);
+      round.judged[idx] = isCloseGuess(round.guesses[idx] || "", round.word);
     });
-    localState.scores[artistName] += correctPoints;
+    localRenderGuessTally();
     localState.gallery.push({ word: round.word, artist: artistName, image: round.image });
 
     var revealKey = round.startedAt;
@@ -3948,6 +3969,18 @@ $("local-btn-back-home").addEventListener("click", function () { showScreen("scr
 
   $("local-btn-next-round").addEventListener("click", function () {
     if (this.disabled) return;
+    var round = localState.round;
+    var artistName = localState.players[round.artistIdx];
+    var correctPoints = 0;
+    round.guessOrder.forEach(function (idx) {
+      if (!round.judged[idx]) return;
+      var usedHint = !!(round.hintUsed && round.hintUsed[idx]);
+      var earned = usedHint ? 0.5 : 1;
+      correctPoints += earned;
+      localState.scores[localState.players[idx]] += earned;
+    });
+    localState.scores[artistName] += correctPoints;
+
     var result = localComputeWinner();
     if (result) {
       // the actual winning score can be higher than the original target score
