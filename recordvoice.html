@@ -210,6 +210,12 @@
       <div style="font-size:3rem">🎤</div>
       <div id="done-summary" style="margin-top:8px"></div>
     </div>
+    <div class="card" id="wrong-device" style="display:none; border-color:var(--accent-2)">
+      <div class="warn" id="wrong-device-text"></div>
+      <button class="secondary" id="btn-save-anyway" type="button" style="margin-top:12px">
+        I know — let me save it anyway
+      </button>
+    </div>
     <div class="card">
       <label>Save these two files</label>
       <button class="primary" id="btn-save-audio" type="button">Save the recording</button>
@@ -262,6 +268,11 @@ var listening = false, settling = false, chunks = [], quietFor = 0, heardAnythin
 var noiseFloor = 0.004;  // raised to suit the room during the first take
 var levelRaf = 0, lastLevel = 0, hitTheCap = false;
 var listFilter = "all";
+// How many words the voice already on the site has. Recording is kept in the
+// browser it was done in, so opening this page on a second device starts from
+// nothing — and saving from there would replace a full recording with a
+// nearly empty one. Knowing the live count is what makes that catchable.
+var liveCount = null;
 
 function showScreen(id) {
   var all = document.querySelectorAll(".screen");
@@ -714,6 +725,23 @@ function paintDone() {
     "<span class='status-line'>" + howLong + " &middot; " + howBig + "</span>" +
     (missing ? "<br><span class='warn'>" + missing + " still to do — the game " +
       "reads those in its own voice.</span>" : "<br><span class='ok'>Every word done.</span>");
+
+  // The trap: recording a handful of new words on a different phone or laptop
+  // from the one the rest were done on, then uploading that. It looks like an
+  // addition and is actually a replacement.
+  var losing = liveCount !== null && built.said < liveCount;
+  $("wrong-device").style.display = losing ? "" : "none";
+  if (losing) {
+    $("wrong-device-text").innerHTML =
+      "<b>Don't upload this yet.</b><br><br>The game already has <b>" + liveCount +
+      "</b> words in your voice, but this device only has <b>" + built.said +
+      "</b>. Saving from here would <b>replace</b> the full recording with this " +
+      "smaller one, not add to it.<br><br>Recordings stay in the browser they " +
+      "were made in. Finish these on the same device you recorded the rest on, " +
+      "and it will save all " + words.length + " together.";
+  }
+  $("btn-save-audio").disabled = losing;
+  $("btn-save-index").disabled = losing;
 }
 
 // ---------- Wiring ----------
@@ -788,6 +816,12 @@ $("btn-quit").addEventListener("click", function () {
 });
 $("btn-back-record").addEventListener("click", function () { showScreen("screen-record"); paintWord(); });
 
+$("btn-save-anyway").addEventListener("click", function () {
+  $("wrong-device").style.display = "none";
+  $("btn-save-audio").disabled = false;
+  $("btn-save-index").disabled = false;
+});
+
 $("btn-save-audio").addEventListener("click", function () {
   if (!built) paintDone();
   save(built.wav, "oddoneout-voice.wav");
@@ -828,6 +862,14 @@ $("btn-scrap").addEventListener("click", async function () {
       "from the game. Reload the page, and if it keeps happening tell Claude.</span>";
     return;
   }
+  try {
+    var live = await fetch("./oddoneout-voice.json", { cache: "no-cache" });
+    if (live.ok) {
+      var j = await live.json();
+      if (j && j.clips) liveCount = Object.keys(j.clips).length;
+    }
+  } catch (e) {}       // no voice up yet is perfectly normal
+
   var saved = await dbAll();
   Object.keys(saved).forEach(function (k) {
     if (words.indexOf(k) !== -1 && saved[k] && saved[k].length) takes[k] = saved[k];
