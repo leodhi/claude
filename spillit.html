@@ -385,13 +385,13 @@
       <div class="player-chip-list" id="lobby-players"></div>
     </div>
     <div class="card" id="lobby-count-card">
-      <label>How many prompts each</label>
+      <label>How many ready-made prompts</label>
       <div class="count-row">
         <button class="stepper-btn" id="lobby-btn-count-down" type="button" aria-label="Fewer prompts">&minus;</button>
-        <input type="number" id="lobby-prompt-count" class="count-field" min="1" max="8" value="5" readonly>
+        <input type="number" id="lobby-prompt-count" class="count-field" min="0" max="8" value="5" readonly>
         <button class="stepper-btn" id="lobby-btn-count-up" type="button" aria-label="More prompts">+</button>
       </div>
-      <small class="hint">This sets how long the game runs.</small>
+      <small class="hint">Plus any you write yourself below. Together they set how long the game runs.</small>
     </div>
     <div class="card">
       <label>Prompts</label>
@@ -557,19 +557,19 @@
   <!-- LOCAL: prompts -->
   <div class="screen" id="local-screen-prompts">
     <div class="card">
-      <label>How many prompts each</label>
+      <label>How many ready-made prompts</label>
       <div class="count-row">
         <button class="stepper-btn" id="local-btn-count-down" type="button" aria-label="Fewer prompts">&minus;</button>
-        <input type="number" id="local-prompt-count" class="count-field" min="1" max="8" value="5" readonly>
+        <input type="number" id="local-prompt-count" class="count-field" min="0" max="8" value="5" readonly>
         <button class="stepper-btn" id="local-btn-count-up" type="button" aria-label="More prompts">+</button>
       </div>
-      <small class="hint">This sets how long the game runs.</small>
+      <small class="hint">Plus any you write yourself below. Together they set how long the game runs.</small>
     </div>
     <div class="card">
       <label>Your prompts</label>
       <div class="prompt-list" id="local-prompt-list"></div>
       <button class="secondary" id="local-btn-shuffle" type="button" style="margin-top:10px">🔀 Shuffle all</button>
-      <small class="hint">Tap ↻ on any single prompt to swap just that one.</small>
+      <small class="hint" id="local-prompt-hint">Tap ↻ on any single prompt to swap just that one.</small>
     </div>
     <div class="card">
       <div class="row" style="justify-content:space-between;">
@@ -894,9 +894,18 @@ function swapDealtAt(dealt, pos) {
   out[pos] = replacement[0];
   return out;
 }
+// Zero dealt prompts is a legitimate choice: once you've written enough of
+// your own, none of the ready-made ones need to be there at all. The floor
+// that actually matters is MIN_PROMPT_COUNT across dealt AND custom together,
+// which the Start button enforces.
 function clampCount(n) {
-  if (!(n > 0)) return DEFAULT_PROMPT_COUNT;
-  return Math.max(MIN_PROMPT_COUNT, Math.min(MAX_PROMPT_COUNT, n));
+  if (!(n >= 0)) return DEFAULT_PROMPT_COUNT;
+  return Math.max(0, Math.min(MAX_PROMPT_COUNT, n));
+}
+function removeDealtAt(dealt, pos) {
+  var out = dealt.slice();
+  out.splice(pos, 1);
+  return out;
 }
 function roundsEstimateText(players, promptsEach) {
   if (!players || !promptsEach) return "";
@@ -1344,14 +1353,21 @@ function mpWriteSeconds() {
   return s === undefined ? DEFAULT_WRITE_SECONDS : s;
 }
 function mpPromptCount() {
-  return clampCount((mp.room.settings && mp.room.settings.promptCount) || DEFAULT_PROMPT_COUNT);
+  var s = (mp.room && mp.room.settings) || {};
+  // Not `|| DEFAULT`: a deliberate zero has to survive, or the ready-made
+  // prompts you just removed would come straight back.
+  return s.promptCount === undefined ? DEFAULT_PROMPT_COUNT : clampCount(s.promptCount);
 }
 function mpDealt() {
-  var dealt = toArray(mp.room.settings && mp.room.settings.dealt)
+  var s = (mp.room && mp.room.settings) || {};
+  var dealt = toArray(s.dealt)
     .filter(function (i) { return typeof i === "number" && PROMPT_BANK[i]; });
+  if (dealt.length) return dealt;
+  // Firebase drops an empty list entirely, so a count of zero is the only
+  // record that the ready-made prompts were removed on purpose.
+  if (s.promptCount === 0) return [];
   // A room made before this screen existed (or a bad write) still needs a hand.
-  if (!dealt.length) dealt = dealPromptIndexes(mpPromptCount(), []);
-  return dealt;
+  return dealPromptIndexes(mpPromptCount(), []);
 }
 function mpWriteDealt(dealt) {
   return update(ref(db, "rooms/" + mp.roomCode + "/settings"), { dealt: dealt, promptCount: dealt.length });
@@ -1385,10 +1401,16 @@ function renderLobby() {
   var dealt = mpDealt();
   var wrap = $("lobby-prompt-list");
   wrap.innerHTML = "";
+  // Dropping a ready-made prompt is offered only while enough would be left
+  // to still play — so writing your own five is what unlocks removing them.
+  var canDropDealt = mp.isHost
+    && (dealt.length + mpCustomPrompts().length) > MIN_PROMPT_COUNT;
   dealt.forEach(function (bankIdx, pos) {
-    wrap.appendChild(buildDealtRow(PROMPT_BANK[bankIdx], mp.isHost ? function () {
-      mpWriteDealt(swapDealtAt(dealt, pos));
-    } : null));
+    wrap.appendChild(buildDealtRow(
+      PROMPT_BANK[bankIdx],
+      mp.isHost ? function () { mpWriteDealt(swapDealtAt(dealt, pos)); } : null,
+      canDropDealt ? function () { mpWriteDealt(removeDealtAt(dealt, pos)); } : null
+    ));
   });
   mpCustomPrompts().forEach(function (c) {
     var canRemove = mp.isHost || c.uid === mp.uid;
@@ -1413,15 +1435,17 @@ function renderLobby() {
 
   var promptCount = mpSelectedPromptTexts().length;
   var playerCount = mpPlayerUids().length;
-  var dealtCount = mpPromptCount();
 
-  $("lobby-prompt-count").value = dealtCount;
-  $("lobby-btn-count-down").disabled = !mp.isHost || dealtCount <= MIN_PROMPT_COUNT;
-  $("lobby-btn-count-up").disabled = !mp.isHost || dealtCount >= MAX_PROMPT_COUNT;
-  $("btn-lobby-shuffle").style.display = mp.isHost ? "" : "none";
-  $("lobby-prompt-hint").textContent = mp.isHost
-    ? "Tap ↻ on any single prompt to swap just that one."
-    : "The host is choosing the prompts.";
+  $("lobby-prompt-count").value = dealt.length;
+  $("lobby-btn-count-down").disabled = !mp.isHost || dealt.length <= 0 || promptCount <= MIN_PROMPT_COUNT;
+  $("lobby-btn-count-up").disabled = !mp.isHost || dealt.length >= MAX_PROMPT_COUNT;
+  // Nothing to shuffle once the ready-made prompts are all gone.
+  $("btn-lobby-shuffle").style.display = (mp.isHost && dealt.length) ? "" : "none";
+  $("lobby-prompt-hint").textContent = !mp.isHost
+    ? "The host is choosing the prompts."
+    : canDropDealt
+      ? "Tap ↻ to swap a ready-made prompt, or ✕ to drop it. Write enough of your own and you can drop them all."
+      : "Tap ↻ on any single prompt to swap just that one. Add your own below and you'll be able to remove these.";
 
   var est = $("lobby-estimate");
   est.textContent = roundsEstimateText(playerCount, promptCount);
@@ -1475,9 +1499,12 @@ function rowButton(row, label, aria, onClick) {
   row.appendChild(btn);
 }
 // A dealt prompt can be swapped for another from the bank.
-function buildDealtRow(text, onSwap) {
+// A ready-made prompt can be swapped for another, or dropped entirely once
+// there are enough prompts without it.
+function buildDealtRow(text, onSwap, onRemove) {
   var row = promptRowShell(text, null);
   rowButton(row, "↻", "Swap this prompt for a different one", onSwap);
+  rowButton(row, "✕", "Remove this prompt", onRemove);
   return row;
 }
 // A prompt someone wrote themselves can only be removed.
@@ -2140,11 +2167,22 @@ $("local-btn-players-continue").addEventListener("click", function () {
 function localRenderPromptList() {
   var wrap = $("local-prompt-list");
   wrap.innerHTML = "";
+  // Same rule as the lobby: ready-made prompts can be dropped as long as
+  // enough would be left to play with.
+  var canDropDealt = localSelectedPromptCount() > MIN_PROMPT_COUNT;
   local.dealt.forEach(function (bankIdx, pos) {
-    wrap.appendChild(buildDealtRow(PROMPT_BANK[bankIdx], function () {
-      local.dealt = swapDealtAt(local.dealt, pos);
-      localRenderPromptList();
-    }));
+    wrap.appendChild(buildDealtRow(
+      PROMPT_BANK[bankIdx],
+      function () {
+        local.dealt = swapDealtAt(local.dealt, pos);
+        localRenderPromptList();
+      },
+      canDropDealt ? function () {
+        local.dealt = removeDealtAt(local.dealt, pos);
+        local.promptCount = local.dealt.length;
+        localRenderPromptList();
+      } : null
+    ));
   });
   local.customPrompts.forEach(function (text, i) {
     wrap.appendChild(buildCustomRow(text, null, function () {
@@ -2159,10 +2197,16 @@ function localSelectedPromptCount() {
 }
 function localUpdatePromptsContinue() {
   var count = localSelectedPromptCount();
-  $("local-prompt-count").value = local.promptCount;
-  $("local-btn-count-down").disabled = local.promptCount <= MIN_PROMPT_COUNT;
-  $("local-btn-count-up").disabled = local.promptCount >= MAX_PROMPT_COUNT;
+  $("local-prompt-count").value = local.dealt.length;
+  $("local-btn-count-down").disabled = local.dealt.length <= 0 || count <= MIN_PROMPT_COUNT;
+  $("local-btn-count-up").disabled = local.dealt.length >= MAX_PROMPT_COUNT;
   $("local-btn-prompts-continue").disabled = count < MIN_PROMPT_COUNT;
+  $("local-btn-shuffle").style.display = local.dealt.length ? "" : "none";
+  $("local-prompt-hint").textContent = (local.dealt.length && count > MIN_PROMPT_COUNT)
+    ? "Tap ↻ to swap a ready-made prompt, or ✕ to drop it. Write enough of your own and you can drop them all."
+    : local.dealt.length
+      ? "Tap ↻ on any single prompt to swap just that one. Add your own below and you'll be able to remove these."
+      : "Every prompt here is one you wrote yourself.";
   var est = $("local-estimate");
   est.textContent = roundsEstimateText(local.players.length, count);
   est.className = "center status-line"
