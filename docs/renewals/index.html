@@ -68,7 +68,10 @@
   .btn.danger { background: var(--warn); color: #fff; }
   .btn:disabled { opacity: 0.45; cursor: not-allowed; }
   .btn.small { width: auto; padding: 9px 14px; font-size: 0.85rem; border-radius: 999px; }
-  .link { background: none; border: none; color: var(--ink-muted); text-decoration: underline; font-size: 0.82rem; cursor: pointer; padding: 6px; }
+  /* 6px of padding left this at 27px tall -- under the size a thumb can
+     reliably hit. Bigger target, same look. */
+  .link { background: none; border: none; color: var(--ink-muted); text-decoration: underline;
+          font-size: 0.82rem; cursor: pointer; padding: 10px 8px; min-height: 40px; }
   .row { display: flex; gap: 8px; align-items: center; }
   .hide { display: none !important; }
 
@@ -565,6 +568,16 @@ document.addEventListener("DOMContentLoaded", () => {
   if (lead) lead.addEventListener("input", renderLeadPresets);
 });
 
+// A sheet is one element reused every time it opens, so it reopens wherever
+// you last left it scrolled -- which put the title off the top of the screen
+// and looked like the form was cut off. Always start at the top.
+function openSheet(id) {
+  const back = document.getElementById(id);
+  const sheet = back.querySelector(".sheet");
+  if (sheet) sheet.scrollTop = 0;
+  back.classList.add("open");
+}
+
 function openEdit(id) {
   editingId = id;
   const it = id ? state.items[id] : null;
@@ -577,7 +590,7 @@ function openEdit(id) {
   document.getElementById("f-note").value = it && it.note ? it.note : "";
   document.getElementById("btn-delete").classList.toggle("hide", !it);
   document.getElementById("btn-renewed").classList.toggle("hide", !it);
-  document.getElementById("edit-sheet").classList.add("open");
+  openSheet("edit-sheet");
 }
 function closeEdit() { document.getElementById("edit-sheet").classList.remove("open"); editingId = null; }
 
