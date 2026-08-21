@@ -65,7 +65,10 @@
   .btn.danger { background: var(--warn); color: #fff; }
   .btn:disabled { opacity: 0.45; cursor: not-allowed; }
   .btn.small { width: auto; padding: 9px 14px; font-size: 0.85rem; border-radius: 999px; }
-  .link { background: none; border: none; color: var(--ink-muted); text-decoration: underline; font-size: 0.82rem; cursor: pointer; padding: 6px; }
+  /* 6px of padding left this at 27px tall -- under the size a thumb can
+     reliably hit. Bigger target, same look. */
+  .link { background: none; border: none; color: var(--ink-muted); text-decoration: underline;
+          font-size: 0.82rem; cursor: pointer; padding: 10px 8px; min-height: 40px; }
   .row { display: flex; gap: 8px; align-items: center; }
   .hide { display: none !important; }
 
@@ -106,6 +109,7 @@
   }
   .blank-title { font-size: 1.05rem; font-weight: 700; margin-bottom: 6px; }
   .blank-sub { color: var(--ink-muted); font-size: 0.88rem; line-height: 1.5; margin-bottom: 16px; }
+  .sheet .blank { box-shadow: none; background: var(--surface-2); margin: 8px 0 4px; }
   .countdown { font-variant-numeric: tabular-nums; }
 
   .chip {
@@ -120,7 +124,13 @@
   .log-row { display: flex; justify-content: space-between; gap: 10px; padding: 9px 0; border-bottom: 1px solid var(--border); font-size: 0.9rem; }
   .log-row:last-child { border-bottom: none; }
   .log-when { color: var(--ink-muted); white-space: nowrap; font-variant-numeric: tabular-nums; }
-  .log-del { background: none; border: none; color: var(--ink-faint); cursor: pointer; font-size: 0.9rem; padding: 0 4px; }
+  /* This deletes a logged dose, and it was a 17px target. Small glyph,
+     but a big enough area around it to hit on purpose and only on purpose. */
+  .log-del {
+    background: none; border: none; color: var(--ink-faint); cursor: pointer;
+    font-size: 0.9rem; padding: 0 10px; min-width: 40px; min-height: 40px;
+    display: flex; align-items: center; justify-content: center; flex: none;
+  }
 
   .note {
     background: var(--surface-2); border: 1px solid var(--border);
@@ -239,19 +249,25 @@
 <div class="sheet-back" id="dose-sheet">
   <div class="sheet">
     <h2 id="dose-title">Log a dose</h2>
-    <label>Medicine</label>
+    <label id="dose-med-label">Medicine</label>
     <div class="chips" id="dose-meds"></div>
-    <div class="empty hide" id="no-dose-meds">No medicines added yet. Close this, tap Settings, and add one first.</div>
-    <div class="med-help" id="dose-gap-help"></div>
-    <label style="margin-top:14px;">How much (optional)</label>
-    <input type="text" id="dose-amount" placeholder="e.g. 5ml, 1 tablet" maxlength="40">
-    <label style="margin-top:14px;">When</label>
-    <div class="chips" style="margin-bottom:8px;">
-      <button class="chip on" id="chip-now" type="button">Just now</button>
-      <button class="chip" id="chip-earlier" type="button">Earlier…</button>
+    <div class="blank hide" id="no-dose-meds">
+      <div class="blank-title">No medicines set up yet</div>
+      <div class="blank-sub">Add one first — give it a name and how far apart the doses go.</div>
+      <button class="btn" id="btn-dose-add-med" type="button">+ Add a medicine</button>
     </div>
-    <input type="datetime-local" id="dose-time" class="hide">
-    <div class="status-line err" id="dose-warn"></div>
+    <div id="dose-fields">
+      <div class="med-help" id="dose-gap-help"></div>
+      <label style="margin-top:14px;">How much (optional)</label>
+      <input type="text" id="dose-amount" placeholder="e.g. 5ml, 1 tablet" maxlength="40">
+      <label style="margin-top:14px;">When</label>
+      <div class="chips" style="margin-bottom:8px;">
+        <button class="chip on" id="chip-now" type="button">Just now</button>
+        <button class="chip" id="chip-earlier" type="button">Earlier…</button>
+      </div>
+      <input type="datetime-local" id="dose-time" class="hide">
+      <div class="status-line err" id="dose-warn"></div>
+    </div>
     <button class="btn" id="btn-save-dose" type="button" style="margin-top:6px;">Save dose</button>
     <button class="btn secondary" id="btn-cancel-dose" type="button" style="margin-top:8px;">Cancel</button>
   </div>
@@ -606,9 +622,9 @@ function render() {
       // Shorter than it was: the countdown beside the name already says how
       // long, so this line no longer repeats it in two formats.
       const what = (med ? med.name : "Medicine") + (lastAny.amount ? " " + lastAny.amount : "");
-      // No "next at ..." here: the countdown beside the name already says how
-      // long to wait, and squeezing both onto one line just truncated it.
-      last.textContent = what + " at " + fmtClock(lastAny.at);
+      // Time first, name second: a long medicine name gets an ellipsis, and
+      // the clock time is the part that must survive it.
+      last.textContent = fmtClock(lastAny.at) + " · " + what;
     }
 
     // Any medicine already at its 24-hour maximum gets called out.
@@ -695,6 +711,16 @@ function startTicking() {
 }
 function stopTicking() { if (tickHandle) { clearInterval(tickHandle); tickHandle = null; } }
 
+// A sheet is one element reused every time it opens, so it reopens wherever
+// you last left it scrolled -- which put the title off the top of the screen
+// and looked like the form was cut off. Always start at the top.
+function openSheet(id) {
+  const back = $(id);
+  const sheet = back.querySelector(".sheet");
+  if (sheet) sheet.scrollTop = 0;
+  back.classList.add("open");
+}
+
 // ---------- Dose sheet ----------
 function openDoseSheet(personId) {
   doseFor = personId;
@@ -707,7 +733,7 @@ function openDoseSheet(personId) {
   $("chip-now").classList.add("on");
   $("chip-earlier").classList.remove("on");
   renderDoseMeds();
-  $("dose-sheet").classList.add("open");
+  openSheet("dose-sheet");
 }
 function renderDoseMeds() {
   const wrap = $("dose-meds");
@@ -723,9 +749,12 @@ function renderDoseMeds() {
   const med = medById(doseMedId);
   const warn = $("dose-warn");
   warn.textContent = "";
+  // Nothing to log a dose of yet: hide the rest of the form rather than
+  // leaving an empty "How much" box as the only thing that looks fillable.
   const none = state.meds.length === 0;
   $("no-dose-meds").classList.toggle("hide", !none);
   $("btn-save-dose").classList.toggle("hide", none);
+  ["dose-fields", "dose-med-label"].forEach(id => $(id).classList.toggle("hide", none));
   if (med && doseFor) {
     const recent = dosesFor(doseFor, med.id, Date.now() - DAY);
     const gapMs = (Number(med.gapHours) || 0) * HOUR;
@@ -749,6 +778,12 @@ $("chip-earlier").addEventListener("click", () => {
   $("chip-earlier").classList.add("on");
   $("chip-now").classList.remove("on");
   $("dose-time").classList.remove("hide");
+});
+$("btn-dose-add-med").addEventListener("click", () => {
+  $("dose-sheet").classList.remove("open");
+  renderSettings();
+  openSheet("settings-sheet");
+  openMedSheet(null);
 });
 $("btn-cancel-dose").addEventListener("click", () => $("dose-sheet").classList.remove("open"));
 $("dose-sheet").addEventListener("click", e => { if (e.target === $("dose-sheet")) $("dose-sheet").classList.remove("open"); });
@@ -778,10 +813,10 @@ function toLocalInput(ts) {
 }
 
 // ---------- Settings ----------
-$("btn-settings").addEventListener("click", () => { renderSettings(); $("settings-sheet").classList.add("open"); });
+$("btn-settings").addEventListener("click", () => { renderSettings(); openSheet("settings-sheet"); });
 $("btn-first-person").addEventListener("click", () => {
   renderSettings();
-  $("settings-sheet").classList.add("open");
+  openSheet("settings-sheet");
   $("btn-add-person").click();
 });
 $("btn-close-settings").addEventListener("click", () => $("settings-sheet").classList.remove("open"));
@@ -893,7 +928,7 @@ function openMedSheet(id) {
   $("btn-delete-med").classList.toggle("hide", !m);
   setStatus("med-warn", "");
   showMedTiming();
-  $("med-sheet").classList.add("open");
+  openSheet("med-sheet");
 }
 function closeMedSheet() {
   $("med-sheet").classList.remove("open");
