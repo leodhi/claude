@@ -153,7 +153,7 @@
   .scoreboard { display: flex; flex-direction: column; gap: 6px; }
   .score-row { display: flex; justify-content: space-between; padding: 6px 4px; }
   .score-row.winner { color: var(--accent); font-weight: 800; }
-  .footer-nav { display: flex; gap: 8px; margin-top: auto; padding-top: 10px; }
+  .footer-nav { display: flex; gap: 8px; margin-top: auto; padding-top: 10px; position: relative; z-index: 45; }
   .footer-nav button { flex: 1; }
   small.hint { color: var(--text-dim); display: block; margin-top: 4px; font-size: 0.78rem; }
   .progress-label { color: var(--text-dim); font-size: 0.8rem; text-align: center; }
@@ -200,7 +200,7 @@
   /* Reactions: anyone can tap one at any time. They add to the moment without
      changing anything, so they never need to be host-only. */
   #reaction-bar {
-    position: fixed; left: 50%; bottom: 18px; z-index: 41;
+    position: fixed; left: 50%; bottom: 84px; z-index: 41;
     transform: translateX(-50%) translateY(10px);
     display: flex; gap: 6px; padding: 6px;
     background: rgba(30,26,46,0.92); border: 1px solid var(--border); border-radius: 999px;
@@ -257,12 +257,7 @@
     transition: transform 0.15s cubic-bezier(.2,.9,.3,1.1);
   }
   #chat-toggle:active { transform: scale(0.92); }
-  @keyframes chat-bounce {
-    0%, 100% { transform: translateY(0); }
-    25% { transform: translateY(-7px); }
-    50% { transform: translateY(0); }
-  }
-  #chat-toggle.has-unread { background: var(--accent-2); animation: chat-bounce 0.6s ease-in-out infinite; }
+  #chat-toggle.has-unread { background: var(--accent-2); }
   #chat-badge {
     position: absolute; top: -2px; right: -2px;
     background: var(--accent-2); color: #fff;
@@ -393,7 +388,7 @@
       <label>How many prompts each</label>
       <div class="count-row">
         <button class="stepper-btn" id="lobby-btn-count-down" type="button" aria-label="Fewer prompts">&minus;</button>
-        <input type="number" id="lobby-prompt-count" class="count-field" min="3" max="8" value="5" readonly>
+        <input type="number" id="lobby-prompt-count" class="count-field" min="1" max="8" value="5" readonly>
         <button class="stepper-btn" id="lobby-btn-count-up" type="button" aria-label="More prompts">+</button>
       </div>
       <small class="hint">This sets how long the game runs.</small>
@@ -416,6 +411,13 @@
         </div>
         <small class="hint">Anyone in the room can add prompts before the game starts.</small>
       </div>
+    </div>
+    <div class="card">
+      <div class="row" style="justify-content:space-between;">
+        <label style="margin:0;">Emoji reactions</label>
+        <input type="checkbox" id="chk-lobby-reactions" style="width:20px;height:20px;accent-color:var(--accent);flex-shrink:0;">
+      </div>
+      <small class="hint">Lets everyone tap a quick reaction during the game. Off by default.</small>
     </div>
     <div class="card">
       <label>Time to answer each prompt</label>
@@ -461,6 +463,10 @@
   <!-- MP ROUND (guessing) -->
   <div class="screen" id="screen-mp-round">
     <div class="progress-label" id="mp-round-progress"></div>
+    <div class="card" id="mp-round-score-card">
+      <label>Score</label>
+      <div class="scoreboard" id="mp-round-scoreboard"></div>
+    </div>
     <div class="card center">
       <div class="category-label">Prompt</div>
       <div class="prompt-text" id="mp-round-prompt-text"></div>
@@ -478,8 +484,8 @@
     </div>
     <div class="waiting-text" id="mp-guess-waiting" style="display:none">Guess locked in — waiting for everyone else…</div>
     <div class="card">
-      <label>Who's Guessed</label>
-      <div id="mp-guess-status-list"></div>
+      <label>Guessing</label>
+      <div class="status-line" id="mp-guess-status-list"></div>
     </div>
   </div>
 
@@ -490,6 +496,10 @@
       <div class="big-name" id="mp-reveal-name"></div>
     </div>
     <div class="result-banner" id="mp-reveal-banner"></div>
+    <div class="card" id="mp-reveal-score-card">
+      <label>Score</label>
+      <div class="scoreboard" id="mp-reveal-scoreboard"></div>
+    </div>
     <div class="card">
       <label>Guesses</label>
       <div id="mp-reveal-list"></div>
@@ -549,7 +559,7 @@
       <label>How many prompts each</label>
       <div class="count-row">
         <button class="stepper-btn" id="local-btn-count-down" type="button" aria-label="Fewer prompts">&minus;</button>
-        <input type="number" id="local-prompt-count" class="count-field" min="3" max="8" value="5" readonly>
+        <input type="number" id="local-prompt-count" class="count-field" min="1" max="8" value="5" readonly>
         <button class="stepper-btn" id="local-btn-count-up" type="button" aria-label="More prompts">+</button>
       </div>
       <small class="hint">This sets how long the game runs.</small>
@@ -615,6 +625,10 @@
   <!-- LOCAL: round -->
   <div class="screen" id="local-screen-round">
     <div class="progress-label" id="local-round-progress"></div>
+    <div class="card" id="local-round-score-card">
+      <label>Score</label>
+      <div class="scoreboard" id="local-round-scoreboard"></div>
+    </div>
     <div class="card center">
       <div class="category-label">Prompt</div>
       <div class="prompt-text" id="local-round-prompt-text"></div>
@@ -631,6 +645,10 @@
     <div class="card center">
       <div>It was</div>
       <div class="big-name" id="local-reveal-name"></div>
+    </div>
+    <div class="card" id="local-reveal-score-card">
+      <label>Score</label>
+      <div class="scoreboard" id="local-reveal-scoreboard"></div>
     </div>
     <div class="card">
       <label>Who guessed correctly? (tap all that apply)</label>
@@ -842,7 +860,7 @@ var CODE_CHARS = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; // no O/0, I/1
 var GAME_ID = "spillit";
 var MIN_PLAYERS = 3;
 var DEFAULT_PROMPT_COUNT = 5;
-var MIN_PROMPT_COUNT = 3;
+var MIN_PROMPT_COUNT = 1;
 var MAX_PROMPT_COUNT = 8;
 // Past this many rounds a game starts to drag, so the setup screens say so.
 var LONG_GAME_ROUNDS = 30;
@@ -1091,7 +1109,7 @@ async function createRoomFlow(name) {
     createdAt: Date.now(),
     hostUid: uid,
     phase: "lobby",
-    settings: { dealt: dealt, promptCount: dealt.length, allowCustom: true, writeSeconds: DEFAULT_WRITE_SECONDS },
+    settings: { dealt: dealt, promptCount: dealt.length, allowCustom: true, writeSeconds: DEFAULT_WRITE_SECONDS, reactionsEnabled: false },
     players: { [uid]: { name: name, joinedAt: Date.now() } },
     scores: { [uid]: 0 }
   });
@@ -1238,7 +1256,8 @@ var lastReactionAt = 0;
 })();
 
 function updateReactionBar(screenId) {
-  $("reaction-bar").classList.toggle("show", !!(mp.roomCode && REACTION_SCREENS[screenId]));
+  var enabled = !!(mp.room && mp.room.settings && mp.room.settings.reactionsEnabled);
+  $("reaction-bar").classList.toggle("show", !!(mp.roomCode && enabled && REACTION_SCREENS[screenId]));
 }
 
 function sendReaction(emoji) {
@@ -1309,6 +1328,11 @@ function render() {
 function mpPlayerName(uid) {
   return mp.room.players && mp.room.players[uid] ? mp.room.players[uid].name : "?";
 }
+function mpScoresByName() {
+  var scoresByName = {};
+  mpPlayerUids().forEach(function (uid) { scoresByName[mpPlayerName(uid)] = (mp.room.scores && mp.room.scores[uid]) || 0; });
+  return scoresByName;
+}
 function mpPlayerUids() { return mp.room.players ? Object.keys(mp.room.players) : []; }
 function mpCustomPrompts() {
   var cp = mp.room.customPrompts || {};
@@ -1378,6 +1402,10 @@ function renderLobby() {
   chk.disabled = !mp.isHost;
   $("lobby-custom-area").style.display = allowCustom ? "block" : "none";
 
+  var reactionsChk = $("chk-lobby-reactions");
+  reactionsChk.checked = !!(room.settings && room.settings.reactionsEnabled);
+  reactionsChk.disabled = !mp.isHost;
+
   var timerSel = $("lobby-timer-select");
   timerSel.value = String(mpWriteSeconds());
   timerSel.disabled = !mp.isHost;
@@ -1407,7 +1435,7 @@ function renderLobby() {
     waiting.style.display = "none";
     var problems = [];
     if (playerCount < MIN_PLAYERS) problems.push("at least " + MIN_PLAYERS + " players");
-    if (promptCount < MIN_PROMPT_COUNT) problems.push("at least " + MIN_PROMPT_COUNT + " prompts");
+    if (promptCount < MIN_PROMPT_COUNT) problems.push("at least " + MIN_PROMPT_COUNT + " prompt" + (MIN_PROMPT_COUNT === 1 ? "" : "s"));
     startBtn.disabled = problems.length > 0;
     status.textContent = problems.length ? ("Need " + problems.join(" and ") + " to start.") : "";
   } else {
@@ -1473,6 +1501,10 @@ $("lobby-btn-count-up").addEventListener("click", function () {
 $("chk-lobby-allow-custom").addEventListener("change", function () {
   if (!mp.isHost) return;
   update(ref(db, "rooms/" + mp.roomCode + "/settings"), { allowCustom: this.checked });
+});
+$("chk-lobby-reactions").addEventListener("change", function () {
+  if (!mp.isHost) return;
+  update(ref(db, "rooms/" + mp.roomCode + "/settings"), { reactionsEnabled: this.checked });
 });
 $("lobby-timer-select").addEventListener("change", function () {
   if (!mp.isHost) return;
@@ -1649,6 +1681,7 @@ function renderMpRound() {
   var myGuess = guesses[mp.uid];
 
   $("mp-round-progress").textContent = "Round " + roundNo + " of " + queue.length;
+  renderScoreboardInto($("mp-round-scoreboard"), mpScoresByName());
   $("mp-round-prompt-text").textContent = prompts[item.pIdx] || "";
   $("mp-round-answer-text").textContent = "“" + ((room.answers && room.answers[item.uid] && room.answers[item.uid][item.pIdx]) || "") + "”";
 
@@ -1678,22 +1711,19 @@ function renderMpRound() {
     startCountdown("mpGuess", roundToken, GUESS_SECONDS, $("mp-round-timer"), submitMpGuess);
   }
 
-  var statusList = $("mp-guess-status-list");
-  statusList.innerHTML = "";
-  eligibleVoterUids(item.uid).forEach(function (uid) {
-    var row = document.createElement("div");
-    row.className = "score-row";
-    var span = document.createElement("span");
-    span.textContent = (guesses[uid] !== undefined ? "✅ " : "⏳ ") + mpPlayerName(uid);
-    row.appendChild(span);
-    statusList.appendChild(row);
-  });
+  // Deliberately a count, not a list of names: the author is always excluded
+  // from this roster of voters, so showing who's on it (or missing from it)
+  // would let anyone work out who wrote the answer by elimination.
+  var voters = eligibleVoterUids(item.uid);
+  var stillGuessing = voters.filter(function (uid) { return guesses[uid] === undefined; }).length;
+  $("mp-guess-status-list").textContent = stillGuessing === 0
+    ? "Everyone's guessed"
+    : (stillGuessing + " of " + voters.length + " still guessing");
 
   showScreen("screen-mp-round");
 
   if (mp.isHost) {
-    var voters = eligibleVoterUids(item.uid);
-    var guessCount = voters.filter(function (uid) { return guesses[uid] !== undefined; }).length;
+    var guessCount = voters.length - stillGuessing;
     if (voters.length > 0 && guessCount >= voters.length) {
       hostAutoAdvance("reveal:" + (room.queueIndex || 0), function () {
         update(roomRef(mp.roomCode), { phase: "reveal" });
@@ -1758,6 +1788,7 @@ function renderMpReveal() {
   }
   var out = roundOutcome(room);
   $("mp-reveal-name").textContent = mpPlayerName(item.uid);
+  renderScoreboardInto($("mp-reveal-scoreboard"), mpScoresByName());
 
   var banner = $("mp-reveal-banner");
   if (out.stumped) {
@@ -1865,8 +1896,7 @@ function renderMpGameOver() {
   var room = mp.room;
   hideCountdown("mpGuess", $("mp-round-timer"));
   hideCountdown("mpWrite", $("mp-writing-timer"));
-  var scoresByName = {};
-  mpPlayerUids().forEach(function (uid) { scoresByName[mpPlayerName(uid)] = (room.scores && room.scores[uid]) || 0; });
+  var scoresByName = mpScoresByName();
   $("mp-final-banner").textContent = winnerLine(scoresByName);
   renderScoreboardInto($("mp-final-scoreboard"), scoresByName);
 
@@ -2210,6 +2240,7 @@ function localGoToRound() {
   hideCountdown("localWrite", $("local-answer-timer"));
   var item = local.queue[local.queueIndex];
   $("local-round-progress").textContent = "Round " + (local.queueIndex + 1) + " of " + local.queue.length;
+  renderScoreboardInto($("local-round-scoreboard"), local.scores);
   $("local-round-prompt-text").textContent = local.prompts[item.promptIdx];
   $("local-round-answer-text").textContent = "“" + local.answers[item.playerIdx][item.promptIdx] + "”";
   showScreen("local-screen-round");
@@ -2217,6 +2248,7 @@ function localGoToRound() {
 $("local-btn-round-reveal").addEventListener("click", function () {
   var item = local.queue[local.queueIndex];
   $("local-reveal-name").textContent = local.players[item.playerIdx];
+  renderScoreboardInto($("local-reveal-scoreboard"), local.scores);
   local.guessSelected = {};
   localRenderGuessChips(item.playerIdx);
   armRevealWait("localReveal", $("local-btn-round-next"));
