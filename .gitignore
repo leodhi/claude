@@ -6,3 +6,8 @@ __pycache__/
 # macOS drops these into any folder that gets opened in Finder, which will
 # happen to the audio folder when the voice clips are generated.
 .DS_Store
+
+# Scratch space for the voice recorder: one file per word while it works, so a
+# dropped connection can pick up where it left off. Only the joined
+# oddoneout-voice.mp3 it builds from them is ever committed.
+.voice-cache/

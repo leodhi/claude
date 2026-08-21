@@ -1,0 +1,871 @@
+{
+ "clips": {
+  "All done! Great playing!": [
+   8,
+   166
+  ],
+  "Brilliant!": [
+   182,
+   83
+  ],
+  "That's it!": [
+   273,
+   82
+  ],
+  "The others are all balls.": [
+   363,
+   117
+  ],
+  "The others are all birds.": [
+   488,
+   117
+  ],
+  "The others are all blue.": [
+   613,
+   112
+  ],
+  "The others are all boats.": [
+   733,
+   115
+  ],
+  "The others are all bugs.": [
+   856,
+   118
+  ],
+  "The others are all cold.": [
+   982,
+   115
+  ],
+  "The others are all dinner foods.": [
+   1105,
+   133
+  ],
+  "The others are all drinks.": [
+   1246,
+   119
+  ],
+  "The others are all farm animals.": [
+   1373,
+   137
+  ],
+  "The others are all fruit.": [
+   1518,
+   112
+  ],
+  "The others are all green.": [
+   1638,
+   115
+  ],
+  "The others are all hot.": [
+   1761,
+   114
+  ],
+  "The others are all musical instruments.": [
+   1883,
+   149
+  ],
+  "The others are all orange.": [
+   2040,
+   118
+  ],
+  "The others are all parts of your body.": [
+   2166,
+   140
+  ],
+  "The others are all plants.": [
+   2314,
+   120
+  ],
+  "The others are all red.": [
+   2442,
+   109
+  ],
+  "The others are all school things.": [
+   2559,
+   134
+  ],
+  "The others are all sea animals.": [
+   2701,
+   134
+  ],
+  "The others are all things in the sky.": [
+   2843,
+   140
+  ],
+  "The others are all things in your house.": [
+   2991,
+   142
+  ],
+  "The others are all things that fly.": [
+   3141,
+   137
+  ],
+  "The others are all things with wheels.": [
+   3286,
+   141
+  ],
+  "The others are all things you can eat.": [
+   3435,
+   136
+  ],
+  "The others are all things you ride in.": [
+   3579,
+   137
+  ],
+  "The others are all things you wear.": [
+   3724,
+   133
+  ],
+  "The others are all tools.": [
+   3865,
+   119
+  ],
+  "The others are all toys.": [
+   3992,
+   123
+  ],
+  "The others are all treats.": [
+   4123,
+   117
+  ],
+  "The others are all vegetables.": [
+   4248,
+   134
+  ],
+  "The others are all wild animals.": [
+   4390,
+   141
+  ],
+  "The others are all yellow.": [
+   4539,
+   117
+  ],
+  "Which one is different?": [
+   4664,
+   107
+  ],
+  "Which one of these pictures do you think doesn't fit, and is different from the others?": [
+   4779,
+   242
+  ],
+  "Yes! Well done!": [
+   5029,
+   155
+  ],
+  "You got it!": [
+   5192,
+   85
+  ],
+  "accordion": [
+   5285,
+   85
+  ],
+  "airplane": [
+   5378,
+   81
+  ],
+  "ambulance": [
+   5467,
+   88
+  ],
+  "ant": [
+   5563,
+   76
+  ],
+  "apple": [
+   5647,
+   76
+  ],
+  "axe": [
+   5731,
+   76
+  ],
+  "baby bottle": [
+   5815,
+   90
+  ],
+  "backpack": [
+   5913,
+   87
+  ],
+  "balloon": [
+   6008,
+   78
+  ],
+  "banana": [
+   6094,
+   80
+  ],
+  "banjo": [
+   6182,
+   82
+  ],
+  "baseball": [
+   6272,
+   82
+  ],
+  "basketball": [
+   6362,
+   90
+  ],
+  "bathtub": [
+   6460,
+   82
+  ],
+  "bear": [
+   6550,
+   76
+  ],
+  "bed": [
+   6634,
+   76
+  ],
+  "bee": [
+   6718,
+   76
+  ],
+  "bell pepper": [
+   6802,
+   89
+  ],
+  "bicycle": [
+   6899,
+   86
+  ],
+  "bird": [
+   6993,
+   76
+  ],
+  "blue circle": [
+   7077,
+   91
+  ],
+  "blue heart": [
+   7176,
+   86
+  ],
+  "blueberries": [
+   7270,
+   88
+  ],
+  "bolt": [
+   7366,
+   76
+  ],
+  "book": [
+   7450,
+   76
+  ],
+  "boomerang": [
+   7534,
+   84
+  ],
+  "boot": [
+   7626,
+   76
+  ],
+  "brain": [
+   7710,
+   76
+  ],
+  "broccoli": [
+   7794,
+   84
+  ],
+  "bubble tea": [
+   7886,
+   88
+  ],
+  "burger": [
+   7982,
+   77
+  ],
+  "bus": [
+   8067,
+   76
+  ],
+  "butterfly": [
+   8151,
+   87
+  ],
+  "cactus": [
+   8246,
+   84
+  ],
+  "cake": [
+   8338,
+   76
+  ],
+  "candle": [
+   8422,
+   78
+  ],
+  "canoe": [
+   8508,
+   76
+  ],
+  "cap": [
+   8592,
+   76
+  ],
+  "car": [
+   8676,
+   76
+  ],
+  "carrot": [
+   8760,
+   76
+  ],
+  "caterpillar": [
+   8844,
+   87
+  ],
+  "chair": [
+   8939,
+   76
+  ],
+  "cherries": [
+   9023,
+   82
+  ],
+  "cherry blossom": [
+   9113,
+   98
+  ],
+  "chick": [
+   9219,
+   76
+  ],
+  "chicken": [
+   9303,
+   76
+  ],
+  "chili pepper": [
+   9387,
+   93
+  ],
+  "chocolate bar": [
+   9488,
+   92
+  ],
+  "cloud": [
+   9588,
+   76
+  ],
+  "clover": [
+   9672,
+   78
+  ],
+  "coat": [
+   9758,
+   76
+  ],
+  "cookie": [
+   9842,
+   77
+  ],
+  "corn": [
+   9927,
+   76
+  ],
+  "cow": [
+   10011,
+   76
+  ],
+  "crab": [
+   10095,
+   76
+  ],
+  "crayon": [
+   10179,
+   80
+  ],
+  "crocodile": [
+   10267,
+   85
+  ],
+  "cucumber": [
+   10360,
+   85
+  ],
+  "cup of coffee": [
+   10453,
+   93
+  ],
+  "cup of tea": [
+   10554,
+   88
+  ],
+  "cupcake": [
+   10650,
+   82
+  ],
+  "daisy": [
+   10740,
+   78
+  ],
+  "dice": [
+   10826,
+   79
+  ],
+  "doll": [
+   10913,
+   76
+  ],
+  "dolphin": [
+   10997,
+   80
+  ],
+  "donut": [
+   11085,
+   77
+  ],
+  "door": [
+   11170,
+   76
+  ],
+  "dove": [
+   11254,
+   76
+  ],
+  "dress": [
+   11338,
+   78
+  ],
+  "drum": [
+   11424,
+   76
+  ],
+  "duck": [
+   11508,
+   76
+  ],
+  "eagle": [
+   11592,
+   76
+  ],
+  "ear": [
+   11676,
+   76
+  ],
+  "egg": [
+   11760,
+   76
+  ],
+  "eggplant": [
+   11844,
+   84
+  ],
+  "elephant": [
+   11936,
+   84
+  ],
+  "eye": [
+   12028,
+   76
+  ],
+  "fire": [
+   12112,
+   79
+  ],
+  "fire truck": [
+   12199,
+   94
+  ],
+  "fish": [
+   12301,
+   76
+  ],
+  "flamingo": [
+   12385,
+   91
+  ],
+  "foot": [
+   12484,
+   77
+  ],
+  "football": [
+   12569,
+   82
+  ],
+  "fox": [
+   12659,
+   81
+  ],
+  "freezing face": [
+   12748,
+   103
+  ],
+  "french fries": [
+   12859,
+   98
+  ],
+  "frog": [
+   12965,
+   78
+  ],
+  "giraffe": [
+   13051,
+   80
+  ],
+  "glass of milk": [
+   13139,
+   97
+  ],
+  "gloves": [
+   13244,
+   80
+  ],
+  "goat": [
+   13332,
+   76
+  ],
+  "grapes": [
+   13416,
+   79
+  ],
+  "grasshopper": [
+   13503,
+   87
+  ],
+  "green apple": [
+   13598,
+   87
+  ],
+  "guitar": [
+   13693,
+   80
+  ],
+  "hammer": [
+   13781,
+   76
+  ],
+  "heart": [
+   13865,
+   76
+  ],
+  "helicopter": [
+   13949,
+   92
+  ],
+  "penguin": [
+   14049,
+   80
+  ],
+  "piano": [
+   14137,
+   80
+  ],
+  "piece of candy": [
+   14225,
+   98
+  ],
+  "piece of cheese": [
+   14331,
+   100
+  ],
+  "pig": [
+   14439,
+   76
+  ],
+  "pineapple": [
+   14523,
+   85
+  ],
+  "pizza": [
+   14616,
+   77
+  ],
+  "police car": [
+   14701,
+   91
+  ],
+  "pool ball": [
+   14800,
+   86
+  ],
+  "potato": [
+   14894,
+   85
+  ],
+  "pufferfish": [
+   14987,
+   89
+  ],
+  "pumpkin": [
+   15084,
+   80
+  ],
+  "puzzle": [
+   15172,
+   77
+  ],
+  "race car": [
+   15257,
+   87
+  ],
+  "rain cloud": [
+   15352,
+   88
+  ],
+  "rainbow": [
+   15448,
+   80
+  ],
+  "rhino": [
+   15536,
+   78
+  ],
+  "rocket": [
+   15622,
+   80
+  ],
+  "rooster": [
+   15710,
+   81
+  ],
+  "rose": [
+   15799,
+   76
+  ],
+  "rowboat": [
+   15883,
+   80
+  ],
+  "rugby ball": [
+   15971,
+   90
+  ],
+  "ruler": [
+   16069,
+   77
+  ],
+  "sailboat": [
+   16154,
+   85
+  ],
+  "sandwich": [
+   16247,
+   88
+  ],
+  "saw": [
+   16343,
+   76
+  ],
+  "saxophone": [
+   16427,
+   91
+  ],
+  "scarf": [
+   16526,
+   80
+  ],
+  "scissors": [
+   16614,
+   85
+  ],
+  "scooter": [
+   16707,
+   80
+  ],
+  "screwdriver": [
+   16795,
+   90
+  ],
+  "seal": [
+   16893,
+   77
+  ],
+  "shark": [
+   16978,
+   78
+  ],
+  "sheep": [
+   17064,
+   76
+  ],
+  "ship": [
+   17148,
+   76
+  ],
+  "shorts": [
+   17232,
+   83
+  ],
+  "shower": [
+   17323,
+   77
+  ],
+  "skateboard": [
+   17408,
+   86
+  ],
+  "snail": [
+   17502,
+   79
+  ],
+  "sneaker": [
+   17589,
+   82
+  ],
+  "snowflake": [
+   17679,
+   89
+  ],
+  "snowman": [
+   17776,
+   84
+  ],
+  "soccer ball": [
+   17868,
+   93
+  ],
+  "socks": [
+   17969,
+   82
+  ],
+  "soda": [
+   18059,
+   77
+  ],
+  "sofa": [
+   18144,
+   80
+  ],
+  "spaghetti": [
+   18232,
+   85
+  ],
+  "speedboat": [
+   18325,
+   85
+  ],
+  "spider": [
+   18418,
+   80
+  ],
+  "squid": [
+   18506,
+   77
+  ],
+  "stack of books": [
+   18591,
+   99
+  ],
+  "star": [
+   18698,
+   79
+  ],
+  "steam": [
+   18785,
+   78
+  ],
+  "strawberry": [
+   18871,
+   87
+  ],
+  "sun": [
+   18966,
+   76
+  ],
+  "sun hat": [
+   19050,
+   88
+  ],
+  "sunflower": [
+   19146,
+   92
+  ],
+  "swan": [
+   19246,
+   80
+  ],
+  "t-shirt": [
+   19334,
+   84
+  ],
+  "taco": [
+   19426,
+   79
+  ],
+  "taxi": [
+   19513,
+   82
+  ],
+  "teddy bear": [
+   19603,
+   88
+  ],
+  "tennis ball": [
+   19699,
+   92
+  ],
+  "tiger": [
+   19799,
+   78
+  ],
+  "toilet": [
+   19885,
+   79
+  ],
+  "toolbox": [
+   19972,
+   89
+  ],
+  "tooth": [
+   20069,
+   76
+  ],
+  "turkey": [
+   20153,
+   78
+  ],
+  "turtle": [
+   20239,
+   76
+  ],
+  "van": [
+   20323,
+   76
+  ],
+  "violin": [
+   20407,
+   83
+  ],
+  "volleyball": [
+   20498,
+   85
+  ],
+  "watermelon": [
+   20591,
+   90
+  ],
+  "wave": [
+   20689,
+   76
+  ],
+  "whale": [
+   20773,
+   76
+  ],
+  "window": [
+   20857,
+   79
+  ],
+  "wrench": [
+   20944,
+   76
+  ],
+  "yo-yo": [
+   21028,
+   79
+  ],
+  "zebra": [
+   21115,
+   77
+  ]
+ },
+ "frameSeconds": 0.024,
+ "rate": "-15%",
+ "voice": "en-US-JennyNeural"
+}
