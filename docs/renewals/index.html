@@ -115,17 +115,44 @@
     border-radius: 10px; width: 42px; height: 42px; font-size: 1rem; cursor: pointer; flex: none;
   }
 
-  .item {
-    background: var(--surface); border: 1px solid var(--border); border-radius: 14px;
-    padding: 14px; box-shadow: var(--shadow); margin-bottom: 10px;
-    border-left: 5px solid var(--border); cursor: pointer;
-    transition: transform 0.15s cubic-bezier(.2,.9,.3,1.1);
+  /* Swipe, the way the Clear-style packing list does it: the card slides and
+     a coloured panel shows underneath. touch-action: pan-y lets the page
+     still scroll vertically while a sideways drag is being read. */
+  .swipe-row {
+    position: relative; margin-bottom: 10px; border-radius: 14px;
+    overflow: hidden; box-shadow: var(--shadow); touch-action: pan-y;
   }
-  .item:active { transform: scale(0.99); }
+  .bg-renew, .bg-delete {
+    position: absolute; inset: 0; display: flex; align-items: center;
+    color: #fff; font-size: 0.92rem; font-weight: 700; opacity: 0;
+  }
+  .bg-renew { background: #2f9e63; justify-content: flex-start; padding-left: 20px; }
+  .bg-delete { background: #d6453f; justify-content: flex-end; padding-right: 20px;
+               cursor: pointer; touch-action: manipulation; }
+
+  .item {
+    /* position: relative matters. The two coloured panels are absolutely
+       positioned, so without it they paint on top of this card and swallow
+       every tap and drag meant for it. */
+    position: relative;
+    background: var(--surface); border: 1px solid var(--border); border-radius: 14px;
+    padding: 14px; margin-bottom: 0;
+    border-left: 5px solid var(--border); cursor: pointer;
+    -webkit-user-select: none; user-select: none; -webkit-touch-callout: none;
+  }
+  .item.dragging { transition: none; }
+  .item.snap { transition: transform 0.25s cubic-bezier(.2,.9,.3,1.2); }
+  .item.revealed { transition: transform 0.2s cubic-bezier(.2,.9,.3,1.1); }
+  .item.commit { transition: transform 0.2s ease-out, opacity 0.2s ease-out; }
+  .item.flash { animation: flash 0.45s ease-out; }
+  @keyframes flash {
+    0% { background: #2f9e63; } 100% { background: var(--surface); }
+  }
   .item.past { border-left-color: var(--warn); }
   .item.soon { border-left-color: var(--accent); }
   .item.ok { border-left-color: var(--good); }
   .item.done { opacity: 0.55; border-left-color: var(--border); }
+  .swipe-hint { color: var(--ink-faint); font-size: 0.78rem; margin: 0 2px 10px; }
   .item-top { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; }
   .item-name { font-size: 1.05rem; font-weight: 650; }
   .item-when { font-size: 0.9rem; font-weight: 650; white-space: nowrap; }
@@ -176,6 +203,7 @@
       Each item gets its <strong>own</strong> notice period — a month for an inspection, a few days for something quick.
       You'll get a phone alert then, again nearer the time, and on the day. Every alert can be snoozed.
     </div>
+    <div class="swipe-hint" id="swipe-hint">Swipe a card right when you've renewed it, or left to delete.</div>
     <div id="items"></div>
     <div class="empty hide" id="empty">Nothing tracked yet. Add a passport, an MOT, an insurance renewal.</div>
     <div class="fab-row"><button class="btn" id="btn-add" type="button">+ Add a renewal</button></div>
@@ -354,12 +382,134 @@ async function save(patch) {
   catch (e) { setStatus("app-status", "Couldn't save: " + e.message, true); }
 }
 
+// How far you have to pull before it counts. Same figure as the packing list,
+// so the two apps feel the same in the hand.
+const SWIPE_COMMIT_PX = 84;
+// At most one row sits open showing Delete, and this is how to shut it.
+let revealedId = null, closeRevealed = null;
+
+function renewItem(it) {
+  const years = Number(it.everyYears) || 1;
+  const next = new Date(parseDate(it.date));
+  next.setFullYear(next.getFullYear() + years);
+  // Clearing lastAlerted lets the new cycle alert again.
+  save({ items: { ...state.items, [it.id]: {
+    ...state.items[it.id], date: next.toISOString().slice(0, 10), lastAlerted: null
+  } } });
+}
+
+function attachSwipe(row, card, bgRenew, bgDelete, it) {
+  let startX = 0, startY = 0, dx = 0, dragging = null, pointerId = null, dismissOnly = false;
+
+  function closeReveal(instant) {
+    if (instant) card.classList.remove("revealed");
+    card.style.transform = "translateX(0)";
+    bgDelete.style.opacity = "0";
+    if (revealedId === it.id) { revealedId = null; closeRevealed = null; }
+    if (!instant) setTimeout(() => card.classList.remove("revealed"), 220);
+  }
+
+  // Swiping left parks the row open rather than deleting outright, so losing
+  // something takes a second, deliberate tap on Delete.
+  function revealForDelete() {
+    if (revealedId !== null && revealedId !== it.id && closeRevealed) closeRevealed();
+    card.classList.add("revealed");
+    card.style.transform = "translateX(-" + SWIPE_COMMIT_PX + "px)";
+    bgDelete.style.opacity = "1";
+    revealedId = it.id;
+    closeRevealed = () => closeReveal(false);
+  }
+
+  bgDelete.addEventListener("click", e => {
+    if (revealedId !== it.id) return;
+    e.stopPropagation();
+    revealedId = null; closeRevealed = null;
+    card.classList.remove("revealed");
+    card.classList.add("commit");
+    card.style.transform = "translateX(-100%)";
+    card.style.opacity = "0";
+    setTimeout(() => {
+      const next = { ...state.items };
+      delete next[it.id];
+      save({ items: next });
+    }, 150);
+  });
+
+  card.addEventListener("pointerdown", e => {
+    if (e.button !== undefined && e.button !== 0) return;
+    dismissOnly = false;
+    if (revealedId === it.id) { closeReveal(true); dismissOnly = true; }
+    else if (revealedId !== null && closeRevealed) { closeRevealed(); dismissOnly = true; }
+    startX = e.clientX; startY = e.clientY; dx = 0; dragging = null;
+    pointerId = e.pointerId;
+    card.classList.remove("snap", "commit");
+  });
+
+  card.addEventListener("pointermove", e => {
+    if (pointerId === null || e.pointerId !== pointerId) return;
+    const cx = e.clientX - startX, cy = e.clientY - startY;
+    if (dragging === null) {
+      if (Math.abs(cx) < 8 && Math.abs(cy) < 8) return;
+      // Sideways wins only if it is clearly sideways, or scrolling the page
+      // would keep snagging on the cards.
+      dragging = Math.abs(cx) > Math.abs(cy);
+      if (dragging && card.setPointerCapture) card.setPointerCapture(pointerId);
+      if (dragging) card.classList.add("dragging");
+    }
+    if (!dragging) return;
+    e.preventDefault();
+    dx = cx;
+    card.style.transform = "translateX(" + dx + "px)";
+    const progress = String(Math.min(1, Math.abs(dx) / SWIPE_COMMIT_PX));
+    bgRenew.style.opacity = dx > 0 ? progress : "0";
+    bgDelete.style.opacity = dx < 0 ? progress : "0";
+  });
+
+  function endDrag() {
+    if (pointerId === null) return;
+    pointerId = null;
+    if (!dragging) {
+      // A tap. Opening the editor happens here rather than in a click
+      // listener, because a drag is followed by a click too -- trying to
+      // swallow that click after the fact is a race, and a nudged card would
+      // sometimes spring back and pop the editor open anyway. Deciding it
+      // here means a tap is a tap and a drag is a drag, always.
+      const wasDismiss = dismissOnly;
+      dismissOnly = false;
+      dragging = null;
+      if (!wasDismiss) openEdit(it.id);
+      return;
+    }
+    card.classList.remove("dragging");
+    if (dx < -SWIPE_COMMIT_PX) {
+      revealForDelete();
+    } else if (dx > SWIPE_COMMIT_PX) {
+      // Renewing needs no second tap: it only moves the date on a year, which
+      // you can put back by opening the item.
+      card.classList.add("snap");
+      card.style.transform = "translateX(0)";
+      bgRenew.style.opacity = "0";
+      card.classList.add("flash");
+      renewItem(it);
+    } else {
+      card.classList.add("snap");
+      card.style.transform = "translateX(0)";
+      bgRenew.style.opacity = "0";
+      bgDelete.style.opacity = "0";
+    }
+    dragging = null;
+  }
+  card.addEventListener("pointerup", endDrag);
+  card.addEventListener("pointercancel", endDrag);
+}
+
 function render() {
   const wrap = document.getElementById("items");
   wrap.innerHTML = "";
   const list = Object.entries(state.items).map(([id, v]) => ({ id, ...v }))
     .sort((a, b) => (parseDate(a.date) || 0) - (parseDate(b.date) || 0));
   document.getElementById("empty").classList.toggle("hide", list.length > 0);
+  document.getElementById("swipe-hint").classList.toggle("hide", list.length === 0);
   list.forEach(it => {
     const d = daysUntil(it.date);
     const lead = Number(it.leadDays) || DEFAULT_LEAD_DAYS;
@@ -378,8 +528,19 @@ function render() {
     sub.className = "item-sub";
     sub.textContent = [fmtDate(it.date), lead + "d notice", it.note].filter(Boolean).join(" · ");
     card.append(top, sub);
-    card.addEventListener("click", () => openEdit(it.id));
-    wrap.appendChild(card);
+    const row = document.createElement("div");
+    row.className = "swipe-row";
+    const bgRenew = document.createElement("div");
+    bgRenew.className = "bg-renew";
+    // Kept to one word: only the first 84px of this panel is ever uncovered,
+    // so anything longer is clipped and reads as a mistake.
+    bgRenew.textContent = "Renewed";
+    const bgDelete = document.createElement("div");
+    bgDelete.className = "bg-delete";
+    bgDelete.textContent = "Delete";
+    row.append(bgRenew, bgDelete, card);
+    attachSwipe(row, card, bgRenew, bgDelete, it);
+    wrap.appendChild(row);
   });
 }
 
@@ -445,13 +606,7 @@ document.getElementById("btn-save").addEventListener("click", () => {
 });
 document.getElementById("btn-renewed").addEventListener("click", () => {
   if (!editingId) return;
-  const it = state.items[editingId];
-  const years = Number(it.everyYears) || 1;
-  const next = new Date(parseDate(it.date));
-  next.setFullYear(next.getFullYear() + years);
-  const iso = next.toISOString().slice(0, 10);
-  // Clearing lastAlerted lets the new cycle alert again.
-  save({ items: { ...state.items, [editingId]: { ...it, date: iso, lastAlerted: null } } });
+  renewItem({ ...state.items[editingId], id: editingId });
   closeEdit();
 });
 document.getElementById("btn-delete").addEventListener("click", () => {
