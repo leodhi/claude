@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Firestore rules</title>
+<meta name="theme-color" content="#f6f4ef">
+<style>
+  :root {
+    --paper: #f6f4ef;
+    --surface: #ffffff;
+    --surface-2: #fbf9f4;
+    --ink: #241f18;
+    --ink-muted: #766c5c;
+    --ink-faint: #a89d89;
+    --border: #e6ddc9;
+    --accent: #8a5a2b;
+    --accent-soft: #f1e4d0;
+    --good: #3a7d5c;
+    --good-soft: #e1ede6;
+    --shadow: 0 1px 2px rgba(36,31,24,0.06), 0 8px 24px rgba(36,31,24,0.06);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --paper: #161310; --surface: #1e1a15; --surface-2: #241f19;
+      --ink: #efe9df; --ink-muted: #b3a790; --ink-faint: #766c5a;
+      --border: #322c22; --accent: #d99a54; --accent-soft: rgba(217,154,84,0.14);
+      --good: #6cc190; --good-soft: rgba(108,193,144,0.12);
+      --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 8px 24px rgba(0,0,0,0.35);
+    }
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body {
+    margin: 0; padding: 0; min-height: 100%;
+    background: var(--paper); color: var(--ink);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    overscroll-behavior-y: contain;
+  }
+  #wrap { max-width: 560px; margin: 0 auto; padding: 20px 16px calc(40px + env(safe-area-inset-bottom)); }
+  h1 { font-size: 1.35rem; margin: 0 0 4px; letter-spacing: -0.01em; }
+  .sub { color: var(--ink-muted); font-size: 0.9rem; margin-bottom: 16px; line-height: 1.5; }
+  button { font-family: inherit; touch-action: manipulation; transition: transform 0.15s cubic-bezier(.2,.9,.3,1.1); }
+  button:active { transform: scale(0.96); }
+  .btn {
+    background: var(--accent); color: var(--paper); border: none; padding: 16px;
+    border-radius: 12px; font-size: 1.05rem; font-weight: 650; cursor: pointer; width: 100%;
+  }
+  .btn.done { background: var(--good); }
+  .note {
+    background: var(--accent-soft); border: 1px solid var(--border); border-radius: 12px;
+    padding: 12px 14px; font-size: 0.85rem; color: var(--ink-muted); line-height: 1.55; margin: 14px 0;
+  }
+  .note strong { color: var(--ink); }
+  .status {
+    text-align: center; color: var(--good); font-size: 0.9rem; font-weight: 600;
+    min-height: 1.3em; padding: 10px 0 2px;
+    opacity: 0; transform: translateY(4px);
+    transition: opacity 0.25s ease, transform 0.25s cubic-bezier(.2,.9,.3,1.1);
+  }
+  .status.show { opacity: 1; transform: translateY(0); }
+  pre {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 14px;
+    padding: 14px; margin: 0; overflow-x: auto; box-shadow: var(--shadow);
+    font-size: 0.72rem; line-height: 1.5; color: var(--ink);
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  }
+  .steps { font-size: 0.9rem; line-height: 1.6; color: var(--ink-muted); padding-left: 20px; margin: 0; }
+  .steps strong { color: var(--ink); }
+  .steps li { margin-bottom: 7px; }
+  h2 { font-size: 0.95rem; margin: 22px 0 8px; color: var(--accent); }
+</style>
+</head>
+<body>
+<div id="wrap">
+  <h1>Firestore rules</h1>
+  <div class="sub">The text to paste into the Firebase console, so the Medicine&nbsp;Timer, Renewals and Returns apps can save your data.</div>
+
+  <button class="btn" id="btn-copy" type="button">Copy the rules</button>
+  <div class="status" id="status"></div>
+
+  <div class="note">
+    <strong>On an iPhone:</strong> tap Copy above, then open
+    <strong>console.firebase.google.com</strong> in another tab, go to your project &rarr;
+    <strong>Firestore</strong> &rarr; <strong>Rules</strong>, select everything in the box,
+    delete it, paste, and tap <strong>Publish</strong>.
+  </div>
+
+  <h2>What you're pasting</h2>
+  <pre id="rules">rules_version = &#x27;2&#x27;;
+
+// Firestore rules for packing-list-3c532. The packing list is open on
+// purpose; everything else is claimed by whoever signs in first and is
+// private to them afterwards. To share one later, add an email to a
+// &quot;sharedWith&quot; list on the document itself -- honoured below already.
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() {
+      return request.auth != null;
+    }
+    // Unclaimed documents are fair game for the first person to sign in --
+    // that is how each app takes ownership on first run.
+    function unclaimed(d) {
+      return !(&quot;ownerUid&quot; in d) &amp;&amp; !(&quot;ownerEmail&quot; in d);
+    }
+
+    // Matching the email as well as the account id means the same person is
+    // recognised whichever way they signed in. Requiring email_verified is
+    // what stops someone typing your address into a new account to get in.
+    function owns(d) {
+      return d.get(&quot;ownerUid&quot;, &quot;&quot;) == request.auth.uid
+        || (request.auth.token.get(&quot;email_verified&quot;, false) == true
+            &amp;&amp; d.get(&quot;ownerEmail&quot;, &quot;&quot;) != &quot;&quot;
+            &amp;&amp; d.get(&quot;ownerEmail&quot;, &quot;&quot;) == request.auth.token.get(&quot;email&quot;, &quot;&quot;));
+    }
+    function sharedTo(d) {
+      return request.auth.token.get(&quot;email_verified&quot;, false) == true
+        &amp;&amp; request.auth.token.get(&quot;email&quot;, &quot;&quot;) in d.get(&quot;sharedWith&quot;, []);
+    }
+    function mayOpen() {
+      return signedIn() &amp;&amp; (resource == null
+        || unclaimed(resource.data)
+        || owns(resource.data)
+        || sharedTo(resource.data));
+    }
+
+    // Claiming means putting your own account id on it, not someone else&#x27;s.
+    function claimingForSelf() {
+      return signedIn()
+        &amp;&amp; request.resource.data.get(&quot;ownerUid&quot;, &quot;&quot;) == request.auth.uid;
+    }
+
+    // Open on purpose: works on a phone handed to anyone in the family.
+    match /packingLists/{listId} {
+      allow read, write: if true;
+    }
+
+    match /subscriptionLedgers/{ledgerId} {
+      allow read: if mayOpen();
+      allow create: if claimingForSelf();
+      allow update, delete: if mayOpen();
+    }
+
+    // Medicine Timer, Renewals and Returns.
+    match /homeApps/{appId} {
+      allow read: if mayOpen();
+      allow create: if claimingForSelf();
+      allow update, delete: if mayOpen();
+    }
+
+    // Anything not named above is closed.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}</pre>
+
+  <h2>If the Copy button doesn't work</h2>
+  <ol class="steps">
+    <li>Press and hold anywhere in the block above.</li>
+    <li>Choose <strong>Select All</strong>, then <strong>Copy</strong>.</li>
+  </ol>
+</div>
+
+<script>
+// The button is the whole point of this page: selecting sixty lines by hand
+// on a phone is miserable, and one stray character stops Firebase accepting
+// the rules. navigator.clipboard needs a secure context, which GitHub Pages
+// gives us, but it still fails on older iOS -- hence the fallback.
+var text = document.getElementById("rules").textContent;
+// Not "status": window.status is a legacy string property, so assigning an
+// element to a variable of that name silently turns it into a string.
+var statusLine = document.getElementById("status");
+var btn = document.getElementById("btn-copy");
+
+function say(msg, ok) {
+  statusLine.textContent = msg;
+  statusLine.style.color = ok ? "var(--good)" : "var(--ink-muted)";
+  statusLine.classList.add("show");
+}
+
+function fallbackCopy() {
+  var ta = document.createElement("textarea");
+  ta.value = text;
+  ta.setAttribute("readonly", "");
+  ta.style.position = "fixed";
+  ta.style.top = "0";
+  ta.style.opacity = "0";
+  document.body.appendChild(ta);
+  ta.select();
+  ta.setSelectionRange(0, text.length);
+  var ok = false;
+  try { ok = document.execCommand("copy"); } catch (e) { ok = false; }
+  document.body.removeChild(ta);
+  return ok;
+}
+
+btn.addEventListener("click", async function () {
+  var ok = false;
+  try {
+    if (navigator.clipboard && window.isSecureContext) {
+      await navigator.clipboard.writeText(text);
+      ok = true;
+    }
+  } catch (e) { ok = false; }
+  if (!ok) ok = fallbackCopy();
+
+  if (ok) {
+    btn.textContent = "Copied";
+    btn.classList.add("done");
+    say("Now paste it into the Rules box in Firebase.", true);
+    setTimeout(function () {
+      btn.textContent = "Copy the rules";
+      btn.classList.remove("done");
+    }, 4000);
+  } else {
+    say("Couldn't copy automatically \u2014 use the steps at the bottom.", false);
+  }
+});
+</script>
+</body>
+</html>
