@@ -952,12 +952,83 @@ function makeUtterance(text) {
   return u;
 }
 
-function say(text) {
-  if (!soundOn) return;
+// ---------- Recorded clips ----------
+// Every line the game can say is also available as a real recording (see
+// tools/make-voice-clips.py). When those files are present they're used in
+// place of the device's own voice, which on an iPad is robotic and can't be
+// improved. When they're absent nothing changes — this is entirely optional.
+var CLIP_BASE = "audio/";
+var CLIPS = null;          // line of speech -> filename, once the list loads
+var clipAudio = null;      // one element, reused: iOS only unlocks the one
+
+(function loadClips() {
+  if (typeof fetch !== "function") return;
+  fetch(CLIP_BASE + "manifest.json")
+    .then(function (r) { return r.ok ? r.json() : null; })
+    .then(function (m) {
+      if (m && m.clips && Object.keys(m.clips).length) {
+        CLIPS = m.clips;
+        paintVoiceOptions();      // the voice picker is moot once we have these
+      }
+    })
+    .catch(function () {});       // no recordings is the normal case, not an error
+})();
+
+function haveClips() { return !!CLIPS; }
+
+// Returns false if there's no recording for this line, so the caller can fall
+// back to the device's voice.
+function playClip(text, onDone) {
+  var file = CLIPS && CLIPS[text];
+  if (!file) return false;
+  try {
+    if (!clipAudio) clipAudio = new Audio();
+    var done = false;
+    function finish() { if (done) return; done = true; onDone(); }
+    clipAudio.onended = finish;
+    clipAudio.onerror = finish;
+    clipAudio.pause();
+    clipAudio.src = CLIP_BASE + file;
+    var p = clipAudio.play();
+    if (p && p.catch) p.catch(function () { finish(); });
+    speechAlive = true;           // a recording playing counts as sound working
+    return true;
+  } catch (e) { return false; }
+}
+
+// One line, however it can best be said. onDone always fires exactly once.
+function speakLine(text, onDone) {
+  if (!soundOn) { onDone(); return; }
+  if (playClip(text, onDone)) return;
   var s = synth();
-  if (!s) return;
+  if (!s) { onDone(); return; }
+  var moved = false;
+  function finish() { if (moved) return; moved = true; clearTimeout(guard); onDone(); }
+  var u = makeUtterance(text);
+  u.onstart = function () { speechAlive = true; };
+  u.onend = function () { speechAlive = true; finish(); };
+  u.onerror = function () { speechAlive = true; finish(); };
+  var guard = setTimeout(function () {
+    if (!speechAlive) { stopSpeaking(); return; }
+    finish();
+  }, Math.min(1400 + text.length * 95 / speechRate, 14000));
+  try { s.speak(u); } catch (e) { finish(); }
+}
+
+function say(text) { sayLines([text]); }
+
+// Says each line in turn, and stops dead if anything else starts talking.
+function sayLines(list) {
+  if (!soundOn) return;
   stopSpeaking();
-  try { s.speak(makeUtterance(text)); } catch (e) {}
+  var token = tour.token;
+  (function step(i) {
+    if (token !== tour.token || i >= list.length) return;
+    speakLine(list[i], function () {
+      if (token !== tour.token) return;
+      setTimeout(function () { step(i + 1); }, 220);
+    });
+  })(0);
 }
 
 // ---------- Reading the pictures out, one at a time ----------
@@ -982,13 +1053,21 @@ function stopSpeaking() {
   clearHighlights();
   var s = synth();
   if (s) { try { s.cancel(); } catch (e) {} }
+  if (clipAudio) {
+    // Drop the handlers first: pausing fires them, and a stale callback would
+    // step the tour on after it was meant to stop.
+    clipAudio.onended = null;
+    clipAudio.onerror = null;
+    try { clipAudio.pause(); } catch (e) {}
+  }
 }
 
 function speakTour(wrap, round, intro) {
   stopSpeaking();
   if (!soundOn || !readOutLoud) return;
-  var s = synth();
-  if (!s) return;
+  // Recordings work on a device whose own voice doesn't, so only bail out
+  // when there is neither.
+  if (!haveClips() && !synth()) return;
   var token = tour.token;
   tour.wrap = wrap;
 
@@ -1009,35 +1088,15 @@ function speakTour(wrap, round, intro) {
     if (k >= queue.length) { if (token === tour.token) clearHighlights(); return; }
     var item = queue[k];
     var btn = item.i >= 0 ? wrap.children[item.i] : null;
-    var moved = false;
-    function next() {
-      if (moved) return;
-      moved = true;
-      clearTimeout(guard);
+    if (btn) btn.classList.add("speaking");
+    speakLine(item.text, function () {
       if (btn) btn.classList.remove("speaking");
       if (token !== tour.token) return;
       // A clear pause between one picture and the next, so it lands as
       // "apple … banana … grapes" rather than a rushed list. The slower the
       // voice is set, the longer the pause.
       setTimeout(function () { step(k + 1); }, Math.round(500 / speechRate));
-    }
-    var u = makeUtterance(item.text);
-    function answered() { speechAlive = true; next(); }
-    u.onstart = function () { speechAlive = true; };
-    u.onend = answered;
-    u.onerror = answered;
-    // Safari sometimes never fires onend, which would leave the tour stalled
-    // and a tile lit up for good.
-    var guard = setTimeout(function () {
-      // If the engine has never once answered, speech isn't working on this
-      // device. Crawling through the list lighting tiles up in silence is
-      // worse than not reading them at all, so give up rather than limp on.
-      if (!speechAlive) { stopSpeaking(); return; }
-      next();
-      // A slower voice needs longer, but never wait forever on one line.
-    }, Math.min(1400 + item.text.length * 95 / speechRate, 14000));
-    if (btn) btn.classList.add("speaking");
-    try { s.speak(u); } catch (e) { next(); }
+    });
   }
   step(0);
 }
@@ -1071,6 +1130,17 @@ function paintVoiceOptions() {
   var sel = $("voice-select");
   var chosen = currentVoice();
   sel.innerHTML = "";
+  // Once there are recordings the device's own voice is barely used, so the
+  // picker would only be a way to make things worse.
+  if (haveClips()) {
+    var rec = document.createElement("option");
+    rec.textContent = "Recorded voice";
+    sel.appendChild(rec);
+    sel.disabled = true;
+    $("voice-hint").textContent =
+      "The words are real recordings bundled with the game, so they sound the same on every device and there's nothing to choose or download.";
+    return;
+  }
   if (!voices.length) {
     var opt = document.createElement("option");
     opt.textContent = "The built-in voice";
@@ -1211,9 +1281,11 @@ function reasonSentence(round) {
   var name = round.tiles[round.odd].n;
   return article(name) + " is not " + round.one + ". The others are all " + round.many + ".";
 }
-function spokenReason(round) {
-  var name = round.tiles[round.odd].n;
-  return "The " + name + "! The others are all " + round.many + ".";
+// Two separate lines rather than one sentence, so both halves can come from
+// recordings: there is a clip per picture name and a clip per group, but one
+// per combination of the two would be thousands of files.
+function spokenReasonLines(round) {
+  return [round.tiles[round.odd].n, "The others are all " + round.many + "."];
 }
 
 // =========================================================================
@@ -1784,7 +1856,7 @@ function renderMpReveal() {
 
   if (first) {
     mp.fired[revealKey] = true;
-    say(spokenReason(round));
+    sayLines(spokenReasonLines(round));
     if (winners.indexOf(mp.uid) !== -1) confetti(8);
     // The host moves everyone on together so nobody is left staring at a
     // finished round waiting for a grown-up to press something.
@@ -2033,7 +2105,7 @@ function renderLocalRound() {
       $("local-reveal-card").style.display = "";
       $("local-btn-next").disabled = false;
       $("local-btn-replay").style.display = "none";
-      setTimeout(function () { say(spokenReason(round)); }, 900);
+      setTimeout(function () { sayLines(spokenReasonLines(round)); }, 900);
     }
   });
   $("local-btn-replay").style.display = "";
