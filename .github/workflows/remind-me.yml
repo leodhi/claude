@@ -1,0 +1,94 @@
+# A one-off reminder pushed to the phone.
+#
+# The other two alert workflows run on a schedule and work out for themselves
+# whether anything is due. This one is different: it is fired by hand, once,
+# for "remind me about this later".
+#
+# The waiting is done by ntfy, not by anything here. The message is published
+# immediately with a delay on it, and ntfy holds it and delivers at the right
+# moment — so nothing has to stay running, and a runner or a chat session going
+# away in the meantime cannot lose the reminder.
+name: Remind me
+
+on:
+  workflow_dispatch:
+    inputs:
+      message:
+        description: What the reminder should say
+        required: true
+      title:
+        description: The heading on the notification
+        required: false
+        default: Reminder
+      delay:
+        # ntfy accepts up to three days ahead. "30s" is handy for checking it
+        # works without waiting around.
+        description: How long to wait — e.g. 45min, 2h, 1d
+        required: false
+        default: 45min
+      snooze:
+        description: How long the snooze button puts it off for
+        required: false
+        default: 15min
+      tag:
+        description: The little icon on the notification
+        required: false
+        default: bell
+
+jobs:
+  remind:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Publish the reminder
+        env:
+          NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
+          MESSAGE: ${{ inputs.message }}
+          TITLE: ${{ inputs.title }}
+          DELAY: ${{ inputs.delay }}
+          SNOOZE: ${{ inputs.snooze }}
+          TAG: ${{ inputs.tag }}
+        run: |
+          set -euo pipefail
+          if [ -z "${NTFY_TOPIC}" ]; then
+            echo "NTFY_TOPIC secret is not set." >&2
+            exit 1
+          fi
+          node - <<'NODE'
+          const topic = process.env.NTFY_TOPIC;
+          const title = process.env.TITLE || "Reminder";
+          const message = process.env.MESSAGE || "";
+          const delay = process.env.DELAY || "45min";
+          const snooze = process.env.SNOOZE || "15min";
+          const tag = process.env.TAG || "bell";
+
+          // ntfy's "http" action button isn't honoured reliably across clients,
+          // so snoozing uses the "view" action every client supports: it opens
+          // the same small page the deadline alerts already use, which
+          // re-publishes this alert after a delay.
+          const snoozeUrl = "https://leodhi.github.io/claude/docs/subscriptions/snooze.html"
+            + `?topic=${encodeURIComponent(topic)}`
+            + `&title=${encodeURIComponent(title)}`
+            + `&message=${encodeURIComponent(message)}`
+            + `&delay=${encodeURIComponent(snooze)}`;
+
+          const url = `https://ntfy.sh/${encodeURIComponent(topic)}`
+            + `?delay=${encodeURIComponent(delay)}`
+            + `&title=${encodeURIComponent(title)}`
+            + `&priority=3&tags=${encodeURIComponent(tag)}`;
+
+          const res = await fetch(url, {
+            method: "POST",
+            headers: {
+              Actions: JSON.stringify([
+                { action: "view", label: `Snooze ${snooze}`, url: snoozeUrl, clear: true }
+              ])
+            },
+            body: message
+          });
+          if (!res.ok) {
+            throw new Error(`ntfy publish failed: ${res.status} ${await res.text()}`);
+          }
+          // The topic is a secret, so it is never printed — only the fact that
+          // it worked and when the phone should expect it.
+          console.log(`Queued. ntfy will deliver "${title}" in ${delay}, with a ${snooze} snooze button.`);
+          NODE
