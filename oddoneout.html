@@ -1086,20 +1086,31 @@ function makeUtterance(text) {
 
 // ---------- Recorded clips ----------
 // Every line the game can say is also available as a real recording (see
-// tools/make-voice-clips.py). When those files are present they're used in
-// place of the device's own voice, which on an iPad is robotic and can't be
-// improved. When they're absent nothing changes — this is entirely optional.
-var CLIP_BASE = "audio/";
-var CLIPS = null;          // line of speech -> filename, once the list loads
+// tools/make-voice-clips.py). When those are present they're used in place of
+// the device's own voice, which on an iPad is robotic and can't be improved.
+// When they're absent nothing changes — this is entirely optional.
+//
+// All the words live in ONE file, laid end to end, and the index says where
+// each one starts and how long it runs. That is a single upload rather than a
+// folder of three hundred, and after the first word the file is already
+// buffered, so every word after it starts instantly with nothing to fetch.
+var CLIP_AUDIO = "oddoneout-voice.mp3";
+var CLIP_INDEX = "oddoneout-voice.json";
+var CLIPS = null;          // line of speech -> [start frame, how many frames]
+var CLIP_FRAME = 0.024;    // seconds per frame; the index states the real value
 var clipAudio = null;      // one element, reused: iOS only unlocks the one
+var clipWatch = null;      // the ticker watching for the end of a word
+var clipGuard = null;
+var clipTurn = 0;          // so a word that ends can't stop the one after it
 
 (function loadClips() {
   if (typeof fetch !== "function") return;
-  fetch(CLIP_BASE + "manifest.json")
+  fetch(CLIP_INDEX)
     .then(function (r) { return r.ok ? r.json() : null; })
     .then(function (m) {
       if (m && m.clips && Object.keys(m.clips).length) {
         CLIPS = m.clips;
+        if (m.frameSeconds > 0) CLIP_FRAME = m.frameSeconds;
         paintVoiceOptions();      // the voice picker is moot once we have these
       }
     })
@@ -1116,26 +1127,64 @@ function useRecordings() {
   return voicePref === RECORDED || !voicePref || !currentVoice();
 }
 
+// Everything playing a word sets going, stopped in one place. A word lives in
+// the middle of a long file, so nothing ends by itself — it has to be stopped.
+function stopClip() {
+  if (clipWatch) { clearInterval(clipWatch); clipWatch = null; }
+  if (clipGuard) { clearTimeout(clipGuard); clipGuard = null; }
+  if (clipAudio) { try { clipAudio.pause(); } catch (e) {} }
+}
+
 // Returns false if there's no recording for this line, so the caller can fall
 // back to the device's voice.
 // onDone is called when the recording finishes; onFailed when there isn't
-// one, or the file won't play. A recording that 404s must not swallow the
-// word in silence — a part-uploaded set should still say everything.
+// one, or the file won't play. A word with no recording must not be swallowed
+// in silence — a part-recorded file should still say everything.
 function playClip(text, onDone, onFailed) {
-  var file = CLIPS && CLIPS[text];
-  if (!file) return false;
+  var at = CLIPS && CLIPS[text];
+  if (!at) return false;
+  var from = at[0] * CLIP_FRAME;
+  var until = from + at[1] * CLIP_FRAME;
   try {
-    if (!clipAudio) clipAudio = new Audio();
+    if (!clipAudio) {
+      clipAudio = new Audio();
+      clipAudio.preload = "auto";
+      clipAudio.src = CLIP_AUDIO;   // set once and never changed: iOS unlocks
+    }                               // the element, not the file
+    var a = clipAudio;
+    var mine = ++clipTurn;
     var settled = false;
-    function ended() { if (settled) return; settled = true; onDone(); }
-    function broke() { if (settled) return; settled = true; onFailed(); }
-    clipAudio.onended = ended;
-    clipAudio.onerror = broke;
-    clipAudio.pause();
-    clipAudio.src = CLIP_BASE + file;
-    var p = clipAudio.play();
-    if (p && p.catch) p.catch(broke);
-    speechAlive = true;           // a recording playing counts as sound working
+    function finish(ok) {
+      if (settled || mine !== clipTurn) return;
+      settled = true;
+      stopClip();
+      (ok ? onDone : onFailed)();
+    }
+    a.onerror = function () { finish(false); };
+    stopClip();
+
+    function begin() {
+      if (mine !== clipTurn) return;
+      try { a.currentTime = from; } catch (e) { finish(false); return; }
+      var p = a.play();
+      if (p && p.catch) p.catch(function () { finish(false); });
+      // Watch the clock rather than trusting a timer started before playback
+      // actually began — a slow start would otherwise clip the end off. Being
+      // a little late costs nothing: what follows a word is the silence left
+      // in front of the next one.
+      clipWatch = setInterval(function () {
+        if (mine !== clipTurn) { stopClip(); return; }
+        if (a.currentTime >= until || a.ended) finish(true);
+      }, 25);
+      // And if the clock never moves at all, don't leave the game waiting.
+      clipGuard = setTimeout(function () { finish(true); },
+                             (until - from) * 1000 + 4000);
+      speechAlive = true;           // a recording playing counts as sound working
+    }
+
+    // The first word may arrive before the file has said how long it is.
+    if (a.readyState >= 1) begin();
+    else a.addEventListener("loadedmetadata", begin, { once: true });
     return true;
   } catch (e) { return false; }
 }
@@ -1201,13 +1250,11 @@ function stopSpeaking() {
   clearHighlights();
   var s = synth();
   if (s) { try { s.cancel(); } catch (e) {} }
-  if (clipAudio) {
-    // Drop the handlers first: pausing fires them, and a stale callback would
-    // step the tour on after it was meant to stop.
-    clipAudio.onended = null;
-    clipAudio.onerror = null;
-    try { clipAudio.pause(); } catch (e) {}
-  }
+  // Bump the turn first: a watcher already scheduled would otherwise step the
+  // tour on after it was meant to stop.
+  clipTurn++;
+  if (clipAudio) clipAudio.onerror = null;
+  stopClip();
 }
 
 function speakTour(wrap, round, intro) {
