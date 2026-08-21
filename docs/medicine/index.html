@@ -85,7 +85,27 @@
   .person.soon .status { color: var(--accent); }
   .person.wait .status { color: var(--warn); }
   .last-dose { color: var(--ink-muted); font-size: 0.85rem; margin-top: 6px; line-height: 1.45; }
-  .person-actions { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
+  /* Bottom row of a card: what was last given on the left, the one action on
+     the right. Keeps every card to two lines instead of three. */
+  .person-actions {
+    display: flex; gap: 10px; align-items: center; justify-content: space-between;
+    margin-top: 10px;
+  }
+  .person-actions .last-dose {
+    margin-top: 0; flex: 1; min-width: 0;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  /* Lighter than a full-size button: the coloured edge and the countdown
+     already carry the urgency, so three big filled blobs was too much. */
+  .person-actions .btn.small { flex: none; padding: 8px 15px; font-size: 0.82rem; }
+
+  .blank {
+    text-align: center; padding: 24px 18px 22px;
+    background: var(--surface); border: 1px solid var(--border); border-radius: 16px;
+    box-shadow: var(--shadow); margin-bottom: 12px;
+  }
+  .blank-title { font-size: 1.05rem; font-weight: 700; margin-bottom: 6px; }
+  .blank-sub { color: var(--ink-muted); font-size: 0.88rem; line-height: 1.5; margin-bottom: 16px; }
   .countdown { font-variant-numeric: tabular-nums; }
 
   .chip {
@@ -103,8 +123,9 @@
   .log-del { background: none; border: none; color: var(--ink-faint); cursor: pointer; font-size: 0.9rem; padding: 0 4px; }
 
   .note {
-    background: var(--accent-soft); border: 1px solid var(--border); border-radius: 12px;
-    padding: 12px 14px; font-size: 0.82rem; color: var(--ink-muted); line-height: 1.5; margin-bottom: 12px;
+    background: var(--surface-2); border: 1px solid var(--border);
+    border-left: 3px solid var(--accent); border-radius: 10px;
+    padding: 10px 12px; font-size: 0.78rem; color: var(--ink-muted); line-height: 1.5; margin-bottom: 14px;
   }
   .note strong { color: var(--ink); }
   .empty { color: var(--ink-muted); font-size: 0.9rem; text-align: center; padding: 18px 0; }
@@ -193,9 +214,16 @@
     </div>
 
     <div id="people-list"></div>
-    <div class="empty hide" id="no-people">No one added yet. Tap Settings below to add someone.</div>
 
-    <div class="card">
+    <!-- An empty app used to be a line of grey text pointing at Settings, with
+         no way to actually do anything from the screen you were looking at. -->
+    <div class="blank hide" id="no-people">
+      <div class="blank-title">Nobody added yet</div>
+      <div class="blank-sub">Add whoever takes medicine — the children, yourself, anyone in the house.</div>
+      <button class="btn" id="btn-first-person" type="button">+ Add someone</button>
+    </div>
+
+    <div class="card hide" id="history-card">
       <label>Last 24 hours</label>
       <div id="history"></div>
     </div>
@@ -539,6 +567,10 @@ function render() {
   const wrap = $("people-list");
   wrap.innerHTML = "";
   $("no-people").classList.toggle("hide", state.people.length > 0);
+  // "Tap a name to log a dose" is a lie when there are no names.
+  $("app-sub").textContent = state.people.length
+    ? "Tap Log a dose next to whoever is taking something."
+    : "A shared log of who has had what, and when.";
 
   state.people.forEach(p => {
     const card = document.createElement("div");
@@ -568,15 +600,16 @@ function render() {
 
     const last = document.createElement("div");
     last.className = "last-dose";
-    if (!lastAny) last.textContent = "Nothing given in the last 24 hours.";
+    if (!lastAny) last.textContent = "Nothing in the last 24 hours";
     else {
       const med = medById(lastAny.medId);
-      const bits = [(med ? med.name : "Medicine") + (lastAny.amount ? " " + lastAny.amount : "")];
-      bits.push(fmtAgo(Date.now() - lastAny.at) + " (" + fmtClock(lastAny.at) + ")");
-      last.textContent = "Last: " + bits.join(" · ");
-      if (next) last.textContent += " — next " + medById(next.med.id).name + " from " + fmtClock(next.due);
+      // Shorter than it was: the countdown beside the name already says how
+      // long, so this line no longer repeats it in two formats.
+      const what = (med ? med.name : "Medicine") + (lastAny.amount ? " " + lastAny.amount : "");
+      // No "next at ..." here: the countdown beside the name already says how
+      // long to wait, and squeezing both onto one line just truncated it.
+      last.textContent = what + " at " + fmtClock(lastAny.at);
     }
-    card.appendChild(last);
 
     // Any medicine already at its 24-hour maximum gets called out.
     const maxed = state.meds.filter(m => Number(m.maxPer24) > 0 && countIn24(p.id, m.id) >= Number(m.maxPer24));
@@ -595,7 +628,7 @@ function render() {
     logBtn.type = "button";
     logBtn.textContent = "Log a dose";
     logBtn.addEventListener("click", () => openDoseSheet(p.id));
-    actions.appendChild(logBtn);
+    actions.append(last, logBtn);
     card.appendChild(actions);
 
     wrap.appendChild(card);
@@ -624,10 +657,8 @@ function renderHistory() {
     .map(([id, v]) => ({ id, ...v }))
     .filter(x => x.at >= Date.now() - DAY)
     .sort((a, b) => b.at - a.at);
-  if (!recent.length) {
-    box.innerHTML = '<div class="empty">Nothing logged in the last 24 hours.</div>';
-    return;
-  }
+  $("history-card").classList.toggle("hide", recent.length === 0);
+  if (!recent.length) return;
   recent.forEach(d => {
     const person = state.people.find(p => p.id === d.personId);
     const med = medById(d.medId);
@@ -748,6 +779,11 @@ function toLocalInput(ts) {
 
 // ---------- Settings ----------
 $("btn-settings").addEventListener("click", () => { renderSettings(); $("settings-sheet").classList.add("open"); });
+$("btn-first-person").addEventListener("click", () => {
+  renderSettings();
+  $("settings-sheet").classList.add("open");
+  $("btn-add-person").click();
+});
 $("btn-close-settings").addEventListener("click", () => $("settings-sheet").classList.remove("open"));
 $("settings-sheet").addEventListener("click", e => { if (e.target === $("settings-sheet")) $("settings-sheet").classList.remove("open"); });
 
