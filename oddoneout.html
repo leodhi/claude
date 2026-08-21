@@ -1566,7 +1566,7 @@ buildChips($("sound-chips"), ON_OFF, function () { return soundOn ? "on" : "off"
   soundOn = (v === "on");
   saveSoundPrefs();
   paintSoundUI();
-  if (soundOn) { unlockAudio(); beep([660, 880], 0.16); say("Hello! Shall we play?"); }
+  if (soundOn) { unlockAudio(); beep([660, 880], 0.16); sayLines(DEMO_SHORT); }
   else stopSpeaking();
 });
 buildChips($("readout-chips"), ON_OFF, function () { return readOutLoud ? "on" : "off"; }, function (v) {
@@ -1953,7 +1953,9 @@ function buildAvatarGrid(taken) {
       Array.prototype.forEach.call(grid.children, function (c) { c.classList.remove("selected"); });
       btn.classList.add("selected");
       mp.avatar = a[0];
-      say("You are the " + a[1]);
+      // Deliberately silent. The character names aren't in the recorded voice
+      // and adding twelve more words to record isn't worth it for a screen
+      // that lights up the choice and moves straight on.
       if (avatarMode === "create") createRoomFlow(a[0]);
       else joinRoomFlow(pendingJoinCode, a[0]);
     });
@@ -2663,7 +2665,7 @@ function showLocalOver() {
   $("local-final-line").textContent = got + " out of " + local.rounds + " first time.";
   confetti(30);
   soundFinish();
-  say("All done! You got " + got + " out of " + local.rounds + "!");
+  say(ALL_DONE);
   showScreen("local-screen-over");
 }
 
