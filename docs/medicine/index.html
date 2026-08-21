@@ -33,6 +33,10 @@
       --good: #6cc190; --good-soft: rgba(108,193,144,0.12);
       --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 8px 24px rgba(0,0,0,0.35);
     }
+    /* A data URI can't read a CSS variable, so the chevron is restated here. */
+    :root:not([data-theme="light"]) select {
+      background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1.5 6 6.5 11 1.5' fill='none' stroke='%23b3a790' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+    }
   }
   * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
   html, body {
@@ -55,6 +59,16 @@
     padding: 12px; border-radius: 10px; font-size: 1rem; font-family: inherit;
   }
   input:focus, select:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+  /* Left native, a select on iOS is drawn by the system and quietly ignores
+     the background and padding above. Resetting it means drawing our own
+     chevron, because the system one goes away with the system styling. */
+  select {
+    -webkit-appearance: none; appearance: none;
+    min-height: 46px; padding-right: 38px;
+    background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1.5 6 6.5 11 1.5' fill='none' stroke='%23766c5c' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 14px center;
+  }
   button { font-family: inherit; touch-action: manipulation; transition: transform 0.15s cubic-bezier(.2,.9,.3,1.1); }
   button:active { transform: scale(0.96); }
   .btn {
