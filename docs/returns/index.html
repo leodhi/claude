@@ -133,6 +133,18 @@
   .bg-delete { background: #d6453f; justify-content: flex-end; padding-right: 20px;
                cursor: pointer; touch-action: manipulation; }
 
+  /* Undo / redo, the same pill the subscriptions app uses. */
+  .undo-row { display: flex; gap: 8px; align-items: center; margin: 0 0 12px; }
+  .undo-btn {
+    font: inherit; cursor: pointer; border-radius: 999px; border: 1px solid var(--border);
+    background: var(--surface); color: var(--ink-muted); padding: 8px 16px; min-height: 38px;
+    font-size: 0.8rem; font-weight: 650; touch-action: manipulation;
+    transition: border-color 0.15s ease, color 0.15s ease, transform 0.1s cubic-bezier(.2,.9,.3,1.1);
+  }
+  .undo-btn:not(:disabled):active { transform: scale(0.95); border-color: var(--accent); color: var(--accent); }
+  .undo-btn:disabled { opacity: 0.4; cursor: default; }
+  .undo-what { color: var(--ink-faint); font-size: 0.76rem; flex: 1; min-width: 0;
+               white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .item {
     /* position: relative matters. The two coloured panels are absolutely
        positioned, so without it they paint on top of this card and swallow
@@ -207,6 +219,11 @@
       You'll get a phone alert however far ahead <strong>you choose</strong> for each item, and again on the day.
       Miss the window and the money's gone, so this one nags.
     </div>
+    <div class="undo-row">
+      <button class="undo-btn" id="btn-undo" type="button" disabled>Undo</button>
+      <button class="undo-btn" id="btn-redo" type="button" disabled>Redo</button>
+      <span class="undo-what" id="undo-what"></span>
+    </div>
     <div class="swipe-hint" id="swipe-hint">Swipe a card right once it's sent back, or left to delete.</div>
     <div id="items"></div>
     <div class="empty hide" id="empty">Nothing to send back. Add something the moment you decide to return it.</div>
@@ -247,7 +264,7 @@
 <script type="module">
 
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
-import { getFirestore, doc, onSnapshot, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
+import { getFirestore, doc, onSnapshot, setDoc, getDoc, updateDoc, deleteField } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
 import {
   getAuth, GoogleAuthProvider, signInWithPopup, signInWithRedirect, getRedirectResult,
   signOut, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword,
@@ -388,6 +405,76 @@ async function save(patch) {
   try { await setDoc(docRef, patch, { merge: true }); setStatus("app-status", ""); }
   catch (e) { setStatus("app-status", "Couldn't save: " + e.message, true); }
 }
+// Removing a key needs updateDoc + deleteField, not setDoc with merge.
+// Firestore merges nested maps key by key, so writing the map back without an
+// entry leaves that entry exactly where it was -- the delete looked like it
+// worked, then the item reappeared on the next sync. The subscriptions app
+// already does it this way.
+async function removeKeys(field, ids) {
+  const patch = {};
+  ids.forEach(id => { patch[field + "." + id] = deleteField(); });
+  try { await updateDoc(docRef, patch); setStatus("app-status", ""); }
+  catch (e) { setStatus("app-status", "Couldn't save: " + e.message, true); }
+}
+
+// The two writes the history replays.
+//
+// saveEntry uses a dotted path through updateDoc, which REPLACES the entry.
+// setDoc with merge would fold the new value into the old one, so a field the
+// new value doesn't have survives -- which broke undo: putting an item back
+// the way it was left "done: true" behind, because "before" simply had no
+// done key. Replacing is what "write this entry" should mean.
+async function saveEntry(field, id, value) {
+  try { await updateDoc(docRef, { [field + "." + id]: value }); setStatus("app-status", ""); }
+  catch (e) { await save({ [field]: { [id]: value } }); }
+}
+function save2(field, value) { return save({ [field]: value }); }
+
+// ---------- Undo / redo ----------
+// Modelled on the subscriptions app: the history replays the same Firestore
+// writes in reverse, so undo behaves the same whether the change was made
+// here or synced in from another phone. A step is either one entry in a map
+// (value null means remove it) or a whole array field, because Firestore
+// merges maps key by key but replaces arrays outright.
+var undoStack = [], redoStack = [];
+
+function pushAction(action) {
+  undoStack.push(action);
+  if (undoStack.length > 50) undoStack.shift();
+  redoStack.length = 0;
+  renderUndo();
+}
+function renderUndo() {
+  var u = document.getElementById("btn-undo"), r = document.getElementById("btn-redo");
+  if (!u || !r) return;
+  u.disabled = undoStack.length === 0;
+  r.disabled = redoStack.length === 0;
+  var last = undoStack[undoStack.length - 1];
+  document.getElementById("undo-what").textContent = last ? last.label : "";
+}
+async function applySteps(steps) {
+  for (var i = 0; i < steps.length; i++) {
+    var s = steps[i];
+    if (s.arr) await save2(s.field, s.value);
+    else if (s.value === null) await removeKeys(s.field, [s.id]);
+    else await saveEntry(s.field, s.id, s.value);
+  }
+}
+document.getElementById("btn-undo").addEventListener("click", async function () {
+  if (!undoStack.length) return;
+  var action = undoStack.pop();
+  redoStack.push(action);
+  renderUndo();
+  await applySteps(action.undo);
+});
+document.getElementById("btn-redo").addEventListener("click", async function () {
+  if (!redoStack.length) return;
+  var action = redoStack.pop();
+  undoStack.push(action);
+  renderUndo();
+  await applySteps(action.redo);
+});
+
 
 function card(it) {
   const d = daysUntil(it.date);
@@ -429,8 +516,15 @@ let revealedId = null, closeRevealed = null;
 // Right swipe toggles, so the same gesture puts something back if you sent
 // it off by mistake -- which is why it needs no confirmation.
 function toggleDone(it) {
-  const cur = state.items[it.id];
-  save({ items: { ...state.items, [it.id]: { ...cur, done: !cur.done } } });
+  const before = state.items[it.id];
+  if (!before) return;
+  const after = { ...before, done: !before.done };
+  pushAction({
+    label: (after.done ? "Sent back " : "Put back ") + before.name,
+    undo: [{ field: "items", id: it.id, value: before }],
+    redo: [{ field: "items", id: it.id, value: after }]
+  });
+  saveEntry("items", it.id, after);
 }
 
 function attachSwipe(row, card, bgDone, bgDelete, it) {
@@ -463,11 +557,13 @@ function attachSwipe(row, card, bgDone, bgDelete, it) {
     card.classList.add("commit");
     card.style.transform = "translateX(-100%)";
     card.style.opacity = "0";
-    setTimeout(() => {
-      const next = { ...state.items };
-      delete next[it.id];
-      save({ items: next });
-    }, 150);
+    const gone = state.items[it.id];
+    pushAction({
+      label: "Deleted " + (gone ? gone.name : "item"),
+      undo: [{ field: "items", id: it.id, value: gone }],
+      redo: [{ field: "items", id: it.id, value: null }]
+    });
+    setTimeout(() => removeKeys("items", [it.id]), 150);
   });
 
   card.addEventListener("pointerdown", e => {
@@ -623,13 +719,20 @@ document.getElementById("btn-save").addEventListener("click", () => {
   // Changing the notice period clears the stamp, so widening the window can
   // still alert for a deadline that had already gone quiet.
   const leadChanged = existing.leadDays !== undefined && existing.leadDays !== leadDays;
-  save({ items: { ...state.items, [id]: {
+  const wasNew = !state.items[id];
+  const after = {
     ...existing, name, date, leadDays,
     where: document.getElementById("f-where").value.trim(),
     how: document.getElementById("f-how").value.trim(),
     note: document.getElementById("f-note").value.trim(),
     ...(leadChanged ? { lastAlerted: null } : {})
-  } } });
+  };
+  pushAction({
+    label: wasNew ? "Added " + name : "Edited " + name,
+    undo: [{ field: "items", id, value: wasNew ? null : existing }],
+    redo: [{ field: "items", id, value: after }]
+  });
+  saveEntry("items", id, after);
   closeEdit();
 });
 document.getElementById("btn-done").addEventListener("click", () => {
@@ -640,9 +743,13 @@ document.getElementById("btn-done").addEventListener("click", () => {
 document.getElementById("btn-delete").addEventListener("click", () => {
   if (!editingId) return;
   if (!confirm("Delete this?")) return;
-  const next = { ...state.items };
-  delete next[editingId];
-  save({ items: next });
+  const goneId = editingId, gone = state.items[goneId];
+  pushAction({
+    label: "Deleted " + (gone ? gone.name : "item"),
+    undo: [{ field: "items", id: goneId, value: gone }],
+    redo: [{ field: "items", id: goneId, value: null }]
+  });
+  removeKeys("items", [goneId]);
   closeEdit();
 });
 

@@ -73,6 +73,18 @@
   .hide { display: none !important; }
 
   /* Person cards */
+  /* Undo / redo, the same pill the subscriptions app uses. */
+  .undo-row { display: flex; gap: 8px; align-items: center; margin: 0 0 12px; }
+  .undo-btn {
+    font: inherit; cursor: pointer; border-radius: 999px; border: 1px solid var(--border);
+    background: var(--surface); color: var(--ink-muted); padding: 8px 16px; min-height: 38px;
+    font-size: 0.8rem; font-weight: 650; touch-action: manipulation;
+    transition: border-color 0.15s ease, color 0.15s ease, transform 0.1s cubic-bezier(.2,.9,.3,1.1);
+  }
+  .undo-btn:not(:disabled):active { transform: scale(0.95); border-color: var(--accent); color: var(--accent); }
+  .undo-btn:disabled { opacity: 0.4; cursor: default; }
+  .undo-what { color: var(--ink-faint); font-size: 0.76rem; flex: 1; min-width: 0;
+               white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .person {
     background: var(--surface); border: 1px solid var(--border); border-radius: 16px;
     padding: 16px; box-shadow: var(--shadow); margin-bottom: 12px;
@@ -223,6 +235,12 @@
       Always follow the instructions on the packaging or from your doctor or pharmacist.
     </div>
 
+    <div class="undo-row">
+      <button class="undo-btn" id="btn-undo" type="button" disabled>Undo</button>
+      <button class="undo-btn" id="btn-redo" type="button" disabled>Redo</button>
+      <span class="undo-what" id="undo-what"></span>
+    </div>
+
     <div id="people-list"></div>
 
     <!-- An empty app used to be a line of grey text pointing at Settings, with
@@ -332,7 +350,7 @@
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
-import { getFirestore, doc, onSnapshot, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
+import { getFirestore, doc, onSnapshot, setDoc, getDoc, updateDoc, deleteField } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
 import {
   getAuth, GoogleAuthProvider, signInWithPopup, signInWithRedirect, getRedirectResult,
   signOut, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword,
@@ -526,6 +544,79 @@ async function claimIfUnclaimed(user) {
   }
 }
 
+// Removing a key needs updateDoc + deleteField, not setDoc with merge.
+// Firestore merges nested maps key by key, so writing the doses map back
+// without an entry left that entry exactly where it was -- the delete looked
+// like it worked, then the dose reappeared on the next sync. The
+// subscriptions app already does it this way.
+async function removeKeys(field, ids) {
+  if (!ids.length) return;
+  const patch = {};
+  ids.forEach(id => { patch[field + "." + id] = deleteField(); });
+  try { await updateDoc(docRef, patch); setStatus("app-status", ""); }
+  catch (e) { setStatus("app-status", "Couldn't save: " + e.message, true); }
+}
+
+
+// The two writes the history replays.
+//
+// saveEntry uses a dotted path through updateDoc, which REPLACES the entry.
+// setDoc with merge would fold the new value into the old one, so a field the
+// new value doesn't have survives -- which broke undo: putting an item back
+// the way it was left "done: true" behind, because "before" simply had no
+// done key. Replacing is what "write this entry" should mean.
+async function saveEntry(field, id, value) {
+  try { await updateDoc(docRef, { [field + "." + id]: value }); setStatus("app-status", ""); }
+  catch (e) { await save({ [field]: { [id]: value } }); }
+}
+function save2(field, value) { return save({ [field]: value }); }
+
+// ---------- Undo / redo ----------
+// Modelled on the subscriptions app: the history replays the same Firestore
+// writes in reverse, so undo behaves the same whether the change was made
+// here or synced in from another phone. A step is either one entry in a map
+// (value null means remove it) or a whole array field, because Firestore
+// merges maps key by key but replaces arrays outright. Logging a dose by
+// mistake is the one this app most needs.
+var undoStack = [], redoStack = [];
+
+function pushAction(action) {
+  undoStack.push(action);
+  if (undoStack.length > 50) undoStack.shift();
+  redoStack.length = 0;
+  renderUndo();
+}
+function renderUndo() {
+  var u = $("btn-undo"), r = $("btn-redo");
+  if (!u || !r) return;
+  u.disabled = undoStack.length === 0;
+  r.disabled = redoStack.length === 0;
+  var last = undoStack[undoStack.length - 1];
+  $("undo-what").textContent = last ? last.label : "";
+}
+async function applySteps(steps) {
+  for (var i = 0; i < steps.length; i++) {
+    var st = steps[i];
+    if (st.arr) await save2(st.field, st.value);
+    else if (st.value === null) await removeKeys(st.field, [st.id]);
+    else await saveEntry(st.field, st.id, st.value);
+  }
+}
+$("btn-undo").addEventListener("click", async function () {
+  if (!undoStack.length) return;
+  var action = undoStack.pop();
+  redoStack.push(action);
+  renderUndo();
+  await applySteps(action.undo);
+});
+$("btn-redo").addEventListener("click", async function () {
+  if (!redoStack.length) return;
+  var action = redoStack.pop();
+  undoStack.push(action);
+  renderUndo();
+  await applySteps(action.redo);
+});
+
 async function save(patch) {
   try {
     await setDoc(docRef, patch, { merge: true });
@@ -694,9 +785,13 @@ function renderHistory() {
     del.title = "Remove this entry";
     del.addEventListener("click", () => {
       if (!confirm("Remove this entry? Only do this if it was logged by mistake.")) return;
-      const next = { ...state.doses };
-      delete next[d.id];
-      save({ doses: next });
+      const gone = state.doses[d.id];
+      pushAction({
+        label: "Removed a logged dose",
+        undo: [{ field: "doses", id: d.id, value: gone }],
+        redo: [{ field: "doses", id: d.id, value: null }]
+      });
+      removeKeys("doses", [d.id]);
     });
     right.append(when, del);
     row.append(left, right);
@@ -796,16 +891,26 @@ $("btn-save-dose").addEventListener("click", () => {
     if (v) at = new Date(v).getTime();
     if (!at || isNaN(at)) at = Date.now();
   }
-  const next = pruneOld({ ...state.doses });
-  next[newId()] = { personId: doseFor, medId: doseMedId, amount: $("dose-amount").value.trim(), at };
-  save({ doses: next });
+  // Add the new dose, then drop anything past the keep window as its own
+  // delete -- merging a smaller map would have left the old ones behind.
+  const doseId = newId();
+  const dose = { personId: doseFor, medId: doseMedId, amount: $("dose-amount").value.trim(), at };
+  const who = state.people.find(x => x.id === doseFor);
+  const med = medById(doseMedId);
+  pushAction({
+    label: "Logged " + (med ? med.name : "a dose") + " for " + (who ? who.name : "someone"),
+    undo: [{ field: "doses", id: doseId, value: null }],
+    redo: [{ field: "doses", id: doseId, value: dose }]
+  });
+  saveEntry("doses", doseId, dose);
+  removeKeys("doses", staleDoseIds());
   $("dose-sheet").classList.remove("open");
 });
 
-function pruneOld(doses) {
+// Which logged doses have aged out, so the document can't grow forever.
+function staleDoseIds() {
   const cutoff = Date.now() - KEEP_MS;
-  Object.keys(doses).forEach(k => { if (!doses[k] || doses[k].at < cutoff) delete doses[k]; });
-  return doses;
+  return Object.keys(state.doses).filter(k => !state.doses[k] || state.doses[k].at < cutoff);
 }
 function toLocalInput(ts) {
   const d = new Date(ts - new Date().getTimezoneOffset() * 60000);
@@ -843,7 +948,14 @@ function renderSettings() {
     del.textContent = "✕";
     del.addEventListener("click", () => {
       if (!confirm("Remove " + p.name + "? Their dose history stays until it ages out.")) return;
-      save({ people: state.people.filter((_, j) => j !== i) });
+      const beforePeople = state.people.slice();
+      const afterPeople = state.people.filter((_, j) => j !== i);
+      pushAction({
+        label: "Removed " + p.name,
+        undo: [{ arr: true, field: "people", value: beforePeople }],
+        redo: [{ arr: true, field: "people", value: afterPeople }]
+      });
+      save2("people", afterPeople);
     });
     row.append(inp, del);
     pe.appendChild(row);
@@ -963,7 +1075,14 @@ $("btn-delete-med").addEventListener("click", () => {
   const m = medById(medEditingId);
   if (!m) return closeMedSheet();
   if (!confirm("Remove " + m.name + "? Doses already logged stay in the history until they age out.")) return;
-  save({ meds: state.meds.filter(x => x.id !== m.id) });
+  const beforeMeds = state.meds.slice();
+  const afterMeds = state.meds.filter(x => x.id !== m.id);
+  pushAction({
+    label: "Removed " + m.name,
+    undo: [{ arr: true, field: "meds", value: beforeMeds }],
+    redo: [{ arr: true, field: "meds", value: afterMeds }]
+  });
+  save2("meds", afterMeds);
   closeMedSheet();
   setTimeout(renderSettings, 250);
 });
