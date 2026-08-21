@@ -379,7 +379,7 @@
       <div id="voice-settings">
         <label style="margin-top:16px">Read the pictures out first</label>
         <div class="chip-group" id="readout-chips"></div>
-        <small class="hint">Before they choose, each picture lights up in turn and is named out loud — "apple… banana… grapes… cow."</small>
+        <small class="hint">They're asked which picture doesn't fit, then each one lights up in turn and is named out loud — "apple… banana… grapes… cow." The question is asked in full at the start of a game and briefly after that.</small>
         <label style="margin-top:16px">Voice</label>
         <select id="voice-select"></select>
         <label style="margin-top:16px">Speaking speed</label>
@@ -936,6 +936,9 @@ function say(text) {
 // ---------- Reading the pictures out, one at a time ----------
 // Each picture lights up as it's named. A token guards the chain so a tap (or
 // the next round) stops it dead rather than leaving a tile stuck lit.
+var ASK_IN_FULL = "Which one of these pictures do you think doesn't fit, and is different from the others?";
+var ASK_BRIEFLY = "Which one is different?";
+
 var tour = { token: 0, wrap: null };
 // Set the first time the speech engine actually responds. Some devices accept
 // utterances and then do nothing at all.
@@ -963,7 +966,16 @@ function speakTour(wrap, round, intro) {
   tour.wrap = wrap;
 
   var queue = round.tiles.map(function (t, i) { return { text: t.n, i: i }; });
-  if (intro) queue.unshift({ text: "Which one does not belong?", i: -1 });
+  // Asked in full the first time, then briefly — a child who can't read needs
+  // reminding what they're being asked, but not a whole sentence every round.
+  queue.unshift({ text: intro ? ASK_IN_FULL : ASK_BRIEFLY, i: -1 });
+
+  // A working engine reports back almost immediately. If nothing has come
+  // back by now, speech isn't going to happen on this device, and that must
+  // be found out fast rather than at the end of a long first sentence.
+  setTimeout(function () {
+    if (token === tour.token && !speechAlive) stopSpeaking();
+  }, 2000);
 
   function step(k) {
     if (token !== tour.token) return;
@@ -995,7 +1007,8 @@ function speakTour(wrap, round, intro) {
       // worse than not reading them at all, so give up rather than limp on.
       if (!speechAlive) { stopSpeaking(); return; }
       next();
-    }, 1400 + item.text.length * 95 / speechRate);   // a slower voice needs longer
+      // A slower voice needs longer, but never wait forever on one line.
+    }, Math.min(1400 + item.text.length * 95 / speechRate, 14000));
     if (btn) btn.classList.add("speaking");
     try { s.speak(u); } catch (e) { next(); }
   }
