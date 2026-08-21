@@ -6,12 +6,15 @@ Standing context for anyone (or any Claude session) working in this repo.
 
 This single repo hosts multiple unrelated projects, all served from one GitHub Pages site:
 
-- **Root** — five self-contained party games, each a single HTML file with both local pass-and-play mode and Firebase-backed multiplayer mode in one `<script type="module">`:
+- **Root** — self-contained party games, each a single HTML file with both local pass-and-play mode and Firebase-backed multiplayer mode in one `<script type="module">`. Run `ls *.html` at the repo root before assuming this list is complete — it has gone stale before:
   - `index.html` — Chameleon
   - `firsttoworst.html` — First to Worst (no AI player option here — deliberately removed, don't re-add it)
   - `trivia.html` — Trivia Party
   - `doodle.html` — Doodle & Guess
   - `spillit.html` — Spill It! (family trivia about each other; kid-safe prompt bank only, no adult content)
+  - `milim.html` — Milim (guess the meaning of a Hebrew/Aramaic word; typed answers are fuzzy-matched, host can tap any call to correct it)
+  - `climbers.html` — Climbers (race up a mountain, climbing your own colored blocks or the shared gray ones)
+  - `dontcopyme.html` — Don't Copy Me (don't match anyone else's answer — or the Judge's)
 - **`docs/packing-list/index.html`** — a family packing-list app (open access, no login).
 - **`docs/subscriptions/index.html`** — a subscription tracker, login-protected (see Firebase section below).
 - **Home utilities**, all login-protected and all stored under `homeApps/` in the same Firebase project as the packing list:
