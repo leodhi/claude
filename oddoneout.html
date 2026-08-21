@@ -1062,9 +1062,14 @@ function paintVoiceOptions() {
     });
   }
   var anyGood = voices.some(function (v) { return GOOD_VOICE.test(v.name); });
-  $("voice-hint").textContent = anyGood
-    ? "The ones marked “best quality” sound the most human — try a couple and keep whichever you like."
-    : "On an iPhone or iPad the good voices have to be downloaded once, and they sound far more human than the built-in one: Settings → Accessibility → Spoken Content → Voices → English. Come back here afterwards and they'll be in this list.";
+  // Careful not to promise the download will help: Safari on iPhone and iPad
+  // often doesn't offer a downloaded voice to a web page at all, so it's worth
+  // trying but it isn't a guaranteed fix.
+  $("voice-hint").textContent = !voices.length
+    ? "This device isn't offering the game any choice of voice, so it's using the one built in. On an iPhone or iPad that's Apple's limit, not something the game can get around."
+    : anyGood
+      ? "The ones marked “best quality” sound the most human — try a couple and keep whichever you like."
+      : "Worth a try: under Settings → Accessibility → Spoken Content → Voices → English you can download better voices. They don't always turn up in this list afterwards — Safari doesn't reliably hand downloaded voices to a web page — but when they do, they sound far more human.";
 }
 
 function paintSoundUI() {
