@@ -1105,22 +1105,34 @@ var clipAudio = null;      // one element, reused: iOS only unlocks the one
 })();
 
 function haveClips() { return !!CLIPS; }
+// The recordings are the best option, but not the only one — someone may
+// genuinely prefer a device voice, and a four-year-old who has taken to
+// Wobble shouldn't lose it just because recordings turned up.
+var RECORDED = "__recorded__";
+function useRecordings() {
+  if (!haveClips()) return false;
+  return voicePref === RECORDED || !voicePref || !currentVoice();
+}
 
 // Returns false if there's no recording for this line, so the caller can fall
 // back to the device's voice.
-function playClip(text, onDone) {
+// onDone is called when the recording finishes; onFailed when there isn't
+// one, or the file won't play. A recording that 404s must not swallow the
+// word in silence — a part-uploaded set should still say everything.
+function playClip(text, onDone, onFailed) {
   var file = CLIPS && CLIPS[text];
   if (!file) return false;
   try {
     if (!clipAudio) clipAudio = new Audio();
-    var done = false;
-    function finish() { if (done) return; done = true; onDone(); }
-    clipAudio.onended = finish;
-    clipAudio.onerror = finish;
+    var settled = false;
+    function ended() { if (settled) return; settled = true; onDone(); }
+    function broke() { if (settled) return; settled = true; onFailed(); }
+    clipAudio.onended = ended;
+    clipAudio.onerror = broke;
     clipAudio.pause();
     clipAudio.src = CLIP_BASE + file;
     var p = clipAudio.play();
-    if (p && p.catch) p.catch(function () { finish(); });
+    if (p && p.catch) p.catch(broke);
     speechAlive = true;           // a recording playing counts as sound working
     return true;
   } catch (e) { return false; }
@@ -1129,7 +1141,11 @@ function playClip(text, onDone) {
 // One line, however it can best be said. onDone always fires exactly once.
 function speakLine(text, onDone) {
   if (!soundOn) { onDone(); return; }
-  if (playClip(text, onDone)) return;
+  if (useRecordings() && playClip(text, onDone, function () { speakWithVoice(text, onDone); })) return;
+  speakWithVoice(text, onDone);
+}
+
+function speakWithVoice(text, onDone) {
   var s = synth();
   if (!s) { onDone(); return; }
   var moved = false;
@@ -1260,15 +1276,25 @@ function paintVoiceOptions() {
   var sel = $("voice-select");
   var chosen = currentVoice();
   sel.innerHTML = "";
-  // Once there are recordings the device's own voice is barely used, so the
-  // picker would only be a way to make things worse.
+  // Recordings sit at the top of the same list as everything else, so they
+  // can be swapped away from as easily as any other voice.
   if (haveClips()) {
     var rec = document.createElement("option");
-    rec.textContent = "Recorded voice";
+    rec.value = RECORDED;
+    rec.textContent = "Recorded voice — best quality";
+    if (useRecordings()) rec.selected = true;
     sel.appendChild(rec);
-    sel.disabled = true;
-    $("voice-hint").textContent =
-      "The words are real recordings bundled with the game, so they sound the same on every device and there's nothing to choose or download.";
+    sel.disabled = false;
+    voices.forEach(function (v) {
+      var o = document.createElement("option");
+      o.value = v.voiceURI || v.name;
+      o.textContent = v.name + (SILLY_VOICE.test(v.name) ? " — just for fun" : "");
+      if (!useRecordings() && chosen && v.voiceURI === chosen.voiceURI && v.name === chosen.name) o.selected = true;
+      sel.appendChild(o);
+    });
+    $("voice-hint").textContent = useRecordings()
+      ? "Real recordings bundled with the game — they sound the same on every device. The rest are your iPad's own voices if you'd rather have one of those."
+      : "You're using one of your iPad's voices. Pick “Recorded voice” for the human-sounding one.";
     return;
   }
   if (!voices.length) {
@@ -1330,6 +1356,8 @@ buildChips($("rate-chips"), RATE_CHOICES, function () { return speechRate; }, fu
 $("voice-select").addEventListener("change", function () {
   voicePref = this.value;
   saveSoundPrefs();
+  // Repaint: the note underneath describes whichever is now chosen.
+  paintVoiceOptions();
   say("Hello! Which one does not belong?");
 });
 $("btn-try-voice").addEventListener("click", function () {
