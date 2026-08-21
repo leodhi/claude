@@ -50,11 +50,14 @@
     padding: 16px; box-shadow: var(--shadow); margin-bottom: 12px;
   }
   label { display: block; font-size: 0.72rem; color: var(--ink-muted); text-transform: uppercase; letter-spacing: 0.07em; margin-bottom: 6px; }
-  input[type="text"], input[type="email"], input[type="password"], input[type="number"], input[type="datetime-local"] {
+  input[type="text"], input[type="email"], input[type="password"], input[type="number"], input[type="datetime-local"], input[type="date"] {
     width: 100%; background: var(--surface-2); border: 1px solid var(--border); color: var(--ink);
     padding: 12px; border-radius: 10px; font-size: 1rem; font-family: inherit;
   }
   input:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+  /* Safari sizes a date field to its content and ignores width:100%,
+     so it needs a minimum width and its own appearance reset. */
+  input[type="date"] { -webkit-appearance: none; appearance: none; min-height: 46px; width: 100%; }
   button { font-family: inherit; touch-action: manipulation; transition: transform 0.15s cubic-bezier(.2,.9,.3,1.1); }
   button:active { transform: scale(0.96); }
   .btn {
