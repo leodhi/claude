@@ -2397,17 +2397,23 @@ var local = {
   results: [],
   round: null
 };
-try {
-  var savedSetup = JSON.parse(localStorage.getItem("oddoneout_setup") || "null");
-  if (savedSetup) {
-    // `level` is what earlier versions saved: a single one, or "mix".
-    if (savedSetup.levels || savedSetup.level) {
-      local.levels = toLevelList(savedSetup.levels || savedSetup.level);
+function loadLocalSetup() {
+  local.levels = DEFAULTS.levels.slice();
+  local.tiles = DEFAULTS.tiles;
+  local.rounds = DEFAULTS.rounds;
+  try {
+    var savedSetup = JSON.parse(localStorage.getItem("oddoneout_setup") || "null");
+    if (savedSetup) {
+      // `level` is what earlier versions saved: a single one, or "mix".
+      if (savedSetup.levels || savedSetup.level) {
+        local.levels = toLevelList(savedSetup.levels || savedSetup.level);
+      }
+      if (savedSetup.tiles) local.tiles = savedSetup.tiles;
+      if (savedSetup.rounds) local.rounds = clampRounds(savedSetup.rounds);
     }
-    if (savedSetup.tiles) local.tiles = savedSetup.tiles;
-    if (savedSetup.rounds) local.rounds = clampRounds(savedSetup.rounds);
-  }
-} catch (e) {}
+  } catch (e) {}
+}
+loadLocalSetup();
 function saveLocalSetup() {
   try {
     localStorage.setItem("oddoneout_setup", JSON.stringify({
@@ -2417,6 +2423,9 @@ function saveLocalSetup() {
 }
 
 $("btn-local-mode").addEventListener("click", function () {
+  // The green button runs at Easy without saving, so read the grown-up's own
+  // choice back off disk before showing it to them.
+  loadLocalSetup();
   if (!$("local-level-chips").dataset.built) {
     $("local-level-chips").dataset.built = "1";
     buildChips($("local-level-chips"), levelOptions(), function () { return local.levels; }, function (v) {
@@ -2461,6 +2470,11 @@ $("btn-play-now").addEventListener("click", function () {
   unlockAudio();                 // this tap is what lets the voice speak at all
   var saved = localLoadSave();
   if (saved) { localRestore(saved); return; }
+  // Always Easy, whatever a grown-up last played at. This is the four-year-
+  // old's button, and he shouldn't land in a Big Kids game because somebody
+  // else changed the difficulty last night. Deliberately NOT saved: the
+  // grown-up's own choice is left exactly as they left it.
+  local.levels = DEFAULTS.levels.slice();
   startLocalGame();
 });
 
