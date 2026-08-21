@@ -494,6 +494,7 @@
     <div class="card center">
       <div>It was</div>
       <div class="big-name" id="mp-reveal-name"></div>
+      <small class="hint" id="mp-reveal-duplicate-note" style="display:none"></small>
     </div>
     <div class="result-banner" id="mp-reveal-banner"></div>
     <div class="card" id="mp-reveal-score-card">
@@ -501,7 +502,7 @@
       <div class="scoreboard" id="mp-reveal-scoreboard"></div>
     </div>
     <div class="card">
-      <label>Guesses</label>
+      <label>Guesses (auto-checked — host can tap to correct any calls)</label>
       <div id="mp-reveal-list"></div>
     </div>
     <button class="primary" id="btn-mp-ready" type="button">I'm ready</button>
@@ -1764,18 +1765,45 @@ $("btn-mp-submit-guess").addEventListener("click", function () {
 });
 
 // ---------- Reveal ----------
+function normalizeSpillAnswer(s) {
+  return (s || "").toLowerCase().trim().normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9 ]/g, "").replace(/\s+/g, " ").trim();
+}
+// Every player privately answers the same set of prompts, so two people can
+// end up giving the exact same (or near enough) answer to the same prompt
+// without knowing it. Whoever's round it is, guessing any of the other
+// people who gave a matching answer should count too, not just the one
+// person whose turn in the queue this happens to be.
+function duplicateAnswerUids(room, pIdx, authorUid) {
+  var authorAnswer = normalizeSpillAnswer((room.answers && room.answers[authorUid] && room.answers[authorUid][pIdx]) || "");
+  var uids = [authorUid];
+  if (!authorAnswer) return uids;
+  Object.keys(room.players || {}).forEach(function (uid) {
+    if (uid === authorUid) return;
+    var theirs = normalizeSpillAnswer((room.answers && room.answers[uid] && room.answers[uid][pIdx]) || "");
+    if (theirs && theirs === authorAnswer) uids.push(uid);
+  });
+  return uids;
+}
 // Every client derives the same outcome from round.guesses, so nothing extra
 // needs storing — the host only writes the score deltas on "Next Round".
+// A guess counts as correct automatically if it named anyone whose answer
+// matched the revealed one, or if the host has manually overridden that
+// particular guess (for a "very similar but not identical" judgment call).
 function roundOutcome(room) {
   var item = currentQueueItem();
   var guesses = (room.round && room.round.guesses) || {};
+  var overrides = (room.round && room.round.overrides) || {};
+  var creditUids = duplicateAnswerUids(room, item.pIdx, item.uid);
   var correct = [];
   var wrong = [];
   eligibleVoterUids(item.uid).forEach(function (uid) {
     if (guesses[uid] === undefined) return;
-    if (guesses[uid] === item.uid) correct.push(uid); else wrong.push(uid);
+    var auto = creditUids.indexOf(guesses[uid]) !== -1;
+    var isCorrect = overrides[uid] !== undefined ? overrides[uid] : auto;
+    if (isCorrect) correct.push(uid); else wrong.push(uid);
   });
-  return { item: item, guesses: guesses, correct: correct, wrong: wrong, stumped: correct.length === 0 };
+  return { item: item, guesses: guesses, correct: correct, wrong: wrong, stumped: correct.length === 0, creditUids: creditUids };
 }
 
 function renderMpReveal() {
@@ -1790,6 +1818,15 @@ function renderMpReveal() {
   $("mp-reveal-name").textContent = mpPlayerName(item.uid);
   renderScoreboardInto($("mp-reveal-scoreboard"), mpScoresByName());
 
+  var otherAuthors = out.creditUids.filter(function (uid) { return uid !== item.uid; }).map(mpPlayerName);
+  var dupNote = $("mp-reveal-duplicate-note");
+  if (otherAuthors.length) {
+    dupNote.style.display = "";
+    dupNote.textContent = otherAuthors.join(" and ") + " answered this exact same way — guessing them counts too.";
+  } else {
+    dupNote.style.display = "none";
+  }
+
   var banner = $("mp-reveal-banner");
   if (out.stumped) {
     banner.className = "result-banner stumped";
@@ -1803,7 +1840,7 @@ function renderMpReveal() {
   wrap.innerHTML = "";
   eligibleVoterUids(item.uid).forEach(function (uid) {
     var guessed = out.guesses[uid];
-    var isCorrect = guessed === item.uid;
+    var isCorrect = out.correct.indexOf(uid) !== -1;
     var row = document.createElement("div");
     row.className = "guess-row" + (isCorrect ? " correct" : "");
     var left = document.createElement("div");
@@ -1812,9 +1849,11 @@ function renderMpReveal() {
     pname.textContent = mpPlayerName(uid);
     var g = document.createElement("div");
     g.className = "guessed";
+    var sameAnswerNote = (guessed && guessed !== item.uid && out.creditUids.indexOf(guessed) !== -1)
+      ? " — same answer, counts!" : "";
     g.textContent = (guessed === undefined || guessed === "")
       ? "No guess — ran out of time"
-      : ("Guessed: " + mpPlayerName(guessed));
+      : ("Guessed: " + mpPlayerName(guessed) + sameAnswerNote);
     left.appendChild(pname);
     left.appendChild(g);
     var mark = document.createElement("span");
@@ -1822,6 +1861,17 @@ function renderMpReveal() {
     mark.textContent = isCorrect ? "✓" : "✗";
     row.appendChild(left);
     row.appendChild(mark);
+    // Host can tap any row to correct a call the auto-check got wrong — e.g.
+    // a genuinely similar (but not identical) answer that wasn't caught.
+    if (mp.isHost) {
+      row.style.cursor = "pointer";
+      row.addEventListener("click", function () {
+        var currentOverrides = (mp.room.round && mp.room.round.overrides) || {};
+        var next = Object.assign({}, currentOverrides);
+        next[uid] = !isCorrect;
+        update(ref(db, "rooms/" + mp.roomCode + "/round"), { overrides: next });
+      });
+    }
     wrap.appendChild(row);
   });
 
