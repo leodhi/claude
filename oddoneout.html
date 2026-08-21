@@ -194,6 +194,27 @@
   .footer-nav { display: flex; gap: 8px; margin-top: auto; padding-top: 10px; }
   .footer-nav button { flex: 1; }
 
+  /* Number with a minus and a plus either side — the same control the other
+     games in here use for counts. The field is typable, so any number in
+     range can be set without tapping thirty times. */
+  .count-row { display: flex; align-items: stretch; gap: 8px; }
+  input.count-field {
+    flex: 1; font-size: 2rem; font-weight: 800; text-align: center; padding: 14px;
+    color: var(--accent); background: var(--panel-2); border: 1px solid var(--border);
+    border-radius: 10px; font-family: inherit; -moz-appearance: textfield;
+  }
+  input.count-field:focus { outline: 2px solid var(--accent); }
+  input.count-field::-webkit-outer-spin-button,
+  input.count-field::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+  .stepper-btn {
+    flex: none; width: 56px; background: var(--panel-2); border: 1px solid var(--border);
+    color: var(--accent); font-size: 1.8rem; font-weight: 700; border-radius: 10px;
+    cursor: pointer; line-height: 1;
+    touch-action: manipulation; transition: transform 0.15s cubic-bezier(.2,.9,.3,1.1);
+  }
+  .stepper-btn:active { transform: scale(0.94); }
+  .stepper-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
   select {
     width: 100%; background: var(--panel-2); border: 1px solid var(--border);
     color: var(--text); padding: 12px; border-radius: 10px; font-size: 1rem; font-family: inherit;
@@ -427,13 +448,18 @@
       <div class="who-row" id="lobby-players"></div>
     </div>
     <div class="card" id="lobby-settings-card">
-      <label>How hard?</label>
+      <label>How hard? Pick as many as you like</label>
       <div class="chip-group" id="lobby-level-chips"></div>
       <small class="hint" id="lobby-level-hint"></small>
       <label style="margin-top:14px">How many pictures each time?</label>
       <div class="chip-group" id="lobby-tiles-chips"></div>
       <label style="margin-top:14px">How many rounds?</label>
-      <div class="chip-group" id="lobby-rounds-chips"></div>
+      <div class="count-row">
+        <button class="stepper-btn" id="lobby-btn-rounds-down" type="button" aria-label="Fewer rounds">&minus;</button>
+        <input type="number" id="lobby-rounds-count" class="count-field" min="1" max="50" value="10">
+        <button class="stepper-btn" id="lobby-btn-rounds-up" type="button" aria-label="More rounds">+</button>
+      </div>
+      <small class="hint">Tap the number to type your own, up to 50.</small>
     </div>
     <button class="primary" id="btn-start-mp-game" type="button">Start Playing</button>
     <div class="waiting-text" id="lobby-waiting" style="display:none">Waiting for the host to start…</div>
@@ -481,7 +507,7 @@
   <!-- LOCAL SETUP -->
   <div class="screen" id="local-screen-setup">
     <div class="card">
-      <label>How hard?</label>
+      <label>How hard? Pick as many as you like</label>
       <div class="chip-group" id="local-level-chips"></div>
       <small class="hint" id="local-level-hint"></small>
     </div>
@@ -492,8 +518,12 @@
     </div>
     <div class="card">
       <label>How many rounds?</label>
-      <div class="chip-group" id="local-rounds-chips"></div>
-      <small class="hint">Ten rounds takes about three or four minutes.</small>
+      <div class="count-row">
+        <button class="stepper-btn" id="local-btn-rounds-down" type="button" aria-label="Fewer rounds">&minus;</button>
+        <input type="number" id="local-rounds-count" class="count-field" min="1" max="50" value="10">
+        <button class="stepper-btn" id="local-btn-rounds-up" type="button" aria-label="More rounds">+</button>
+      </div>
+      <small class="hint">Tap the number to type your own, up to 50. Ten takes about three or four minutes.</small>
     </div>
     <button class="primary" id="local-btn-start" type="button">Start Playing</button>
     <button class="link" id="local-btn-back-home" type="button">Back to home</button>
@@ -806,14 +836,38 @@ var AVATARS = [
 ];
 
 var LEVELS = [
-  { id: "easy",    label: "Easy",     hint: "The odd one is from a completely different world — four fruits and a cow. Best for 3s and 4s." },
-  { id: "tricky",  label: "Tricky",   hint: "Closer calls — four red things and a yellow one, or four farm animals and a lion." },
-  { id: "bigkids", label: "Big Kids", hint: "You have to know something, not just look: a spider among the insects, a dolphin among the fish, a bat among the birds. Around 7 and up." },
-  { id: "mix",     label: "Mix",      hint: "All three shuffled together — so some rounds will be far too hard for a little one." }
+  { id: "easy",    label: "Easy",     hint: "the odd one is from a completely different world — four fruits and a cow (best for 3s and 4s)" },
+  { id: "tricky",  label: "Tricky",   hint: "closer calls — four red things and a yellow one, or four farm animals and a lion" },
+  { id: "bigkids", label: "Big Kids", hint: "you have to know something, not just look — a spider among the insects, a dolphin among the fish (around 7 and up)" }
 ];
+var LEVEL_IDS = LEVELS.map(function (l) { return l.id; });
+
+// Any combination can be on at once. Older saved settings held a single level,
+// or "mix" meaning all of them, so both still have to be understood.
+function toLevelList(v) {
+  if (typeof v === "string") return v === "mix" ? LEVEL_IDS.slice() : [v];
+  var list = toArray(v).filter(function (id) { return LEVEL_IDS.indexOf(id) !== -1; });
+  return list.length ? list : [DEFAULT_LEVEL];
+}
+// Turning the last one off would leave nothing to play, so it stays on.
+function toggleLevel(levels, id) {
+  var out = toLevelList(levels).slice();
+  var at = out.indexOf(id);
+  if (at === -1) out.push(id);
+  else if (out.length > 1) out.splice(at, 1);
+  // Keep them in a settled order so the wording reads the same every time.
+  return LEVEL_IDS.filter(function (x) { return out.indexOf(x) !== -1; });
+}
 var TILE_CHOICES = [4, 5, 6];
-var ROUND_CHOICES = [5, 10, 15, 20];
-var DEFAULTS = { level: "easy", tiles: 5, rounds: 10 };
+var MIN_ROUNDS = 1;
+var MAX_ROUNDS = 50;
+var DEFAULT_LEVEL = "easy";
+var DEFAULTS = { levels: ["easy"], tiles: 5, rounds: 10 };
+function clampRounds(n) {
+  n = Math.round(Number(n));
+  if (!(n >= MIN_ROUNDS)) return DEFAULTS.rounds;
+  return Math.max(MIN_ROUNDS, Math.min(MAX_ROUNDS, n));
+}
 var REVEAL_HOLD_MS = 4200;   // long enough to look at the answer, short enough not to drift off
 
 // =========================================================================
@@ -1301,9 +1355,12 @@ function confetti(count) {
 // =========================================================================
 // Building a round
 // =========================================================================
-function puzzlesFor(level, tiles) {
+// `levels` is a list — any combination can be switched on, so Easy + Big Kids
+// with Tricky left out is just as valid as any one on its own.
+function puzzlesFor(levels, tiles) {
+  var want = toLevelList(levels);
   return PUZZLES.filter(function (p) {
-    if (level !== "mix" && p.level !== level) return false;
+    if (want.indexOf(p.level) === -1) return false;
     if (GROUPS[p.group].items.length < tiles - 1) return false;
     return p.odds.some(function (k) { return GROUPS[k] && GROUPS[k].items.length; });
   });
@@ -1311,9 +1368,9 @@ function puzzlesFor(level, tiles) {
 
 // `used` is a map of puzzle keys already played this game, so the same
 // four-fruits-and-a-cow pairing doesn't come round twice in ten rounds.
-function makeRound(level, tiles, used, n) {
-  var pool = puzzlesFor(level, tiles);
-  if (!pool.length) pool = puzzlesFor("easy", tiles);
+function makeRound(levels, tiles, used, n) {
+  var pool = puzzlesFor(levels, tiles);
+  if (!pool.length) pool = puzzlesFor(["easy"], tiles);
   var fresh = pool.filter(function (p) { return !used[p.group + ">" + p.level]; });
   var puzzle = pickRandom(fresh.length ? fresh : pool);
 
@@ -1329,7 +1386,7 @@ function makeRound(level, tiles, used, n) {
     if (!GROUPS[key]) return;
     GROUPS[key].items.forEach(function (it) { if (!taken[it[0]]) oddCandidates.push(it); });
   });
-  if (!oddCandidates.length) return makeRound("easy", tiles, {}, n);
+  if (!oddCandidates.length) return makeRound(["easy"], tiles, {}, n);
   var odd = pickRandom(oddCandidates);
 
   var all = chosen.concat([odd]);
@@ -1452,12 +1509,53 @@ function paintChips(el, value) {
     chip.classList.toggle("selected", chip.dataset.value === String(value));
   });
 }
+// Chips that toggle independently, rather than picking exactly one.
+function paintMultiChips(el, selected) {
+  var list = toLevelList(selected);
+  Array.prototype.forEach.call(el.children, function (chip) {
+    chip.classList.toggle("selected", list.indexOf(chip.dataset.value) !== -1);
+  });
+}
+
 function levelOptions() { return LEVELS.map(function (l) { return { value: l.id, label: l.label }; }); }
 function tileOptions() { return TILE_CHOICES.map(function (t) { return { value: t, label: String(t) + " pictures" }; }); }
-function roundOptions() { return ROUND_CHOICES.map(function (r) { return { value: r, label: String(r) + " rounds" }; }); }
-function levelHint(id) {
-  var found = LEVELS.filter(function (l) { return l.id === id; })[0];
-  return found ? found.hint : "";
+
+// Reads back the actual combination, so picking two says what that means
+// rather than showing one level's description and hiding the other's.
+function levelHint(levels) {
+  var list = toLevelList(levels);
+  var picked = LEVELS.filter(function (l) { return list.indexOf(l.id) !== -1; });
+  if (picked.length === 1) return picked[0].label + " — " + picked[0].hint + ".";
+  var names = picked.map(function (l) { return l.label; });
+  var joined = names.slice(0, -1).join(", ") + " and " + names[names.length - 1];
+  return joined + " mixed together — rounds are drawn from all of them, so keep "
+    + "Big Kids off for a little one.";
+}
+
+// The round counter: a number you can type into, with a minus and a plus.
+function wireRoundCounter(field, downBtn, upBtn, get, set) {
+  function apply(n) { set(clampRounds(n)); }
+  // Typing 500 gets held down to 50, so show that back straight away rather
+  // than leaving 500 on screen next to a game that will run 50.
+  function settle() {
+    var n = clampRounds($(field).value);
+    apply(n);
+    $(field).value = n;
+  }
+  $(downBtn).addEventListener("click", function () { apply(get() - 1); });
+  $(upBtn).addEventListener("click", function () { apply(get() + 1); });
+  // Only settle when they've finished, or "1" on the way to "15" would be
+  // corrected out from under them mid-keystroke.
+  $(field).addEventListener("change", settle);
+  $(field).addEventListener("blur", settle);
+}
+function paintRoundCounter(field, downBtn, upBtn, rounds, editable) {
+  var el = $(field);
+  // Don't fight someone who is part-way through typing.
+  if (document.activeElement !== el) el.value = rounds;
+  el.readOnly = !editable;
+  $(downBtn).disabled = !editable || rounds <= MIN_ROUNDS;
+  $(upBtn).disabled = !editable || rounds >= MAX_ROUNDS;
 }
 
 // ---------- Rules ----------
@@ -1639,7 +1737,7 @@ async function createRoomFlow(avatar) {
     createdAt: Date.now(),
     hostUid: uid,
     phase: "lobby",
-    settings: { level: DEFAULTS.level, tiles: DEFAULTS.tiles, rounds: DEFAULTS.rounds },
+    settings: { levels: DEFAULTS.levels.slice(), tiles: DEFAULTS.tiles, rounds: DEFAULTS.rounds },
     players: { [uid]: { avatar: avatar, joinedAt: Date.now() } },
     scores: { [uid]: 0 }
   });
@@ -1708,9 +1806,10 @@ function mpAvatar(uid) {
 function mpSettings() {
   var s = (mp.room && mp.room.settings) || {};
   return {
-    level: s.level || DEFAULTS.level,
+    // `levels` is the list; `level` is what rooms made before this stored.
+    levels: toLevelList(s.levels !== undefined ? s.levels : s.level),
     tiles: s.tiles || DEFAULTS.tiles,
-    rounds: s.rounds || DEFAULTS.rounds
+    rounds: clampRounds(s.rounds || DEFAULTS.rounds)
   };
 }
 function mpRound() {
@@ -1743,20 +1842,24 @@ function renderLobby() {
   var settingsCard = $("lobby-settings-card");
   if (!settingsCard.dataset.built) {
     settingsCard.dataset.built = "1";
-    buildChips($("lobby-level-chips"), levelOptions(), function () { return mpSettings().level; }, function (v) {
-      if (mp.isHost) update(ref(db, "rooms/" + mp.roomCode + "/settings"), { level: v });
+    buildChips($("lobby-level-chips"), levelOptions(), function () { return mpSettings().levels; }, function (v) {
+      if (mp.isHost) {
+        update(ref(db, "rooms/" + mp.roomCode + "/settings"), { levels: toggleLevel(mpSettings().levels, v) });
+      }
     });
     buildChips($("lobby-tiles-chips"), tileOptions(), function () { return mpSettings().tiles; }, function (v) {
       if (mp.isHost) update(ref(db, "rooms/" + mp.roomCode + "/settings"), { tiles: v });
     });
-    buildChips($("lobby-rounds-chips"), roundOptions(), function () { return mpSettings().rounds; }, function (v) {
-      if (mp.isHost) update(ref(db, "rooms/" + mp.roomCode + "/settings"), { rounds: v });
-    });
+    wireRoundCounter("lobby-rounds-count", "lobby-btn-rounds-down", "lobby-btn-rounds-up",
+      function () { return mpSettings().rounds; },
+      function (n) {
+        if (mp.isHost) update(ref(db, "rooms/" + mp.roomCode + "/settings"), { rounds: n });
+      });
   }
-  paintChips($("lobby-level-chips"), s.level);
+  paintMultiChips($("lobby-level-chips"), s.levels);
   paintChips($("lobby-tiles-chips"), s.tiles);
-  paintChips($("lobby-rounds-chips"), s.rounds);
-  $("lobby-level-hint").textContent = levelHint(s.level);
+  paintRoundCounter("lobby-rounds-count", "lobby-btn-rounds-down", "lobby-btn-rounds-up", s.rounds, mp.isHost);
+  $("lobby-level-hint").textContent = levelHint(s.levels);
 
   $("btn-start-mp-game").style.display = mp.isHost ? "" : "none";
   $("lobby-waiting").style.display = mp.isHost ? "none" : "";
@@ -1805,7 +1908,7 @@ $("btn-start-mp-game").addEventListener("click", function () {
     used: {},
     history: {},
     answers: null,
-    round: makeRound(s.level, s.tiles, {}, 1)
+    round: makeRound(s.levels, s.tiles, {}, 1)
   });
 });
 
@@ -1959,7 +2062,7 @@ function hostNextRound() {
     phase: "round",
     used: used,
     answers: null,
-    round: makeRound(s.level, s.tiles, used, round.n + 1)
+    round: makeRound(s.levels, s.tiles, used, round.n + 1)
   });
 }
 
@@ -2101,7 +2204,7 @@ function floatReaction(emoji, who) {
 // and finding it together, with one shared pile of stars.
 // =========================================================================
 var local = {
-  level: DEFAULTS.level,
+  levels: DEFAULTS.levels.slice(),
   tiles: DEFAULTS.tiles,
   rounds: DEFAULTS.rounds,
   n: 0,
@@ -2112,35 +2215,47 @@ var local = {
 try {
   var savedSetup = JSON.parse(localStorage.getItem("oddoneout_setup") || "null");
   if (savedSetup) {
-    if (savedSetup.level) local.level = savedSetup.level;
+    // `level` is what earlier versions saved: a single one, or "mix".
+    if (savedSetup.levels || savedSetup.level) {
+      local.levels = toLevelList(savedSetup.levels || savedSetup.level);
+    }
     if (savedSetup.tiles) local.tiles = savedSetup.tiles;
-    if (savedSetup.rounds) local.rounds = savedSetup.rounds;
+    if (savedSetup.rounds) local.rounds = clampRounds(savedSetup.rounds);
   }
 } catch (e) {}
 function saveLocalSetup() {
   try {
     localStorage.setItem("oddoneout_setup", JSON.stringify({
-      level: local.level, tiles: local.tiles, rounds: local.rounds
+      levels: local.levels, tiles: local.tiles, rounds: local.rounds
     }));
   } catch (e) {}
 }
 
 $("btn-local-mode").addEventListener("click", function () {
-  buildChips($("local-level-chips"), levelOptions(), function () { return local.level; }, function (v) {
-    local.level = v;
-    paintChips($("local-level-chips"), v);
-    $("local-level-hint").textContent = levelHint(v);
-    saveLocalSetup();
-  });
-  buildChips($("local-tiles-chips"), tileOptions(), function () { return local.tiles; }, function (v) {
-    local.tiles = v; paintChips($("local-tiles-chips"), v); saveLocalSetup();
-  });
-  buildChips($("local-rounds-chips"), roundOptions(), function () { return local.rounds; }, function (v) {
-    local.rounds = v; paintChips($("local-rounds-chips"), v); saveLocalSetup();
-  });
-  $("local-level-hint").textContent = levelHint(local.level);
+  if (!$("local-level-chips").dataset.built) {
+    $("local-level-chips").dataset.built = "1";
+    buildChips($("local-level-chips"), levelOptions(), function () { return local.levels; }, function (v) {
+      local.levels = toggleLevel(local.levels, v);
+      paintLocalSetup();
+      saveLocalSetup();
+    });
+    buildChips($("local-tiles-chips"), tileOptions(), function () { return local.tiles; }, function (v) {
+      local.tiles = v; paintLocalSetup(); saveLocalSetup();
+    });
+    wireRoundCounter("local-rounds-count", "local-btn-rounds-down", "local-btn-rounds-up",
+      function () { return local.rounds; },
+      function (n) { local.rounds = n; paintLocalSetup(); saveLocalSetup(); });
+  }
+  paintLocalSetup();
   showScreen("local-screen-setup");
 });
+
+function paintLocalSetup() {
+  paintMultiChips($("local-level-chips"), local.levels);
+  paintChips($("local-tiles-chips"), local.tiles);
+  paintRoundCounter("local-rounds-count", "local-btn-rounds-down", "local-btn-rounds-up", local.rounds, true);
+  $("local-level-hint").textContent = levelHint(local.levels);
+}
 
 $("local-btn-back-home").addEventListener("click", function () { showScreen("screen-home"); });
 
@@ -2153,7 +2268,7 @@ $("local-btn-start").addEventListener("click", function () {
 
 function localNextRound() {
   local.n++;
-  local.round = makeRound(local.level, local.tiles, local.used, local.n);
+  local.round = makeRound(local.levels, local.tiles, local.used, local.n);
   local.used[local.round.key] = true;
   $("local-reveal-card").style.display = "none";
   $("local-btn-next").disabled = true;
