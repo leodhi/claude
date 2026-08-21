@@ -675,6 +675,63 @@ var GROUPS = {
   orange: { one: "orange", many: "orange", items: [
     ["🍊","orange"],["🥕","carrot"],["🎃","pumpkin"],["🦊","fox"],
     ["🏀","basketball"],["🧡","orange heart"]
+  ]},
+
+  // ---- For older children: the ones that catch people out ----
+  // A spider isn't an insect, a dolphin isn't a fish, a bat isn't a bird.
+  // These need a fact rather than a glance, so the sets have to be exactly
+  // right — a single misfiled animal turns the puzzle into a trick question.
+  mammal: { one: "a mammal", many: "mammals", items: [
+    ["🐘","elephant"],["🦁","lion"],["🐻","bear"],["🐴","horse"],["🐄","cow"],
+    ["🐨","koala"],["🐒","monkey"],["🦒","giraffe"],["🐭","mouse"],["🐰","rabbit"],
+    ["🦇","bat"],["🐬","dolphin"]
+  ]},
+  notMammal: { one: "not a mammal", many: "not mammals", items: [
+    ["🐊","crocodile"],["🐢","turtle"],["🐸","frog"],["🐍","snake"],["🐦","bird"],
+    ["🐟","fish"],["🦋","butterfly"],["🐝","bee"],["🐧","penguin"]
+  ]},
+  insect: { one: "an insect", many: "insects", items: [
+    ["🐝","bee"],["🐜","ant"],["🦋","butterfly"],["🐞","ladybug"],
+    ["🦗","grasshopper"],["🪲","beetle"],["🦟","mosquito"],["🐛","caterpillar"]
+  ]},
+  notInsect: { one: "not an insect", many: "not insects", items: [
+    ["🕷️","spider"],["🦂","scorpion"],["🐌","snail"],["🪱","worm"],
+    ["🦀","crab"],["🦞","lobster"]
+  ]},
+  fish: { one: "a fish", many: "fish", items: [
+    ["🐟","fish"],["🐠","tropical fish"],["🐡","pufferfish"],["🦈","shark"]
+  ]},
+  seaMammal: { one: "a sea mammal", many: "sea mammals", items: [
+    ["🐬","dolphin"],["🐳","whale"],["🦭","seal"],["🦦","otter"]
+  ]},
+  reptile: { one: "a reptile", many: "reptiles", items: [
+    ["🐊","crocodile"],["🐢","turtle"],["🐍","snake"],["🦎","lizard"],["🦖","dinosaur"]
+  ]},
+  manMade: { one: "made by people", many: "made by people", items: [
+    ["🚗","car"],["🏠","house"],["📱","phone"],["✏️","pencil"],["🪑","chair"],
+    ["⌚","watch"],["🔨","hammer"],["🚲","bicycle"],["📕","book"],["👕","t-shirt"]
+  ]},
+  natural: { one: "found in nature", many: "found in nature", items: [
+    ["🌳","tree"],["⛰️","mountain"],["🌊","wave"],["☁️","cloud"],["🌸","cherry blossom"],
+    ["🍂","fallen leaf"],["🪨","rock"],["⭐","star"],["🌙","moon"]
+  ]},
+  electric: { one: "something that needs electricity", many: "things that need electricity", items: [
+    ["💡","light bulb"],["📱","phone"],["💻","laptop"],["📺","television"],
+    ["🔌","plug"],["🎮","game controller"],["🔦","flashlight"],["📻","radio"]
+  ]},
+  notElectric: { one: "something that needs electricity", many: "things that need electricity", items: [
+    ["✏️","pencil"],["🪑","chair"],["📕","book"],["🔨","hammer"],
+    ["⚽","soccer ball"],["🧦","socks"],["🥄","spoon"]
+  ]},
+  flyingNotBird: { one: "a bird", many: "birds", items: [
+    ["🦇","bat"],["🦋","butterfly"],["🐝","bee"],["✈️","airplane"],["🚁","helicopter"]
+  ]},
+  africa: { one: "from Africa", many: "from Africa", items: [
+    ["🦁","lion"],["🦒","giraffe"],["🦓","zebra"],["🐘","elephant"],["🦏","rhino"],["🦛","hippo"]
+  ]},
+  notAfrica: { one: "from Africa", many: "from Africa", items: [
+    ["🦘","kangaroo"],["🐨","koala"],["🐧","penguin"],["🐻‍❄️","polar bear"],
+    ["🦌","deer"],["🐼","panda"]
   ]}
 };
 
@@ -725,7 +782,18 @@ var PUZZLES = [
   { level: "tricky", group: "bug",    odds: ["bird"] },
   { level: "tricky", group: "eat",    odds: ["tool","clothes","toy","home"] },
   { level: "tricky", group: "hot",    odds: ["cold"] },
-  { level: "tricky", group: "cold",   odds: ["hot"] }
+  { level: "tricky", group: "cold",   odds: ["hot"] },
+
+  // ---- Big kids: you have to know something, not just look ----
+  { level: "bigkids", group: "mammal",   odds: ["notMammal"] },
+  { level: "bigkids", group: "insect",   odds: ["notInsect"] },
+  { level: "bigkids", group: "fish",     odds: ["seaMammal"] },
+  { level: "bigkids", group: "reptile",  odds: ["mammal","insect","bird"] },
+  { level: "bigkids", group: "bird",     odds: ["flyingNotBird"] },
+  { level: "bigkids", group: "manMade",  odds: ["natural"] },
+  { level: "bigkids", group: "natural",  odds: ["manMade"] },
+  { level: "bigkids", group: "electric", odds: ["notElectric"] },
+  { level: "bigkids", group: "africa",   odds: ["notAfrica"] }
 ];
 
 // Characters stand in for names, so nobody has to type or read one. None of
@@ -738,9 +806,10 @@ var AVATARS = [
 ];
 
 var LEVELS = [
-  { id: "easy",   label: "Easy",   hint: "The odd one is from a completely different world — four fruits and a cow. Best for 3s and 4s." },
-  { id: "tricky", label: "Tricky", hint: "Closer calls — four red things and a yellow one, or four farm animals and a lion." },
-  { id: "mix",    label: "Mix",    hint: "A bit of both, shuffled together." }
+  { id: "easy",    label: "Easy",     hint: "The odd one is from a completely different world — four fruits and a cow. Best for 3s and 4s." },
+  { id: "tricky",  label: "Tricky",   hint: "Closer calls — four red things and a yellow one, or four farm animals and a lion." },
+  { id: "bigkids", label: "Big Kids", hint: "You have to know something, not just look: a spider among the insects, a dolphin among the fish, a bat among the birds. Around 7 and up." },
+  { id: "mix",     label: "Mix",      hint: "All three shuffled together — so some rounds will be far too hard for a little one." }
 ];
 var TILE_CHOICES = [4, 5, 6];
 var ROUND_CHOICES = [5, 10, 15, 20];
