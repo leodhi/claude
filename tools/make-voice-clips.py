@@ -198,6 +198,9 @@ async def main():
                     help="re-record clips that already exist")
     ap.add_argument("--from", dest="source", default=None,
                     help="a folder of clips from an earlier run, to reuse")
+    ap.add_argument("--brief", action="store_true",
+                    help="skip the closing instructions; something else is "
+                         "driving this and will give them instead")
     ap.add_argument("--offline", action="store_true",
                     help="don't record anything; build the file from whatever "
                          "clips are already on disk, even if some are missing")
@@ -273,10 +276,11 @@ async def main():
     size = os.path.getsize(AUDIO_OUT) / 1024.0 / 1024.0
     print("\n  Done. %d words, %.1f minutes, %.1f MB."
           % (len(wanted), frames * per_frame / 60.0, size))
-    print("\n  Two files are ready in this folder:")
-    print("      oddoneout-voice.mp3")
-    print("      oddoneout-voice.json")
-    print("\n  Drag both into GitHub together and the game will use them.\n")
+    if not args.brief:
+        print("\n  Two files are ready in this folder:")
+        print("      oddoneout-voice.mp3")
+        print("      oddoneout-voice.json")
+        print("\n  Drag both into GitHub together and the game will use them.\n")
 
 
 if __name__ == "__main__":
