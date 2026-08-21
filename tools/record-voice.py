@@ -23,6 +23,13 @@ It does the following, printing where it has got to as it goes:
 
 Then drag those two files into GitHub and the game uses them.
 
+To hear a few different voices first, instead of recording everything in one
+you might not like, add --voices to the end of that line:
+
+    curl -fsSL <the same address> | python3 - --voices
+
+That drops a folder on your Desktop with the same sentence read by each voice.
+
 Running it a second time is safe and quick: words already recorded are kept.
 When you're finished you can drag the "Odd One Out voice" folder to the Trash;
 nothing outside it was touched.
@@ -128,6 +135,24 @@ def main():
         if r.returncode != 0:
             stop("Couldn't install the voice software.\n\n" + (r.stderr or r.stdout).strip())
     print("       ready")
+
+    # Hearing a few voices first, rather than recording everything in one you
+    # might not like. Nobody can pick a voice from its name.
+    if "--voices" in args:
+        args.remove("--voices")
+        out = os.path.join(DESKTOP, "Odd One Out voices")
+        step(3, "Recording the same line in a few voices to compare…")
+        r = subprocess.run([py, os.path.join(WORK, "tools", "make-voice-clips.py"),
+                            "--sample", out] + args)
+        if r.returncode != 0:
+            stop("Couldn't record the samples — see the message just above.")
+        print("\n  " + "-" * 34)
+        print("  Done. There's a folder on your Desktop called")
+        print("  \"Odd One Out voices\" with one clip per voice.")
+        print("\n  Play each one, then tell Claude which number you liked.\n")
+        if sys.platform == "darwin":
+            subprocess.run(["open", out], check=False)
+        return
 
     step(3, "Recording the words. This is the slow part — leave it running.")
     r = subprocess.run([py, os.path.join(WORK, "tools", "make-voice-clips.py"),
