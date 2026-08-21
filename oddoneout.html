@@ -1098,6 +1098,10 @@ var CLIP_AUDIO = "oddoneout-voice.mp3";
 var CLIP_INDEX = "oddoneout-voice.json";
 var CLIPS = null;          // line of speech -> [start frame, how many frames]
 var CLIP_FRAME = 0.024;    // seconds per frame; the index states the real value
+// Stretching a recording to change its pace is the one thing that can make it
+// sound artificial, so the pace it was recorded at IS the default setting:
+// leave the speed control alone and the audio plays exactly as recorded,
+// untouched. Only moving it off the default stretches anything.
 var clipAudio = null;      // one element, reused: iOS only unlocks the one
 var clipWatch = null;      // the ticker watching for the end of a word
 var clipGuard = null;
@@ -1125,6 +1129,12 @@ var RECORDED = "__recorded__";
 function useRecordings() {
   if (!haveClips()) return false;
   return voicePref === RECORDED || !voicePref || !currentVoice();
+}
+
+// How fast to play a recording so that the speed control means the same thing
+// whether it's a recording or the device talking.
+function clipRate() {
+  return Math.max(0.5, Math.min(2, speechRate / DEFAULT_RATE));
 }
 
 // Everything playing a word sets going, stopped in one place. A word lives in
@@ -1166,6 +1176,11 @@ function playClip(text, onDone, onFailed) {
     function begin() {
       if (mine !== clipTurn) return;
       try { a.currentTime = from; } catch (e) { finish(false); return; }
+      a.playbackRate = clipRate();
+      // Slowing a recording down must not drop the voice into a growl.
+      a.preservesPitch = true;
+      a.webkitPreservesPitch = true;
+      a.mozPreservesPitch = true;
       var p = a.play();
       if (p && p.catch) p.catch(function () { finish(false); });
       // Watch the clock rather than trusting a timer started before playback
@@ -1178,7 +1193,7 @@ function playClip(text, onDone, onFailed) {
       }, 25);
       // And if the clock never moves at all, don't leave the game waiting.
       clipGuard = setTimeout(function () { finish(true); },
-                             (until - from) * 1000 + 4000);
+                             (until - from) * 1000 / clipRate() + 4000);
       speechAlive = true;           // a recording playing counts as sound working
     }
 
@@ -1321,6 +1336,14 @@ var RATE_CHOICES = [
 ];
 var ON_OFF = [{ value: "on", label: "On" }, { value: "off", label: "Off" }];
 
+// What the three preview buttons say. Every line here has to be one the game
+// itself says, or the preview falls back to the device's voice and demos the
+// wrong thing entirely — which is exactly what it used to do, so the recorded
+// voice could never be heard before starting a game.
+var DEMO_FULL = [ASK_BRIEFLY, "apple", "banana", "grapes", "cow"];
+var DEMO_SHORT = [ASK_BRIEFLY, "apple", "cow"];
+var DEMO_SPEED = ["apple", "banana", "cow"];
+
 function paintVoiceOptions() {
   var sel = $("voice-select");
   var chosen = currentVoice();
@@ -1400,19 +1423,19 @@ buildChips($("rate-chips"), RATE_CHOICES, function () { return speechRate; }, fu
   speechRate = v;
   saveSoundPrefs();
   paintSoundUI();
-  say("An apple, a banana, and a cow.");
+  sayLines(DEMO_SPEED);
 });
 $("voice-select").addEventListener("change", function () {
   voicePref = this.value;
   saveSoundPrefs();
   // Repaint: the note underneath describes whichever is now chosen.
   paintVoiceOptions();
-  say("Hello! Which one does not belong?");
+  sayLines(DEMO_SHORT);
 });
 $("btn-try-voice").addEventListener("click", function () {
   if (!soundOn) { soundOn = true; saveSoundPrefs(); paintSoundUI(); }
   unlockAudio();
-  say("Which one does not belong? Apple. Banana. Grapes. Cow!");
+  sayLines(DEMO_FULL);
 });
 
 loadVoices();

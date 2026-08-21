@@ -65,6 +65,22 @@ DEFAULT_VOICE = "en-US-JennyNeural"
 # Slower than conversational, to match how the game paces itself for a child.
 DEFAULT_RATE = "-15%"
 
+# A handful worth hearing before committing to one. Microsoft's newer voices
+# (the "Multilingual" ones) are a generation on from Jenny and sound markedly
+# less synthetic; Ana is a child's voice, which suits a game for a small child.
+# Nobody can pick a voice from a name, so --sample records the same line in all
+# of them and you listen.
+SAMPLE_VOICES = [
+    ("Ava", "en-US-AvaMultilingualNeural"),
+    ("Emma", "en-US-EmmaMultilingualNeural"),
+    ("Andrew (male)", "en-US-AndrewMultilingualNeural"),
+    ("Ana (a child)", "en-US-AnaNeural"),
+    ("Aria", "en-US-AriaNeural"),
+    ("Jenny (the one in use now)", "en-US-JennyNeural"),
+]
+SAMPLE_LINE = ("Which one is different? Apple. Banana. Grapes. Cow. "
+               "The others are all fruit. Yes! Well done!")
+
 # Silence dropped in front of every word. The game starts playing a couple of
 # frames early, inside this gap, so that seeking cannot shave the start off a
 # word — landing in silence is free, landing late loses the first sound.
@@ -137,6 +153,36 @@ def slug(text):
     return s + "-" + hashlib.sha1(text.encode("utf-8")).hexdigest()[:8]
 
 
+async def sample(out_dir, rate):
+    """Record the same line in each candidate voice, so they can be compared.
+
+    A voice that the service won't give us is skipped rather than stopping the
+    lot — the point is to end up with something to listen to.
+    """
+    import edge_tts
+    os.makedirs(out_dir, exist_ok=True)
+    made = []
+    for i, (label, voice) in enumerate(SAMPLE_VOICES, 1):
+        name = "%d - %s.mp3" % (i, label)
+        path = os.path.join(out_dir, name)
+        try:
+            await edge_tts.Communicate(SAMPLE_LINE, voice, rate=rate).save(path)
+        except Exception as e:
+            if os.path.exists(path):
+                os.remove(path)
+            print("    %-28s couldn't be used (%s)" % (label, str(e)[:60]))
+            continue
+        made.append((label, voice, name))
+        print("    %-28s %s" % (label, name))
+    if not made:
+        die("None of the voices could be recorded. Check the internet connection.")
+    with open(os.path.join(out_dir, "which is which.txt"), "w", encoding="utf-8") as f:
+        f.write("Listen to each one, then tell Claude which number you liked.\n\n")
+        for label, voice, name in made:
+            f.write("%-34s %s\n" % (name, voice))
+    return made
+
+
 async def list_voices():
     import edge_tts
     voices = await edge_tts.list_voices()
@@ -194,6 +240,10 @@ async def main():
     ap.add_argument("--voice", default=DEFAULT_VOICE)
     ap.add_argument("--rate", default=DEFAULT_RATE)
     ap.add_argument("--list-voices", action="store_true")
+    ap.add_argument("--sample", nargs="?", const="", default=None,
+                    metavar="FOLDER",
+                    help="record one line in several voices so you can hear "
+                         "them and pick, instead of recording everything")
     ap.add_argument("--force", action="store_true",
                     help="re-record clips that already exist")
     ap.add_argument("--from", dest="source", default=None,
@@ -208,6 +258,17 @@ async def main():
 
     if args.list_voices:
         await list_voices()
+        return
+
+    if args.sample is not None:
+        try:
+            import edge_tts  # noqa: F401
+        except ImportError:
+            die("edge-tts isn't installed yet. Run:  pip3 install edge-tts")
+        out = args.sample or os.path.join(REPO, "voice-samples")
+        print("\n  Recording the same line in %d voices…\n" % len(SAMPLE_VOICES))
+        await sample(out, args.rate)
+        print("\n  Done. Listen to each and see which you like best.\n")
         return
 
     wanted = read_game()
