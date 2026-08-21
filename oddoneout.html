@@ -124,6 +124,12 @@
     border-color: var(--good); background: #eafff6; opacity: 1;
     animation: tile-pop 0.5s cubic-bezier(.2,.9,.3,1.4) forwards;
   }
+  /* Lit up while its name is being read out, so a child who can't read still
+     learns which word belongs to which picture. */
+  .tile.speaking {
+    border-color: var(--accent); transform: scale(1.06);
+    box-shadow: 0 0 0 5px rgba(255,210,51,0.35);
+  }
   .tile.wrong { opacity: 0.28; animation: tile-shake 0.4s ease; }
   .tile.wrong:active { transform: none; }
   .tile.dim { opacity: 0.3; }
@@ -187,6 +193,22 @@
 
   .footer-nav { display: flex; gap: 8px; margin-top: auto; padding-top: 10px; }
   .footer-nav button { flex: 1; }
+
+  select {
+    width: 100%; background: var(--panel-2); border: 1px solid var(--border);
+    color: var(--text); padding: 12px; border-radius: 10px; font-size: 1rem; font-family: inherit;
+  }
+  select:focus { outline: 2px solid var(--accent); }
+  /* "Read them to me again" — a picture, so it needs no label. */
+  .replay-row { display: flex; justify-content: center; }
+  .mini-btn {
+    width: 52px; height: 52px; border-radius: 50%;
+    background: var(--panel-2); border: 1px solid var(--border); color: var(--text);
+    font-size: 1.3rem; line-height: 1; cursor: pointer; padding: 0;
+    display: flex; align-items: center; justify-content: center;
+    touch-action: manipulation; transition: transform 0.15s cubic-bezier(.2,.9,.3,1.1);
+  }
+  .mini-btn:active { transform: scale(0.9); }
 
   /* ---- The one control a 4-year-old needs: a big green arrow ---- */
   .go-btn {
@@ -349,6 +371,23 @@
       <button class="secondary" id="btn-join-room" type="button">Join Room</button>
     </div>
     <div class="center status-line" id="home-status"></div>
+
+    <div class="card" id="sound-card">
+      <label>Sound and talking</label>
+      <div class="chip-group" id="sound-chips"></div>
+      <small class="hint">Worth having on for a young child — there's a chime when they get it right, and a voice that says what happened.</small>
+      <div id="voice-settings">
+        <label style="margin-top:16px">Read the pictures out first</label>
+        <div class="chip-group" id="readout-chips"></div>
+        <small class="hint">Before they choose, each picture lights up in turn and is named out loud — "apple… banana… grapes… cow."</small>
+        <label style="margin-top:16px">Voice</label>
+        <select id="voice-select"></select>
+        <label style="margin-top:16px">Speaking speed</label>
+        <div class="chip-group" id="rate-chips"></div>
+        <button class="secondary" id="btn-try-voice" type="button" style="margin-top:12px">Try this voice</button>
+        <small class="hint" id="voice-hint"></small>
+      </div>
+    </div>
   </div>
 
   <!-- JOIN CODE (a grown-up types this once; the shared link skips it) -->
@@ -405,6 +444,7 @@
   <div class="screen" id="screen-mp-round">
     <div class="dots" id="mp-dots"></div>
     <div class="board" id="mp-board"></div>
+    <div class="replay-row"><button class="mini-btn" id="mp-btn-replay" type="button" aria-label="Read the pictures out again">🔁</button></div>
     <div class="who-row" id="mp-who"></div>
     <div class="footer-nav" id="mp-round-host-nav" style="display:none">
       <button class="secondary" id="btn-mp-skip" type="button">Skip this one</button>
@@ -462,6 +502,7 @@
   <div class="screen" id="local-screen-round">
     <div class="dots" id="local-dots"></div>
     <div class="board" id="local-board"></div>
+    <div class="replay-row"><button class="mini-btn" id="local-btn-replay" type="button" aria-label="Read the pictures out again">🔁</button></div>
     <div class="card center" id="local-reveal-card" style="display:none">
       <div class="reason" id="local-reason"></div>
     </div>
@@ -738,6 +779,8 @@ function showScreen(id) {
   var hideHomeOn = { "screen-home": true, "screen-join-code": true, "screen-avatar": true };
   $("home-toggle").style.display = hideHomeOn[id] ? "none" : "flex";
   $("app").classList.toggle("playing", !!PLAY_SCREENS[id]);
+  // Leaving the board mid-sentence shouldn't leave the voice talking to itself.
+  if (!PLAY_SCREENS[id]) stopSpeaking();
   updateReactionBar(id);
 }
 
@@ -746,20 +789,33 @@ function showScreen(id) {
 // them they were right before they've worked out what the screen is doing, and
 // the voice explains the answer without a word of reading.
 var soundOn = false;
-try { soundOn = localStorage.getItem("oddoneout_sound") === "on"; } catch (e) {}
+var readOutLoud = true;
+var voicePref = "";
+var speechRate = 0.95;
+try {
+  soundOn = localStorage.getItem("oddoneout_sound") === "on";
+  readOutLoud = localStorage.getItem("oddoneout_readout") !== "off";
+  voicePref = localStorage.getItem("oddoneout_voice") || "";
+  var savedRate = parseFloat(localStorage.getItem("oddoneout_rate"));
+  if (savedRate > 0) speechRate = savedRate;
+} catch (e) {}
 var audioCtx = null;
 
-function paintSoundButton() {
-  $("sound-toggle").textContent = soundOn ? "🔊" : "🔇";
+function saveSoundPrefs() {
+  try {
+    localStorage.setItem("oddoneout_sound", soundOn ? "on" : "off");
+    localStorage.setItem("oddoneout_readout", readOutLoud ? "on" : "off");
+    localStorage.setItem("oddoneout_voice", voicePref);
+    localStorage.setItem("oddoneout_rate", String(speechRate));
+  } catch (e) {}
 }
-paintSoundButton();
 
 $("sound-toggle").addEventListener("click", function () {
   soundOn = !soundOn;
-  try { localStorage.setItem("oddoneout_sound", soundOn ? "on" : "off"); } catch (e) {}
-  paintSoundButton();
+  saveSoundPrefs();
+  paintSoundUI();
   if (soundOn) { unlockAudio(); beep([660, 880], 0.16); }
-  else if (window.speechSynthesis) window.speechSynthesis.cancel();
+  else stopSpeaking();
 });
 
 // Mobile browsers only let sound start from a real tap, so the first tap
@@ -796,16 +852,227 @@ function soundRight() { beep([523, 659, 784, 1047], 0.11); }
 function soundWrong() { beep([220, 175], 0.1); }
 function soundFinish() { beep([523, 659, 784, 1047, 1319], 0.13); }
 
-function say(text) {
-  if (!soundOn || !window.speechSynthesis) return;
-  try {
-    window.speechSynthesis.cancel();
-    var u = new SpeechSynthesisUtterance(text);
-    u.rate = 0.92;
-    u.pitch = 1.15;
-    window.speechSynthesis.speak(u);
-  } catch (e) {}
+// ---------- Choosing a voice ----------
+// Which voices exist is entirely up to the device, and the built-in default is
+// often the worst one available, so pick the best on offer rather than taking
+// whatever turns up. Pitch is left at 1: nudging it up is what makes a
+// synthesised voice sound like a cartoon.
+var voices = [];
+// Apple ships a pile of joke voices (Bubbles, Zarvox, Deranged…) that are
+// genuinely unusable, and "compact" is the low-quality version of a real voice.
+var SILLY_VOICE = /(compact|eloquence|novelty|whisper|zarvox|bells|bahh|albert|jester|organ|trinoids|bubbles|boing|good news|bad news|wobble|superstar|junior|ralph|fred|kathy|bruce|agnes|victoria|princess|deranged|hysterical|cellos|bad|grandma|grandpa|rocko|shelley|sandy|flo|eddy|reed)/i;
+var GOOD_VOICE = /(enhanced|premium|neural|natural|siri)/i;
+
+function synth() { return window.speechSynthesis || null; }
+
+function voiceScore(v) {
+  var name = v.name || "";
+  var score = 0;
+  if (SILLY_VOICE.test(name)) score -= 500;
+  if (GOOD_VOICE.test(name)) score += 100;
+  // The picture names are written in British English (lorry, biscuit,
+  // aubergine), so a British voice reads them the way they're meant.
+  if (/en[-_]GB/i.test(v.lang || "")) score += 40;
+  if (v.localService) score += 20;
+  if (v.default) score += 5;
+  return score;
 }
+
+function loadVoices() {
+  var s = synth();
+  if (s && s.getVoices) {
+    var all = s.getVoices() || [];
+    var english = all.filter(function (v) { return /^en/i.test(v.lang || ""); });
+    voices = (english.length ? english : all).slice().sort(function (a, b) {
+      return voiceScore(b) - voiceScore(a);
+    });
+  }
+  paintVoiceOptions();
+}
+
+function currentVoice() {
+  if (!voices.length) return null;
+  for (var i = 0; i < voices.length; i++) {
+    if (voices[i].voiceURI === voicePref || voices[i].name === voicePref) return voices[i];
+  }
+  return voices[0];   // already sorted best-first
+}
+
+function makeUtterance(text) {
+  var u = new SpeechSynthesisUtterance(text);
+  var v = currentVoice();
+  if (v) { u.voice = v; u.lang = v.lang; }
+  u.rate = speechRate;
+  u.pitch = 1;
+  u.volume = 1;
+  return u;
+}
+
+function say(text) {
+  if (!soundOn) return;
+  var s = synth();
+  if (!s) return;
+  stopSpeaking();
+  try { s.speak(makeUtterance(text)); } catch (e) {}
+}
+
+// ---------- Reading the pictures out, one at a time ----------
+// Each picture lights up as it's named. A token guards the chain so a tap (or
+// the next round) stops it dead rather than leaving a tile stuck lit.
+var tour = { token: 0, wrap: null };
+// Set the first time the speech engine actually responds. Some devices accept
+// utterances and then do nothing at all.
+var speechAlive = false;
+
+function clearHighlights() {
+  if (!tour.wrap) return;
+  Array.prototype.forEach.call(tour.wrap.children, function (b) { b.classList.remove("speaking"); });
+  tour.wrap = null;
+}
+
+function stopSpeaking() {
+  tour.token++;
+  clearHighlights();
+  var s = synth();
+  if (s) { try { s.cancel(); } catch (e) {} }
+}
+
+function speakTour(wrap, round, intro) {
+  stopSpeaking();
+  if (!soundOn || !readOutLoud) return;
+  var s = synth();
+  if (!s) return;
+  var token = tour.token;
+  tour.wrap = wrap;
+
+  var queue = round.tiles.map(function (t, i) { return { text: t.n, i: i }; });
+  if (intro) queue.unshift({ text: "Which one does not belong?", i: -1 });
+
+  function step(k) {
+    if (token !== tour.token) return;
+    if (k >= queue.length) { if (token === tour.token) clearHighlights(); return; }
+    var item = queue[k];
+    var btn = item.i >= 0 ? wrap.children[item.i] : null;
+    var moved = false;
+    function next() {
+      if (moved) return;
+      moved = true;
+      clearTimeout(guard);
+      if (btn) btn.classList.remove("speaking");
+      if (token !== tour.token) return;
+      setTimeout(function () { step(k + 1); }, 150);
+    }
+    var u = makeUtterance(item.text);
+    function answered() { speechAlive = true; next(); }
+    u.onstart = function () { speechAlive = true; };
+    u.onend = answered;
+    u.onerror = answered;
+    // Safari sometimes never fires onend, which would leave the tour stalled
+    // and a tile lit up for good.
+    var guard = setTimeout(function () {
+      // If the engine has never once answered, speech isn't working on this
+      // device. Crawling through the list lighting tiles up in silence is
+      // worse than not reading them at all, so give up rather than limp on.
+      if (!speechAlive) { stopSpeaking(); return; }
+      next();
+    }, 1400 + item.text.length * 95);
+    if (btn) btn.classList.add("speaking");
+    try { s.speak(u); } catch (e) { next(); }
+  }
+  step(0);
+}
+
+// The board and the round currently being read, so the replay button knows
+// what to say again.
+var lastTour = { wrap: null, round: null };
+function replayTour() {
+  if (!lastTour.wrap || !lastTour.round) return;
+  if (!soundOn) {
+    soundOn = true;
+    saveSoundPrefs();
+    paintSoundUI();
+  }
+  unlockAudio();
+  speakTour(lastTour.wrap, lastTour.round, false);
+}
+$("local-btn-replay").addEventListener("click", replayTour);
+$("mp-btn-replay").addEventListener("click", replayTour);
+
+// ---------- The sound and voice controls on the home screen ----------
+var RATE_CHOICES = [
+  { value: 0.75, label: "Slower" },
+  { value: 0.95, label: "Normal" },
+  { value: 1.15, label: "Faster" }
+];
+var ON_OFF = [{ value: "on", label: "On" }, { value: "off", label: "Off" }];
+
+function paintVoiceOptions() {
+  var sel = $("voice-select");
+  var chosen = currentVoice();
+  sel.innerHTML = "";
+  if (!voices.length) {
+    var opt = document.createElement("option");
+    opt.textContent = "The built-in voice";
+    sel.appendChild(opt);
+    sel.disabled = true;
+  } else {
+    sel.disabled = false;
+    voices.forEach(function (v) {
+      var o = document.createElement("option");
+      o.value = v.voiceURI || v.name;
+      o.textContent = v.name + (GOOD_VOICE.test(v.name) ? " — best quality" : "");
+      if (chosen && (v.voiceURI === chosen.voiceURI && v.name === chosen.name)) o.selected = true;
+      sel.appendChild(o);
+    });
+  }
+  var anyGood = voices.some(function (v) { return GOOD_VOICE.test(v.name); });
+  $("voice-hint").textContent = anyGood
+    ? "The ones marked “best quality” sound the most human — try a couple and keep whichever you like."
+    : "On an iPhone or iPad the good voices have to be downloaded once, and they sound far more human than the built-in one: Settings → Accessibility → Spoken Content → Voices → English. Come back here afterwards and they'll be in this list.";
+}
+
+function paintSoundUI() {
+  $("sound-toggle").textContent = soundOn ? "🔊" : "🔇";
+  paintChips($("sound-chips"), soundOn ? "on" : "off");
+  paintChips($("readout-chips"), readOutLoud ? "on" : "off");
+  paintChips($("rate-chips"), speechRate);
+  $("voice-settings").style.display = soundOn ? "" : "none";
+}
+
+buildChips($("sound-chips"), ON_OFF, function () { return soundOn ? "on" : "off"; }, function (v) {
+  soundOn = (v === "on");
+  saveSoundPrefs();
+  paintSoundUI();
+  if (soundOn) { unlockAudio(); beep([660, 880], 0.16); say("Hello! Shall we play?"); }
+  else stopSpeaking();
+});
+buildChips($("readout-chips"), ON_OFF, function () { return readOutLoud ? "on" : "off"; }, function (v) {
+  readOutLoud = (v === "on");
+  saveSoundPrefs();
+  paintSoundUI();
+});
+buildChips($("rate-chips"), RATE_CHOICES, function () { return speechRate; }, function (v) {
+  speechRate = v;
+  saveSoundPrefs();
+  paintSoundUI();
+  say("An apple, a banana, and a cow.");
+});
+$("voice-select").addEventListener("change", function () {
+  voicePref = this.value;
+  saveSoundPrefs();
+  say("Hello! Which one does not belong?");
+});
+$("btn-try-voice").addEventListener("click", function () {
+  if (!soundOn) { soundOn = true; saveSoundPrefs(); paintSoundUI(); }
+  unlockAudio();
+  say("Which one does not belong? Apple. Banana. Grapes. Cow!");
+});
+
+loadVoices();
+// Most browsers fill the voice list in asynchronously, and Chrome hands back an
+// empty list on the first call.
+if (synth() && synth().addEventListener) synth().addEventListener("voiceschanged", loadVoices);
+paintSoundUI();
 
 // ---------- Celebration ----------
 var CONFETTI = ["⭐","🎉","✨","🌟","🎊"];
@@ -904,7 +1171,8 @@ function renderBoard(wrap, round, key, opts) {
       btn.addEventListener("click", function () { onTileTap(wrap, round, i, opts); });
       wrap.appendChild(btn);
     });
-    if (opts.announce) say("Which one does not belong?");
+    lastTour = { wrap: wrap, round: round };
+    speakTour(wrap, round, !!opts.intro);
   }
   paintBoard(wrap, round, opts);
 }
@@ -925,6 +1193,8 @@ function paintBoard(wrap, round, opts) {
 function onTileTap(wrap, round, i, opts) {
   if (board.done) return;
   if (board.wrong[i]) return;
+  // They've made their mind up — stop reading the list at them.
+  stopSpeaking();
   board.tries++;
   if (i === round.odd) {
     board.done = true;
@@ -1338,7 +1608,7 @@ function renderMpRound() {
   renderDots($("mp-dots"), s.rounds, myHistory(), round.n - 1);
 
   renderBoard($("mp-board"), round, boardKey("mp", round), {
-    announce: true,
+    intro: round.n === 1,
     revealed: false,
     onSolved: function (tries) {
       update(ref(db, "rooms/" + mp.roomCode + "/answers/" + mp.uid), { tries: tries, ts: Date.now() });
@@ -1354,6 +1624,8 @@ function renderMpRound() {
   }
 
   renderWhoRow($("mp-who"), function (uid) { return !!answers[uid]; });
+  // Nothing left to read out once you've picked.
+  $("mp-btn-replay").style.display = board.done ? "none" : "";
   $("mp-round-host-nav").style.display = mp.isHost ? "flex" : "none";
 
   var everyoneIn = mpPlayerUids().every(function (uid) { return !!answers[uid]; });
@@ -1682,7 +1954,7 @@ function renderLocalRound() {
   var round = local.round;
   renderDots($("local-dots"), local.rounds, local.results, local.n - 1);
   renderBoard($("local-board"), round, boardKey("local", round), {
-    announce: true,
+    intro: local.n === 1,
     revealed: false,
     onSolved: function (tries) {
       local.results[local.n - 1] = tries === 1 ? "star" : "miss";
@@ -1690,9 +1962,11 @@ function renderLocalRound() {
       $("local-reason").textContent = reasonSentence(round);
       $("local-reveal-card").style.display = "";
       $("local-btn-next").disabled = false;
+      $("local-btn-replay").style.display = "none";
       setTimeout(function () { say(spokenReason(round)); }, 900);
     }
   });
+  $("local-btn-replay").style.display = "";
 }
 
 $("local-btn-next").addEventListener("click", function () {
