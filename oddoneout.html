@@ -1,0 +1,1725 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>Odd One Out</title>
+<meta name="theme-color" content="#101a33">
+<link rel="apple-touch-icon" href="icon-oddoneout.png">
+<style>
+  :root {
+    --bg: #101a33;
+    --panel: #1b2a4d;
+    --panel-2: #26375f;
+    --accent: #ffd233;
+    --accent-2: #ff6b9d;
+    --good: #4ee6a7;
+    --text: #f2f6ff;
+    --text-dim: #93a6cc;
+    --border: #2f4372;
+    --tile: #fdfbf4;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body {
+    margin: 0; padding: 0; height: 100%;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    overscroll-behavior-y: contain;
+  }
+  #app {
+    max-width: 520px;
+    margin: 0 auto;
+    min-height: 100vh;
+    min-height: 100dvh;
+    display: flex;
+    flex-direction: column;
+    /* Room at the bottom for the floating home / sound / reaction controls. */
+    padding: 20px 16px 140px;
+  }
+  h1 { font-size: 1.6rem; margin: 4px 0 2px; letter-spacing: 0.5px; }
+  h1 span { color: var(--accent); }
+  .subtitle { color: var(--text-dim); font-size: 0.85rem; margin-bottom: 18px; }
+  /* While a round is on screen the title and the links are just clutter to a
+     child who can't read them, and the pictures want the room. */
+  #app.playing #page-head { display: none; }
+  .top-link { color: var(--text-dim); font-size: 0.8rem; text-decoration: none; }
+  .top-link:hover { color: var(--accent); }
+  .screen { display: none; flex-direction: column; gap: 14px; flex: 1; }
+  .screen.active { display: flex; }
+  .card { background: var(--panel); border: 1px solid var(--border); border-radius: 14px; padding: 16px; }
+  label { display: block; font-size: 0.8rem; color: var(--text-dim); margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.06em; }
+  input[type="text"] {
+    width: 100%; background: var(--panel-2); border: 1px solid var(--border);
+    color: var(--text); padding: 12px; border-radius: 10px; font-size: 1rem; font-family: inherit;
+  }
+  input[type="text"]:focus { outline: 2px solid var(--accent); }
+  .row { display: flex; gap: 8px; align-items: center; }
+  button.primary {
+    background: var(--accent); color: #2b2000; border: none; padding: 15px; border-radius: 12px;
+    font-size: 1.05rem; font-weight: 700; cursor: pointer; width: 100%;
+    touch-action: manipulation; transition: transform 0.15s cubic-bezier(.2,.9,.3,1.1);
+  }
+  button.primary:active { transform: scale(0.96); }
+  button.secondary {
+    background: transparent; color: var(--text); border: 1px solid var(--border); padding: 13px;
+    border-radius: 12px; font-size: 0.95rem; cursor: pointer; width: 100%;
+    touch-action: manipulation; transition: transform 0.15s cubic-bezier(.2,.9,.3,1.1);
+  }
+  button.secondary:active { transform: scale(0.96); }
+  button.danger { background: var(--accent-2); color: #34061a; border: none; font-weight: 700; }
+  button.link {
+    background: none; border: none; color: var(--text-dim); text-decoration: underline;
+    font-size: 0.8rem; cursor: pointer; padding: 6px; touch-action: manipulation; font-family: inherit;
+  }
+  button:disabled { opacity: 0.4; cursor: not-allowed; }
+  .chip-group { display: flex; flex-wrap: wrap; gap: 8px; }
+  .chip {
+    padding: 8px 14px; border-radius: 999px; border: 1px solid var(--border); background: var(--panel-2);
+    color: var(--text-dim); font-size: 0.85rem; cursor: pointer; user-select: none;
+    touch-action: manipulation; transition: transform 0.15s cubic-bezier(.2,.9,.3,1.1);
+  }
+  .chip:active { transform: scale(0.94); }
+  .chip.selected { background: var(--accent); color: #2b2000; border-color: var(--accent); font-weight: 600; }
+  .center { text-align: center; }
+  .status-line { color: var(--text-dim); font-size: 0.85rem; text-align: center; }
+  small.hint { color: var(--text-dim); display: block; margin-top: 4px; font-size: 0.78rem; }
+  .room-code {
+    font-size: 2.6rem; font-weight: 800; letter-spacing: 0.2em; text-align: center;
+    color: var(--accent); margin: 8px 0;
+  }
+  .waiting-text { color: var(--text-dim); text-align: center; padding: 16px 0; }
+  .host-badge { color: var(--accent); font-size: 0.7rem; margin-left: 4px; }
+
+  /* ---- Character picker: the whole point is that a non-reader can say who
+     they are by tapping a picture, so there is no name box anywhere. ---- */
+  .avatar-grid { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; }
+  .avatar-btn {
+    width: calc(25% - 8px); aspect-ratio: 1 / 1;
+    background: var(--panel-2); border: 2px solid var(--border); border-radius: 16px;
+    font-size: clamp(1.8rem, 8vw, 2.4rem); line-height: 1; cursor: pointer; padding: 0;
+    display: flex; align-items: center; justify-content: center;
+    touch-action: manipulation; transition: transform 0.15s cubic-bezier(.2,.9,.3,1.1), border-color 0.15s ease;
+  }
+  .avatar-btn:active { transform: scale(0.9); }
+  .avatar-btn.selected { border-color: var(--accent); background: rgba(255,210,51,0.18); }
+  .avatar-btn:disabled { opacity: 0.22; cursor: not-allowed; }
+
+  /* ---- The picture board ---- */
+  .board { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; }
+  .tile {
+    flex: 0 0 calc(50% - 5px);
+    height: clamp(88px, 20vh, 150px);
+    background: var(--tile); border: 3px solid transparent; border-radius: 18px;
+    font-size: clamp(3rem, 16vw, 5rem); line-height: 1; cursor: pointer; padding: 0;
+    display: flex; align-items: center; justify-content: center;
+    touch-action: manipulation;
+    transition: transform 0.2s cubic-bezier(.2,.9,.3,1.15), opacity 0.25s ease, border-color 0.2s ease;
+  }
+  .tile:active { transform: scale(0.93); }
+  /* Tiles are locked by disabling them, but the shared button:disabled rule
+     would then fade out the very picture the child just got right. */
+  .tile:disabled { opacity: 1; }
+  .tile.correct {
+    border-color: var(--good); background: #eafff6; opacity: 1;
+    animation: tile-pop 0.5s cubic-bezier(.2,.9,.3,1.4) forwards;
+  }
+  .tile.wrong { opacity: 0.28; animation: tile-shake 0.4s ease; }
+  .tile.wrong:active { transform: none; }
+  .tile.dim { opacity: 0.3; }
+  .tile.locked { cursor: default; }
+  .tile.locked:active { transform: none; }
+  @keyframes tile-pop {
+    0% { transform: scale(1); }
+    45% { transform: scale(1.16); }
+    100% { transform: scale(1.06); }
+  }
+  @keyframes tile-shake {
+    0%, 100% { transform: translateX(0); }
+    25% { transform: translateX(-7px); }
+    50% { transform: translateX(7px); }
+    75% { transform: translateX(-4px); }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .tile.correct, .tile.wrong { animation: none; }
+  }
+
+  /* ---- Progress dots: how far through the game, readable without words ---- */
+  .dots { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; padding: 2px 0; }
+  .dot {
+    width: 12px; height: 12px; border-radius: 50%;
+    background: transparent; border: 2px solid var(--border);
+    transition: transform 0.2s cubic-bezier(.2,.9,.3,1.3), background-color 0.2s ease;
+  }
+  .dot.star { background: var(--accent); border-color: var(--accent); }
+  .dot.miss { background: var(--panel-2); border-color: var(--panel-2); }
+  .dot.now { transform: scale(1.45); border-color: var(--accent); }
+
+  /* ---- Who has answered: avatars, no names needed ---- */
+  .who-row { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; }
+  .who {
+    display: flex; align-items: center; gap: 4px;
+    background: var(--panel-2); border: 1px solid var(--border); border-radius: 999px;
+    padding: 5px 10px 5px 8px; font-size: 1.25rem; line-height: 1;
+    transition: border-color 0.2s ease;
+  }
+  .who .tick { font-size: 0.85rem; color: var(--text-dim); }
+  .who.done { border-color: var(--good); }
+  .who.done .tick { color: var(--good); }
+  .who .stars { font-size: 0.8rem; color: var(--accent); font-weight: 800; }
+  .who.me { box-shadow: 0 0 0 2px var(--accent) inset; }
+
+  .big-emoji { font-size: clamp(3.4rem, 20vw, 5.5rem); line-height: 1.1; }
+  .reason { font-size: 1rem; color: var(--text-dim); line-height: 1.5; margin-top: 6px; }
+  .reason strong { color: var(--text); }
+  .star-line { font-size: 1.6rem; letter-spacing: 2px; margin-top: 8px; min-height: 1.7rem; }
+
+  /* ---- Scoreboard: a face and its stars, so it reads without words ---- */
+  .score-list { display: flex; flex-direction: column; gap: 8px; }
+  .score-row {
+    display: flex; align-items: center; gap: 10px;
+    background: var(--panel-2); border: 1px solid var(--border); border-radius: 12px; padding: 10px 12px;
+  }
+  .score-row.top { border-color: var(--accent); }
+  .score-row .face { font-size: 1.8rem; line-height: 1; flex: none; }
+  .score-row .bar { flex: 1; font-size: 1.1rem; line-height: 1.3; word-break: break-word; }
+  .score-row .num { font-weight: 800; font-size: 1.2rem; color: var(--accent); flex: none; }
+
+  .footer-nav { display: flex; gap: 8px; margin-top: auto; padding-top: 10px; }
+  .footer-nav button { flex: 1; }
+
+  /* ---- The one control a 4-year-old needs: a big green arrow ---- */
+  .go-btn {
+    width: 84px; height: 84px; border-radius: 50%; margin: 0 auto;
+    background: var(--good); color: #043524; border: none;
+    font-size: 2.4rem; line-height: 1; cursor: pointer; padding: 0;
+    display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 6px 18px rgba(78,230,167,0.3);
+    touch-action: manipulation;
+    transition: transform 0.28s cubic-bezier(.2,.9,.3,1.3), opacity 0.2s ease;
+  }
+  .go-btn:active { transform: scale(0.9); }
+  /* Before the round is solved there is nothing to move on to, so the arrow
+     isn't dimmed — it simply isn't there, then pops in when it means something. */
+  .go-btn:disabled {
+    opacity: 0; visibility: hidden; pointer-events: none; transform: scale(0.5);
+  }
+
+  /* ---- Celebration ---- */
+  #confetti-layer { position: fixed; inset: 0; pointer-events: none; z-index: 60; overflow: hidden; }
+  .confetti {
+    position: absolute; font-size: 1.8rem; will-change: transform, opacity;
+    animation: confetti-fall 2.2s cubic-bezier(.25,.6,.4,1) forwards;
+  }
+  @keyframes confetti-fall {
+    0%   { transform: translateY(-10vh) rotate(0deg) scale(0.7); opacity: 0; }
+    12%  { opacity: 1; }
+    100% { transform: translateY(105vh) rotate(320deg) scale(1.05); opacity: 0; }
+  }
+  @media (prefers-reduced-motion: reduce) { .confetti { animation-duration: 1s; } }
+
+  /* ---- Rules (for the grown-up) ---- */
+  .rules-link-row { text-align: center; margin: -8px 0 14px; }
+  .rules-link-btn {
+    background: none; border: none; color: var(--text-dim); font-size: 0.8rem;
+    text-decoration: underline; cursor: pointer; padding: 4px 8px; font-family: inherit; touch-action: manipulation;
+  }
+  .rules-modal-backdrop {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.55);
+    display: flex; align-items: center; justify-content: center; z-index: 300; padding: 20px;
+    opacity: 0; visibility: hidden; pointer-events: none;
+    transition: opacity 0.25s cubic-bezier(.2,.9,.3,1.1);
+  }
+  .rules-modal-backdrop.show { opacity: 1; visibility: visible; pointer-events: auto; }
+  .rules-modal {
+    background: var(--panel); border: 1px solid var(--border); border-radius: 14px;
+    max-width: 440px; width: 100%; max-height: 82vh; overflow-y: auto; padding: 22px; color: var(--text);
+    transform: scale(0.92) translateY(10px); opacity: 0;
+    transition: transform 0.28s cubic-bezier(.2,.9,.3,1.1), opacity 0.25s ease;
+  }
+  .rules-modal-backdrop.show .rules-modal { transform: scale(1) translateY(0); opacity: 1; }
+  .rules-modal h2 { margin: 0 0 14px; font-size: 1.15rem; }
+  .rules-modal .rules-section { margin-bottom: 14px; line-height: 1.6; font-size: 0.9rem; color: var(--text-dim); }
+  .rules-modal .rules-section strong { color: var(--text); }
+  .rules-modal .rules-section-label {
+    text-transform: uppercase; font-size: 0.72rem; letter-spacing: 0.05em;
+    color: var(--accent); font-weight: 600; margin-bottom: 4px;
+  }
+  .rules-modal-close { width: 100%; margin-top: 6px; }
+
+  /* ---- Reactions: tappable pictures, so a non-reader can join in too ---- */
+  /* Sits above the corner buttons rather than beside them: side by side they
+     collide on a narrow phone. */
+  #reaction-bar {
+    position: fixed; left: 50%; bottom: 76px; z-index: 41;
+    transform: translateX(-50%) translateY(10px);
+    display: flex; gap: 6px; padding: 6px;
+    background: rgba(27,42,77,0.94); border: 1px solid var(--border); border-radius: 999px;
+    box-shadow: 0 6px 20px rgba(0,0,0,0.45);
+    opacity: 0; visibility: hidden; pointer-events: none;
+    transition: opacity 0.2s ease, transform 0.28s cubic-bezier(.2,.9,.3,1.1);
+  }
+  #reaction-bar.show { opacity: 1; visibility: visible; pointer-events: auto; transform: translateX(-50%) translateY(0); }
+  .reaction-btn {
+    width: 44px; height: 44px; border-radius: 50%;
+    background: var(--panel-2); border: 1px solid var(--border);
+    font-size: 1.35rem; line-height: 1; cursor: pointer; padding: 0;
+    touch-action: manipulation; transition: transform 0.15s cubic-bezier(.2,.9,.3,1.1);
+  }
+  .reaction-btn:active { transform: scale(0.86); }
+  #reaction-layer { position: fixed; inset: 0; pointer-events: none; z-index: 42; overflow: hidden; }
+  .reaction-float {
+    position: absolute; font-size: 2rem; will-change: transform, opacity;
+    animation: reaction-rise 1.8s cubic-bezier(.2,.7,.3,1) forwards;
+  }
+  .reaction-float .who-tag { display: block; font-size: 0.8rem; text-align: center; margin-top: -4px; }
+  @keyframes reaction-rise {
+    0%   { transform: translateY(0) scale(0.6); opacity: 0; }
+    15%  { transform: translateY(-18px) scale(1.15); opacity: 1; }
+    100% { transform: translateY(-190px) scale(0.9); opacity: 0; }
+  }
+  @media (prefers-reduced-motion: reduce) { .reaction-float { animation-duration: 0.9s; } }
+
+  #home-toggle, #sound-toggle {
+    position: fixed; bottom: 16px; z-index: 40;
+    width: 52px; height: 52px; border-radius: 50%;
+    background: var(--panel-2); color: var(--text); border: 1px solid var(--border);
+    font-size: 1.3rem; cursor: pointer; touch-action: manipulation;
+    box-shadow: 0 4px 14px rgba(0,0,0,0.35);
+    display: none; align-items: center; justify-content: center;
+    transition: transform 0.15s cubic-bezier(.2,.9,.3,1.1);
+  }
+  #home-toggle { left: 16px; }
+  #sound-toggle { right: 16px; display: flex; }
+  #home-toggle:active, #sound-toggle:active { transform: scale(0.92); }
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="page-head">
+    <h1>🐮 Odd One <span>Out</span></h1>
+    <div class="subtitle">Tap the picture that doesn't belong — no reading needed &middot; <a class="top-link" href="index.html">&larr; all games</a></div>
+    <div class="rules-link-row"><button type="button" class="rules-link-btn" id="rules-btn">Rules</button></div>
+  </div>
+  <div class="rules-modal-backdrop" id="rules-modal-backdrop">
+    <div class="rules-modal">
+      <h2>🐮 How to Play</h2>
+      <div class="rules-section">
+        <div class="rules-section-label">Built for a child who can't read yet</div>
+        Every round shows a set of pictures. All but one belong together — four fruits and a cow, say.
+        Tap the one that doesn't fit. There are no words to read anywhere in the game itself.
+      </div>
+      <div class="rules-section">
+        <div class="rules-section-label">Scoring</div>
+        Get it right <strong>first tap</strong> and you earn a ⭐. Tap a wrong one and it just fades away —
+        you keep going until you find it, so nobody ever gets stuck or knocked out.
+      </div>
+      <div class="rules-section">
+        <div class="rules-section-label">Playing on lots of devices</div>
+        Create a room, then share the link (or read out the 4-letter code). Everyone sees the same pictures
+        at the same time on their own phone or tablet, and picks a character by tapping it — no typing.
+      </div>
+      <div class="rules-section">
+        <div class="rules-section-label">Sound</div>
+        The 🔊 button turns on sounds and a friendly voice that reads out what happened
+        ("The cow! The others are all fruit."). It's worth having on for a young child.
+      </div>
+      <button class="secondary rules-modal-close" id="rules-modal-close" type="button">Got it</button>
+    </div>
+  </div>
+
+  <div id="reaction-layer"></div>
+  <div id="confetti-layer"></div>
+  <div id="reaction-bar"></div>
+  <button id="home-toggle" type="button" aria-label="Back to the start screen">🏠</button>
+  <button id="sound-toggle" type="button" aria-label="Turn sound on or off">🔇</button>
+
+  <!-- HOME -->
+  <div class="screen active" id="screen-home">
+    <div class="card">
+      <button class="primary" id="btn-local-mode" type="button">Play on This Device</button>
+      <small class="hint">Sit together with one phone or tablet and find them as a team.</small>
+    </div>
+    <div class="center" style="color:var(--text-dim);font-size:0.8rem;">— or play across devices —</div>
+    <div class="card">
+      <button class="secondary" id="btn-create-room" type="button">Create Room</button>
+      <small class="hint">You'll get a link to send to everyone else.</small>
+    </div>
+    <div class="card">
+      <button class="secondary" id="btn-join-room" type="button">Join Room</button>
+    </div>
+    <div class="center status-line" id="home-status"></div>
+  </div>
+
+  <!-- JOIN CODE (a grown-up types this once; the shared link skips it) -->
+  <div class="screen" id="screen-join-code">
+    <div class="card">
+      <label>Room code</label>
+      <input type="text" id="input-join-code" maxlength="4" placeholder="4-letter room code"
+             autocapitalize="characters" autocomplete="off" spellcheck="false">
+      <button class="primary" id="btn-join-code-submit" type="button" style="margin-top:10px">Next</button>
+    </div>
+    <div class="center status-line" id="join-code-status"></div>
+    <button class="link" id="btn-join-code-back" type="button">Back</button>
+  </div>
+
+  <!-- PICK A CHARACTER (this is the "name" screen — pictures only) -->
+  <div class="screen" id="screen-avatar">
+    <div class="card center">
+      <label>Who are you?</label>
+      <small class="hint" style="margin:0 0 12px;">Tap a character. Let the little one pick their own.</small>
+      <div class="avatar-grid" id="avatar-grid"></div>
+    </div>
+    <div class="center status-line" id="avatar-status"></div>
+    <button class="link" id="btn-avatar-back" type="button">Back</button>
+  </div>
+
+  <!-- MULTIPLAYER LOBBY -->
+  <div class="screen" id="screen-lobby">
+    <div class="card center">
+      <label>Send this to everyone playing</label>
+      <div class="room-code" id="lobby-code"></div>
+      <button class="secondary" id="btn-copy-link" type="button">Copy the link</button>
+      <small class="hint" id="lobby-copy-hint">They tap the link, pick a character, and they're in.</small>
+    </div>
+    <div class="card">
+      <label>Who's here</label>
+      <div class="who-row" id="lobby-players"></div>
+    </div>
+    <div class="card" id="lobby-settings-card">
+      <label>How hard?</label>
+      <div class="chip-group" id="lobby-level-chips"></div>
+      <small class="hint" id="lobby-level-hint"></small>
+      <label style="margin-top:14px">How many pictures each time?</label>
+      <div class="chip-group" id="lobby-tiles-chips"></div>
+      <label style="margin-top:14px">How many rounds?</label>
+      <div class="chip-group" id="lobby-rounds-chips"></div>
+    </div>
+    <button class="primary" id="btn-start-mp-game" type="button">Start Playing</button>
+    <div class="waiting-text" id="lobby-waiting" style="display:none">Waiting for the host to start…</div>
+    <div class="center status-line" id="lobby-status"></div>
+    <button class="link" id="btn-leave-room" type="button">Leave room</button>
+  </div>
+
+  <!-- MULTIPLAYER ROUND -->
+  <div class="screen" id="screen-mp-round">
+    <div class="dots" id="mp-dots"></div>
+    <div class="board" id="mp-board"></div>
+    <div class="who-row" id="mp-who"></div>
+    <div class="footer-nav" id="mp-round-host-nav" style="display:none">
+      <button class="secondary" id="btn-mp-skip" type="button">Skip this one</button>
+    </div>
+  </div>
+
+  <!-- MULTIPLAYER REVEAL -->
+  <div class="screen" id="screen-mp-reveal">
+    <div class="dots" id="mp-reveal-dots"></div>
+    <div class="card center">
+      <div class="big-emoji" id="mp-reveal-emoji"></div>
+      <div class="star-line" id="mp-reveal-stars"></div>
+      <div class="reason" id="mp-reveal-reason"></div>
+    </div>
+    <div class="who-row" id="mp-reveal-who"></div>
+    <div class="center"><button class="go-btn" id="btn-mp-next" type="button" aria-label="Next picture">▶</button></div>
+  </div>
+
+  <!-- MULTIPLAYER GAME OVER -->
+  <div class="screen" id="screen-mp-over">
+    <div class="card center">
+      <div class="big-emoji">🏆</div>
+    </div>
+    <div class="card">
+      <div class="score-list" id="mp-final-scores"></div>
+    </div>
+    <div class="footer-nav" id="mp-over-host-nav" style="display:none">
+      <button class="primary" id="btn-mp-play-again" type="button">Play Again</button>
+    </div>
+    <div class="waiting-text" id="mp-over-waiting" style="display:none">Waiting for the host…</div>
+  </div>
+
+  <!-- LOCAL SETUP -->
+  <div class="screen" id="local-screen-setup">
+    <div class="card">
+      <label>How hard?</label>
+      <div class="chip-group" id="local-level-chips"></div>
+      <small class="hint" id="local-level-hint"></small>
+    </div>
+    <div class="card">
+      <label>How many pictures each time?</label>
+      <div class="chip-group" id="local-tiles-chips"></div>
+      <small class="hint">Fewer pictures is easier for a little one. Four is a gentle start.</small>
+    </div>
+    <div class="card">
+      <label>How many rounds?</label>
+      <div class="chip-group" id="local-rounds-chips"></div>
+      <small class="hint">Ten rounds takes about three or four minutes.</small>
+    </div>
+    <button class="primary" id="local-btn-start" type="button">Start Playing</button>
+    <button class="link" id="local-btn-back-home" type="button">Back to home</button>
+  </div>
+
+  <!-- LOCAL ROUND -->
+  <div class="screen" id="local-screen-round">
+    <div class="dots" id="local-dots"></div>
+    <div class="board" id="local-board"></div>
+    <div class="card center" id="local-reveal-card" style="display:none">
+      <div class="reason" id="local-reason"></div>
+    </div>
+    <div class="center"><button class="go-btn" id="local-btn-next" type="button" aria-label="Next picture" disabled>▶</button></div>
+  </div>
+
+  <!-- LOCAL GAME OVER -->
+  <div class="screen" id="local-screen-over">
+    <div class="card center">
+      <div class="big-emoji">🏆</div>
+      <div class="star-line" id="local-final-stars"></div>
+      <div class="reason" id="local-final-line"></div>
+    </div>
+    <button class="primary" id="local-btn-again" type="button">Play Again</button>
+    <button class="link" id="local-btn-home" type="button">Back to home</button>
+  </div>
+</div>
+
+<script type="module">
+import { firebaseConfig } from "./firebase-config.js";
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+import { getDatabase, ref, set, get, update, onValue, onChildAdded, push, remove } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
+
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getDatabase(app);
+
+var GAME_ID = "oddoneout";
+var CODE_CHARS = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+
+// =========================================================================
+// THE PICTURE BANK
+//
+// Every group is a set of pictures that obviously belong together to a small
+// child. `one` finishes "A cow is not ___" and `many` finishes "The others
+// are all ___", which is why some read as nouns ("a fruit"/"fruit") and some
+// as adjectives ("red"/"red").
+// =========================================================================
+var GROUPS = {
+  fruit: { one: "a fruit", many: "fruit", items: [
+    ["🍎","apple"],["🍌","banana"],["🍇","grapes"],["🍓","strawberry"],["🍊","orange"],
+    ["🍉","watermelon"],["🍐","pear"],["🍑","peach"],["🥝","kiwi"],["🍍","pineapple"],
+    ["🥭","mango"],["🍒","cherries"],["🍋","lemon"]
+  ]},
+  veg: { one: "a vegetable", many: "vegetables", items: [
+    ["🥕","carrot"],["🥦","broccoli"],["🌽","sweetcorn"],["🥒","cucumber"],["🥔","potato"],
+    ["🧅","onion"],["🫑","pepper"],["🍆","aubergine"],["🥬","lettuce"]
+  ]},
+  farm: { one: "a farm animal", many: "farm animals", items: [
+    ["🐄","cow"],["🐖","pig"],["🐔","chicken"],["🐎","horse"],["🐑","sheep"],
+    ["🐐","goat"],["🦆","duck"],["🦃","turkey"],["🐓","cockerel"]
+  ]},
+  wild: { one: "a wild animal", many: "wild animals", items: [
+    ["🦁","lion"],["🐯","tiger"],["🐘","elephant"],["🦒","giraffe"],["🦓","zebra"],
+    ["🐻","bear"],["🐨","koala"],["🐒","monkey"],["🦊","fox"],["🦛","hippo"],
+    ["🦏","rhino"],["🐊","crocodile"]
+  ]},
+  sea: { one: "a sea animal", many: "sea animals", items: [
+    ["🐟","fish"],["🐬","dolphin"],["🐳","whale"],["🦈","shark"],["🐙","octopus"],
+    ["🦀","crab"],["🐢","turtle"],["🐠","tropical fish"],["🦞","lobster"],["🦭","seal"],
+    ["🦑","squid"],["🐡","pufferfish"]
+  ]},
+  bug: { one: "a bug", many: "bugs", items: [
+    ["🐛","caterpillar"],["🐝","bee"],["🦋","butterfly"],["🐜","ant"],["🐞","ladybird"],
+    ["🕷️","spider"],["🦗","grasshopper"],["🐌","snail"]
+  ]},
+  bird: { one: "a bird", many: "birds", items: [
+    ["🐦","bird"],["🦅","eagle"],["🦉","owl"],["🦜","parrot"],["🦩","flamingo"],
+    ["🐧","penguin"],["🦢","swan"],["🕊️","dove"]
+  ]},
+  vehicle: { one: "something you ride in", many: "things you ride in", items: [
+    ["🚗","car"],["🚌","bus"],["🚕","taxi"],["🚓","police car"],["🚚","lorry"],
+    ["🚒","fire engine"],["🚜","tractor"],["🏎️","racing car"],["🚑","ambulance"],["🚐","van"]
+  ]},
+  fly: { one: "something that flies", many: "things that fly", items: [
+    ["✈️","aeroplane"],["🚁","helicopter"],["🚀","rocket"],["🎈","balloon"],["🪁","kite"],
+    ["🦋","butterfly"],["🐦","bird"],["🦅","eagle"]
+  ]},
+  boat: { one: "something that goes on the water", many: "boats", items: [
+    ["⛵","sailing boat"],["🚤","speedboat"],["🛶","canoe"],["🚢","ship"],
+    ["🛥️","motor boat"],["🚣","rowing boat"]
+  ]},
+  clothes: { one: "something you wear", many: "things you wear", items: [
+    ["👕","t-shirt"],["👖","pair of jeans"],["👗","dress"],["🧦","pair of socks"],["👟","trainer"],
+    ["🧢","cap"],["🧤","pair of gloves"],["🧣","scarf"],["👒","sun hat"],["🥾","boot"],
+    ["🩳","pair of shorts"],["🧥","coat"]
+  ]},
+  toy: { one: "a toy", many: "toys", items: [
+    ["🧸","teddy bear"],["🪀","yo-yo"],["🎈","balloon"],["🪁","kite"],["🧩","jigsaw"],
+    ["🪆","doll"],["🎲","dice"],["🛴","scooter"],["🪃","boomerang"]
+  ]},
+  ball: { one: "a ball", many: "balls", items: [
+    ["⚽","football"],["🏀","basketball"],["🎾","tennis ball"],["🏈","rugby ball"],
+    ["⚾","baseball"],["🏐","volleyball"],["🎱","pool ball"],["🏉","rugby ball"]
+  ]},
+  music: { one: "a musical instrument", many: "musical instruments", items: [
+    ["🎸","guitar"],["🥁","drum"],["🎺","trumpet"],["🎻","violin"],["🎹","piano"],
+    ["🪗","accordion"],["🎷","saxophone"],["🪕","banjo"]
+  ]},
+  dinner: { one: "a hot dinner", many: "hot dinners", items: [
+    ["🍕","pizza"],["🍔","burger"],["🍟","bag of chips"],["🌭","hot dog"],["🥪","sandwich"],
+    ["🍝","bowl of spaghetti"],["🌮","taco"],["🍜","bowl of noodles"]
+  ]},
+  sweet: { one: "a treat", many: "treats", items: [
+    ["🍰","slice of cake"],["🍪","biscuit"],["🍭","lollipop"],["🍫","bar of chocolate"],
+    ["🧁","cupcake"],["🍦","ice cream"],["🍩","doughnut"],["🍬","sweet"]
+  ]},
+  sky: { one: "something in the sky", many: "things in the sky", items: [
+    ["☀️","sun"],["⭐","star"],["🌙","moon"],["☁️","cloud"],["🌈","rainbow"],
+    ["⚡","flash of lightning"],["❄️","snowflake"],["🌧️","rain cloud"]
+  ]},
+  tool: { one: "a tool", many: "tools", items: [
+    ["🔨","hammer"],["🪚","saw"],["🔧","spanner"],["🪛","screwdriver"],["🪓","axe"],
+    ["🔩","bolt"],["🧰","toolbox"],["🪜","ladder"]
+  ]},
+  school: { one: "something you use at school", many: "school things", items: [
+    ["✏️","pencil"],["🖍️","crayon"],["🖌️","paintbrush"],["📚","pile of books"],["🎒","backpack"],
+    ["📐","set square"],["✂️","pair of scissors"],["📕","book"],["📏","ruler"]
+  ]},
+  plant: { one: "a plant", many: "plants", items: [
+    ["🌸","blossom"],["🌻","sunflower"],["🌹","rose"],["🌷","tulip"],["🌳","tree"],
+    ["🌵","cactus"],["🍀","clover"],["🌼","daisy"],["🌴","palm tree"]
+  ]},
+  home: { one: "something in your house", many: "things in your house", items: [
+    ["🛏️","bed"],["🪑","chair"],["🛋️","sofa"],["🚪","door"],["🪟","window"],
+    ["🚽","toilet"],["🛁","bath"],["💡","light bulb"],["🚿","shower"],["🪞","mirror"]
+  ]},
+  drink: { one: "a drink", many: "drinks", items: [
+    ["🥛","glass of milk"],["🧃","carton of juice"],["☕","cup of coffee"],["🍵","cup of tea"],
+    ["🥤","fizzy drink"],["🧋","bubble tea"],["🍼","baby's bottle"]
+  ]},
+  body: { one: "a part of your body", many: "parts of your body", items: [
+    ["👁️","eye"],["👂","ear"],["👃","nose"],["👄","mouth"],["🦷","tooth"],
+    ["🦶","foot"],["🦵","leg"],["🧠","brain"]
+  ]},
+  wheels: { one: "something with wheels", many: "things with wheels", items: [
+    ["🚗","car"],["🚌","bus"],["🚲","bicycle"],["🛴","scooter"],["🚜","tractor"],
+    ["🏍️","motorbike"],["🚚","lorry"],["🛹","skateboard"],["🚂","train"]
+  ]},
+  eat: { one: "something you can eat", many: "things you can eat", items: [
+    ["🍎","apple"],["🥕","carrot"],["🍕","pizza"],["🍪","biscuit"],["🧀","piece of cheese"],
+    ["🍞","loaf of bread"],["🍌","banana"],["🥚","egg"],["🍰","slice of cake"]
+  ]},
+  hot: { one: "hot", many: "hot", items: [
+    ["☀️","sun"],["🔥","fire"],["🌶️","chilli"],["♨️","puff of steam"],["☕","cup of coffee"],["🕯️","candle"]
+  ]},
+  cold: { one: "cold", many: "cold", items: [
+    ["❄️","snowflake"],["⛄","snowman"],["🧊","ice cube"],["🍦","ice cream"],["🐧","penguin"],["🥶","frozen face"]
+  ]},
+  red: { one: "red", many: "red", items: [
+    ["🍎","apple"],["🍓","strawberry"],["🌹","rose"],["🚒","fire engine"],
+    ["❤️","heart"],["🍒","cherries"],["🌶️","chilli"],["🐞","ladybird"]
+  ]},
+  yellow: { one: "yellow", many: "yellow", items: [
+    ["🍌","banana"],["🌽","sweetcorn"],["🧀","piece of cheese"],["⭐","star"],
+    ["🍋","lemon"],["🌻","sunflower"],["🚕","taxi"],["🐥","chick"]
+  ]},
+  green: { one: "green", many: "green", items: [
+    ["🥦","broccoli"],["🌳","tree"],["🐸","frog"],["🥒","cucumber"],
+    ["🍏","green apple"],["🌵","cactus"],["🍀","clover"],["🥬","lettuce"]
+  ]},
+  blue: { one: "blue", many: "blue", items: [
+    ["🫐","blueberries"],["💙","blue heart"],["🌊","wave"],["🔵","blue circle"],
+    ["🧊","ice cube"],["🐳","whale"]
+  ]},
+  orange: { one: "orange", many: "orange", items: [
+    ["🍊","orange"],["🥕","carrot"],["🎃","pumpkin"],["🦊","fox"],
+    ["🏀","basketball"],["🧡","orange heart"]
+  ]}
+};
+
+// Which odd-one-out each group is allowed to be spoiled by. Chosen by hand
+// rather than generated: the whole game falls apart if the "wrong" picture is
+// arguably right too, so overlapping groups (fruit/vegetable, bird/farm,
+// tool/school, ball/toy) are deliberately never paired at the easy level.
+var PUZZLES = [
+  // ---- Easy: the odd one comes from a completely different world ----
+  { level: "easy", group: "fruit",   odds: ["farm","wild","sea","vehicle","clothes","music","tool","home","ball"] },
+  { level: "easy", group: "veg",     odds: ["farm","wild","sea","vehicle","clothes","music","tool","home","ball"] },
+  { level: "easy", group: "farm",    odds: ["fruit","veg","vehicle","clothes","music","tool","home","ball","sweet"] },
+  { level: "easy", group: "wild",    odds: ["fruit","veg","vehicle","clothes","music","tool","home","ball","sweet"] },
+  { level: "easy", group: "sea",     odds: ["fruit","veg","vehicle","clothes","music","tool","home","ball","sweet"] },
+  { level: "easy", group: "bug",     odds: ["fruit","veg","vehicle","clothes","music","tool","home","ball","sweet"] },
+  { level: "easy", group: "bird",    odds: ["fruit","veg","vehicle","clothes","music","tool","home","ball","sweet"] },
+  { level: "easy", group: "vehicle", odds: ["fruit","veg","farm","wild","sea","clothes","music","sweet","plant","body"] },
+  { level: "easy", group: "clothes", odds: ["fruit","veg","farm","wild","sea","vehicle","music","sweet","plant","ball"] },
+  { level: "easy", group: "toy",     odds: ["fruit","veg","farm","wild","sea","vehicle","clothes","music","tool","home"] },
+  { level: "easy", group: "ball",    odds: ["fruit","veg","farm","wild","sea","vehicle","clothes","music","tool","home"] },
+  { level: "easy", group: "music",   odds: ["fruit","veg","farm","wild","sea","vehicle","clothes","tool","home","plant","ball"] },
+  { level: "easy", group: "sweet",   odds: ["farm","wild","vehicle","clothes","music","tool","home","plant","ball","toy"] },
+  { level: "easy", group: "dinner",  odds: ["farm","wild","vehicle","clothes","music","tool","home","plant","ball","toy"] },
+  { level: "easy", group: "sky",     odds: ["fruit","veg","farm","vehicle","clothes","music","tool","home","ball"] },
+  { level: "easy", group: "tool",    odds: ["fruit","veg","farm","wild","sea","vehicle","clothes","music","sweet","plant","ball"] },
+  { level: "easy", group: "school",  odds: ["fruit","veg","farm","wild","sea","vehicle","clothes","music","sweet","plant","ball"] },
+  { level: "easy", group: "plant",   odds: ["farm","wild","sea","vehicle","clothes","music","tool","home","ball","body"] },
+  { level: "easy", group: "home",    odds: ["fruit","veg","farm","wild","sea","vehicle","clothes","music","sweet","plant","ball"] },
+  { level: "easy", group: "drink",   odds: ["farm","wild","sea","vehicle","clothes","music","tool","home","plant","ball"] },
+  { level: "easy", group: "body",    odds: ["fruit","veg","vehicle","clothes","music","tool","home","plant","ball","sweet"] },
+  { level: "easy", group: "boat",    odds: ["fruit","farm","wild","clothes","music","tool","home","ball","sweet"] },
+  { level: "easy", group: "fly",     odds: ["fruit","veg","farm","sea","clothes","music","tool","home","ball","sweet"] },
+
+  // ---- Tricky: the odd one is close enough that you have to think ----
+  { level: "tricky", group: "red",    odds: ["yellow","green","blue","orange"] },
+  { level: "tricky", group: "yellow", odds: ["red","green","blue","orange"] },
+  { level: "tricky", group: "green",  odds: ["red","yellow","blue","orange"] },
+  { level: "tricky", group: "blue",   odds: ["red","yellow","green","orange"] },
+  { level: "tricky", group: "orange", odds: ["red","yellow","green","blue"] },
+  { level: "tricky", group: "fly",    odds: ["vehicle","boat","home"] },
+  { level: "tricky", group: "wheels", odds: ["boat","plant","home","sea"] },
+  { level: "tricky", group: "sea",    odds: ["farm","wild"] },
+  { level: "tricky", group: "farm",   odds: ["wild"] },
+  { level: "tricky", group: "wild",   odds: ["farm"] },
+  { level: "tricky", group: "fruit",  odds: ["veg"] },
+  { level: "tricky", group: "veg",    odds: ["fruit"] },
+  { level: "tricky", group: "bird",   odds: ["bug","sea"] },
+  { level: "tricky", group: "bug",    odds: ["bird"] },
+  { level: "tricky", group: "eat",    odds: ["tool","clothes","toy","home"] },
+  { level: "tricky", group: "hot",    odds: ["cold"] },
+  { level: "tricky", group: "cold",   odds: ["hot"] }
+];
+
+// Characters stand in for names, so nobody has to type or read one. None of
+// these appear in the picture bank, so your character can never be mistaken
+// for part of a puzzle.
+var AVATARS = [
+  ["🦄","Unicorn"],["🐲","Dragon"],["🤖","Robot"],["👻","Ghost"],
+  ["👽","Alien"],["🦕","Dinosaur"],["🧚","Fairy"],["🦸","Superhero"],
+  ["🤠","Cowboy"],["🧜","Mermaid"],["🥷","Ninja"],["🧙","Wizard"]
+];
+
+var LEVELS = [
+  { id: "easy",   label: "Easy",   hint: "The odd one is from a completely different world — four fruits and a cow. Best for 3s and 4s." },
+  { id: "tricky", label: "Tricky", hint: "Closer calls — four red things and a yellow one, or four farm animals and a lion." },
+  { id: "mix",    label: "Mix",    hint: "A bit of both, shuffled together." }
+];
+var TILE_CHOICES = [4, 5, 6];
+var ROUND_CHOICES = [5, 10, 15, 20];
+var DEFAULTS = { level: "easy", tiles: 5, rounds: 10 };
+var REVEAL_HOLD_MS = 4200;   // long enough to look at the answer, short enough not to drift off
+
+// =========================================================================
+// Small helpers
+// =========================================================================
+function $(id) { return document.getElementById(id); }
+function shuffle(arr) {
+  for (var i = arr.length - 1; i > 0; i--) {
+    var j = Math.floor(Math.random() * (i + 1));
+    var tmp = arr[i]; arr[i] = arr[j]; arr[j] = tmp;
+  }
+  return arr;
+}
+function pickRandom(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
+// Firebase hands arrays back as arrays when the keys are 0..n-1 and as an
+// object when they're not, so normalise both to a plain array.
+function toArray(v) {
+  if (!v) return [];
+  if (Array.isArray(v)) return v.filter(function (x) { return x !== null && x !== undefined; });
+  return Object.keys(v).sort(function (a, b) { return Number(a) - Number(b); }).map(function (k) { return v[k]; });
+}
+function article(word) {
+  return (/^[aeiou]/i.test(word) ? "An " : "A ") + word;
+}
+function stars(n) {
+  if (n <= 0) return "";
+  if (n <= 12) return new Array(n + 1).join("⭐");
+  return "⭐×" + n;
+}
+
+var PLAY_SCREENS = { "local-screen-round": true, "screen-mp-round": true, "screen-mp-reveal": true };
+function showScreen(id) {
+  document.querySelectorAll(".screen").forEach(function (s) { s.classList.remove("active"); });
+  $(id).classList.add("active");
+  var hideHomeOn = { "screen-home": true, "screen-join-code": true, "screen-avatar": true };
+  $("home-toggle").style.display = hideHomeOn[id] ? "none" : "flex";
+  $("app").classList.toggle("playing", !!PLAY_SCREENS[id]);
+  updateReactionBar(id);
+}
+
+// ---------- Sound and voice ----------
+// A four-year-old gets far more out of this with the sound on: the chime tells
+// them they were right before they've worked out what the screen is doing, and
+// the voice explains the answer without a word of reading.
+var soundOn = false;
+try { soundOn = localStorage.getItem("oddoneout_sound") === "on"; } catch (e) {}
+var audioCtx = null;
+
+function paintSoundButton() {
+  $("sound-toggle").textContent = soundOn ? "🔊" : "🔇";
+}
+paintSoundButton();
+
+$("sound-toggle").addEventListener("click", function () {
+  soundOn = !soundOn;
+  try { localStorage.setItem("oddoneout_sound", soundOn ? "on" : "off"); } catch (e) {}
+  paintSoundButton();
+  if (soundOn) { unlockAudio(); beep([660, 880], 0.16); }
+  else if (window.speechSynthesis) window.speechSynthesis.cancel();
+});
+
+// Mobile browsers only let sound start from a real tap, so the first tap
+// anywhere gets the audio going.
+function unlockAudio() {
+  if (!audioCtx) {
+    var Ctx = window.AudioContext || window.webkitAudioContext;
+    if (Ctx) audioCtx = new Ctx();
+  }
+  if (audioCtx && audioCtx.state === "suspended") audioCtx.resume();
+}
+document.addEventListener("pointerdown", function () { if (soundOn) unlockAudio(); }, { passive: true });
+
+function beep(freqs, noteLength) {
+  if (!soundOn) return;
+  unlockAudio();
+  if (!audioCtx) return;
+  var start = audioCtx.currentTime;
+  freqs.forEach(function (f, i) {
+    var osc = audioCtx.createOscillator();
+    var gain = audioCtx.createGain();
+    osc.type = "sine";
+    osc.frequency.value = f;
+    var t = start + i * noteLength;
+    gain.gain.setValueAtTime(0.0001, t);
+    gain.gain.exponentialRampToValueAtTime(0.22, t + 0.02);
+    gain.gain.exponentialRampToValueAtTime(0.0001, t + noteLength);
+    osc.connect(gain).connect(audioCtx.destination);
+    osc.start(t);
+    osc.stop(t + noteLength + 0.02);
+  });
+}
+function soundRight() { beep([523, 659, 784, 1047], 0.11); }
+function soundWrong() { beep([220, 175], 0.1); }
+function soundFinish() { beep([523, 659, 784, 1047, 1319], 0.13); }
+
+function say(text) {
+  if (!soundOn || !window.speechSynthesis) return;
+  try {
+    window.speechSynthesis.cancel();
+    var u = new SpeechSynthesisUtterance(text);
+    u.rate = 0.92;
+    u.pitch = 1.15;
+    window.speechSynthesis.speak(u);
+  } catch (e) {}
+}
+
+// ---------- Celebration ----------
+var CONFETTI = ["⭐","🎉","✨","🌟","🎊"];
+function confetti(count) {
+  var layer = $("confetti-layer");
+  for (var i = 0; i < count; i++) {
+    var el = document.createElement("div");
+    el.className = "confetti";
+    el.textContent = pickRandom(CONFETTI);
+    el.style.left = (Math.random() * 92 + 2) + "vw";
+    el.style.animationDelay = (Math.random() * 0.5) + "s";
+    el.addEventListener("animationend", function () { this.remove(); });
+    layer.appendChild(el);
+  }
+}
+
+// =========================================================================
+// Building a round
+// =========================================================================
+function puzzlesFor(level, tiles) {
+  return PUZZLES.filter(function (p) {
+    if (level !== "mix" && p.level !== level) return false;
+    if (GROUPS[p.group].items.length < tiles - 1) return false;
+    return p.odds.some(function (k) { return GROUPS[k] && GROUPS[k].items.length; });
+  });
+}
+
+// `used` is a map of puzzle keys already played this game, so the same
+// four-fruits-and-a-cow pairing doesn't come round twice in ten rounds.
+function makeRound(level, tiles, used, n) {
+  var pool = puzzlesFor(level, tiles);
+  if (!pool.length) pool = puzzlesFor("easy", tiles);
+  var fresh = pool.filter(function (p) { return !used[p.group + ">" + p.level]; });
+  var puzzle = pickRandom(fresh.length ? fresh : pool);
+
+  var group = GROUPS[puzzle.group];
+  var chosen = shuffle(group.items.slice()).slice(0, tiles - 1);
+  var taken = {};
+  chosen.forEach(function (it) { taken[it[0]] = true; });
+
+  // The odd one must not be a picture already on the board — "spot the cow"
+  // stops working if there are two cows.
+  var oddCandidates = [];
+  shuffle(puzzle.odds.slice()).forEach(function (key) {
+    if (!GROUPS[key]) return;
+    GROUPS[key].items.forEach(function (it) { if (!taken[it[0]]) oddCandidates.push(it); });
+  });
+  if (!oddCandidates.length) return makeRound("easy", tiles, {}, n);
+  var odd = pickRandom(oddCandidates);
+
+  var all = chosen.concat([odd]);
+  var order = shuffle(all.map(function (it, i) { return i; }));
+  var tilesOut = order.map(function (i) { return { e: all[i][0], n: all[i][1] }; });
+
+  return {
+    n: n,
+    key: puzzle.group + ">" + puzzle.level,
+    tiles: tilesOut,
+    odd: order.indexOf(all.length - 1),
+    one: group.one,
+    many: group.many
+  };
+}
+
+function reasonSentence(round) {
+  var name = round.tiles[round.odd].n;
+  return article(name) + " is not " + round.one + ". The others are all " + round.many + ".";
+}
+function spokenReason(round) {
+  var name = round.tiles[round.odd].n;
+  return "The " + name + "! The others are all " + round.many + ".";
+}
+
+// =========================================================================
+// The board
+//
+// Rebuilt only when the round actually changes. In multiplayer this render
+// also fires every time somebody else taps, and rebuilding then would wipe
+// out the greyed-out wrong guesses mid-round.
+// =========================================================================
+var board = { key: null, wrong: {}, done: false, tries: 0 };
+
+function boardKey(prefix, round) { return prefix + ":" + round.n + ":" + round.key + ":" + round.odd; }
+
+function renderBoard(wrap, round, key, opts) {
+  if (wrap.dataset.boardKey !== key) {
+    wrap.dataset.boardKey = key;
+    wrap.innerHTML = "";
+    board = { key: key, wrong: {}, done: false, tries: 0 };
+    round.tiles.forEach(function (tile, i) {
+      var btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "tile";
+      btn.textContent = tile.e;
+      btn.setAttribute("aria-label", tile.n);
+      btn.addEventListener("click", function () { onTileTap(wrap, round, i, opts); });
+      wrap.appendChild(btn);
+    });
+    if (opts.announce) say("Which one does not belong?");
+  }
+  paintBoard(wrap, round, opts);
+}
+
+function paintBoard(wrap, round, opts) {
+  var revealed = !!opts.revealed;
+  Array.prototype.forEach.call(wrap.children, function (btn, i) {
+    btn.classList.toggle("wrong", !!board.wrong[i]);
+    var isOdd = i === round.odd;
+    btn.classList.toggle("correct", (board.done || revealed) && isOdd);
+    btn.classList.toggle("dim", (board.done || revealed) && !isOdd && !board.wrong[i]);
+    var locked = board.done || revealed || !!board.wrong[i];
+    btn.classList.toggle("locked", locked);
+    btn.disabled = locked;
+  });
+}
+
+function onTileTap(wrap, round, i, opts) {
+  if (board.done) return;
+  if (board.wrong[i]) return;
+  board.tries++;
+  if (i === round.odd) {
+    board.done = true;
+    soundRight();
+    say(pickRandom(["Yes! Well done!", "That's it!", "Brilliant!", "You got it!"]));
+    if (board.tries === 1) confetti(10);
+    paintBoard(wrap, round, opts);
+    opts.onSolved(board.tries);
+  } else {
+    board.wrong[i] = true;
+    soundWrong();
+    say("Try again");
+    paintBoard(wrap, round, opts);
+  }
+}
+
+function renderDots(el, total, results, current) {
+  el.innerHTML = "";
+  for (var i = 0; i < total; i++) {
+    var d = document.createElement("div");
+    var r = results[i];
+    d.className = "dot" + (r === "star" ? " star" : r === "miss" ? " miss" : "") + (i === current ? " now" : "");
+    el.appendChild(d);
+  }
+}
+
+// =========================================================================
+// Settings chips, shared by the lobby and the one-device setup
+// =========================================================================
+function buildChips(el, options, getValue, onPick) {
+  el.innerHTML = "";
+  options.forEach(function (opt) {
+    var chip = document.createElement("div");
+    chip.className = "chip";
+    chip.textContent = opt.label;
+    chip.dataset.value = String(opt.value);
+    chip.addEventListener("click", function () { onPick(opt.value); });
+    el.appendChild(chip);
+  });
+  paintChips(el, getValue());
+}
+function paintChips(el, value) {
+  Array.prototype.forEach.call(el.children, function (chip) {
+    chip.classList.toggle("selected", chip.dataset.value === String(value));
+  });
+}
+function levelOptions() { return LEVELS.map(function (l) { return { value: l.id, label: l.label }; }); }
+function tileOptions() { return TILE_CHOICES.map(function (t) { return { value: t, label: String(t) + " pictures" }; }); }
+function roundOptions() { return ROUND_CHOICES.map(function (r) { return { value: r, label: String(r) + " rounds" }; }); }
+function levelHint(id) {
+  var found = LEVELS.filter(function (l) { return l.id === id; })[0];
+  return found ? found.hint : "";
+}
+
+// ---------- Rules ----------
+$("rules-btn").addEventListener("click", function () { $("rules-modal-backdrop").classList.add("show"); });
+$("rules-modal-close").addEventListener("click", function () { $("rules-modal-backdrop").classList.remove("show"); });
+$("rules-modal-backdrop").addEventListener("click", function (e) { if (e.target === this) this.classList.remove("show"); });
+$("home-toggle").addEventListener("click", function () {
+  if (!confirm("Back to the start screen? This leaves your current game.")) return;
+  try { localStorage.removeItem("oddoneout_room"); } catch (e) {}
+  location.hash = "";
+  location.reload();
+});
+
+// =========================================================================
+// MULTIPLAYER
+// =========================================================================
+var mp = {
+  uid: null,
+  avatar: null,
+  roomCode: null,
+  isHost: false,
+  room: null,
+  fired: {},
+  nextHandle: null
+};
+// Snapshots arrive back to back, so remember every step already taken this
+// game and never take the same one twice.
+//
+// The write is deferred to the next tick on purpose: writing to the room from
+// inside a render triggers the next render *while the first one is still
+// running*, and whatever the outer render does afterwards (like showing its
+// own screen) then lands on top of the newer one.
+function hostAutoAdvance(key, fn) {
+  if (mp.fired[key]) return;
+  mp.fired[key] = true;
+  setTimeout(fn, 0);
+}
+
+function roomRef(code) { return ref(db, "rooms/" + code); }
+function generateRoomCode() {
+  var out = "";
+  for (var i = 0; i < 4; i++) out += CODE_CHARS[Math.floor(Math.random() * CODE_CHARS.length)];
+  return out;
+}
+function shareLink(code) {
+  return location.origin + location.pathname + "#" + code;
+}
+
+signInAnonymously(auth).catch(function (err) {
+  $("home-status").textContent = "Couldn't connect: " + err.message;
+});
+
+onAuthStateChanged(auth, function (user) {
+  if (!user) return;
+  mp.uid = user.uid;
+  tryAutoRejoin();
+});
+
+// A shared link (…/oddoneout.html#ABCD) drops you straight at the character
+// picker. This is the whole reason the link exists: a child can't be asked to
+// type a room code.
+function hashCode() {
+  var code = (location.hash || "").replace("#", "").trim().toUpperCase();
+  return /^[A-Z0-9]{4}$/.test(code) ? code : "";
+}
+function tryLinkJoin() {
+  var code = hashCode();
+  if (!code) return false;
+  pendingJoinCode = code;
+  openAvatarPicker("join");
+  return true;
+}
+
+// Last night's room is remembered so a refresh mid-game doesn't lose your
+// place — but a freshly shared link always wins over a stale one, or a new
+// link would silently do nothing.
+function tryAutoRejoin() {
+  var saved = null;
+  try { saved = JSON.parse(localStorage.getItem("oddoneout_room") || "null"); } catch (e) {}
+  var linkCode = hashCode();
+  if (!saved || !saved.code || (linkCode && linkCode !== saved.code)) { tryLinkJoin(); return; }
+  get(roomRef(saved.code)).then(function (snap) {
+    var roomVal = snap.exists() ? snap.val() : null;
+    if (roomVal && roomVal.game === GAME_ID && roomVal.players && roomVal.players[mp.uid]) {
+      mp.roomCode = saved.code;
+      mp.avatar = roomVal.players[mp.uid].avatar;
+      mp.isHost = roomVal.hostUid === mp.uid;
+      subscribeRoom(saved.code);
+      return;
+    }
+    try { localStorage.removeItem("oddoneout_room"); } catch (e) {}
+    tryLinkJoin();
+  }).catch(function () { tryLinkJoin(); });
+}
+
+// ---------- Picking a character ----------
+var avatarMode = "create";       // "create" or "join"
+var pendingJoinCode = "";
+
+function openAvatarPicker(mode) {
+  avatarMode = mode;
+  $("avatar-status").textContent = "";
+  if (mode === "join") {
+    // Grey out whoever has already been claimed, so two children can't both
+    // be the dragon and then not know which one they are.
+    get(roomRef(pendingJoinCode)).then(function (snap) {
+      var taken = {};
+      if (snap.exists()) {
+        var val = snap.val();
+        Object.keys(val.players || {}).forEach(function (uid) {
+          if (uid !== mp.uid) taken[val.players[uid].avatar] = true;
+        });
+      }
+      buildAvatarGrid(taken);
+    }).catch(function () { buildAvatarGrid({}); });
+  } else {
+    buildAvatarGrid({});
+  }
+  showScreen("screen-avatar");
+}
+
+function buildAvatarGrid(taken) {
+  var grid = $("avatar-grid");
+  grid.innerHTML = "";
+  AVATARS.forEach(function (a) {
+    var btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "avatar-btn";
+    btn.textContent = a[0];
+    btn.setAttribute("aria-label", a[1]);
+    btn.disabled = !!taken[a[0]];
+    btn.addEventListener("click", function () {
+      Array.prototype.forEach.call(grid.children, function (c) { c.classList.remove("selected"); });
+      btn.classList.add("selected");
+      mp.avatar = a[0];
+      say("You are the " + a[1]);
+      if (avatarMode === "create") createRoomFlow(a[0]);
+      else joinRoomFlow(pendingJoinCode, a[0]);
+    });
+    grid.appendChild(btn);
+  });
+}
+
+$("btn-avatar-back").addEventListener("click", function () {
+  location.hash = "";
+  showScreen("screen-home");
+});
+
+$("btn-create-room").addEventListener("click", function () {
+  if (!mp.uid) { $("home-status").textContent = "Still connecting, try again in a moment."; return; }
+  openAvatarPicker("create");
+});
+
+$("btn-join-room").addEventListener("click", function () {
+  if (!mp.uid) { $("home-status").textContent = "Still connecting, try again in a moment."; return; }
+  $("input-join-code").value = "";
+  $("join-code-status").textContent = "";
+  showScreen("screen-join-code");
+});
+
+$("btn-join-code-back").addEventListener("click", function () { showScreen("screen-home"); });
+$("btn-join-code-submit").addEventListener("click", function () {
+  var code = $("input-join-code").value.trim().toUpperCase();
+  if (!code) { $("join-code-status").textContent = "Enter a room code."; return; }
+  pendingJoinCode = code;
+  openAvatarPicker("join");
+});
+$("input-join-code").addEventListener("keydown", function (e) {
+  if (e.key === "Enter") { e.preventDefault(); $("btn-join-code-submit").click(); }
+});
+
+async function createRoomFlow(avatar) {
+  $("avatar-status").textContent = "Creating room…";
+  var code;
+  do { code = generateRoomCode(); } while ((await get(roomRef(code))).exists());
+  var uid = mp.uid;
+  await set(roomRef(code), {
+    game: GAME_ID,
+    createdAt: Date.now(),
+    hostUid: uid,
+    phase: "lobby",
+    settings: { level: DEFAULTS.level, tiles: DEFAULTS.tiles, rounds: DEFAULTS.rounds },
+    players: { [uid]: { avatar: avatar, joinedAt: Date.now() } },
+    scores: { [uid]: 0 }
+  });
+  mp.roomCode = code;
+  mp.isHost = true;
+  try { localStorage.setItem("oddoneout_room", JSON.stringify({ code: code })); } catch (e) {}
+  subscribeRoom(code);
+}
+
+async function joinRoomFlow(code, avatar) {
+  $("avatar-status").textContent = "Joining…";
+  var snap = await get(roomRef(code));
+  if (!snap.exists()) { $("avatar-status").textContent = "Room not found — check the code."; return; }
+  var val = snap.val();
+  if (val.game !== GAME_ID) {
+    $("avatar-status").textContent = "That code belongs to a different game's room.";
+    return;
+  }
+  var uid = mp.uid;
+  await update(ref(db, "rooms/" + code + "/players/" + uid), { avatar: avatar, joinedAt: Date.now() });
+  if (!val.scores || val.scores[uid] === undefined) {
+    await update(ref(db, "rooms/" + code + "/scores"), (function () { var o = {}; o[uid] = 0; return o; })());
+  }
+  mp.roomCode = code;
+  mp.isHost = val.hostUid === uid;
+  try { localStorage.setItem("oddoneout_room", JSON.stringify({ code: code })); } catch (e) {}
+  subscribeRoom(code);
+}
+
+$("btn-leave-room").addEventListener("click", function () {
+  if (!confirm("Leave this room?")) return;
+  try { localStorage.removeItem("oddoneout_room"); } catch (e) {}
+  location.hash = "";
+  location.reload();
+});
+
+function subscribeRoom(code) {
+  onValue(roomRef(code), function (snap) {
+    mp.room = snap.val();
+    if (!mp.room) {
+      try { localStorage.removeItem("oddoneout_room"); } catch (e) {}
+      showScreen("screen-home");
+      $("home-status").textContent = "Room closed.";
+      return;
+    }
+    mp.isHost = mp.room.hostUid === mp.uid;
+    render();
+  });
+  subscribeReactions(code);
+}
+
+function render() {
+  var room = mp.room;
+  if (!room) return;
+  if (room.phase === "lobby") renderLobby();
+  else if (room.phase === "round") renderMpRound();
+  else if (room.phase === "reveal") renderMpReveal();
+  else if (room.phase === "over") renderMpOver();
+}
+
+function mpPlayerUids() { return mp.room && mp.room.players ? Object.keys(mp.room.players) : []; }
+function mpAvatar(uid) {
+  var p = mp.room.players && mp.room.players[uid];
+  return p && p.avatar ? p.avatar : "❓";
+}
+function mpSettings() {
+  var s = (mp.room && mp.room.settings) || {};
+  return {
+    level: s.level || DEFAULTS.level,
+    tiles: s.tiles || DEFAULTS.tiles,
+    rounds: s.rounds || DEFAULTS.rounds
+  };
+}
+function mpRound() {
+  var r = mp.room && mp.room.round;
+  if (!r) return null;
+  return { n: r.n, key: r.key, odd: r.odd, one: r.one, many: r.many, tiles: toArray(r.tiles) };
+}
+// ---------- Lobby ----------
+function renderLobby() {
+  mp.fired = {};
+  clearTimeout(mp.nextHandle);
+  $("lobby-code").textContent = mp.roomCode;
+
+  var list = $("lobby-players");
+  list.innerHTML = "";
+  mpPlayerUids().forEach(function (uid) {
+    var el = document.createElement("div");
+    el.className = "who" + (uid === mp.uid ? " me" : "");
+    el.textContent = mpAvatar(uid);
+    if (uid === mp.room.hostUid) {
+      var badge = document.createElement("span");
+      badge.className = "host-badge";
+      badge.textContent = "HOST";
+      el.appendChild(badge);
+    }
+    list.appendChild(el);
+  });
+
+  var s = mpSettings();
+  var settingsCard = $("lobby-settings-card");
+  if (!settingsCard.dataset.built) {
+    settingsCard.dataset.built = "1";
+    buildChips($("lobby-level-chips"), levelOptions(), function () { return mpSettings().level; }, function (v) {
+      if (mp.isHost) update(ref(db, "rooms/" + mp.roomCode + "/settings"), { level: v });
+    });
+    buildChips($("lobby-tiles-chips"), tileOptions(), function () { return mpSettings().tiles; }, function (v) {
+      if (mp.isHost) update(ref(db, "rooms/" + mp.roomCode + "/settings"), { tiles: v });
+    });
+    buildChips($("lobby-rounds-chips"), roundOptions(), function () { return mpSettings().rounds; }, function (v) {
+      if (mp.isHost) update(ref(db, "rooms/" + mp.roomCode + "/settings"), { rounds: v });
+    });
+  }
+  paintChips($("lobby-level-chips"), s.level);
+  paintChips($("lobby-tiles-chips"), s.tiles);
+  paintChips($("lobby-rounds-chips"), s.rounds);
+  $("lobby-level-hint").textContent = levelHint(s.level);
+
+  $("btn-start-mp-game").style.display = mp.isHost ? "" : "none";
+  $("lobby-waiting").style.display = mp.isHost ? "none" : "";
+  $("lobby-status").textContent = mp.isHost ? "" : "The host is choosing the settings.";
+  showScreen("screen-lobby");
+}
+
+$("btn-copy-link").addEventListener("click", async function () {
+  var link = shareLink(mp.roomCode);
+  var ok = false;
+  try {
+    if (navigator.clipboard && window.isSecureContext) { await navigator.clipboard.writeText(link); ok = true; }
+  } catch (e) { ok = false; }
+  if (!ok) ok = fallbackCopy(link);
+  $("lobby-copy-hint").textContent = ok
+    ? "Copied. Send it to everyone — they tap it, pick a character, and they're in."
+    : ("Couldn't copy — the link is " + link);
+});
+
+// navigator.clipboard needs a secure context, which GitHub Pages gives us, but
+// it still fails on some older iOS versions — hence the fallback.
+function fallbackCopy(text) {
+  var ta = document.createElement("textarea");
+  ta.value = text;
+  ta.setAttribute("readonly", "");
+  ta.style.position = "fixed";
+  ta.style.top = "0";
+  ta.style.opacity = "0";
+  document.body.appendChild(ta);
+  ta.select();
+  ta.setSelectionRange(0, text.length);
+  var ok = false;
+  try { ok = document.execCommand("copy"); } catch (e) { ok = false; }
+  document.body.removeChild(ta);
+  return ok;
+}
+
+$("btn-start-mp-game").addEventListener("click", function () {
+  if (!mp.isHost) return;
+  var s = mpSettings();
+  var scores = {};
+  mpPlayerUids().forEach(function (uid) { scores[uid] = 0; });
+  update(roomRef(mp.roomCode), {
+    phase: "round",
+    scores: scores,
+    used: {},
+    history: {},
+    answers: null,
+    round: makeRound(s.level, s.tiles, {}, 1)
+  });
+});
+
+// ---------- Multiplayer round ----------
+function renderMpRound() {
+  var round = mpRound();
+  if (!round) return;
+  var s = mpSettings();
+  clearTimeout(mp.nextHandle);
+
+  renderDots($("mp-dots"), s.rounds, myHistory(), round.n - 1);
+
+  renderBoard($("mp-board"), round, boardKey("mp", round), {
+    announce: true,
+    revealed: false,
+    onSolved: function (tries) {
+      update(ref(db, "rooms/" + mp.roomCode + "/answers/" + mp.uid), { tries: tries, ts: Date.now() });
+    }
+  });
+
+  var answers = mp.room.answers || {};
+  // If this device already answered but the board was rebuilt (a refresh, say),
+  // don't let it answer twice.
+  if (answers[mp.uid] && !board.done) {
+    board.done = true;
+    paintBoard($("mp-board"), round, { revealed: false });
+  }
+
+  renderWhoRow($("mp-who"), function (uid) { return !!answers[uid]; });
+  $("mp-round-host-nav").style.display = mp.isHost ? "flex" : "none";
+
+  var everyoneIn = mpPlayerUids().every(function (uid) { return !!answers[uid]; });
+  if (mp.isHost && everyoneIn && mpPlayerUids().length > 0) {
+    hostAutoAdvance("reveal:" + round.n, function () { hostRevealRound(round); });
+  }
+  showScreen("screen-mp-round");
+}
+
+$("btn-mp-skip").addEventListener("click", function () {
+  if (!mp.isHost) return;
+  var round = mpRound();
+  if (round) hostAutoAdvance("reveal:" + round.n, function () { hostRevealRound(round); });
+});
+
+// Stars are worked out by the host from everyone's answers, so every device
+// agrees on the score without racing each other to write it.
+function hostRevealRound(round) {
+  var answers = mp.room.answers || {};
+  var scores = Object.assign({}, mp.room.scores || {});
+  var history = Object.assign({}, mp.room.history || {});
+  mpPlayerUids().forEach(function (uid) {
+    var a = answers[uid];
+    var got = !!(a && a.tries === 1);
+    if (got) scores[uid] = (scores[uid] || 0) + 1;
+    var mine = Object.assign({}, history[uid] || {});
+    mine[round.n] = got ? "star" : "miss";
+    history[uid] = mine;
+  });
+  update(roomRef(mp.roomCode), { phase: "reveal", scores: scores, history: history });
+}
+
+function myHistory() {
+  var h = (mp.room && mp.room.history && mp.room.history[mp.uid]) || {};
+  var out = [];
+  Object.keys(h).forEach(function (k) { out[Number(k) - 1] = h[k]; });
+  return out;
+}
+
+function renderWhoRow(el, isDone) {
+  el.innerHTML = "";
+  mpPlayerUids().forEach(function (uid) {
+    var w = document.createElement("div");
+    w.className = "who" + (isDone(uid) ? " done" : "") + (uid === mp.uid ? " me" : "");
+    w.appendChild(document.createTextNode(mpAvatar(uid)));
+    var tick = document.createElement("span");
+    tick.className = "tick";
+    tick.textContent = isDone(uid) ? "✅" : "…";
+    w.appendChild(tick);
+    el.appendChild(w);
+  });
+}
+
+// ---------- Multiplayer reveal ----------
+function renderMpReveal() {
+  var round = mpRound();
+  if (!round) return;
+  var s = mpSettings();
+  renderDots($("mp-reveal-dots"), s.rounds, myHistory(), round.n - 1);
+
+  var revealKey = "reveal-shown:" + round.n;
+  var first = !mp.fired[revealKey];
+
+  $("mp-reveal-emoji").textContent = round.tiles[round.odd].e;
+  $("mp-reveal-reason").textContent = reasonSentence(round);
+
+  var answers = mp.room.answers || {};
+  var winners = mpPlayerUids().filter(function (uid) {
+    return answers[uid] && answers[uid].tries === 1;
+  });
+  $("mp-reveal-stars").textContent = winners.map(function (uid) { return mpAvatar(uid) + "⭐"; }).join(" ");
+
+  var scores = mp.room.scores || {};
+  var el = $("mp-reveal-who");
+  el.innerHTML = "";
+  mpPlayerUids().forEach(function (uid) {
+    var w = document.createElement("div");
+    w.className = "who" + (uid === mp.uid ? " me" : "");
+    w.appendChild(document.createTextNode(mpAvatar(uid)));
+    var sc = document.createElement("span");
+    sc.className = "stars";
+    sc.textContent = String(scores[uid] || 0);
+    w.appendChild(sc);
+    el.appendChild(w);
+  });
+
+  if (first) {
+    mp.fired[revealKey] = true;
+    say(spokenReason(round));
+    if (winners.indexOf(mp.uid) !== -1) confetti(8);
+    // The host moves everyone on together so nobody is left staring at a
+    // finished round waiting for a grown-up to press something.
+    if (mp.isHost) {
+      clearTimeout(mp.nextHandle);
+      mp.nextHandle = setTimeout(hostNextRound, REVEAL_HOLD_MS);
+    }
+  }
+  $("btn-mp-next").style.display = mp.isHost ? "" : "none";
+  showScreen("screen-mp-reveal");
+}
+
+$("btn-mp-next").addEventListener("click", function () {
+  if (!mp.isHost) return;
+  clearTimeout(mp.nextHandle);
+  hostNextRound();
+});
+
+function hostNextRound() {
+  if (!mp.isHost || !mp.room) return;
+  var round = mpRound();
+  if (!round) return;
+  var s = mpSettings();
+  if (round.n >= s.rounds) {
+    update(roomRef(mp.roomCode), { phase: "over", answers: null });
+    return;
+  }
+  var used = Object.assign({}, mp.room.used || {});
+  used[round.key] = true;
+  update(roomRef(mp.roomCode), {
+    phase: "round",
+    used: used,
+    answers: null,
+    round: makeRound(s.level, s.tiles, used, round.n + 1)
+  });
+}
+
+// ---------- Multiplayer game over ----------
+function renderMpOver() {
+  var scores = mp.room.scores || {};
+  var uids = mpPlayerUids().slice().sort(function (a, b) { return (scores[b] || 0) - (scores[a] || 0); });
+  var top = uids.length ? (scores[uids[0]] || 0) : 0;
+
+  var el = $("mp-final-scores");
+  el.innerHTML = "";
+  uids.forEach(function (uid) {
+    var n = scores[uid] || 0;
+    var row = document.createElement("div");
+    row.className = "score-row" + (n === top && top > 0 ? " top" : "");
+    var face = document.createElement("div");
+    face.className = "face";
+    face.textContent = mpAvatar(uid);
+    var bar = document.createElement("div");
+    bar.className = "bar";
+    bar.textContent = stars(n);
+    var num = document.createElement("div");
+    num.className = "num";
+    num.textContent = String(n);
+    row.appendChild(face); row.appendChild(bar); row.appendChild(num);
+    el.appendChild(row);
+  });
+
+  if (!mp.fired.over) {
+    mp.fired.over = true;
+    confetti(30);
+    soundFinish();
+    say("All done! Great playing!");
+  }
+  $("mp-over-host-nav").style.display = mp.isHost ? "flex" : "none";
+  $("mp-over-waiting").style.display = mp.isHost ? "none" : "";
+  showScreen("screen-mp-over");
+}
+
+$("btn-mp-play-again").addEventListener("click", function () {
+  if (!mp.isHost) return;
+  var scores = {};
+  mpPlayerUids().forEach(function (uid) { scores[uid] = 0; });
+  update(roomRef(mp.roomCode), {
+    phase: "lobby", round: null, answers: null, used: {}, history: {}, scores: scores
+  });
+});
+
+// ---------- Reactions ----------
+// Every one of these is a picture, so the youngest player at the table can
+// join in with the chat without reading or typing a word.
+var REACTION_EMOJI = ["😂", "👏", "🎉", "⭐", "😮"];
+// Not the lobby: that screen is long enough to scroll, and a floating bar
+// over its Start button is worse than no reactions while waiting.
+var REACTION_SCREENS = {
+  "screen-mp-round": true,
+  "screen-mp-reveal": true,
+  "screen-mp-over": true
+};
+var REACTION_LIFETIME_MS = 5000;
+var REACTION_STALE_MS = 10000;
+var REACTION_THROTTLE_MS = 600;
+var REACTION_MAX_ON_SCREEN = 24;
+var lastReactionAt = 0;
+
+(function buildReactionBar() {
+  var bar = $("reaction-bar");
+  REACTION_EMOJI.forEach(function (emoji) {
+    var btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "reaction-btn";
+    btn.textContent = emoji;
+    btn.setAttribute("aria-label", "React " + emoji);
+    btn.addEventListener("click", function () { sendReaction(emoji); });
+    bar.appendChild(btn);
+  });
+})();
+
+function updateReactionBar(screenId) {
+  $("reaction-bar").classList.toggle("show", !!(mp.roomCode && REACTION_SCREENS[screenId]));
+}
+
+function sendReaction(emoji) {
+  if (!mp.roomCode) return;
+  var now = Date.now();
+  if (now - lastReactionAt < REACTION_THROTTLE_MS) return;
+  lastReactionAt = now;
+  var reactionsRef = ref(db, "rooms/" + mp.roomCode + "/reactions");
+  push(reactionsRef, { emoji: emoji, uid: mp.uid, avatar: mp.avatar, ts: now })
+    .then(function (entry) {
+      // Tidy up after itself so an evening's reactions don't pile up.
+      setTimeout(function () {
+        remove(ref(db, "rooms/" + mp.roomCode + "/reactions/" + entry.key)).catch(function () {});
+      }, REACTION_LIFETIME_MS);
+    })
+    .catch(function () {});
+}
+
+function subscribeReactions(code) {
+  var reactionsRef = ref(db, "rooms/" + code + "/reactions");
+  // Note what's already there before listening, so joining a room doesn't
+  // replay a backlog at you.
+  get(reactionsRef).then(function (snap) {
+    var alreadyThere = {};
+    Object.keys(snap.val() || {}).forEach(function (key) { alreadyThere[key] = true; });
+    onChildAdded(reactionsRef, function (child) {
+      if (alreadyThere[child.key]) return;
+      var r = child.val();
+      if (!r || !r.emoji) return;
+      if (!r.ts || Date.now() - r.ts > REACTION_STALE_MS) return;
+      floatReaction(r.emoji, r.avatar);
+    });
+  }).catch(function () {});
+}
+
+function floatReaction(emoji, who) {
+  var layer = $("reaction-layer");
+  if (layer.childElementCount >= REACTION_MAX_ON_SCREEN) return;
+  var el = document.createElement("div");
+  el.className = "reaction-float";
+  el.textContent = emoji;
+  if (who) {
+    var tag = document.createElement("span");
+    tag.className = "who-tag";
+    tag.textContent = who;
+    el.appendChild(tag);
+  }
+  var spread = Math.min(window.innerWidth - 80, 300);
+  el.style.left = (window.innerWidth / 2 - spread / 2 + Math.random() * spread) + "px";
+  el.style.bottom = (70 + Math.random() * 30) + "px";
+  layer.appendChild(el);
+  el.addEventListener("animationend", function () { el.remove(); });
+}
+
+// =========================================================================
+// ONE-DEVICE MODE
+//
+// Not pass-and-play: a grown-up and a small child looking at the same screen
+// and finding it together, with one shared pile of stars.
+// =========================================================================
+var local = {
+  level: DEFAULTS.level,
+  tiles: DEFAULTS.tiles,
+  rounds: DEFAULTS.rounds,
+  n: 0,
+  used: {},
+  results: [],
+  round: null
+};
+try {
+  var savedSetup = JSON.parse(localStorage.getItem("oddoneout_setup") || "null");
+  if (savedSetup) {
+    if (savedSetup.level) local.level = savedSetup.level;
+    if (savedSetup.tiles) local.tiles = savedSetup.tiles;
+    if (savedSetup.rounds) local.rounds = savedSetup.rounds;
+  }
+} catch (e) {}
+function saveLocalSetup() {
+  try {
+    localStorage.setItem("oddoneout_setup", JSON.stringify({
+      level: local.level, tiles: local.tiles, rounds: local.rounds
+    }));
+  } catch (e) {}
+}
+
+$("btn-local-mode").addEventListener("click", function () {
+  buildChips($("local-level-chips"), levelOptions(), function () { return local.level; }, function (v) {
+    local.level = v;
+    paintChips($("local-level-chips"), v);
+    $("local-level-hint").textContent = levelHint(v);
+    saveLocalSetup();
+  });
+  buildChips($("local-tiles-chips"), tileOptions(), function () { return local.tiles; }, function (v) {
+    local.tiles = v; paintChips($("local-tiles-chips"), v); saveLocalSetup();
+  });
+  buildChips($("local-rounds-chips"), roundOptions(), function () { return local.rounds; }, function (v) {
+    local.rounds = v; paintChips($("local-rounds-chips"), v); saveLocalSetup();
+  });
+  $("local-level-hint").textContent = levelHint(local.level);
+  showScreen("local-screen-setup");
+});
+
+$("local-btn-back-home").addEventListener("click", function () { showScreen("screen-home"); });
+
+$("local-btn-start").addEventListener("click", function () {
+  local.n = 0;
+  local.used = {};
+  local.results = [];
+  localNextRound();
+});
+
+function localNextRound() {
+  local.n++;
+  local.round = makeRound(local.level, local.tiles, local.used, local.n);
+  local.used[local.round.key] = true;
+  $("local-reveal-card").style.display = "none";
+  $("local-btn-next").disabled = true;
+  renderLocalRound();
+  showScreen("local-screen-round");
+}
+
+function renderLocalRound() {
+  var round = local.round;
+  renderDots($("local-dots"), local.rounds, local.results, local.n - 1);
+  renderBoard($("local-board"), round, boardKey("local", round), {
+    announce: true,
+    revealed: false,
+    onSolved: function (tries) {
+      local.results[local.n - 1] = tries === 1 ? "star" : "miss";
+      renderDots($("local-dots"), local.rounds, local.results, local.n - 1);
+      $("local-reason").textContent = reasonSentence(round);
+      $("local-reveal-card").style.display = "";
+      $("local-btn-next").disabled = false;
+      setTimeout(function () { say(spokenReason(round)); }, 900);
+    }
+  });
+}
+
+$("local-btn-next").addEventListener("click", function () {
+  if (local.n >= local.rounds) { showLocalOver(); return; }
+  localNextRound();
+});
+
+function showLocalOver() {
+  var got = local.results.filter(function (r) { return r === "star"; }).length;
+  $("local-final-stars").textContent = stars(got) || "🙂";
+  $("local-final-line").textContent = got + " out of " + local.rounds + " first time.";
+  confetti(30);
+  soundFinish();
+  say("All done! You got " + got + " out of " + local.rounds + "!");
+  showScreen("local-screen-over");
+}
+
+$("local-btn-again").addEventListener("click", function () {
+  local.n = 0;
+  local.used = {};
+  local.results = [];
+  localNextRound();
+});
+$("local-btn-home").addEventListener("click", function () { showScreen("screen-home"); });
+
+// ---------- Init ----------
+showScreen("screen-home");
+</script>
+</body>
+</html>
