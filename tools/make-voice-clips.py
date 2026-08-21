@@ -120,16 +120,19 @@ def read_game():
         return m.group(1).replace('\\"', '"').replace("\\'", "'") if m else None
 
     lines = []
-    for var in ("ASK_IN_FULL", "ASK_BRIEFLY"):
+    for var in ("ASK_IN_FULL", "ASK_BRIEFLY", "TRY_AGAIN", "ALL_DONE"):
         v = const(var)
         if v:
             lines.append(v)
 
-    # Said when they get it right or wrong, and at the end of a game.
-    for extra in ["Yes! Well done!", "That's it!", "Brilliant!", "You got it!",
-                  "Try again", "All done! Great playing!"]:
-        if extra not in lines:
-            lines.append(extra)
+    # Said when they get it right. The game keeps these in one list precisely
+    # so this can read them rather than holding a second copy that goes stale.
+    praise = re.search(r"var PRAISE = \[(.*?)\];", src, re.S)
+    if praise:
+        for line in re.findall(r'"((?:[^"\\]|\\.)*)"', praise.group(1)):
+            line = line.replace('\\"', '"').replace("\\'", "'")
+            if line not in lines:
+                lines.append(line)
 
     if not names or not groups:
         die("Read the game but found no words. Has oddoneout.html changed shape?")

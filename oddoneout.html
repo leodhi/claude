@@ -1094,6 +1094,9 @@ function makeUtterance(text) {
 // each one starts and how long it runs. That is a single upload rather than a
 // folder of three hundred, and after the first word the file is already
 // buffered, so every word after it starts instantly with nothing to fetch.
+// The index names its own audio file, so a set recorded by hand (which comes
+// out as a .wav) drops in exactly where the generated .mp3 was, with nothing
+// here to change.
 var CLIP_AUDIO = "oddoneout-voice.mp3";
 var CLIP_INDEX = "oddoneout-voice.json";
 var CLIPS = null;          // line of speech -> [start frame, how many frames]
@@ -1115,6 +1118,11 @@ var clipTurn = 0;          // so a word that ends can't stop the one after it
       if (m && m.clips && Object.keys(m.clips).length) {
         CLIPS = m.clips;
         if (m.frameSeconds > 0) CLIP_FRAME = m.frameSeconds;
+        // Only a plain filename beside the game — never a path or an address,
+        // so a doctored index can't point the game at somebody else's server.
+        if (typeof m.audio === "string" && /^[\w.-]+\.(mp3|wav|m4a|ogg)$/i.test(m.audio)) {
+          CLIP_AUDIO = m.audio;
+        }
         paintVoiceOptions();      // the voice picker is moot once we have these
       }
     })
@@ -1246,6 +1254,13 @@ function sayLines(list) {
 // ---------- Reading the pictures out, one at a time ----------
 // Each picture lights up as it's named. A token guards the chain so a tap (or
 // the next round) stops it dead rather than leaving a tile stuck lit.
+// Everything the game says out loud that isn't a picture name or a group.
+// Kept in one place because the voice recorders read this file to know what to
+// record: a line written straight into the code below and nowhere else would
+// simply never get a recording, and would come out in the robot voice forever.
+var PRAISE = ["Yes! Well done!", "That's it!", "Brilliant!", "You got it!"];
+var TRY_AGAIN = "Try again";
+var ALL_DONE = "All done! Great playing!";
 var ASK_IN_FULL = "Which one of these pictures do you think doesn't fit, and is different from the others?";
 var ASK_BRIEFLY = "Which one is different?";
 
@@ -1574,14 +1589,14 @@ function onTileTap(wrap, round, i, opts) {
   if (i === round.odd) {
     board.done = true;
     soundRight();
-    say(pickRandom(["Yes! Well done!", "That's it!", "Brilliant!", "You got it!"]));
+    say(pickRandom(PRAISE));
     if (board.tries === 1) confetti(10);
     paintBoard(wrap, round, opts);
     opts.onSolved(board.tries);
   } else {
     board.wrong[i] = true;
     soundWrong();
-    say("Try again");
+    say(TRY_AGAIN);
     paintBoard(wrap, round, opts);
   }
 }
@@ -2202,7 +2217,7 @@ function renderMpOver() {
     mp.fired.over = true;
     confetti(30);
     soundFinish();
-    say("All done! Great playing!");
+    say(ALL_DONE);
   }
   $("mp-over-host-nav").style.display = mp.isHost ? "flex" : "none";
   $("mp-over-waiting").style.display = mp.isHost ? "none" : "";
