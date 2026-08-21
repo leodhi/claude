@@ -506,6 +506,13 @@
 
   <!-- LOCAL SETUP -->
   <div class="screen" id="local-screen-setup">
+    <div class="card" id="local-resume-banner" style="display:none;">
+      <div id="local-resume-text">Looks like the page reloaded part-way through a game. Want to carry on?</div>
+      <div class="row" style="margin-top:10px;">
+        <button class="secondary" id="local-btn-start-new" type="button" style="flex:1">Start a New Game</button>
+        <button class="primary" id="local-btn-carry-on" type="button" style="flex:1">Carry On</button>
+      </div>
+    </div>
     <div class="card">
       <label>How hard? Pick as many as you like</label>
       <div class="chip-group" id="local-level-chips"></div>
@@ -1564,7 +1571,7 @@ $("rules-modal-close").addEventListener("click", function () { $("rules-modal-ba
 $("rules-modal-backdrop").addEventListener("click", function (e) { if (e.target === this) this.classList.remove("show"); });
 $("home-toggle").addEventListener("click", function () {
   if (!confirm("Back to the start screen? This leaves your current game.")) return;
-  try { localStorage.removeItem("oddoneout_room"); } catch (e) {}
+  try { localStorage.removeItem("oddoneout_room"); localStorage.removeItem("oddoneout_save"); } catch (e) {}
   location.hash = "";
   location.reload();
 });
@@ -2247,6 +2254,7 @@ $("btn-local-mode").addEventListener("click", function () {
       function (n) { local.rounds = n; paintLocalSetup(); saveLocalSetup(); });
   }
   paintLocalSetup();
+  $("local-resume-banner").style.display = localLoadSave() ? "" : "none";
   showScreen("local-screen-setup");
 });
 
@@ -2270,11 +2278,68 @@ function localNextRound() {
   local.n++;
   local.round = makeRound(local.levels, local.tiles, local.used, local.n);
   local.used[local.round.key] = true;
+  localSaveCheckpoint();
+  localShowRound();
+}
+
+function localShowRound() {
   $("local-reveal-card").style.display = "none";
   $("local-btn-next").disabled = true;
+  $("local-btn-replay").style.display = "";
   renderLocalRound();
   showScreen("local-screen-round");
 }
+
+// ---------- Picking a game back up ----------
+// An iPad locks, Safari reloads a backgrounded tab, a small child presses
+// something — and twenty rounds are gone. Every other game in here keeps a
+// checkpoint for exactly this, so this one does too.
+//
+// The checkpoint is written at the START of a round, before anything about it
+// has been scored, so carrying on replays that round rather than double
+// counting its star.
+var LOCAL_SAVE_KEY = "oddoneout_save";
+
+function localSaveCheckpoint() {
+  try {
+    localStorage.setItem(LOCAL_SAVE_KEY, JSON.stringify({
+      levels: local.levels, tiles: local.tiles, rounds: local.rounds,
+      n: local.n, used: local.used, results: local.results, round: local.round
+    }));
+  } catch (e) { /* private browsing or storage full — carrying on just isn't offered */ }
+}
+function localClearSave() {
+  try { localStorage.removeItem(LOCAL_SAVE_KEY); } catch (e) {}
+}
+function localLoadSave() {
+  try {
+    var saved = JSON.parse(localStorage.getItem(LOCAL_SAVE_KEY) || "null");
+    if (!saved || !saved.round || !saved.round.tiles || !saved.round.tiles.length) return null;
+    if (!(saved.n >= 1) || !(saved.rounds >= saved.n)) return null;
+    return saved;
+  } catch (e) { return null; }
+}
+function localRestore(saved) {
+  local.levels = toLevelList(saved.levels);
+  local.tiles = saved.tiles || DEFAULTS.tiles;
+  local.rounds = clampRounds(saved.rounds);
+  local.n = saved.n;
+  local.used = saved.used || {};
+  local.results = saved.results || [];
+  local.round = saved.round;
+  $("local-resume-banner").style.display = "none";
+  localShowRound();
+}
+
+$("local-btn-carry-on").addEventListener("click", function () {
+  var saved = localLoadSave();
+  if (!saved) { $("local-resume-banner").style.display = "none"; return; }
+  localRestore(saved);
+});
+$("local-btn-start-new").addEventListener("click", function () {
+  localClearSave();
+  $("local-resume-banner").style.display = "none";
+});
 
 function renderLocalRound() {
   var round = local.round;
@@ -2301,6 +2366,7 @@ $("local-btn-next").addEventListener("click", function () {
 });
 
 function showLocalOver() {
+  localClearSave();
   var got = local.results.filter(function (r) { return r === "star"; }).length;
   $("local-final-stars").textContent = stars(got) || "🙂";
   $("local-final-line").textContent = got + " out of " + local.rounds + " first time.";
