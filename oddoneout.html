@@ -1069,7 +1069,9 @@ function paintVoiceOptions() {
     ? "This device isn't offering the game any choice of voice, so it's using the one built in. On an iPhone or iPad that's Apple's limit, not something the game can get around."
     : anyGood
       ? "The ones marked “best quality” sound the most human — try a couple and keep whichever you like."
-      : "Worth a try: under Settings → Accessibility → Spoken Content → Voices → English you can download better voices. They don't always turn up in this list afterwards — Safari doesn't reliably hand downloaded voices to a web page — but when they do, they sound far more human.";
+      // Apple renamed this menu to "Read & Speak" in iPadOS/iOS 26; older
+      // devices still call it "Spoken Content", so name both.
+      : "Worth a try: under Settings → Accessibility → Read & Speak (called Spoken Content on older iPads) → Voices → English you can download better voices. They don't always turn up in this list afterwards — Safari doesn't reliably hand downloaded voices to a web page — but when they do, they sound far more human.";
 }
 
 function paintSoundUI() {
