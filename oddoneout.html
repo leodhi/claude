@@ -380,7 +380,7 @@
   <!-- HOME -->
   <div class="screen active" id="screen-home">
     <div class="card">
-      <button class="primary" id="btn-local-mode" type="button">Play on This Device</button>
+      <button class="primary" id="btn-local-mode" type="button">Play on One Device</button>
       <small class="hint">Sit together with one phone or tablet and find them as a team.</small>
     </div>
     <div class="center" style="color:var(--text-dim);font-size:0.8rem;">— or play across devices —</div>
@@ -438,13 +438,13 @@
   <!-- MULTIPLAYER LOBBY -->
   <div class="screen" id="screen-lobby">
     <div class="card center">
-      <label>Send this to everyone playing</label>
+      <label>Room code — share with players</label>
       <div class="room-code" id="lobby-code"></div>
       <button class="secondary" id="btn-copy-link" type="button">Copy the link</button>
       <small class="hint" id="lobby-copy-hint">They tap the link, pick a character, and they're in.</small>
     </div>
     <div class="card">
-      <label>Who's here</label>
+      <label>Players</label>
       <div class="who-row" id="lobby-players"></div>
     </div>
     <div class="card" id="lobby-settings-card">
@@ -461,8 +461,8 @@
       </div>
       <small class="hint">Tap the number to type your own, up to 50.</small>
     </div>
-    <button class="primary" id="btn-start-mp-game" type="button">Start Playing</button>
-    <div class="waiting-text" id="lobby-waiting" style="display:none">Waiting for the host to start…</div>
+    <button class="primary" id="btn-start-mp-game" type="button">Start Game</button>
+    <div class="waiting-text" id="lobby-waiting" style="display:none">Waiting for the host to start the game…</div>
     <div class="center status-line" id="lobby-status"></div>
     <button class="link" id="btn-leave-room" type="button">Leave room</button>
   </div>
@@ -506,11 +506,13 @@
 
   <!-- LOCAL SETUP -->
   <div class="screen" id="local-screen-setup">
-    <div class="card" id="local-resume-banner" style="display:none;">
-      <div id="local-resume-text">Looks like the page reloaded part-way through a game. Want to carry on?</div>
+    <div class="card" id="local-refresh-resume-banner" style="display:none;">
+      <div class="row" style="align-items:center; gap:10px;">
+        <div style="flex:1;">Looks like the page was refreshed mid-game. Want to keep playing?</div>
+      </div>
       <div class="row" style="margin-top:10px;">
-        <button class="secondary" id="local-btn-start-new" type="button" style="flex:1">Start a New Game</button>
-        <button class="primary" id="local-btn-carry-on" type="button" style="flex:1">Carry On</button>
+        <button class="secondary" id="local-btn-refresh-startnew" type="button">Start New Game</button>
+        <button class="primary" id="local-btn-refresh-continue" type="button">Resume Game</button>
       </div>
     </div>
     <div class="card">
@@ -532,7 +534,7 @@
       </div>
       <small class="hint">Tap the number to type your own, up to 50. Ten takes about three or four minutes.</small>
     </div>
-    <button class="primary" id="local-btn-start" type="button">Start Playing</button>
+    <button class="primary" id="local-btn-start" type="button">Start Game</button>
     <button class="link" id="local-btn-back-home" type="button">Back to home</button>
   </div>
 
@@ -2282,7 +2284,7 @@ $("btn-local-mode").addEventListener("click", function () {
       function (n) { local.rounds = n; paintLocalSetup(); saveLocalSetup(); });
   }
   paintLocalSetup();
-  $("local-resume-banner").style.display = localLoadSave() ? "" : "none";
+  $("local-refresh-resume-banner").style.display = localLoadSave() ? "" : "none";
   showScreen("local-screen-setup");
 });
 
@@ -2355,18 +2357,18 @@ function localRestore(saved) {
   local.used = saved.used || {};
   local.results = saved.results || [];
   local.round = saved.round;
-  $("local-resume-banner").style.display = "none";
+  $("local-refresh-resume-banner").style.display = "none";
   localShowRound();
 }
 
-$("local-btn-carry-on").addEventListener("click", function () {
+$("local-btn-refresh-continue").addEventListener("click", function () {
   var saved = localLoadSave();
-  if (!saved) { $("local-resume-banner").style.display = "none"; return; }
+  if (!saved) { $("local-refresh-resume-banner").style.display = "none"; return; }
   localRestore(saved);
 });
-$("local-btn-start-new").addEventListener("click", function () {
+$("local-btn-refresh-startnew").addEventListener("click", function () {
   localClearSave();
-  $("local-resume-banner").style.display = "none";
+  $("local-refresh-resume-banner").style.display = "none";
 });
 
 function renderLocalRound() {
