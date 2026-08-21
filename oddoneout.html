@@ -913,7 +913,14 @@ function loadVoices() {
   if (s && s.getVoices) {
     var all = s.getVoices() || [];
     var english = all.filter(function (v) { return /^en/i.test(v.lang || ""); });
-    voices = (english.length ? english : all).slice().sort(function (a, b) {
+    var pool = english.length ? english : all;
+    // Apple hands the browser a pile of joke voices — Bahh, Bells, Boing,
+    // Bubbles, Zarvox and friends. Ranking them last wasn't enough: they still
+    // filled the list a parent was scrolling through, and one got picked by
+    // accident. None of them is ever the right answer here, so they're left
+    // out altogether — unless that would empty the list.
+    var usable = pool.filter(function (v) { return !SILLY_VOICE.test(v.name || ""); });
+    voices = (usable.length ? usable : pool).slice().sort(function (a, b) {
       return voiceScore(b) - voiceScore(a);
     });
   }
