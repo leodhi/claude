@@ -877,7 +877,12 @@ function soundFinish() { beep([523, 659, 784, 1047, 1319], 0.13); }
 var voices = [];
 // Apple ships a pile of joke voices (Bubbles, Zarvox, Deranged…) that are
 // genuinely unusable, and "compact" is the low-quality version of a real voice.
-var SILLY_VOICE = /(compact|eloquence|novelty|whisper|zarvox|bells|bahh|albert|jester|organ|trinoids|bubbles|boing|good news|bad news|wobble|superstar|junior|ralph|fred|kathy|bruce|agnes|victoria|princess|deranged|hysterical|cellos|bad|grandma|grandpa|rocko|shelley|sandy|flo|eddy|reed)/i;
+// Word-bounded on purpose: a bare "bad" matched any voice with those letters
+// in its name, and a bare "flo" would bury a perfectly good Florence.
+var SILLY_VOICE = /\b(compact|eloquence|novelty|whisper|zarvox|bells|bahh|albert|jester|organ|trinoids|bubbles|boing|good news|bad news|wobble|superstar|junior|ralph|fred|kathy|bruce|agnes|victoria|princess|deranged|hysterical|cellos)\b/i;
+// Apple's quirkier character voices. Not jokes, and someone may well prefer
+// one, so they are nudged down the list rather than buried under the novelties.
+var QUIRKY_VOICE = /\b(grandma|grandpa|rocko|shelley|sandy|flo|eddy|reed)\b/i;
 var GOOD_VOICE = /(enhanced|premium|neural|natural|siri)/i;
 
 function synth() { return window.speechSynthesis || null; }
@@ -886,6 +891,7 @@ function voiceScore(v) {
   var name = v.name || "";
   var score = 0;
   if (SILLY_VOICE.test(name)) score -= 500;
+  else if (QUIRKY_VOICE.test(name)) score -= 60;
   // An American accent was asked for, and it outweighs quality: the best
   // American voice wins over the best British one, but among American voices
   // the enhanced ones still come first. If the device has no American voice
