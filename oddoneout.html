@@ -947,6 +947,25 @@ function shuffle(arr) {
   return arr;
 }
 function pickRandom(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
+
+// Which well-done line to say. Two rules, both about it not getting stale:
+// never the same one twice running, and only ever one that exists in the
+// recorded voice — otherwise adding a line here would drop a robot into the
+// middle of a game before anyone had got round to recording it.
+var lastPraise = "";
+function praiseLine() {
+  var pool = PRAISE;
+  if (useRecordings()) {
+    var recorded = PRAISE.filter(function (t) { return CLIPS && CLIPS[t]; });
+    if (recorded.length) pool = recorded;
+  }
+  if (pool.length > 1) {
+    var fresh = pool.filter(function (t) { return t !== lastPraise; });
+    if (fresh.length) pool = fresh;
+  }
+  lastPraise = pickRandom(pool);
+  return lastPraise;
+}
 // Firebase hands arrays back as arrays when the keys are 0..n-1 and as an
 // object when they're not, so normalise both to a plain array.
 function toArray(v) {
@@ -1320,7 +1339,14 @@ function sayLines(list) {
 // Kept in one place because the voice recorders read this file to know what to
 // record: a line written straight into the code below and nowhere else would
 // simply never get a recording, and would come out in the robot voice forever.
-var PRAISE = ["Yes! Well done!", "That's it!", "Brilliant!", "You got it!"];
+// Four of these meant hearing the same one twice in a row all the time, which
+// wears thin fast when you're four. "Brilliant!" is gone: it's British, and
+// this is an American household.
+var PRAISE = [
+  "Yes! Well done!", "That's it!", "You got it!", "Great job!",
+  "Nice work!", "Awesome!", "Way to go!", "That's right!",
+  "Nailed it!", "Good eye!", "High five!", "Woohoo!"
+];
 var TRY_AGAIN = "Try again";
 var ALL_DONE = "All done! Great playing!";
 var ASK_IN_FULL = "Which one of these pictures do you think doesn't fit, and is different from the others?";
@@ -1652,7 +1678,7 @@ function onTileTap(wrap, round, i, opts) {
   if (i === round.odd) {
     board.done = true;
     soundRight();
-    say(pickRandom(PRAISE));
+    say(praiseLine());
     if (board.tries === 1) confetti(10);
     paintBoard(wrap, round, opts);
     opts.onSolved(board.tries);
