@@ -784,6 +784,11 @@ function showScreen(id) {
   $("app").classList.toggle("playing", !!PLAY_SCREENS[id]);
   // Leaving the board mid-sentence shouldn't leave the voice talking to itself.
   if (!PLAY_SCREENS[id]) stopSpeaking();
+  // Re-read the device's voice list every time the settings are on screen.
+  // Downloading a better voice is the one thing likely to change it, and iOS
+  // doesn't reliably fire voiceschanged — so without this you'd have to fully
+  // quit Safari before a newly downloaded voice showed up.
+  if (id === "screen-home" && typeof loadVoices === "function") loadVoices();
   updateReactionBar(id);
 }
 
