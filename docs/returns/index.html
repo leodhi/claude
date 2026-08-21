@@ -50,11 +50,14 @@
     padding: 16px; box-shadow: var(--shadow); margin-bottom: 12px;
   }
   label { display: block; font-size: 0.72rem; color: var(--ink-muted); text-transform: uppercase; letter-spacing: 0.07em; margin-bottom: 6px; }
-  input[type="text"], input[type="email"], input[type="password"], input[type="number"], input[type="datetime-local"] {
+  input[type="text"], input[type="email"], input[type="password"], input[type="number"], input[type="datetime-local"], input[type="date"] {
     width: 100%; background: var(--surface-2); border: 1px solid var(--border); color: var(--ink);
     padding: 12px; border-radius: 10px; font-size: 1rem; font-family: inherit;
   }
   input:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+  /* Safari sizes a date field to its content and ignores width:100%,
+     so it needs a minimum width and its own appearance reset. */
+  input[type="date"] { -webkit-appearance: none; appearance: none; min-height: 46px; width: 100%; }
   button { font-family: inherit; touch-action: manipulation; transition: transform 0.15s cubic-bezier(.2,.9,.3,1.1); }
   button:active { transform: scale(0.96); }
   .btn {
@@ -170,7 +173,7 @@
     </header>
     <div class="sub">Things to send back, before the window closes.</div>
     <div class="note">
-      You'll get a phone alert <strong>3 days before</strong> each deadline, and again on the day.
+      You'll get a phone alert however far ahead <strong>you choose</strong> for each item, and again on the day.
       Miss the window and the money's gone, so this one nags.
     </div>
     <div id="items"></div>
@@ -189,8 +192,17 @@
     <input type="text" id="f-name" placeholder="e.g. Blue trainers, size 5" maxlength="60">
     <label style="margin-top:12px;">Where from</label>
     <input type="text" id="f-where" placeholder="e.g. Zara" maxlength="40">
+    <label style="margin-top:12px;">How to send it back</label>
+    <div class="chips" id="how-presets" style="margin-bottom:8px;"></div>
+    <input type="text" id="f-how" placeholder="e.g. UPS drop-off, or type your own" maxlength="40">
     <label style="margin-top:12px;">Return by</label>
     <input type="date" id="f-date">
+    <label style="margin-top:12px;">Remind me this far ahead</label>
+    <div class="chips" id="lead-presets" style="margin-bottom:8px;"></div>
+    <div class="row">
+      <input type="number" id="f-lead" min="1" max="365" value="3" style="width:90px;text-align:center;">
+      <span style="color:var(--ink-muted);font-size:0.9rem;">days before — and again on the day</span>
+    </div>
     <label style="margin-top:12px;">Note (optional)</label>
     <input type="text" id="f-note" placeholder="e.g. order 12345, needs the QR code" maxlength="80">
     <button class="btn" id="btn-save" type="button" style="margin-top:16px;">Save</button>
@@ -300,6 +312,13 @@ let unsubscribe = null, editingId = null;
 function newId() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
 function todayUTC() { const d = new Date(); d.setHours(0,0,0,0); return d.getTime(); }
 function parseDate(s) { return s ? new Date(s + "T00:00:00").getTime() : null; }
+// How much notice each return gets is per item -- a next-day courier needs a
+// day, a shop you have to drive to might want a fortnight. The chips are just
+// shortcuts; the box takes anything.
+const DEFAULT_LEAD_DAYS = 3;
+const LEAD_PRESETS = [1, 2, 3, 5, 7, 14];
+const HOW_PRESETS = ["Post office", "UPS", "Amazon store", "In store", "Courier collection", "Drop-off point"];
+
 function daysUntil(s) { const t = parseDate(s); return t === null ? null : Math.round((t - todayUTC()) / DAY); }
 function fmtDate(s) {
   const t = parseDate(s);
@@ -372,14 +391,45 @@ function render() {
   finished.forEach(it => done.appendChild(card(it)));
 }
 
+function renderChips(wrapId, values, targetId, label) {
+  const wrap = document.getElementById(wrapId);
+  const target = document.getElementById(targetId);
+  const current = target.value;
+  wrap.innerHTML = "";
+  values.forEach(v => {
+    const c = document.createElement("button");
+    c.type = "button";
+    c.className = "chip" + (String(v) === String(current) ? " on" : "");
+    c.textContent = label ? label(v) : v;
+    c.addEventListener("click", () => {
+      target.value = v;
+      renderChips(wrapId, values, targetId, label);
+    });
+    wrap.appendChild(c);
+  });
+}
+function renderLeadPresets() {
+  renderChips("lead-presets", LEAD_PRESETS, "f-lead", d => d + (d === 1 ? " day" : " days"));
+}
+function renderHowPresets() { renderChips("how-presets", HOW_PRESETS, "f-how"); }
+
+document.addEventListener("DOMContentLoaded", () => {
+  document.getElementById("f-lead").addEventListener("input", renderLeadPresets);
+  document.getElementById("f-how").addEventListener("input", renderHowPresets);
+});
+
 function openEdit(id) {
   editingId = id;
   const it = id ? state.items[id] : null;
   document.getElementById("edit-title").textContent = it ? "Edit return" : "Add a return";
   document.getElementById("f-name").value = it ? it.name : "";
   document.getElementById("f-where").value = it && it.where ? it.where : "";
+  document.getElementById("f-how").value = it && it.how ? it.how : "";
   document.getElementById("f-date").value = it ? it.date : "";
+  document.getElementById("f-lead").value = it && it.leadDays ? it.leadDays : DEFAULT_LEAD_DAYS;
   document.getElementById("f-note").value = it && it.note ? it.note : "";
+  renderLeadPresets();
+  renderHowPresets();
   document.getElementById("btn-delete").classList.toggle("hide", !it);
   const doneBtn = document.getElementById("btn-done");
   doneBtn.classList.toggle("hide", !it);
@@ -399,10 +449,16 @@ document.getElementById("btn-save").addEventListener("click", () => {
   if (!name || !date) { setStatus("app-status", "Give it a name and a deadline.", true); return; }
   const id = editingId || newId();
   const existing = state.items[id] || {};
+  const leadDays = Math.max(1, Number(document.getElementById("f-lead").value) || DEFAULT_LEAD_DAYS);
+  // Changing the notice period clears the stamp, so widening the window can
+  // still alert for a deadline that had already gone quiet.
+  const leadChanged = existing.leadDays !== undefined && existing.leadDays !== leadDays;
   save({ items: { ...state.items, [id]: {
-    ...existing, name, date,
+    ...existing, name, date, leadDays,
     where: document.getElementById("f-where").value.trim(),
-    note: document.getElementById("f-note").value.trim()
+    how: document.getElementById("f-how").value.trim(),
+    note: document.getElementById("f-note").value.trim(),
+    ...(leadChanged ? { lastAlerted: null } : {})
   } } });
   closeEdit();
 });

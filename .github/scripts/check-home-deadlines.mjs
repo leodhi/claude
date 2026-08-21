@@ -17,17 +17,19 @@ if (!ntfyTopic) throw new Error("NTFY_TOPIC is not set");
 // Renewals carry their own notice period -- an inspection wants a month, a
 // quick errand wants a few days -- so the steps are built per item from
 // whatever the app saved, plus a nearer nudge and one on the day.
-const DEFAULT_LEAD_DAYS = 30;
-function renewalThresholds(item) {
-  const lead = Math.max(1, Number(item.leadDays) || DEFAULT_LEAD_DAYS);
+const DEFAULT_RENEWAL_LEAD_DAYS = 30;
+const DEFAULT_RETURN_LEAD_DAYS = 3;
+function thresholdsFor(item, fallback) {
+  const lead = Math.max(1, Number(item.leadDays) || fallback);
   // A short notice period shouldn't get a "7 days" step that fires at the same
   // time as the first one, so the middle nudge scales with the lead.
   const mid = lead > 14 ? 7 : lead > 3 ? 2 : null;
   return [...new Set([lead, mid, 0].filter(v => v !== null))];
 }
-// Return windows are short and missing one costs real money, so it nags later
-// and closer in.
-const RETURN_THRESHOLDS = [3, 1, 0];
+const renewalThresholds = item => thresholdsFor(item, DEFAULT_RENEWAL_LEAD_DAYS);
+// Returns carry their own notice period too -- a next-day courier needs a day,
+// a shop you have to drive to might want a fortnight.
+const returnThresholds = item => thresholdsFor(item, DEFAULT_RETURN_LEAD_DAYS);
 
 const DAY = 86400000;
 
@@ -140,9 +142,10 @@ function returnAlert(item, days) {
     : days === 0 ? "must go back today"
     : `must go back within ${days} day(s)`;
   const where = item.where ? ` to ${item.where}` : "";
+  const how = item.how ? ` · ${item.how}` : "";
   return {
     title: days < 0 ? `Return window missed: ${item.name}` : `Send back: ${item.name}`,
-    message: `${item.name}${where} ${when} (by ${formatDate(item.date)})${item.note ? ` · ${item.note}` : ""}`
+    message: `${item.name}${where} ${when} (by ${formatDate(item.date)})${how}${item.note ? ` · ${item.note}` : ""}`
   };
 }
 
@@ -158,7 +161,7 @@ async function main() {
   const db = getFirestore();
 
   const renewals = await checkDoc(db, "renewals", renewalThresholds, "calendar", renewalAlert);
-  const returns = await checkDoc(db, "returns", () => RETURN_THRESHOLDS, "package", returnAlert);
+  const returns = await checkDoc(db, "returns", returnThresholds, "package", returnAlert);
   console.log(`Done. ${renewals} renewal alert(s), ${returns} return alert(s).`);
 }
 
