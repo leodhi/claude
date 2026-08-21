@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
 <title>Record the Odd One Out voice</title>
 <meta name="theme-color" content="#101a33">
 <link rel="apple-touch-icon" href="icon-oddoneout.png">
@@ -29,9 +29,9 @@
   }
   #app {
     max-width: 520px; margin: 0 auto;
-    min-height: 100vh; min-height: 100dvh;
+    min-height: 100dvh;
     display: flex; flex-direction: column;
-    padding: 20px 16px 40px;
+    padding: 20px 16px calc(40px + env(safe-area-inset-bottom));
   }
   h1 { font-size: 1.5rem; margin: 4px 0 2px; letter-spacing: 0.5px; }
   h1 span { color: var(--accent); }
@@ -104,7 +104,7 @@
   .counts { display: flex; justify-content: space-between; font-size: 0.8rem; color: var(--text-dim); margin-top: 6px; }
 
   /* ---- The list of everything, so any one can be redone ---- */
-  .word-list { max-height: 46vh; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+  .word-list { max-height: 46dvh; overflow-y: auto; -webkit-overflow-scrolling: touch; }
   .word-row {
     display: flex; align-items: center; gap: 10px; width: 100%; text-align: left;
     background: transparent; border: none; border-bottom: 1px solid var(--border);
