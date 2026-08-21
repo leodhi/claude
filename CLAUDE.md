@@ -123,6 +123,15 @@ Chromium is preinstalled for rendering (see the note about `executablePath` in t
 - Don't give up on a request just because the first approach doesn't pan out. Before concluding something "can't be done" or suggesting a workaround (e.g. "just use a different device"), think through other real approaches and try them — the fix often turns out to exist. If the user has to be the one to suggest the next idea, that's a sign to slow down and think harder before answering, not a one-off.
 - When troubleshooting, reach for the simplest viable fix before the more elaborate one. When Google sign-in broke on one device, the right early move was offering a plain email+password fallback — not multiple rounds of debugging popups/redirects/cross-site cookies before finally landing on the simple option. Default to the easy path first; only go deeper into the complex/technical fix if the simple one genuinely doesn't cover the need.
 
+## Checking it in Safari
+
+These apps live on iPhones, so **Safari is the browser that matters** — Chrome is not a stand-in for it. Two shipped bugs came from exactly that gap: a date field that rendered 131×21 next to 358×44 fields, and a sheet whose title sat off the top of the screen because `vh` on iOS is the height with the toolbars *hidden*.
+
+- **WebKit cannot be installed in this environment.** The Playwright browser CDN is blocked by the network policy (`npx playwright install webkit` fails on a 403 CONNECT). Every browser test here runs in **Chromium**, a different engine. Never say a UI change is "verified in the browser" without naming the engine — and never treat a Chromium pass as evidence about Safari.
+- **Run `node tools/lint-safari.js docs/*/index.html` before shipping any UI change.** It encodes the WebKit traps that have actually bitten this repo — `vh` sizing on overlays, form fields under 16px (iOS zooms the page when you focus those), native controls with no `-webkit-appearance: none`, missing `-webkit-` prefixes, and the tap-highlight / overscroll / safe-area rules below. It is a backstop, not a substitute.
+- **When a bug is reported from the phone, first ask whether the mechanism is one Chromium can even reproduce.** If it isn't, emulate it explicitly and give the test a control that restores the broken version and asserts the failure is still detectable — a check that cannot fail proves nothing.
+- The user's phone is the final word. When something is genuinely engine-specific, say so plainly and ask them to look, rather than implying it was tested on Safari.
+
 ## Verifying a bug fix
 
 - Never declare a bug fixed based on reading the code alone. Reproduce the actual symptom first — render it, run it, simulate it, screenshot it — then confirm the same reproduction no longer shows the symptom after the change.
