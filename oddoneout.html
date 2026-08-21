@@ -885,6 +885,10 @@ var voices = [];
 // Word-bounded on purpose: a bare "bad" matched any voice with those letters
 // in its name, and a bare "flo" would bury a perfectly good Florence.
 var SILLY_VOICE = /\b(compact|eloquence|novelty|whisper|zarvox|bells|bahh|albert|jester|organ|trinoids|bubbles|boing|good news|bad news|wobble|superstar|junior|ralph|fred|kathy|bruce|agnes|victoria|princess|deranged|hysterical|cellos)\b/i;
+// Novelty voices are hidden so nobody picks one by accident — except these,
+// asked for by name. A silly voice can be exactly what a small child wants.
+// They stay ranked last, so one is offered but never chosen for you.
+var KEEP_SILLY_VOICE = /\b(wobble)\b/i;
 // Apple's quirkier character voices. Not jokes, and someone may well prefer
 // one, so they are nudged down the list rather than buried under the novelties.
 var QUIRKY_VOICE = /\b(grandma|grandpa|rocko|shelley|sandy|flo|eddy|reed)\b/i;
@@ -895,7 +899,7 @@ function synth() { return window.speechSynthesis || null; }
 function voiceScore(v) {
   var name = v.name || "";
   var score = 0;
-  if (SILLY_VOICE.test(name)) score -= 500;
+  if (SILLY_VOICE.test(name)) score -= 500;   // still last, even when kept
   else if (QUIRKY_VOICE.test(name)) score -= 60;
   // An American accent was asked for, and it outweighs quality: the best
   // American voice wins over the best British one, but among American voices
@@ -919,7 +923,10 @@ function loadVoices() {
     // filled the list a parent was scrolling through, and one got picked by
     // accident. None of them is ever the right answer here, so they're left
     // out altogether — unless that would empty the list.
-    var usable = pool.filter(function (v) { return !SILLY_VOICE.test(v.name || ""); });
+    var usable = pool.filter(function (v) {
+      var n = v.name || "";
+      return !SILLY_VOICE.test(n) || KEEP_SILLY_VOICE.test(n);
+    });
     voices = (usable.length ? usable : pool).slice().sort(function (a, b) {
       return voiceScore(b) - voiceScore(a);
     });
@@ -1074,7 +1081,9 @@ function paintVoiceOptions() {
     voices.forEach(function (v) {
       var o = document.createElement("option");
       o.value = v.voiceURI || v.name;
-      o.textContent = v.name + (GOOD_VOICE.test(v.name) ? " — best quality" : "");
+      o.textContent = v.name
+        + (GOOD_VOICE.test(v.name) ? " — best quality"
+          : SILLY_VOICE.test(v.name) ? " — just for fun" : "");
       if (chosen && (v.voiceURI === chosen.voiceURI && v.name === chosen.name)) o.selected = true;
       sel.appendChild(o);
     });
