@@ -56,6 +56,16 @@ That means layout and wording conventions, the shape of forms, how sheets open a
 
 This is not hypothetical; it has already cost a rebuild. The Medicine Timer's medicines editor was built as a cramped row of unlabelled number boxes plus a `prompt()`, and the user's reaction was "I don't even know what it means, and it's confusing." Meanwhile `docs/renewals/index.html` already had exactly the right pattern sitting in the repo: an add/edit sheet with a plain-English `<label>` above every single field, an example placeholder in each input, and a short note in ordinary words next to any number explaining what the number does. Copying that from the start would have avoided the whole thing.
 
+**Reading for style is not enough — list the features too.** Odd One Out was built after reading the other games, and still shipped with no way to resume a game after a page reload, which six of the other seven games have. Reading them for layout and code structure answered "how do these look and how are they put together" but never "what does every one of these do that mine doesn't", so a missing feature was invisible. So before calling a game or app finished, actually enumerate: grep the other files for each feature and put it in a table.
+
+```
+for f in *.html; do printf "%-18s" "$f"
+  for k in refresh-resume-banner resume-banner chat-toggle extend-game add-bot btn-mp-ready timer-display reaction-bar; do
+    grep -q "$k" "$f" && printf "%s " "$k"; done; echo; done
+```
+
+That takes seconds and would have caught it on day one. Anything the others have and yours doesn't is either a deliberate decision you can say out loud, or an omission — and if it's deliberate, say which and why in the reply.
+
 ## Making web apps in this repo feel native (mobile)
 
 These apps are used mostly as "Add to Home Screen" pseudo-apps on phones, so apply these by default whenever creating or touching one of the interactive HTML apps, not just when asked:
