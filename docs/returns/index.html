@@ -175,6 +175,9 @@
     0% { background: #2f9e63; } 100% { background: var(--surface); }
   }
 
+  /* Jotted down but not finished yet: no date, so nothing can be scheduled. */
+  .item.needs-date { border-left-color: var(--ink-faint); }
+  .item-when.needs-date { color: var(--accent); font-weight: 650; }
   .item.past { border-left-color: var(--warn); }
   .item.soon { border-left-color: var(--accent); }
   .item.ok { border-left-color: var(--good); }
@@ -490,19 +493,24 @@ document.getElementById("btn-redo").addEventListener("click", async function () 
 function card(it) {
   const d = daysUntil(it.date);
   const el = document.createElement("div");
-  el.className = "item " + (it.done ? "done" : d === null ? "" : d < 0 ? "past" : d <= 3 ? "soon" : "ok");
+  el.className = "item " + (it.done ? "done" : d === null ? "needs-date" : d < 0 ? "past" : d <= 3 ? "soon" : "ok");
   const top = document.createElement("div");
   top.className = "item-top";
   const name = document.createElement("div");
   name.className = "item-name";
   name.textContent = it.name;
+  const noDate = !it.done && d === null;
   const when = document.createElement("div");
-  when.className = "item-when";
-  when.textContent = it.done ? "Done" : whenLabel(d);
+  when.className = "item-when" + (noDate ? " needs-date" : "");
+  when.textContent = it.done ? "Done" : noDate ? "Add a date" : whenLabel(d);
   top.append(name, when);
   const sub = document.createElement("div");
   sub.className = "item-sub";
-  sub.textContent = [it.where, "by " + fmtDate(it.date), it.note].filter(Boolean).join(" · ");
+  // Say plainly that nothing is scheduled yet -- an app whose whole job is
+  // reminding you shouldn't let a half-finished item look armed.
+  sub.textContent = noDate
+    ? [it.where, "No date yet — you won't be reminded until you add one"].filter(Boolean).join(" · ")
+    : [it.where, it.date ? "by " + fmtDate(it.date) : "", it.note].filter(Boolean).join(" · ");
   el.append(top, sub);
 
   const row = document.createElement("div");
@@ -723,7 +731,9 @@ document.getElementById("edit-sheet").addEventListener("click", e => {
 document.getElementById("btn-save").addEventListener("click", () => {
   const name = document.getElementById("f-name").value.trim();
   const date = document.getElementById("f-date").value;
-  if (!name || !date) { setStatus("app-status", "Give it a name and a deadline.", true); return; }
+  // A name is enough. Adding something with no deadline on purpose is how
+  // you jot it down now and come back to finish it later.
+  if (!name) { setStatus("app-status", "Give it a name.", true); return; }
   const id = editingId || newId();
   const existing = state.items[id] || {};
   const leadDays = Math.max(1, Number(document.getElementById("f-lead").value) || DEFAULT_LEAD_DAYS);
