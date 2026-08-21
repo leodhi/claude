@@ -1,219 +1,289 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <title>Renewals</title>
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="theme-color" content="#f6f4ef">
+<meta name="theme-color" content="#0b0b0d">
 <style>
+  /* Clear-style, matching docs/packing-list-clear/. Dark on purpose: the
+     whole point of the look is bright, full-bleed colour rows against near
+     black, so there is no light theme here -- a light one would just be the
+     old app again. */
   :root {
-    --paper: #f6f4ef;
-    --surface: #ffffff;
-    --surface-2: #fbf9f4;
-    --ink: #241f18;
-    --ink-muted: #766c5c;
-    --ink-faint: #a89d89;
-    --border: #e6ddc9;
-    --accent: #8a5a2b;
-    --accent-soft: #f1e4d0;
-    --warn: #b23a3a;
-    --warn-soft: #f5dede;
-    --good: #3a7d5c;
-    --good-soft: #e1ede6;
-    --shadow: 0 1px 2px rgba(36,31,24,0.06), 0 8px 24px rgba(36,31,24,0.06);
+    --bg: #0b0b0d;
+    --ink: #f5f5f7;
+    --ink-muted: #9a9aa2;
+    --ink-faint: #5c5c62;
+    --accent: #ff9500;
+    --delete: #ff3b30;
+    --renewed: #34c759;
+    --shadow: 0 6px 18px rgba(0,0,0,0.35);
   }
-  @media (prefers-color-scheme: dark) {
-    :root:not([data-theme="light"]) {
-      --paper: #161310; --surface: #1e1a15; --surface-2: #241f19;
-      --ink: #efe9df; --ink-muted: #b3a790; --ink-faint: #766c5a;
-      --border: #322c22; --accent: #d99a54; --accent-soft: rgba(217,154,84,0.14);
-      --warn: #e28080; --warn-soft: rgba(226,128,128,0.12);
-      --good: #6cc190; --good-soft: rgba(108,193,144,0.12);
-      --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 8px 24px rgba(0,0,0,0.35);
-    }
-  }
+
   * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-  html, body {
-    margin: 0; padding: 0; min-height: 100%;
-    background: var(--paper); color: var(--ink);
+  html, body { background: var(--bg); overscroll-behavior-y: contain; }
+  body {
+    margin: 0; color: var(--ink); font-size: 16px; line-height: 1.4;
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-    overscroll-behavior-y: contain;
   }
-  #wrap { max-width: 560px; margin: 0 auto; padding: 20px 16px calc(40px + env(safe-area-inset-bottom)); }
-  header { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; margin-bottom: 4px; }
-  h1 { font-size: 1.35rem; margin: 0; letter-spacing: -0.01em; }
-  .sub { color: var(--ink-muted); font-size: 0.85rem; margin: 2px 0 16px; }
-  .card {
-    background: var(--surface); border: 1px solid var(--border); border-radius: 16px;
-    padding: 16px; box-shadow: var(--shadow); margin-bottom: 12px;
-  }
-  label { display: block; font-size: 0.72rem; color: var(--ink-muted); text-transform: uppercase; letter-spacing: 0.07em; margin-bottom: 6px; }
-  input[type="text"], input[type="email"], input[type="password"], input[type="number"], input[type="datetime-local"], input[type="date"] {
-    width: 100%; background: var(--surface-2); border: 1px solid var(--border); color: var(--ink);
-    padding: 12px; border-radius: 10px; font-size: 1rem; font-family: inherit;
-  }
-  input:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
-  /* Safari sizes a date field to its content and ignores width:100%,
-     so it needs a minimum width and its own appearance reset. */
-  input[type="date"] { -webkit-appearance: none; appearance: none; min-height: 46px; width: 100%; }
-  button { font-family: inherit; touch-action: manipulation; transition: transform 0.15s cubic-bezier(.2,.9,.3,1.1); }
-  button:active { transform: scale(0.96); }
-  .btn {
-    background: var(--accent); color: var(--paper); border: none; padding: 14px;
-    border-radius: 12px; font-size: 1rem; font-weight: 650; cursor: pointer; width: 100%;
-  }
-  .btn.secondary { background: transparent; color: var(--ink); border: 1px solid var(--border); }
-  .btn.danger { background: var(--warn); color: #fff; }
-  .btn:disabled { opacity: 0.45; cursor: not-allowed; }
-  .btn.small { width: auto; padding: 9px 14px; font-size: 0.85rem; border-radius: 999px; }
-  /* 6px of padding left this at 27px tall -- under the size a thumb can
-     reliably hit. Bigger target, same look. */
-  .link { background: none; border: none; color: var(--ink-muted); text-decoration: underline;
-          font-size: 0.82rem; cursor: pointer; padding: 10px 8px; min-height: 40px; }
-  .row { display: flex; gap: 8px; align-items: center; }
+  .wrap { max-width: 640px; margin: 0 auto; padding: calc(20px + env(safe-area-inset-top)) 14px calc(110px + env(safe-area-inset-bottom)); }
   .hide { display: none !important; }
 
+  header { margin-bottom: 16px; }
+  header h1 { font-weight: 700; font-size: 30px; margin: 0 0 3px; letter-spacing: -0.015em; }
+  header p.tagline { margin: 0 0 14px; color: var(--ink-muted); font-size: 13px; }
 
-  .chip {
-    padding: 9px 14px; border-radius: 999px; border: 1px solid var(--border);
-    background: var(--surface-2); color: var(--ink-muted); font-size: 0.88rem; cursor: pointer;
-    touch-action: manipulation; transition: transform 0.15s cubic-bezier(.2,.9,.3,1.1);
-  }
-  .chip:active { transform: scale(0.94); }
-  .chip.on { background: var(--accent); color: var(--paper); border-color: var(--accent); font-weight: 650; }
-  .chips { display: flex; flex-wrap: wrap; gap: 8px; }
-
-
-  .note {
-    background: var(--accent-soft); border: 1px solid var(--border); border-radius: 12px;
-    padding: 12px 14px; font-size: 0.82rem; color: var(--ink-muted); line-height: 1.5; margin-bottom: 12px;
-  }
-  .note strong { color: var(--ink); }
-  .empty { color: var(--ink-muted); font-size: 0.9rem; text-align: center; padding: 18px 0; }
-  .status-line { color: var(--ink-muted); font-size: 0.85rem; text-align: center; padding: 6px 0; min-height: 1.2em; }
-  .status-line.err { color: var(--warn); }
-
-  /* Sheet */
-  .sheet-back {
-    position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 50;
-    /* dvh tracks the area Safari actually leaves visible once its toolbars
-       are showing. Plain vh is the height with them hidden, which is taller
-       than the screen you can see. */
-    height: 100%;
-    height: 100dvh;
-    display: flex; align-items: flex-end; justify-content: center;
-    opacity: 0; visibility: hidden; pointer-events: none; transition: opacity 0.22s ease;
-  }
-  .sheet-back.open { opacity: 1; visibility: visible; pointer-events: auto; }
-  .sheet {
-    background: var(--surface); width: 100%; max-width: 560px;
-    border-radius: 20px 20px 0 0; padding: 20px 16px calc(24px + env(safe-area-inset-bottom));
-    transform: translateY(18px); transition: transform 0.3s cubic-bezier(.2,.9,.3,1.1);
-    /* A percentage of the backdrop above, never of vh. Capping at 88vh made
-       the sheet TALLER than the visible screen on iOS, and because it is
-       pinned to the bottom its top rode up off the top -- the title and the
-       first field were simply not on screen, whatever the scroll position.
-       Bounded by its container, it can never be taller than the space it has. */
-    max-height: 88%;
-    overflow-y: auto;
-  }
-  .sheet-back.open .sheet { transform: translateY(0); }
-  .sheet h2 { margin: 0 0 14px; font-size: 1.1rem; }
-  .settings-row { display: flex; gap: 8px; align-items: center; margin-bottom: 8px; }
-  .settings-row input[type="text"] { flex: 1; }
-  .settings-row input[type="number"] { width: 74px; text-align: center; }
-  .icon-btn {
-    background: var(--surface-2); border: 1px solid var(--border); color: var(--ink-muted);
-    border-radius: 10px; width: 42px; height: 42px; font-size: 1rem; cursor: pointer; flex: none;
-  }
-
-  /* Swipe, the way the Clear-style packing list does it: the card slides and
-     a coloured panel shows underneath. touch-action: pan-y lets the page
-     still scroll vertically while a sideways drag is being read. */
-  .swipe-row {
-    position: relative; margin-bottom: 10px; border-radius: 14px;
-    overflow: hidden; box-shadow: var(--shadow); touch-action: pan-y;
-  }
-  .bg-renew, .bg-delete {
-    position: absolute; inset: 0; display: flex; align-items: center;
-    color: #fff; font-size: 0.92rem; font-weight: 700; opacity: 0;
-  }
-  .bg-renew { background: #2f9e63; justify-content: flex-start; padding-left: 20px; }
-  .bg-delete { background: #d6453f; justify-content: flex-end; padding-right: 20px;
-               cursor: pointer; touch-action: manipulation; }
-
-  /* Undo / redo, the same pill the subscriptions app uses. */
-  .undo-row { display: flex; gap: 8px; align-items: center; margin: 0 0 12px; }
-  .undo-btn {
-    font: inherit; cursor: pointer; border-radius: 999px; border: 1px solid var(--border);
-    background: var(--surface); color: var(--ink-muted); padding: 8px 16px; min-height: 38px;
-    font-size: 0.8rem; font-weight: 650; touch-action: manipulation;
+  .status-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 16px; }
+  .header-actions { display: flex; align-items: center; gap: 6px; flex: none; }
+  .pill-btn {
+    font: inherit; cursor: pointer; border-radius: 999px; border: 1px solid #3a3a3c;
+    background: #2c2c2e; color: var(--ink); padding: 7px 14px; min-height: 36px;
+    font-size: 12.5px; font-weight: 600; touch-action: manipulation;
     transition: border-color 0.15s ease, color 0.15s ease, transform 0.1s cubic-bezier(.2,.9,.3,1.1);
   }
-  .undo-btn:not(:disabled):active { transform: scale(0.95); border-color: var(--accent); color: var(--accent); }
-  .undo-btn:disabled { opacity: 0.4; cursor: default; }
-  .undo-what { color: var(--ink-faint); font-size: 0.76rem; flex: 1; min-width: 0;
-               white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .item {
-    /* position: relative matters. The two coloured panels are absolutely
-       positioned, so without it they paint on top of this card and swallow
-       every tap and drag meant for it. */
-    position: relative;
-    background: var(--surface); border: 1px solid var(--border); border-radius: 14px;
-    padding: 14px; margin-bottom: 0;
-    border-left: 5px solid var(--border); cursor: pointer;
+  .pill-btn:not(:disabled):active { transform: scale(0.94); border-color: var(--accent); color: var(--accent); }
+  .pill-btn:disabled { opacity: 0.4; cursor: default; }
+  .undo-what {
+    font-size: 11.5px; color: var(--ink-faint); flex-basis: 100%;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+
+  /* ---------- The list ---------- */
+  .row-list { border-radius: 16px; overflow: hidden; box-shadow: var(--shadow); }
+
+  .swipe-row { position: relative; overflow: hidden; touch-action: pan-y; border-top: 1px solid rgba(0,0,0,0.2); }
+  .swipe-row:first-child { border-top: none; }
+  .swipe-bg {
+    position: absolute; inset: 0; display: flex; align-items: center;
+    font-size: 15px; font-weight: 700; color: #fff; opacity: 0;
+  }
+  .swipe-bg.bg-renew { background: var(--renewed); justify-content: flex-start; padding-left: 20px; }
+  .swipe-bg.bg-delete { background: var(--delete); justify-content: flex-end; padding-right: 20px; font-size: 22px; cursor: pointer; touch-action: manipulation; }
+
+  .row-fg {
+    position: relative; display: flex; align-items: center; gap: 12px;
+    padding: 15px 16px; cursor: pointer;
     -webkit-user-select: none; user-select: none; -webkit-touch-callout: none;
   }
-  .item.dragging { transition: none; }
-  .item.snap { transition: transform 0.25s cubic-bezier(.2,.9,.3,1.2); }
-  .item.revealed { transition: transform 0.2s cubic-bezier(.2,.9,.3,1.1); }
-  .item.commit { transition: transform 0.2s ease-out, opacity 0.2s ease-out; }
-  .item.flash { animation: flash 0.45s ease-out; }
-  @keyframes flash {
-    0% { background: #2f9e63; } 100% { background: var(--surface); }
+  .row-fg.dragging, .row-fg.commit { will-change: transform; }
+  .row-fg.dragging { transition: none; }
+  .row-fg.snap { transition: transform 0.25s cubic-bezier(.2,.9,.3,1.3); }
+  .row-fg.commit { transition: transform 0.2s ease-out, opacity 0.2s ease-out; }
+  .row-fg.revealed { transition: transform 0.2s cubic-bezier(.2,.9,.3,1.1); }
+  .row-fg.flash { animation: flash 0.5s ease-out; }
+  @keyframes flash { 0% { filter: brightness(1.7); } 100% { filter: brightness(1); } }
+
+  .row-main { flex: 1; min-width: 0; }
+  .row-name { font-size: 18px; font-weight: 600; color: #fff; overflow-wrap: break-word; }
+  /* The detail line. Deliberately quiet -- the name and the "when" pill are
+     what you read at a glance; the exact date and notice period are there
+     when you look closer, rather than competing for the same attention. */
+  .row-sub { font-size: 12.5px; color: rgba(255,255,255,0.84); margin-top: 2px; overflow-wrap: break-word; }
+  .row-fg.done .row-name { color: #4a4a4d; text-decoration: line-through; }
+  .row-fg.done .row-sub { color: #4a4a4d; }
+
+  /* The one piece of hard information every row carries: how long you have.
+     A pill on a dark wash normally, but it turns solid white the moment the
+     item is inside its own notice period or already past -- so "act on this"
+     is a change in brightness you catch without reading anything. */
+  .row-when {
+    flex: none; font-size: 12.5px; font-weight: 700; white-space: nowrap;
+    background: rgba(0,0,0,0.3); color: #fff; border-radius: 999px; padding: 5px 12px;
   }
-  /* Jotted down but not finished yet: no date, so nothing can be scheduled. */
-  .item.needs-date { border-left-color: var(--ink-faint); }
-  .item-when.needs-date { color: var(--accent); font-weight: 650; }
-  .item.past { border-left-color: var(--warn); }
-  .item.soon { border-left-color: var(--accent); }
-  .item.ok { border-left-color: var(--good); }
-  .item.done { opacity: 0.55; border-left-color: var(--border); }
-  .swipe-hint { color: var(--ink-faint); font-size: 0.78rem; margin: 0 2px 10px; }
-  .item-top { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; }
-  .item-name { font-size: 1.05rem; font-weight: 650; }
-  .item-when { font-size: 0.9rem; font-weight: 650; white-space: nowrap; }
-  .item.past .item-when { color: var(--warn); }
-  .item.soon .item-when { color: var(--accent); }
-  .item.ok .item-when { color: var(--good); }
-  .item-sub { color: var(--ink-muted); font-size: 0.84rem; margin-top: 5px; line-height: 1.45; }
-  .item.done .item-name { text-decoration: line-through; }
+  .row-when.due { background: #fff; color: #3d1400; }
+  .row-when.nodate { background: rgba(255,255,255,0.12); color: var(--accent); }
+
+  .inline-add-input-wrap { flex: 1; min-width: 0; }
+  .inline-add-input {
+    width: 100%; display: block; font: inherit; font-size: 18px; font-weight: 600; color: #fff;
+    background: transparent; border: none; padding: 0; margin: 0;
+    -webkit-appearance: none; appearance: none;
+    font-family: inherit; line-height: inherit; resize: none; overflow: hidden;
+  }
+  .inline-add-input:focus { outline: none; }
+  .inline-add-input::placeholder { color: rgba(255,255,255,0.65); font-weight: 600; }
+
+  .add-item-row {
+    padding: 15px 16px; text-align: center; font-size: 14px; font-weight: 600;
+    color: rgba(255,255,255,0.55); cursor: pointer; touch-action: manipulation;
+    background: rgba(255,255,255,0.045);
+  }
+  .add-item-row:active { background: rgba(255,255,255,0.09); }
+
   .group-label {
-    font-size: 0.72rem; color: var(--ink-muted); text-transform: uppercase;
-    letter-spacing: 0.07em; margin: 18px 0 8px;
+    font-size: 11.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em;
+    color: var(--ink-faint); margin: 20px 2px 8px;
   }
-  .fab-row { margin-top: 4px; }
+  .group-label:first-child { margin-top: 0; }
+  .empty-state { color: var(--ink-faint); font-size: 14px; text-align: center; padding: 40px 20px; }
+  .status-line { color: var(--ink-muted); font-size: 13px; text-align: center; padding: 8px 0; min-height: 1.2em; }
+  .status-line.err { color: var(--delete); }
+
+  /* ---------- Pull down at the top to add ---------- */
+  .scroll-container { position: relative; }
+  .wrap.pull-snap { transition: transform 0.3s cubic-bezier(.2,.9,.3,1.2); }
+  .pull-indicator {
+    position: absolute; top: 0; left: 0; right: 0; height: 0; overflow: visible;
+    display: flex; justify-content: center; pointer-events: none; z-index: 5;
+  }
+  #pull-icon {
+    margin-top: calc(14px + env(safe-area-inset-top));
+    width: 38px; height: 38px; border-radius: 50%; background: #2c2c2e; border: 1px solid #3a3a3c;
+    color: var(--ink-muted); display: flex; align-items: center; justify-content: center;
+    font-size: 19px; font-weight: 700; opacity: 0; transform: scale(0.4);
+    transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+  }
+  #pull-icon.ready { background: var(--accent); border-color: var(--accent); color: #fff; }
+  #pull-icon.reset { transition: opacity 0.2s ease, transform 0.2s ease, background 0.15s ease, border-color 0.15s ease, color 0.15s ease; }
+
+  .fab {
+    position: fixed; right: 20px; width: 56px; height: 56px; border-radius: 50%;
+    bottom: calc(28px + env(safe-area-inset-bottom) + var(--vv-bottom-offset, 0px));
+    background: var(--accent); color: #fff; border: none; font-size: 28px; line-height: 1;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.45); cursor: pointer; z-index: 20;
+    touch-action: manipulation; transition: transform 0.12s cubic-bezier(.2,.9,.3,1.1);
+    -webkit-transform: translateZ(0); transform: translateZ(0); will-change: transform;
+  }
+  .fab:active { transform: scale(0.92); }
+
+  .toast {
+    position: fixed; left: 50%; bottom: calc(26px + env(safe-area-inset-bottom) + var(--vv-bottom-offset, 0px));
+    transform: translateX(-50%) translateY(10px);
+    background: #2c2c2e; color: #fff; border: 1px solid #3a3a3c; border-radius: 12px;
+    padding: 11px 12px 11px 15px; font-size: 13.5px; display: flex; align-items: center; gap: 12px;
+    box-shadow: var(--shadow); max-width: calc(100% - 40px); z-index: 30;
+    opacity: 0; visibility: hidden; pointer-events: none;
+    transition: opacity 0.22s cubic-bezier(.2,.9,.3,1.1), transform 0.22s cubic-bezier(.2,.9,.3,1.1), visibility 0s linear 0.22s;
+  }
+  .toast.show {
+    opacity: 1; visibility: visible; pointer-events: auto; transform: translateX(-50%) translateY(0);
+    transition: opacity 0.22s cubic-bezier(.2,.9,.3,1.1), transform 0.22s cubic-bezier(.2,.9,.3,1.1);
+  }
+  .toast span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .toast button {
+    font: inherit; font-weight: 700; color: var(--accent); background: none; border: none;
+    cursor: pointer; padding: 4px 6px; flex: none; touch-action: manipulation;
+  }
+
+  /* ---------- The detail sheet ---------- */
+  /* Spans the *visible* viewport rather than the whole window, so with the
+     keyboard up the sheet lands just above it instead of behind it. Never
+     sized in vh: on iOS that is the height with the toolbars hidden, which
+     is taller than the screen you can actually see, and a bottom-pinned
+     sheet measured that way pushes its own title up off the top. */
+  .sheet-back {
+    position: fixed; left: 0; right: 0;
+    top: var(--vv-top, 0px); height: var(--vv-height, 100%);
+    background: rgba(0,0,0,0.6);
+    display: flex; align-items: flex-end; justify-content: center; z-index: 25;
+    opacity: 0; visibility: hidden; pointer-events: none; transition: opacity 0.2s ease;
+  }
+  .sheet-back.show { opacity: 1; visibility: visible; pointer-events: auto; }
+  .sheet {
+    background: #1c1c1e; border-radius: 18px 18px 0 0; width: 100%; max-width: 640px;
+    padding: 18px 18px calc(18px + env(safe-area-inset-bottom));
+    box-shadow: 0 -6px 24px rgba(0,0,0,0.5);
+    transform: translateY(26px); transition: transform 0.28s cubic-bezier(.2,.9,.3,1.1);
+    max-height: 100%; overflow-y: auto; -webkit-overflow-scrolling: touch;
+  }
+  .sheet-back.show .sheet { transform: translateY(0); }
+  .sheet h3 { margin: 0 0 4px; font-size: 17px; }
+  .sheet .sheet-sub { margin: 0 0 16px; font-size: 13px; color: var(--ink-muted); }
+  /* Every field gets a plain-English label above it and an example in the
+     box, and any number gets a short sentence next to it saying what the
+     number actually does -- the pattern the old renewals sheet used, kept
+     because it is the thing that made this form understandable. */
+  .sheet label { display: block; font-size: 11.5px; color: var(--ink-muted); text-transform: uppercase; letter-spacing: 0.06em; margin: 15px 0 6px; }
+  .sheet label:first-of-type { margin-top: 0; }
+  .sheet input[type="text"], .sheet input[type="number"], .sheet input[type="date"] {
+    width: 100%; background: #2c2c2e; border: 1px solid #3a3a3c; border-radius: 10px;
+    padding: 12px; color: var(--ink); font-size: 16px; font-family: inherit;
+  }
+  .sheet input:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+  /* Safari sizes a date field to its content and ignores width:100%, so it
+     needs a minimum height and its own appearance reset -- without this it
+     came out 131x21 next to 358x44 fields. */
+  .sheet input[type="date"] { -webkit-appearance: none; appearance: none; min-height: 48px; width: 100%; }
+  .field-row { display: flex; gap: 10px; align-items: center; }
+  .field-row input[type="number"] { width: 92px; text-align: center; flex: none; }
+  .field-note { font-size: 13px; color: var(--ink-muted); line-height: 1.35; }
+
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 9px; }
+  .chip {
+    font: inherit; padding: 9px 14px; border-radius: 999px; border: 1px solid #3a3a3c;
+    background: #2c2c2e; color: var(--ink-muted); font-size: 13.5px; font-weight: 600;
+    cursor: pointer; touch-action: manipulation; transition: transform 0.12s cubic-bezier(.2,.9,.3,1.1);
+  }
+  .chip:active { transform: scale(0.94); }
+  .chip.on { background: var(--accent); border-color: var(--accent); color: #fff; }
+
+  .sheet-actions { display: flex; flex-direction: column; gap: 9px; margin-top: 20px; }
+  .sheet-actions button {
+    font: inherit; cursor: pointer; border-radius: 11px; border: none; padding: 13px 14px;
+    font-size: 15.5px; font-weight: 650; touch-action: manipulation;
+    transition: transform 0.12s cubic-bezier(.2,.9,.3,1.1);
+  }
+  .sheet-actions button:active { transform: scale(0.97); }
+  .btn-save { background: #fff; color: #111; }
+  .btn-plain { background: #2c2c2e; color: var(--ink); }
+  .btn-danger { background: var(--delete); color: #fff; }
+  /* Pushed away from the safe buttons above it, so a thumb heading for
+     Cancel can't land on Delete. */
+  .btn-set-apart { margin-top: 14px; }
+
+  /* ---------- Sign-in ---------- */
+  .card { background: #1c1c1e; border: 1px solid #2c2c2e; border-radius: 16px; padding: 18px; }
+  .card label { display: block; font-size: 11.5px; color: var(--ink-muted); text-transform: uppercase; letter-spacing: 0.06em; margin: 14px 0 6px; }
+  .card input {
+    width: 100%; background: #2c2c2e; border: 1px solid #3a3a3c; border-radius: 10px;
+    padding: 12px; color: var(--ink); font-size: 16px; font-family: inherit;
+  }
+  .card input:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+  .note {
+    background: rgba(255,149,0,0.12); border: 1px solid rgba(255,149,0,0.25); border-radius: 12px;
+    padding: 12px 14px; font-size: 13px; color: var(--ink-muted); line-height: 1.5; margin-bottom: 16px;
+  }
+  .note strong { color: var(--ink); }
+  .btn {
+    font: inherit; width: 100%; border: none; border-radius: 11px; padding: 14px;
+    font-size: 15.5px; font-weight: 650; cursor: pointer; touch-action: manipulation;
+    background: var(--accent); color: #fff;
+    transition: transform 0.12s cubic-bezier(.2,.9,.3,1.1);
+  }
+  .btn:active { transform: scale(0.97); }
+  .btn.secondary { background: #2c2c2e; color: var(--ink); }
+  .btn-row { display: flex; gap: 9px; margin-top: 14px; }
+  .link {
+    background: none; border: none; color: var(--ink-muted); text-decoration: underline;
+    font: inherit; font-size: 13px; cursor: pointer; padding: 10px 8px; min-height: 40px;
+    touch-action: manipulation;
+  }
+  .or-line { text-align: center; color: var(--ink-faint); font-size: 12.5px; margin: 16px 0 4px; }
 </style>
 </head>
 <body>
-<div id="wrap">
+
+<div class="scroll-container">
+<div class="pull-indicator"><span id="pull-icon">+</span></div>
+<div class="wrap">
 
   <div id="signin-gate">
-    <header><h1>📅 Renewals</h1></header>
-    <div class="sub">Passports, MOT, insurance — what's due and when.</div>
+    <header>
+      <h1>Renewals</h1>
+      <p class="tagline">Passports, registrations, insurance — what's due and when.</p>
+    </header>
     <div class="card">
-      <div class="note" style="margin-bottom:14px;">
-        This is <strong>private to your family</strong> — sign in once on each phone and you'll stay signed in.
-      </div>
+      <div class="note">This is <strong>private to your family</strong> — sign in once on each phone and you'll stay signed in.</div>
       <button class="btn" id="btn-google" type="button">Continue with Google</button>
-      <div style="text-align:center;color:var(--ink-faint);font-size:0.78rem;margin:14px 0 10px;">— or with an email and password —</div>
+      <div class="or-line">— or with an email and password —</div>
       <label for="in-email">Email</label>
       <input type="email" id="in-email" autocomplete="username" placeholder="you@example.com">
-      <label for="in-pass" style="margin-top:10px;">Password</label>
+      <label for="in-pass">Password</label>
       <input type="password" id="in-pass" autocomplete="current-password" placeholder="Your password">
-      <div class="row" style="margin-top:12px;">
+      <div class="btn-row">
         <button class="btn secondary" id="btn-signin" type="button">Sign in</button>
         <button class="btn secondary" id="btn-register" type="button">Create account</button>
       </div>
@@ -224,51 +294,64 @@
 
   <div id="app-wrap" class="hide">
     <header>
-      <h1>📅 Renewals</h1>
-      <button class="link" id="btn-signout" type="button">Sign out</button>
+      <h1>Renewals</h1>
+      <p class="tagline">Swipe right when renewed · left to delete · tap to rename · hold for the details</p>
+      <div class="status-row">
+        <div class="header-actions">
+          <button class="pill-btn" id="btn-undo" type="button" disabled>Undo</button>
+          <button class="pill-btn" id="btn-redo" type="button" disabled>Redo</button>
+          <button class="pill-btn" id="btn-signout" type="button">Sign out</button>
+        </div>
+        <span class="undo-what" id="undo-what"></span>
+      </div>
     </header>
-    <div class="sub">Passports, MOT, insurance — what's due and when.</div>
-    <div class="note">
-      Each item gets its <strong>own</strong> notice period — a month for an inspection, a few days for something quick.
-      You'll get a phone alert then, again nearer the time, and on the day. Every alert can be snoozed.
-    </div>
-    <div class="undo-row">
-      <button class="undo-btn" id="btn-undo" type="button" disabled>Undo</button>
-      <button class="undo-btn" id="btn-redo" type="button" disabled>Redo</button>
-      <span class="undo-what" id="undo-what"></span>
-    </div>
-    <div class="swipe-hint" id="swipe-hint">Swipe a card right when you've renewed it, or left to delete.</div>
-    <div id="items"></div>
-    <div class="empty hide" id="empty">Nothing tracked yet. Add a passport, an MOT, an insurance renewal.</div>
-    <div class="fab-row"><button class="btn" id="btn-add" type="button">+ Add a renewal</button></div>
+    <div id="list-root"></div>
     <div class="status-line" id="app-status"></div>
   </div>
+
+</div>
+</div>
+
+<button type="button" id="fab-add" class="fab" aria-label="Add a renewal">+</button>
+
+<div class="toast" id="toast">
+  <span id="toast-text"></span>
+  <button type="button" id="toast-undo">Undo</button>
 </div>
 
 <div class="sheet-back" id="edit-sheet">
   <div class="sheet">
-    <h2 id="edit-title">Add a renewal</h2>
-    <label>What is it</label>
+    <h3 id="edit-title">Add a renewal</h3>
+    <p class="sheet-sub" id="edit-sub">Only the name is needed — the rest can wait.</p>
+
+    <label for="f-name">What is it</label>
     <input type="text" id="f-name" placeholder="e.g. Emma's passport" maxlength="60">
-    <label style="margin-top:12px;">Renews or expires on</label>
+
+    <label for="f-date">Renews or expires on</label>
     <input type="date" id="f-date">
-    <label style="margin-top:12px;">Renews every</label>
-    <div class="row">
-      <input type="number" id="f-years" min="1" max="20" value="1" style="width:90px;text-align:center;">
-      <span style="color:var(--ink-muted);font-size:0.9rem;">year(s) — used by the Renewed button</span>
+
+    <label for="f-years">Renews every</label>
+    <div class="field-row">
+      <input type="number" id="f-years" min="1" max="20" value="1">
+      <span class="field-note">year(s) — how far the date jumps when you swipe "Renewed"</span>
     </div>
-    <label style="margin-top:12px;">Warn me this far ahead</label>
-    <div class="chips" id="lead-presets" style="margin-bottom:8px;"></div>
-    <div class="row">
-      <input type="number" id="f-lead" min="1" max="365" value="30" style="width:90px;text-align:center;">
-      <span style="color:var(--ink-muted);font-size:0.9rem;">days before</span>
+
+    <label for="f-lead">Warn me this far ahead</label>
+    <div class="chips" id="lead-presets"></div>
+    <div class="field-row">
+      <input type="number" id="f-lead" min="1" max="365" value="30">
+      <span class="field-note">days before it's due — that's when the first alert arrives</span>
     </div>
-    <label style="margin-top:12px;">Note (optional)</label>
+
+    <label for="f-note">Note (optional)</label>
     <input type="text" id="f-note" placeholder="e.g. renew at the Post Office" maxlength="80">
-    <button class="btn" id="btn-save" type="button" style="margin-top:16px;">Save</button>
-    <button class="btn secondary" id="btn-renewed" type="button" style="margin-top:8px;">Mark renewed — move on a year</button>
-    <button class="btn danger" id="btn-delete" type="button" style="margin-top:8px;">Delete</button>
-    <button class="btn secondary" id="btn-cancel" type="button" style="margin-top:8px;">Cancel</button>
+
+    <div class="sheet-actions">
+      <button type="button" class="btn-save" id="btn-save">Save</button>
+      <button type="button" class="btn-plain" id="btn-renewed">Mark renewed — move the date on</button>
+      <button type="button" class="btn-plain" id="btn-cancel">Cancel</button>
+      <button type="button" class="btn-danger btn-set-apart" id="btn-delete">Delete</button>
+    </div>
   </div>
 </div>
 
@@ -303,12 +386,33 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 const authClient = getAuth(app);
-// All three home utilities live under homeApps so one Firestore rule covers
-// them. Ownership works the same way as the subscriptions ledger: whoever
-// signs in first claims the document.
 
 const $ = id => document.getElementById(id);
 function isMobileBrowser() { return /iPhone|iPad|iPod|Android/i.test(navigator.userAgent); }
+function escapeHtml(s) { return String(s).replace(/[&<>"]/g, c => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;" }[c])); }
+
+// Mobile Safari can shrink the visible viewport from the bottom (its toolbar
+// reappearing as you scroll up) without the layout viewport changing, which
+// leaves plain `position: fixed; bottom: 0` elements rendered partly behind
+// it. Track the gap via the VisualViewport API and feed it into CSS
+// variables. Exposed as a real function so anything that pops up can force a
+// fresh read right before it appears rather than trusting a stale value.
+let updateViewportInset = () => {};
+if (window.visualViewport) {
+  const vv = window.visualViewport;
+  updateViewportInset = () => {
+    const offset = Math.max(0, Math.min(150, window.innerHeight - (vv.height + vv.offsetTop)));
+    document.documentElement.style.setProperty("--vv-bottom-offset", offset + "px");
+    // The clamp above is sized for Safari's toolbar. The on-screen keyboard
+    // is more than twice that, so the sheet needs the real numbers instead
+    // or it ends up behind the keyboard with its buttons off-screen.
+    document.documentElement.style.setProperty("--vv-height", vv.height + "px");
+    document.documentElement.style.setProperty("--vv-top", vv.offsetTop + "px");
+  };
+  vv.addEventListener("resize", updateViewportInset);
+  vv.addEventListener("scroll", updateViewportInset);
+  updateViewportInset();
+}
 
 // ---------- Auth ----------
 $("btn-google").addEventListener("click", async () => {
@@ -342,11 +446,10 @@ $("btn-reset").addEventListener("click", async () => {
 });
 $("btn-signout").addEventListener("click", () => signOut(authClient));
 
-function creds() {
-  return { email: $("in-email").value.trim(), pass: $("in-pass").value };
-}
+function creds() { return { email: $("in-email").value.trim(), pass: $("in-pass").value }; }
 function setStatus(id, msg, isError) {
   const el = $(id);
+  if (!el) return;
   el.textContent = msg || "";
   el.classList.toggle("err", !!isError);
 }
@@ -364,12 +467,19 @@ function friendlyAuthError(e) {
 
 getRedirectResult(authClient).catch(e => setStatus("signin-status", friendlyAuthError(e), true));
 
+// ---------- Data ----------
+// The stored shape is untouched from the previous version of this app --
+// items.{id} = { name, date, everyYears, leadDays, note, lastAlerted } --
+// because the daily alert workflow (.github/workflows/home-deadline-alerts.yml)
+// reads these exact field names. A redesign of the screen must not quietly
+// rename anything underneath it.
 const docRef = doc(db, "homeApps", "renewals");
 const DAY = 86400000;
 const DEFAULT_LEAD_DAYS = 30;
 const LEAD_PRESETS = [7, 14, 30, 60, 90];
 let state = { items: {} };
 let unsubscribe = null, editingId = null;
+let signedIn = false;
 
 function newId() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
 function todayUTC() { const d = new Date(); d.setHours(0,0,0,0); return d.getTime(); }
@@ -384,22 +494,25 @@ function whenLabel(d) {
   if (d < 0) return Math.abs(d) + (Math.abs(d) === 1 ? " day ago" : " days ago");
   if (d === 0) return "Today";
   if (d === 1) return "Tomorrow";
-  if (d < 31) return "In " + d + " days";
+  if (d < 31) return d + " days";
   const months = Math.round(d / 30);
-  if (d < 365) return "In " + months + " month" + (months === 1 ? "" : "s");
+  if (d < 365) return months + " month" + (months === 1 ? "" : "s");
   const years = (d / 365).toFixed(d % 365 === 0 ? 0 : 1);
-  return "In " + years + " year" + (years === "1" ? "" : "s");
+  return years + " year" + (years === "1" ? "" : "s");
 }
+function leadOf(it) { return Math.max(1, Number(it.leadDays) || DEFAULT_LEAD_DAYS); }
 
 onAuthStateChanged(authClient, async user => {
   if (unsubscribe) { unsubscribe(); unsubscribe = null; }
+  signedIn = !!user;
+  $("fab-add").classList.toggle("hide", !user);
   if (!user) {
-    document.getElementById("signin-gate").classList.remove("hide");
-    document.getElementById("app-wrap").classList.add("hide");
+    $("signin-gate").classList.remove("hide");
+    $("app-wrap").classList.add("hide");
     return;
   }
-  document.getElementById("signin-gate").classList.add("hide");
-  document.getElementById("app-wrap").classList.remove("hide");
+  $("signin-gate").classList.add("hide");
+  $("app-wrap").classList.remove("hide");
   try {
     const snap = await getDoc(docRef);
     if (!snap.exists()) await setDoc(docRef, { ownerUid: user.uid, ownerEmail: user.email || null, items: {} });
@@ -407,7 +520,10 @@ onAuthStateChanged(authClient, async user => {
   unsubscribe = onSnapshot(docRef, snap => {
     const d = snap.data() || {};
     state.items = d.items && typeof d.items === "object" ? d.items : {};
-    render();
+    // A snapshot landing mid-typing would rip the field out from under the
+    // caret, so hold the redraw until whatever is being typed is finished.
+    if (pendingAdd || pendingEditId) pendingRerenderNeeded = true;
+    else render();
   }, err => setStatus("app-status", "Can't read your data: " + err.message, true));
 });
 
@@ -418,35 +534,26 @@ async function save(patch) {
 // Removing a key needs updateDoc + deleteField, not setDoc with merge.
 // Firestore merges nested maps key by key, so writing the map back without an
 // entry leaves that entry exactly where it was -- the delete looked like it
-// worked, then the item reappeared on the next sync. The subscriptions app
-// already does it this way.
+// worked, then the item reappeared on the next sync.
 async function removeKeys(field, ids) {
   const patch = {};
   ids.forEach(id => { patch[field + "." + id] = deleteField(); });
   try { await updateDoc(docRef, patch); setStatus("app-status", ""); }
   catch (e) { setStatus("app-status", "Couldn't save: " + e.message, true); }
 }
-
-// The two writes the history replays.
-//
-// saveEntry uses a dotted path through updateDoc, which REPLACES the entry.
-// setDoc with merge would fold the new value into the old one, so a field the
-// new value doesn't have survives -- which broke undo: putting an item back
-// the way it was left "done: true" behind, because "before" simply had no
-// done key. Replacing is what "write this entry" should mean.
+// A dotted path through updateDoc REPLACES the entry. setDoc with merge would
+// fold the new value into the old one, so a field the new value doesn't have
+// survives -- which broke undo: putting an item back the way it was left
+// "done: true" behind, because "before" simply had no done key.
 async function saveEntry(field, id, value) {
   try { await updateDoc(docRef, { [field + "." + id]: value }); setStatus("app-status", ""); }
   catch (e) { await save({ [field]: { [id]: value } }); }
 }
-function save2(field, value) { return save({ [field]: value }); }
 
 // ---------- Undo / redo ----------
-// Modelled on the subscriptions app: the history replays the same Firestore
-// writes in reverse, so undo behaves the same whether the change was made
-// here or synced in from another phone. A step is either one entry in a map
-// (value null means remove it) or a whole array field, because Firestore
-// merges maps key by key but replaces arrays outright.
-var undoStack = [], redoStack = [];
+// The history replays the same Firestore writes in reverse, so undo behaves
+// the same whether the change was made here or synced in from another phone.
+let undoStack = [], redoStack = [];
 
 function pushAction(action) {
   undoStack.push(action);
@@ -455,49 +562,88 @@ function pushAction(action) {
   renderUndo();
 }
 function renderUndo() {
-  var u = document.getElementById("btn-undo"), r = document.getElementById("btn-redo");
+  const u = $("btn-undo"), r = $("btn-redo");
   if (!u || !r) return;
   u.disabled = undoStack.length === 0;
   r.disabled = redoStack.length === 0;
-  var last = undoStack[undoStack.length - 1];
-  document.getElementById("undo-what").textContent = last ? last.label : "";
+  const last = undoStack[undoStack.length - 1];
+  $("undo-what").textContent = last ? last.label : "";
 }
 async function applySteps(steps) {
-  for (var i = 0; i < steps.length; i++) {
-    var s = steps[i];
-    if (s.arr) await save2(s.field, s.value);
-    else if (s.value === null) await removeKeys(s.field, [s.id]);
+  for (const s of steps) {
+    if (s.value === null || s.value === undefined) await removeKeys(s.field, [s.id]);
     else await saveEntry(s.field, s.id, s.value);
   }
 }
-document.getElementById("btn-undo").addEventListener("click", async function () {
+async function doUndo() {
   if (!undoStack.length) return;
-  var action = undoStack.pop();
+  const action = undoStack.pop();
   redoStack.push(action);
   renderUndo();
+  hideToast();
   await applySteps(action.undo);
-});
-document.getElementById("btn-redo").addEventListener("click", async function () {
+}
+$("btn-undo").addEventListener("click", doUndo);
+$("btn-redo").addEventListener("click", async () => {
   if (!redoStack.length) return;
-  var action = redoStack.pop();
+  const action = redoStack.pop();
   undoStack.push(action);
   renderUndo();
   await applySteps(action.redo);
 });
 
+// ---------- Undo toast ----------
+// Swiping is fast and easy to do by accident, so anything a swipe changes
+// says so and offers to put it straight back, without hunting for the Undo
+// button up in the header.
+let toastTimer = null;
+function showToast(text) {
+  $("toast-text").textContent = text;
+  updateViewportInset();
+  $("toast").classList.add("show");
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(hideToast, 5000);
+}
+function hideToast() {
+  clearTimeout(toastTimer);
+  $("toast").classList.remove("show");
+}
+$("toast-undo").addEventListener("click", doUndo);
 
-// How far you have to pull before it counts. Same figure as the packing list,
-// so the two apps feel the same in the hand.
-const SWIPE_COMMIT_PX = 84;
-// At most one row sits open showing Delete, and this is how to shut it.
-let revealedId = null, closeRevealed = null;
+// ---------- Row colours ----------
+// Clear's signature is a warm gradient running down the list. Here that
+// gradient is not just decoration: the list is sorted by how soon each thing
+// is due, so the hottest colour really is the most urgent item. Overdue
+// things step outside the ramp into a deeper crimson -- they are a different
+// kind of thing, not merely the top of the same scale -- and something with
+// no date yet goes flat grey to say plainly that nothing is armed.
+// Bounded conservatively at the light end so white text stays legible: let
+// it drift toward pale yellow and the row names get hard to read. The cap is
+// set by measurement rather than taste -- at lightness 50 the white row name
+// came out at 2.9:1 against the background, under the 3:1 floor, and the
+// smaller detail line under it is worse off still. 45 puts both comfortably
+// clear at 3.7:1, and the ramp still reads as red-to-burnt-orange.
+const RAMP_START = { h: 6, s: 82, l: 39 };
+const RAMP_END = { h: 26, s: 84, l: 45 };
+const OVERDUE_COLOR = "hsl(352, 66%, 33%)";
+const UNDATED_COLOR = "#2a2a2e";
+const DONE_COLOR = "#1c1c1e";
 
-function renewItem(it) {
-  const before = state.items[it.id];
+function rampColor(index, total) {
+  const t = total <= 1 ? 0 : index / (total - 1);
+  const h = RAMP_START.h + t * (RAMP_END.h - RAMP_START.h);
+  const s = RAMP_START.s + t * (RAMP_END.s - RAMP_START.s);
+  const l = RAMP_START.l + t * (RAMP_END.l - RAMP_START.l);
+  return `hsl(${h.toFixed(1)}, ${s.toFixed(1)}%, ${l.toFixed(1)}%)`;
+}
+
+// ---------- Renew ----------
+function renewItem(id) {
+  const before = state.items[id];
   if (!before) return;
   // Nothing to move on from without a date, so open it to be filled in
   // rather than quietly doing nothing or writing an invalid date.
-  if (!before.date) { openEdit(it.id); return; }
+  if (!before.date) { openEdit(id); return; }
   const years = Number(before.everyYears) || 1;
   const next = new Date(parseDate(before.date));
   next.setFullYear(next.getFullYear() + years);
@@ -505,167 +651,531 @@ function renewItem(it) {
   const after = { ...before, date: next.toISOString().slice(0, 10), lastAlerted: null };
   pushAction({
     label: "Renewed " + before.name,
-    undo: [{ field: "items", id: it.id, value: before }],
-    redo: [{ field: "items", id: it.id, value: after }]
+    undo: [{ field: "items", id, value: before }],
+    redo: [{ field: "items", id, value: after }]
   });
-  saveEntry("items", it.id, after);
+  saveEntry("items", id, after);
+  showToast(`${before.name} → ${fmtDate(after.date)}`);
 }
 
-function attachSwipe(row, card, bgRenew, bgDelete, it) {
-  let startX = 0, startY = 0, dx = 0, dragging = null, pointerId = null, dismissOnly = false;
+function deleteItem(id) {
+  const gone = state.items[id];
+  pushAction({
+    label: "Deleted " + (gone ? gone.name : "item"),
+    undo: [{ field: "items", id, value: gone }],
+    redo: [{ field: "items", id, value: null }]
+  });
+  removeKeys("items", [id]);
+  showToast(`Deleted ${gone ? gone.name : "item"}`);
+}
 
-  function closeReveal(instant) {
-    if (instant) card.classList.remove("revealed");
-    card.style.transform = "translateX(0)";
-    bgDelete.style.opacity = "0";
-    if (revealedId === it.id) { revealedId = null; closeRevealed = null; }
-    if (!instant) setTimeout(() => card.classList.remove("revealed"), 220);
+// ---------- Inline add / rename ----------
+// The two-speed idea, straight from the Clear app: a quick tap gets you a
+// name typed into the list and nothing else to fill in, and press-and-hold
+// opens the full form for the date, the repeat and the notice period. An
+// item with only a name is a perfectly good half-finished note -- it just
+// says so on its own row, and can't alert until a date is added.
+let pendingAdd = false;          // a blank row is open at the top, waiting for a name
+let pendingEditId = null;        // this item's name is being typed over in place
+let pendingRerenderNeeded = false;
+
+function autoGrowInlineTextarea(el) {
+  el.style.height = "auto";
+  el.style.height = el.scrollHeight + "px";
+}
+
+function finishAnyPendingInlineEntry() {
+  if (pendingAdd) {
+    const input = $("inline-add-input");
+    const name = input ? input.value.trim() : "";
+    pendingAdd = false;
+    if (name) commitInlineAdd(name);
   }
+  if (pendingEditId) {
+    const input = $("inline-edit-input");
+    const name = input ? input.value.trim() : "";
+    const id = pendingEditId;
+    pendingEditId = null;
+    if (name) commitInlineRename(id, name);
+  }
+}
+
+// Just blurs, WITHOUT marking cancelled -- the field's own blur handler then
+// does what it always does: keep whatever was typed, or quietly close if the
+// field is empty. Tapping away should feel like finishing up, not throwing a
+// draft away.
+function dismissPendingInlineEntry() {
+  const a = $("inline-add-input"); if (a) a.blur();
+  const e = $("inline-edit-input"); if (e) e.blur();
+}
+
+function commitInlineAdd(name) {
+  const id = newId();
+  const after = { name, date: "", everyYears: 1, leadDays: DEFAULT_LEAD_DAYS, note: "" };
+  pushAction({
+    label: "Added " + name,
+    undo: [{ field: "items", id, value: null }],
+    redo: [{ field: "items", id, value: after }]
+  });
+  saveEntry("items", id, after);
+}
+
+function commitInlineRename(id, name) {
+  const before = state.items[id];
+  if (!before || before.name === name) return;
+  const after = { ...before, name };
+  pushAction({
+    label: "Renamed to " + name,
+    undo: [{ field: "items", id, value: before }],
+    redo: [{ field: "items", id, value: after }]
+  });
+  saveEntry("items", id, after);
+}
+
+function startInlineAdd() {
+  if (!signedIn) return;
+  finishAnyPendingInlineEntry();
+  pendingAdd = true;
+  render();
+  const input = $("inline-add-input");
+  if (input) { autoGrowInlineTextarea(input); input.focus(); }
+}
+
+function startInlineRename(id) {
+  finishAnyPendingInlineEntry();
+  pendingEditId = id;
+  render();
+  const input = $("inline-edit-input");
+  if (input) {
+    autoGrowInlineTextarea(input);
+    input.focus();
+    input.setSelectionRange(input.value.length, input.value.length);
+  }
+}
+
+// A tap on genuine empty space (the margins beside the list on a wide
+// screen, or the gap below a short one) adds an item, the same as the "+"
+// button or pulling down -- and finishes off whatever was mid-typing first.
+function isBackgroundTarget(t) {
+  return t === document.body || t === document.documentElement ||
+    t === document.querySelector(".wrap") || t === document.querySelector(".scroll-container") ||
+    t === $("list-root") || (t.classList && t.classList.contains("empty-state"));
+}
+
+// pointerdown in the capture phase, not click: the browser's own handling of
+// the tap blurs the focused textarea well before a click would fire, and the
+// DOM reading below needs to run before anything else changes. The flag stops
+// one tap meaning both "never mind" and "start a new one" -- it is cleared
+// only by the click actually consuming it, never on a timer, because a
+// zero-delay timeout raced the real click on iOS in practice.
+let suppressNextBackgroundAdd = false;
+document.addEventListener("pointerdown", e => {
+  suppressNextBackgroundAdd = false;
+  if (!pendingAdd && !pendingEditId) return;
+  if (!isBackgroundTarget(e.target) && e.target.closest && e.target.closest(".wrap")) return;
+  dismissPendingInlineEntry();
+  suppressNextBackgroundAdd = true;
+}, { capture: true });
+
+document.addEventListener("click", e => {
+  if (suppressNextBackgroundAdd) { suppressNextBackgroundAdd = false; return; }
+  if (!signedIn) return;
+  if (!isBackgroundTarget(e.target)) return;
+  startInlineAdd();
+});
+
+// ---------- Swipe ----------
+// How far you have to pull before it counts. Same figure as the packing
+// list, so the two apps feel the same in the hand.
+const SWIPE_COMMIT_PX = 84;
+let revealedId = null, closeRevealed = null;
+
+function attachSwipe(swipeRow, id) {
+  const rowFg = swipeRow.querySelector(".row-fg");
+  const bgRenew = swipeRow.querySelector(".bg-renew");
+  const bgDelete = swipeRow.querySelector(".bg-delete");
+  let startX = 0, startY = 0, dx = 0, dragging = null, pointerId = null;
+  let longPressTimer = null, longPressFired = false, dismissOnly = false;
+
+  function resetBg() { bgRenew.style.opacity = "0"; bgDelete.style.opacity = "0"; }
 
   // Swiping left parks the row open rather than deleting outright, so losing
-  // something takes a second, deliberate tap on Delete.
+  // something takes a second, deliberate tap on the bin.
   function revealForDelete() {
-    if (revealedId !== null && revealedId !== it.id && closeRevealed) closeRevealed();
-    card.classList.add("revealed");
-    card.style.transform = "translateX(-" + SWIPE_COMMIT_PX + "px)";
+    if (revealedId !== null && revealedId !== id && closeRevealed) closeRevealed();
+    rowFg.classList.add("revealed");
+    rowFg.style.transform = `translateX(-${SWIPE_COMMIT_PX}px)`;
     bgDelete.style.opacity = "1";
-    revealedId = it.id;
+    bgRenew.style.opacity = "0";
+    revealedId = id;
     closeRevealed = () => closeReveal(false);
+  }
+  // instant=true skips the closing animation, so a fresh drag starts clean
+  // from translateX(0) rather than jumping from the revealed offset.
+  function closeReveal(instant) {
+    if (instant) rowFg.classList.remove("revealed");
+    rowFg.style.transform = "translateX(0)";
+    resetBg();
+    if (revealedId === id) { revealedId = null; closeRevealed = null; }
+    if (!instant) setTimeout(() => rowFg.classList.remove("revealed"), 220);
   }
 
   bgDelete.addEventListener("click", e => {
-    if (revealedId !== it.id) return;
+    if (revealedId !== id) return;
     e.stopPropagation();
     revealedId = null; closeRevealed = null;
-    card.classList.remove("revealed");
-    card.classList.add("commit");
-    card.style.transform = "translateX(-100%)";
-    card.style.opacity = "0";
-    const gone = state.items[it.id];
-    pushAction({
-      label: "Deleted " + (gone ? gone.name : "item"),
-      undo: [{ field: "items", id: it.id, value: gone }],
-      redo: [{ field: "items", id: it.id, value: null }]
-    });
-    setTimeout(() => removeKeys("items", [it.id]), 150);
+    rowFg.classList.remove("revealed");
+    rowFg.classList.add("commit");
+    rowFg.style.transform = "translateX(-100%)";
+    rowFg.style.opacity = "0";
+    setTimeout(() => deleteItem(id), 150);
   });
 
-  card.addEventListener("pointerdown", e => {
+  rowFg.addEventListener("pointerdown", e => {
     if (e.button !== undefined && e.button !== 0) return;
     dismissOnly = false;
-    if (revealedId === it.id) { closeReveal(true); dismissOnly = true; }
+    if (revealedId === id) { closeReveal(true); dismissOnly = true; }
     else if (revealedId !== null && closeRevealed) { closeRevealed(); dismissOnly = true; }
+    if (pendingAdd || pendingEditId) {
+      // Something else is mid-typing -- this tap just finishes that off, the
+      // same as tapping away would. It shouldn't ALSO start editing whatever
+      // was tapped; that takes a separate, second tap.
+      finishAnyPendingInlineEntry();
+      pendingRerenderNeeded = false;
+      render();
+      return;
+    }
     startX = e.clientX; startY = e.clientY; dx = 0; dragging = null;
     pointerId = e.pointerId;
-    card.classList.remove("snap", "commit");
+    rowFg.classList.remove("snap", "commit");
+    longPressFired = false;
+    clearTimeout(longPressTimer);
+    longPressTimer = setTimeout(() => {
+      if (dragging !== null) return; // already swiping or scrolling
+      longPressFired = true;
+      if (navigator.vibrate) navigator.vibrate(8);
+      openEdit(id);
+    }, 400);
   });
 
-  card.addEventListener("pointermove", e => {
+  rowFg.addEventListener("pointermove", e => {
     if (pointerId === null || e.pointerId !== pointerId) return;
     const cx = e.clientX - startX, cy = e.clientY - startY;
     if (dragging === null) {
+      // A bit of natural finger drift while holding still shouldn't cancel
+      // the long-press and force a retry -- 8px gives room for that.
       if (Math.abs(cx) < 8 && Math.abs(cy) < 8) return;
+      clearTimeout(longPressTimer);
       // Sideways wins only if it is clearly sideways, or scrolling the page
       // would keep snagging on the cards.
       dragging = Math.abs(cx) > Math.abs(cy);
-      if (dragging && card.setPointerCapture) card.setPointerCapture(pointerId);
-      if (dragging) card.classList.add("dragging");
+      if (dragging) {
+        if (rowFg.setPointerCapture) rowFg.setPointerCapture(pointerId);
+        rowFg.classList.add("dragging");
+      }
     }
     if (!dragging) return;
     e.preventDefault();
     dx = cx;
-    card.style.transform = "translateX(" + dx + "px)";
+    rowFg.style.transform = `translateX(${dx}px)`;
     const progress = String(Math.min(1, Math.abs(dx) / SWIPE_COMMIT_PX));
-    bgRenew.style.opacity = dx > 0 ? progress : "0";
-    bgDelete.style.opacity = dx < 0 ? progress : "0";
+    if (dx > 0) { bgRenew.style.opacity = progress; bgDelete.style.opacity = "0"; }
+    else if (dx < 0) { bgDelete.style.opacity = progress; bgRenew.style.opacity = "0"; }
+    else resetBg();
   });
 
   function endDrag() {
+    clearTimeout(longPressTimer);
     if (pointerId === null) return;
     pointerId = null;
-    if (!dragging) {
-      // A tap. Opening the editor happens here rather than in a click
-      // listener, because a drag is followed by a click too -- trying to
-      // swallow that click after the fact is a race, and a nudged card would
-      // sometimes spring back and pop the editor open anyway. Deciding it
-      // here means a tap is a tap and a drag is a drag, always.
-      const wasDismiss = dismissOnly;
-      dismissOnly = false;
-      dragging = null;
-      if (!wasDismiss) openEdit(it.id);
+    if (longPressFired) { dragging = null; return; } // the sheet is already open
+    if (dragging === null) {
+      // A tap. Handled here rather than in a click listener, because a drag
+      // is followed by a click too -- swallowing that click after the fact is
+      // a race, and a nudged card would sometimes spring back and pop the
+      // editor open anyway. Deciding it here means a tap is always a tap.
+      if (dismissOnly) { dismissOnly = false; return; }
+      startInlineRename(id);
       return;
     }
-    card.classList.remove("dragging");
-    if (dx < -SWIPE_COMMIT_PX) {
+    rowFg.classList.remove("dragging");
+    if (dx > SWIPE_COMMIT_PX) {
+      // Renewing needs no second tap: it only moves the date on, and the
+      // toast that follows offers to put it straight back.
+      rowFg.classList.add("snap", "flash");
+      rowFg.style.transform = "translateX(0)";
+      resetBg();
+      renewItem(id);
+    } else if (dx < -SWIPE_COMMIT_PX) {
       revealForDelete();
-    } else if (dx > SWIPE_COMMIT_PX) {
-      // Renewing needs no second tap: it only moves the date on a year, which
-      // you can put back by opening the item.
-      card.classList.add("snap");
-      card.style.transform = "translateX(0)";
-      bgRenew.style.opacity = "0";
-      card.classList.add("flash");
-      renewItem(it);
     } else {
-      card.classList.add("snap");
-      card.style.transform = "translateX(0)";
-      bgRenew.style.opacity = "0";
-      bgDelete.style.opacity = "0";
+      rowFg.classList.add("snap");
+      rowFg.style.transform = "translateX(0)";
+      resetBg();
     }
     dragging = null;
   }
-  card.addEventListener("pointerup", endDrag);
-  card.addEventListener("pointercancel", endDrag);
+  rowFg.addEventListener("pointerup", endDrag);
+  rowFg.addEventListener("pointercancel", endDrag);
 }
 
+// Tapping anywhere outside a row that's showing its bin closes it without
+// deleting. Capture phase + closest() catches taps on unrelated controls --
+// the "+" button, empty space below the list -- not just other rows.
+document.addEventListener("pointerdown", e => {
+  if (revealedId === null) return;
+  if (e.target.closest && e.target.closest(`.swipe-row[data-item-id="${revealedId}"]`)) return;
+  if (closeRevealed) closeRevealed();
+}, { capture: true });
+
+// ---------- Pull down at the top to add ----------
+// overscroll-behavior-y: contain already kills the browser's rubber-band
+// bounce, and as a home-screen app there's no browser chrome to refresh, so
+// a manual pull gesture is free to drive the same quick-add as tapping "+".
+const pullWrap = document.querySelector(".wrap");
+const pullIcon = $("pull-icon");
+const PULL_TRIGGER = 56;
+const PULL_MAX = 96;
+let pullTouchId = null, pullStartY = 0, pullActive = false, pullDist = 0;
+
+function resetPull() {
+  pullWrap.classList.add("pull-snap");
+  pullWrap.style.transform = "";
+  pullIcon.classList.add("reset");
+  pullIcon.classList.remove("ready");
+  pullIcon.style.opacity = 0;
+  pullIcon.style.transform = "scale(0.4)";
+  pullActive = false;
+  pullDist = 0;
+  setTimeout(() => { pullWrap.classList.remove("pull-snap"); pullIcon.classList.remove("reset"); }, 300);
+}
+
+// Raw touch events, not pointer events: calling preventDefault() on a
+// pointermove doesn't reliably stop Safari's own overscroll handling from
+// grabbing the touch out from under us. Doing it on the underlying touchmove
+// is what actually keeps the gesture ours.
+document.addEventListener("touchstart", e => {
+  if (e.touches.length !== 1) { pullTouchId = null; return; }
+  const t = e.touches[0];
+  if (!t || !signedIn) { pullTouchId = null; return; }
+  if (window.scrollY > 0 || (e.target.closest && e.target.closest(".swipe-row, button, input, select, textarea, a"))) {
+    pullTouchId = null;
+    return;
+  }
+  pullTouchId = t.identifier;
+  pullStartY = t.clientY;
+}, { passive: true });
+
+document.addEventListener("touchmove", e => {
+  if (pullTouchId === null) return;
+  const t = [...e.touches].find(x => x.identifier === pullTouchId);
+  if (!t) return;
+  if (window.scrollY > 0) { pullTouchId = null; if (pullActive) resetPull(); return; }
+  const dy = t.clientY - pullStartY;
+  if (dy <= 0) { if (pullActive) resetPull(); return; }
+  e.preventDefault();
+  pullActive = true;
+  pullWrap.classList.remove("pull-snap");
+  pullIcon.classList.remove("reset");
+  pullDist = Math.min(PULL_MAX, dy * 0.5);
+  pullWrap.style.transform = `translateY(${pullDist}px)`;
+  const progress = Math.min(1, pullDist / PULL_TRIGGER);
+  pullIcon.style.opacity = progress;
+  pullIcon.style.transform = `scale(${0.4 + progress * 0.6})`;
+  pullIcon.classList.toggle("ready", pullDist >= PULL_TRIGGER);
+}, { passive: false });
+
+function endPull() {
+  if (pullTouchId === null) return;
+  pullTouchId = null;
+  const shouldAdd = pullActive && pullDist >= PULL_TRIGGER;
+  resetPull();
+  if (shouldAdd) startInlineAdd();
+}
+document.addEventListener("touchend", endPull);
+document.addEventListener("touchcancel", endPull);
+
+// ---------- The "+" button ----------
+// Tap for a name typed straight into the list; press and hold for the full
+// form. preventDefault on pointerdown stops the button's own "take focus on
+// tap" behaviour firing just after we focus the new row's textarea, which
+// would blur it and wipe the row before anything could be typed.
+const fabAdd = $("fab-add");
+let fabLongPressTimer = null, fabLongPressFired = false;
+fabAdd.addEventListener("pointerdown", e => {
+  if (e.button !== undefined && e.button !== 0) return;
+  if (e.cancelable) e.preventDefault();
+  fabLongPressFired = false;
+  clearTimeout(fabLongPressTimer);
+  fabLongPressTimer = setTimeout(() => {
+    fabLongPressFired = true;
+    if (navigator.vibrate) navigator.vibrate(8);
+    finishAnyPendingInlineEntry();
+    openEdit(null);
+  }, 500);
+});
+fabAdd.addEventListener("pointerup", () => {
+  clearTimeout(fabLongPressTimer);
+  if (!fabLongPressFired) startInlineAdd();
+});
+fabAdd.addEventListener("pointercancel", () => clearTimeout(fabLongPressTimer));
+fabAdd.addEventListener("pointerleave", () => clearTimeout(fabLongPressTimer));
+
+// ---------- Render ----------
 function render() {
-  const wrap = document.getElementById("items");
-  wrap.innerHTML = "";
-  const list = Object.entries(state.items).map(([id, v]) => ({ id, ...v }))
-    .sort((a, b) => (parseDate(a.date) || 0) - (parseDate(b.date) || 0));
-  document.getElementById("empty").classList.toggle("hide", list.length > 0);
-  document.getElementById("swipe-hint").classList.toggle("hide", list.length === 0);
-  list.forEach(it => {
-    const d = daysUntil(it.date);
-    const lead = Number(it.leadDays) || DEFAULT_LEAD_DAYS;
-    const card = document.createElement("div");
-    card.className = "item " + (d === null ? "needs-date" : d < 0 ? "past" : d <= lead ? "soon" : "ok");
-    const top = document.createElement("div");
-    top.className = "item-top";
-    const name = document.createElement("div");
-    name.className = "item-name";
-    name.textContent = it.name;
-    const when = document.createElement("div");
-    when.className = "item-when" + (d === null ? " needs-date" : "");
-    when.textContent = d === null ? "Add a date" : whenLabel(d);
-    top.append(name, when);
-    const sub = document.createElement("div");
-    sub.className = "item-sub";
-    // Say plainly that nothing is scheduled yet -- an app whose whole job is
-    // reminding you shouldn't let a half-finished item look armed.
-    sub.textContent = d === null
-      ? "No date yet — you won't be reminded until you add one"
-      : [fmtDate(it.date), lead + "d notice", it.note].filter(Boolean).join(" · ");
-    card.append(top, sub);
+  const root = $("list-root");
+  root.innerHTML = "";
+  // A full rebuild detaches whatever row was showing its bin, so the
+  // reference to it goes stale -- reset the tracking, not just the DOM.
+  revealedId = null;
+  closeRevealed = null;
+
+  const all = Object.entries(state.items).map(([id, v]) => ({ id, ...v }));
+  const live = all.filter(i => !i.done);
+  const done = all.filter(i => i.done);
+  const dated = live.filter(i => i.date).sort((a, b) => parseDate(a.date) - parseDate(b.date));
+  const undated = live.filter(i => !i.date).sort((a, b) => String(a.name).localeCompare(String(b.name)));
+  const overdue = dated.filter(i => daysUntil(i.date) < 0);
+  const upcoming = dated.filter(i => daysUntil(i.date) >= 0);
+
+  if (all.length === 0 && !pendingAdd) {
+    root.innerHTML = '<div class="empty-state">Nothing tracked yet.<br>Pull down, or tap +, to add a passport, a car registration, an insurance renewal.</div>';
+    return;
+  }
+
+  function makeRowList() {
+    const el = document.createElement("div");
+    el.className = "row-list";
+    return el;
+  }
+  function label(text) {
+    const el = document.createElement("div");
+    el.className = "group-label";
+    el.textContent = text;
+    return el;
+  }
+
+  function appendInlineAddRow(list) {
     const row = document.createElement("div");
     row.className = "swipe-row";
-    const bgRenew = document.createElement("div");
-    bgRenew.className = "bg-renew";
-    // Kept to one word: only the first 84px of this panel is ever uncovered,
-    // so anything longer is clipped and reads as a mistake.
-    bgRenew.textContent = "Renewed";
-    const bgDelete = document.createElement("div");
-    bgDelete.className = "bg-delete";
-    bgDelete.textContent = "Delete";
-    row.append(bgRenew, bgDelete, card);
-    attachSwipe(row, card, bgRenew, bgDelete, it);
-    wrap.appendChild(row);
-  });
+    row.innerHTML = `
+      <div class="row-fg" style="background:${rampColor(0, 1)}">
+        <div class="inline-add-input-wrap"><textarea id="inline-add-input" class="inline-add-input" rows="1" placeholder="What renews?"></textarea></div>
+      </div>`;
+    list.appendChild(row);
+    const input = row.querySelector("#inline-add-input");
+    input.addEventListener("input", () => autoGrowInlineTextarea(input));
+    input.addEventListener("keydown", e => {
+      if (e.key === "Enter") { e.preventDefault(); input.blur(); }
+      else if (e.key === "Escape") { e.preventDefault(); input.dataset.cancelled = "1"; input.blur(); }
+    });
+    input.addEventListener("blur", () => {
+      const cancelled = input.dataset.cancelled === "1";
+      const name = input.value.trim();
+      pendingAdd = false;
+      if (!cancelled && name) commitInlineAdd(name);
+      pendingRerenderNeeded = false;
+      render();
+    });
+  }
+
+  function appendItemRow(list, it, bg, kind) {
+    const d = daysUntil(it.date);
+    const lead = leadOf(it);
+    // "Due" here means inside its own notice window or already past -- the
+    // point at which the alerts have started and it wants doing.
+    const isDue = d !== null && d <= lead;
+    const whenText = d === null ? "Add a date" : whenLabel(d);
+    const whenClass = d === null ? " nodate" : (isDue ? " due" : "");
+    // Say plainly that nothing is scheduled yet -- an app whose whole job is
+    // reminding you shouldn't let a half-finished item look armed.
+    const subText = d === null
+      ? "No date yet — you won't be reminded until you add one"
+      : [fmtDate(it.date), lead + "d notice", it.note].filter(Boolean).join(" · ");
+
+    const row = document.createElement("div");
+    row.className = "swipe-row";
+    row.dataset.itemId = it.id;
+    const isEditingThis = pendingEditId === it.id;
+    row.innerHTML = `
+      <div class="swipe-bg bg-renew">Renewed</div>
+      <div class="swipe-bg bg-delete">🗑</div>
+      <div class="row-fg${kind === "done" ? " done" : ""}" style="background:${bg}">
+        ${isEditingThis
+          ? `<div class="inline-add-input-wrap"><textarea id="inline-edit-input" class="inline-add-input" rows="1">${escapeHtml(it.name || "")}</textarea></div>`
+          : `<div class="row-main">
+               <div class="row-name">${escapeHtml(it.name || "")}</div>
+               <div class="row-sub">${escapeHtml(subText)}</div>
+             </div>
+             <span class="row-when${whenClass}">${escapeHtml(whenText)}</span>`}
+      </div>`;
+    list.appendChild(row);
+
+    if (isEditingThis) {
+      const input = row.querySelector("#inline-edit-input");
+      input.addEventListener("input", () => autoGrowInlineTextarea(input));
+      input.addEventListener("keydown", e => {
+        if (e.key === "Enter") { e.preventDefault(); input.blur(); }
+        else if (e.key === "Escape") { e.preventDefault(); input.dataset.cancelled = "1"; input.blur(); }
+      });
+      input.addEventListener("blur", () => {
+        const cancelled = input.dataset.cancelled === "1";
+        const name = input.value.trim();
+        pendingEditId = null;
+        if (!cancelled && name) commitInlineRename(it.id, name);
+        pendingRerenderNeeded = false;
+        render();
+      });
+    } else {
+      attachSwipe(row, it.id);
+    }
+  }
+
+  // The main list: overdue first in their own deeper colour, then everything
+  // still to come running down the warm ramp. One block, no headings -- the
+  // colour already says which end is which.
+  const mainList = makeRowList();
+  if (pendingAdd) appendInlineAddRow(mainList);
+  overdue.forEach(it => appendItemRow(mainList, it, OVERDUE_COLOR, "overdue"));
+  upcoming.forEach((it, i) => appendItemRow(mainList, it, rampColor(i, upcoming.length), "upcoming"));
+
+  const addRow = document.createElement("div");
+  addRow.className = "add-item-row";
+  addRow.id = "add-row";
+  addRow.textContent = "+ Add a renewal";
+  if (!pendingAdd) mainList.appendChild(addRow);
+  if (mainList.children.length) root.appendChild(mainList);
+
+  if (undated.length) {
+    root.appendChild(label("No date yet"));
+    const list = makeRowList();
+    undated.forEach(it => appendItemRow(list, it, UNDATED_COLOR, "undated"));
+    root.appendChild(list);
+  }
+  if (done.length) {
+    root.appendChild(label("Done"));
+    const list = makeRowList();
+    done.forEach(it => appendItemRow(list, it, DONE_COLOR, "done"));
+    root.appendChild(list);
+  }
 }
 
+document.addEventListener("click", e => {
+  if (e.target && e.target.id === "add-row") {
+    if (pendingAdd || pendingEditId) {
+      finishAnyPendingInlineEntry();
+      pendingRerenderNeeded = false;
+      render();
+      return;
+    }
+    startInlineAdd();
+  }
+});
+
+// ---------- The detail sheet ----------
 function renderLeadPresets() {
-  const wrap = document.getElementById("lead-presets");
-  const current = Number(document.getElementById("f-lead").value) || DEFAULT_LEAD_DAYS;
+  const wrap = $("lead-presets");
+  const current = Number($("f-lead").value) || DEFAULT_LEAD_DAYS;
   wrap.innerHTML = "";
   LEAD_PRESETS.forEach(days => {
     const c = document.createElement("button");
@@ -673,65 +1183,60 @@ function renderLeadPresets() {
     c.className = "chip" + (days === current ? " on" : "");
     c.textContent = days + " days";
     c.addEventListener("click", () => {
-      document.getElementById("f-lead").value = days;
+      $("f-lead").value = days;
       renderLeadPresets();
     });
     wrap.appendChild(c);
   });
 }
-document.addEventListener("DOMContentLoaded", () => {
-  const lead = document.getElementById("f-lead");
-  if (lead) lead.addEventListener("input", renderLeadPresets);
-});
-
-// A sheet is one element reused every time it opens, so it reopens wherever
-// you last left it scrolled -- which put the title off the top of the screen
-// and looked like the form was cut off. Always start at the top.
-function openSheet(id) {
-  const back = document.getElementById(id);
-  const sheet = back.querySelector(".sheet");
-  if (sheet) sheet.scrollTop = 0;
-  back.classList.add("open");
-}
+$("f-lead").addEventListener("input", renderLeadPresets);
 
 function openEdit(id) {
+  finishAnyPendingInlineEntry();
   editingId = id;
   const it = id ? state.items[id] : null;
-  document.getElementById("edit-title").textContent = it ? "Edit renewal" : "Add a renewal";
-  document.getElementById("f-name").value = it ? it.name : "";
-  document.getElementById("f-date").value = it ? it.date : "";
-  document.getElementById("f-years").value = it && it.everyYears ? it.everyYears : 1;
-  document.getElementById("f-lead").value = it && it.leadDays ? it.leadDays : DEFAULT_LEAD_DAYS;
+  $("edit-title").textContent = it ? "Edit renewal" : "Add a renewal";
+  $("edit-sub").textContent = it
+    ? "Change anything here — the alerts follow whatever you set."
+    : "Only the name is needed — the rest can wait.";
+  $("f-name").value = it ? (it.name || "") : "";
+  $("f-date").value = it ? (it.date || "") : "";
+  $("f-years").value = it && it.everyYears ? it.everyYears : 1;
+  $("f-lead").value = it && it.leadDays ? it.leadDays : DEFAULT_LEAD_DAYS;
+  $("f-note").value = it && it.note ? it.note : "";
   renderLeadPresets();
-  document.getElementById("f-note").value = it && it.note ? it.note : "";
-  document.getElementById("btn-delete").classList.toggle("hide", !it);
-  document.getElementById("btn-renewed").classList.toggle("hide", !it);
-  openSheet("edit-sheet");
+  $("btn-delete").classList.toggle("hide", !it);
+  $("btn-renewed").classList.toggle("hide", !it);
+  // A sheet is one element reused every time it opens, so it would reopen
+  // wherever it was last left scrolled -- which put the title off the top of
+  // the screen and looked like the form was cut off. Always start at the top.
+  const sheet = $("edit-sheet").querySelector(".sheet");
+  if (sheet) sheet.scrollTop = 0;
+  updateViewportInset();
+  $("edit-sheet").classList.add("show");
 }
-function closeEdit() { document.getElementById("edit-sheet").classList.remove("open"); editingId = null; }
+function closeEdit() { $("edit-sheet").classList.remove("show"); editingId = null; }
 
-document.getElementById("btn-add").addEventListener("click", () => openEdit(null));
-document.getElementById("btn-cancel").addEventListener("click", closeEdit);
-document.getElementById("edit-sheet").addEventListener("click", e => {
-  if (e.target === document.getElementById("edit-sheet")) closeEdit();
-});
-document.getElementById("btn-save").addEventListener("click", () => {
-  const name = document.getElementById("f-name").value.trim();
-  const date = document.getElementById("f-date").value;
+$("btn-cancel").addEventListener("click", closeEdit);
+$("edit-sheet").addEventListener("click", e => { if (e.target === $("edit-sheet")) closeEdit(); });
+
+$("btn-save").addEventListener("click", () => {
+  const name = $("f-name").value.trim();
   // A name is enough. Adding something with no date on purpose is how you
   // jot it down now and come back to finish it later.
   if (!name) { setStatus("app-status", "Give it a name.", true); return; }
   const id = editingId || newId();
   const existing = state.items[id] || {};
-  const leadDays = Math.max(1, Number(document.getElementById("f-lead").value) || DEFAULT_LEAD_DAYS);
-  // Changing the notice period clears the stamp, so a widened window can still
-  // alert for a date that had already gone quiet.
-  const leadChanged = existing.leadDays !== undefined && existing.leadDays !== leadDays;
   const wasNew = !state.items[id];
+  const leadDays = Math.max(1, Number($("f-lead").value) || DEFAULT_LEAD_DAYS);
+  // Changing the notice period clears the stamp, so a widened window can
+  // still alert for a date that had already gone quiet.
+  const leadChanged = existing.leadDays !== undefined && existing.leadDays !== leadDays;
   const after = {
-    ...existing, name, date, leadDays,
-    everyYears: Number(document.getElementById("f-years").value) || 1,
-    note: document.getElementById("f-note").value.trim(),
+    ...existing, name, leadDays,
+    date: $("f-date").value,
+    everyYears: Number($("f-years").value) || 1,
+    note: $("f-note").value.trim(),
     ...(leadChanged ? { lastAlerted: null } : {})
   };
   pushAction({
@@ -742,22 +1247,19 @@ document.getElementById("btn-save").addEventListener("click", () => {
   saveEntry("items", id, after);
   closeEdit();
 });
-document.getElementById("btn-renewed").addEventListener("click", () => {
+
+$("btn-renewed").addEventListener("click", () => {
   if (!editingId) return;
-  renewItem({ ...state.items[editingId], id: editingId });
+  const id = editingId;
   closeEdit();
+  renewItem(id);
 });
-document.getElementById("btn-delete").addEventListener("click", () => {
+
+$("btn-delete").addEventListener("click", () => {
   if (!editingId) return;
-  if (!confirm("Delete this?")) return;
-  const goneId = editingId, gone = state.items[goneId];
-  pushAction({
-    label: "Deleted " + (gone ? gone.name : "item"),
-    undo: [{ field: "items", id: goneId, value: gone }],
-    redo: [{ field: "items", id: goneId, value: null }]
-  });
-  removeKeys("items", [goneId]);
+  const goneId = editingId;
   closeEdit();
+  deleteItem(goneId);
 });
 
 </script>
