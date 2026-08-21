@@ -956,7 +956,8 @@ var lastPraise = "";
 function praiseLine() {
   var pool = PRAISE;
   if (useRecordings()) {
-    var recorded = PRAISE.filter(function (t) { return CLIPS && CLIPS[t]; });
+    var pack = currentPack();
+    var recorded = PRAISE.filter(function (t) { return pack && pack.clips[t]; });
     if (recorded.length) pool = recorded;
   }
   if (pool.length > 1) {
@@ -1178,46 +1179,79 @@ function makeUtterance(text) {
 // The index names its own audio file, so a set recorded by hand (which comes
 // out as a .wav) drops in exactly where the generated .mp3 was, with nothing
 // here to change.
-var CLIP_AUDIO = "oddoneout-voice.mp3";
-var CLIP_INDEX = "oddoneout-voice.json";
-var CLIPS = null;          // line of speech -> [start frame, how many frames]
-var CLIP_FRAME = 0.024;    // seconds per frame; the index states the real value
+// More than one recorded voice can be present. Each is one audio file with
+// every word laid end to end, plus a small index saying where each word sits;
+// the index names its own audio file, so one recorded by hand (a .wav) and one
+// generated (an .mp3) sit side by side with nothing here to care which.
+// Whichever files exist get offered; a missing one is simply not on the list.
+var VOICE_PACKS = [
+  { id: "recorded", label: "Your own recording", index: "oddoneout-voice.json" },
+  { id: "ai", label: "Computer voice (Jenny)", index: "oddoneout-voice-ai.json" }
+];
+var packs = {};            // id -> { clips, audio, frameSeconds }
 // Stretching a recording to change its pace is the one thing that can make it
 // sound artificial, so the pace it was recorded at IS the default setting:
 // leave the speed control alone and the audio plays exactly as recorded,
 // untouched. Only moving it off the default stretches anything.
 var clipAudio = null;      // one element, reused: iOS only unlocks the one
+var clipSrc = "";          // which file that element is currently pointed at
 var clipWatch = null;      // the ticker watching for the end of a word
 var clipGuard = null;
 var clipTurn = 0;          // so a word that ends can't stop the one after it
+// The answer is read a beat after they get it right, so there is always a
+// moment where speech is scheduled but not yet started. Tapping Next inside
+// that moment used to leave it to fire against the round they had left.
+var revealTimer = null;
 
 (function loadClips() {
   if (typeof fetch !== "function") return;
-  fetch(CLIP_INDEX)
-    .then(function (r) { return r.ok ? r.json() : null; })
-    .then(function (m) {
-      if (m && m.clips && Object.keys(m.clips).length) {
-        CLIPS = m.clips;
-        if (m.frameSeconds > 0) CLIP_FRAME = m.frameSeconds;
+  VOICE_PACKS.forEach(function (p) {
+    fetch(p.index)
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (m) {
+        if (!m || !m.clips || !Object.keys(m.clips).length) return;
         // Only a plain filename beside the game — never a path or an address,
         // so a doctored index can't point the game at somebody else's server.
-        if (typeof m.audio === "string" && /^[\w.-]+\.(mp3|wav|m4a|ogg)$/i.test(m.audio)) {
-          CLIP_AUDIO = m.audio;
-        }
-        paintVoiceOptions();      // the voice picker is moot once we have these
-      }
-    })
-    .catch(function () {});       // no recordings is the normal case, not an error
+        var file = typeof m.audio === "string" && /^[\w.-]+\.(mp3|wav|m4a|ogg)$/i.test(m.audio)
+          ? m.audio : null;
+        if (!file) return;
+        packs[p.id] = { clips: m.clips, audio: file, frameSeconds: m.frameSeconds || 0.024 };
+        paintVoiceOptions();
+      })
+      .catch(function () {});   // a voice that isn't there is the normal case
+  });
 })();
 
-function haveClips() { return !!CLIPS; }
+// The recorded voice in use, or null when a device voice has been chosen.
+function currentPack() {
+  var ids = availablePacks();
+  if (!ids.length) return null;
+  // What earlier versions saved, when there was only one recorded voice.
+  if (voicePref === RECORDED) return packs[ids[0]];
+  for (var i = 0; i < ids.length; i++) {
+    if (voicePref === PACK_PREFIX + ids[i]) return packs[ids[i]];
+  }
+  // Nothing chosen, or a device voice that this device doesn't actually have:
+  // fall back to the first recorded voice rather than to the robot.
+  if (!voicePref || !currentVoice()) return packs[ids[0]];
+  return null;
+}
+
+function availablePacks() {
+  return VOICE_PACKS.filter(function (p) { return packs[p.id]; })
+    .map(function (p) { return p.id; });
+}
+
+function haveClips() { return availablePacks().length > 0; }
 // The recordings are the best option, but not the only one — someone may
 // genuinely prefer a device voice, and a four-year-old who has taken to
 // Wobble shouldn't lose it just because recordings turned up.
+var PACK_PREFIX = "__voice__";
+// What earlier versions saved when there was only one recorded voice.
 var RECORDED = "__recorded__";
 function useRecordings() {
   if (!haveClips()) return false;
-  return voicePref === RECORDED || !voicePref || !currentVoice();
+  return !!currentPack();
 }
 
 // How fast to play a recording so that the speed control means the same thing
@@ -1240,16 +1274,22 @@ function stopClip() {
 // one, or the file won't play. A word with no recording must not be swallowed
 // in silence — a part-recorded file should still say everything.
 function playClip(text, onDone, onFailed) {
-  var at = CLIPS && CLIPS[text];
+  var pack = currentPack();
+  var at = pack && pack.clips[text];
   if (!at) return false;
-  var from = at[0] * CLIP_FRAME;
-  var until = from + at[1] * CLIP_FRAME;
+  var from = at[0] * pack.frameSeconds;
+  var until = from + at[1] * pack.frameSeconds;
   try {
     if (!clipAudio) {
       clipAudio = new Audio();
       clipAudio.preload = "auto";
-      clipAudio.src = CLIP_AUDIO;   // set once and never changed: iOS unlocks
-    }                               // the element, not the file
+    }
+    // One element throughout, because iOS unlocks the element rather than the
+    // file — so switching voice re-points it instead of making a new one.
+    if (clipSrc !== pack.audio) {
+      clipSrc = pack.audio;
+      clipAudio.src = pack.audio;
+    }
     var a = clipAudio;
     var mine = ++clipTurn;
     var settled = false;
@@ -1364,6 +1404,10 @@ function clearHighlights() {
 }
 
 function stopSpeaking() {
+  // Anything merely scheduled counts as talking: if it isn't dropped here, it
+  // arrives after the screen has moved on and reads out the previous round.
+  clearTimeout(revealTimer);
+  revealTimer = null;
   tour.token++;
   clearHighlights();
   var s = synth();
@@ -1454,23 +1498,30 @@ function paintVoiceOptions() {
   sel.innerHTML = "";
   // Recordings sit at the top of the same list as everything else, so they
   // can be swapped away from as easily as any other voice.
-  if (haveClips()) {
-    var rec = document.createElement("option");
-    rec.value = RECORDED;
-    rec.textContent = "Recorded voice — best quality";
-    if (useRecordings()) rec.selected = true;
-    sel.appendChild(rec);
+  var ids = availablePacks();
+  if (ids.length) {
+    var using = currentPack();
     sel.disabled = false;
+    // The recorded voices sit at the top of the same list as everything else,
+    // so switching between them is no different from picking any other voice.
+    VOICE_PACKS.forEach(function (p) {
+      if (!packs[p.id]) return;
+      var o = document.createElement("option");
+      o.value = PACK_PREFIX + p.id;
+      o.textContent = p.label;
+      if (using === packs[p.id]) o.selected = true;
+      sel.appendChild(o);
+    });
     voices.forEach(function (v) {
       var o = document.createElement("option");
       o.value = v.voiceURI || v.name;
       o.textContent = v.name + (SILLY_VOICE.test(v.name) ? " — just for fun" : "");
-      if (!useRecordings() && chosen && v.voiceURI === chosen.voiceURI && v.name === chosen.name) o.selected = true;
+      if (!using && chosen && v.voiceURI === chosen.voiceURI && v.name === chosen.name) o.selected = true;
       sel.appendChild(o);
     });
-    $("voice-hint").textContent = useRecordings()
-      ? "Real recordings bundled with the game — they sound the same on every device. The rest are your iPad's own voices if you'd rather have one of those."
-      : "You're using one of your iPad's voices. Pick “Recorded voice” for the human-sounding one.";
+    $("voice-hint").textContent = using
+      ? "Real recordings, so they sound the same on every device. Below them are your iPad's own voices if you'd rather have one of those."
+      : "You're using one of your iPad's voices. Pick one of the recorded ones at the top for a human voice.";
     return;
   }
   if (!voices.length) {
@@ -2593,7 +2644,8 @@ function renderLocalRound() {
       $("local-reveal-card").style.display = "";
       $("local-btn-next").disabled = false;
       $("local-btn-replay").style.display = "none";
-      setTimeout(function () { sayLines(spokenReasonLines(round)); }, 900);
+      clearTimeout(revealTimer);
+      revealTimer = setTimeout(function () { sayLines(spokenReasonLines(round)); }, 900);
     }
   });
   $("local-btn-replay").style.display = "";
