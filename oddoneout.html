@@ -384,6 +384,7 @@
         <select id="voice-select"></select>
         <label style="margin-top:16px">Speaking speed</label>
         <div class="chip-group" id="rate-chips"></div>
+        <small class="hint">Slow is the starting point — a young child needs longer than you'd think. Tap one to hear it.</small>
         <button class="secondary" id="btn-try-voice" type="button" style="margin-top:12px">Try this voice</button>
         <small class="hint" id="voice-hint"></small>
       </div>
@@ -788,10 +789,24 @@ function showScreen(id) {
 // A four-year-old gets far more out of this with the sound on: the chime tells
 // them they were right before they've worked out what the screen is doing, and
 // the voice explains the answer without a word of reading.
+// Deliberately slow. This is being read to a four-year-old who is still
+// working out which word goes with which picture, not to an adult skimming.
+var DEFAULT_RATE = 0.7;
 var soundOn = false;
 var readOutLoud = true;
 var voicePref = "";
-var speechRate = 0.95;
+var speechRate = DEFAULT_RATE;
+// Earlier versions read faster and preferred a British voice. Without a
+// one-time clear, anyone who has already played keeps the old settings for
+// ever and never sees the change.
+var SETTINGS_VERSION = "2";
+try {
+  if (localStorage.getItem("oddoneout_settings_v") !== SETTINGS_VERSION) {
+    localStorage.removeItem("oddoneout_voice");
+    localStorage.removeItem("oddoneout_rate");
+    localStorage.setItem("oddoneout_settings_v", SETTINGS_VERSION);
+  }
+} catch (e) {}
 try {
   soundOn = localStorage.getItem("oddoneout_sound") === "on";
   readOutLoud = localStorage.getItem("oddoneout_readout") !== "off";
@@ -869,10 +884,12 @@ function voiceScore(v) {
   var name = v.name || "";
   var score = 0;
   if (SILLY_VOICE.test(name)) score -= 500;
+  // An American accent was asked for, and it outweighs quality: the best
+  // American voice wins over the best British one, but among American voices
+  // the enhanced ones still come first. If the device has no American voice
+  // at all, the best of whatever it does have is used instead.
+  if (/en[-_]US/i.test(v.lang || "")) score += 150;
   if (GOOD_VOICE.test(name)) score += 100;
-  // The picture names are written in British English (lorry, biscuit,
-  // aubergine), so a British voice reads them the way they're meant.
-  if (/en[-_]GB/i.test(v.lang || "")) score += 40;
   if (v.localService) score += 20;
   if (v.default) score += 5;
   return score;
@@ -960,7 +977,10 @@ function speakTour(wrap, round, intro) {
       clearTimeout(guard);
       if (btn) btn.classList.remove("speaking");
       if (token !== tour.token) return;
-      setTimeout(function () { step(k + 1); }, 150);
+      // A clear pause between one picture and the next, so it lands as
+      // "apple … banana … grapes" rather than a rushed list. The slower the
+      // voice is set, the longer the pause.
+      setTimeout(function () { step(k + 1); }, Math.round(500 / speechRate));
     }
     var u = makeUtterance(item.text);
     function answered() { speechAlive = true; next(); }
@@ -975,7 +995,7 @@ function speakTour(wrap, round, intro) {
       // worse than not reading them at all, so give up rather than limp on.
       if (!speechAlive) { stopSpeaking(); return; }
       next();
-    }, 1400 + item.text.length * 95);
+    }, 1400 + item.text.length * 95 / speechRate);   // a slower voice needs longer
     if (btn) btn.classList.add("speaking");
     try { s.speak(u); } catch (e) { next(); }
   }
@@ -1000,9 +1020,10 @@ $("mp-btn-replay").addEventListener("click", replayTour);
 
 // ---------- The sound and voice controls on the home screen ----------
 var RATE_CHOICES = [
-  { value: 0.75, label: "Slower" },
-  { value: 0.95, label: "Normal" },
-  { value: 1.15, label: "Faster" }
+  { value: 0.55, label: "Very slow" },
+  { value: 0.7, label: "Slow" },
+  { value: 0.85, label: "Medium" },
+  { value: 1, label: "Fast" }
 ];
 var ON_OFF = [{ value: "on", label: "On" }, { value: "off", label: "Off" }];
 
