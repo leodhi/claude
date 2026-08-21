@@ -1,0 +1,856 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>Record the Odd One Out voice</title>
+<meta name="theme-color" content="#101a33">
+<link rel="apple-touch-icon" href="icon-oddoneout.png">
+<style>
+  :root {
+    --bg: #101a33;
+    --panel: #1b2a4d;
+    --panel-2: #26375f;
+    --accent: #ffd233;
+    --accent-2: #ff6b9d;
+    --good: #4ee6a7;
+    --text: #f2f6ff;
+    --text-dim: #93a6cc;
+    --border: #2f4372;
+    --tile: #fdfbf4;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body {
+    margin: 0; padding: 0; height: 100%;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    overscroll-behavior-y: contain;
+  }
+  #app {
+    max-width: 520px; margin: 0 auto;
+    min-height: 100vh; min-height: 100dvh;
+    display: flex; flex-direction: column;
+    padding: 20px 16px 40px;
+  }
+  h1 { font-size: 1.5rem; margin: 4px 0 2px; letter-spacing: 0.5px; }
+  h1 span { color: var(--accent); }
+  .subtitle { color: var(--text-dim); font-size: 0.85rem; margin-bottom: 18px; }
+  .top-link { color: var(--text-dim); font-size: 0.8rem; text-decoration: none; }
+  .screen { display: none; flex-direction: column; gap: 14px; flex: 1; }
+  .screen.active { display: flex; }
+  .card { background: var(--panel); border: 1px solid var(--border); border-radius: 14px; padding: 16px; }
+  label { display: block; font-size: 0.8rem; color: var(--text-dim); margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.06em; }
+  .row { display: flex; gap: 8px; align-items: center; }
+  button.primary {
+    background: var(--accent); color: #2b2000; border: none; padding: 15px; border-radius: 12px;
+    font-size: 1.05rem; font-weight: 700; cursor: pointer; width: 100%;
+    touch-action: manipulation; transition: transform 0.15s cubic-bezier(.2,.9,.3,1.1);
+  }
+  button.primary:active { transform: scale(0.96); }
+  button.secondary {
+    background: transparent; color: var(--text); border: 1px solid var(--border); padding: 13px;
+    border-radius: 12px; font-size: 0.95rem; cursor: pointer; width: 100%;
+    touch-action: manipulation; transition: transform 0.15s cubic-bezier(.2,.9,.3,1.1);
+  }
+  button.secondary:active { transform: scale(0.96); }
+  button.danger { background: var(--accent-2); color: #34061a; border: none; font-weight: 700; }
+  button.link {
+    background: none; border: none; color: var(--text-dim); text-decoration: underline;
+    font-size: 0.8rem; cursor: pointer; padding: 6px; touch-action: manipulation; font-family: inherit;
+  }
+  button:disabled { opacity: 0.4; cursor: not-allowed; }
+  .center { text-align: center; }
+  .status-line { color: var(--text-dim); font-size: 0.85rem; text-align: center; }
+  small.hint { color: var(--text-dim); display: block; margin-top: 4px; font-size: 0.78rem; }
+
+  /* ---- The word being said ---- */
+  .word-card { min-height: 190px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; }
+  .the-word {
+    font-size: clamp(2rem, 11vw, 3.4rem); font-weight: 800; text-align: center;
+    line-height: 1.1; color: var(--tile); word-break: break-word;
+  }
+  /* A whole sentence has to be readable at a glance too, so it steps down. */
+  .the-word.long { font-size: clamp(1.2rem, 5.5vw, 1.8rem); font-weight: 700; }
+  .word-note { color: var(--text-dim); font-size: 0.8rem; }
+
+  /* ---- The record button ---- */
+  .rec-wrap { display: flex; align-items: center; justify-content: center; gap: 18px; }
+  .rec-btn {
+    width: 108px; height: 108px; border-radius: 999px; border: none; padding: 0;
+    background: var(--accent-2); color: #34061a; font-size: 0.95rem; font-weight: 800;
+    cursor: pointer; touch-action: manipulation;
+    display: flex; align-items: center; justify-content: center; text-align: center;
+    transition: transform 0.15s cubic-bezier(.2,.9,.3,1.1), background 0.2s ease;
+  }
+  .rec-btn:active { transform: scale(0.93); }
+  .rec-btn.listening { background: var(--good); color: #04301f; animation: pulse 1s ease-in-out infinite; }
+  @keyframes pulse { 0%,100% { transform: scale(1); } 50% { transform: scale(1.06); } }
+  .side-btn {
+    width: 54px; height: 54px; border-radius: 999px; flex: none; padding: 0;
+    background: var(--panel-2); border: 1px solid var(--border); color: var(--text);
+    font-size: 1.2rem; cursor: pointer; touch-action: manipulation;
+    transition: transform 0.15s cubic-bezier(.2,.9,.3,1.1);
+  }
+  .side-btn:active { transform: scale(0.9); }
+
+  /* ---- How loud it is hearing you ---- */
+  .meter { height: 8px; border-radius: 999px; background: var(--panel-2); overflow: hidden; }
+  .meter > i { display: block; height: 100%; width: 0; background: var(--good); transform-origin: left center; transition: width 0.08s linear; }
+
+  /* ---- Progress ---- */
+  .bar { height: 10px; border-radius: 999px; background: var(--panel-2); overflow: hidden; }
+  .bar > i { display: block; height: 100%; width: 0; background: var(--accent); transition: width 0.3s cubic-bezier(.2,.9,.3,1.1); }
+  .counts { display: flex; justify-content: space-between; font-size: 0.8rem; color: var(--text-dim); margin-top: 6px; }
+
+  /* ---- The list of everything, so any one can be redone ---- */
+  .word-list { max-height: 46vh; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+  .word-row {
+    display: flex; align-items: center; gap: 10px; width: 100%; text-align: left;
+    background: transparent; border: none; border-bottom: 1px solid var(--border);
+    color: var(--text); padding: 11px 4px; font-size: 0.95rem; font-family: inherit;
+    cursor: pointer; touch-action: manipulation;
+  }
+  .word-row:active { background: var(--panel-2); }
+  .word-row .tick { width: 20px; flex: none; text-align: center; }
+  .word-row.done .tick { color: var(--good); }
+  .word-row.todo .tick { color: var(--text-dim); opacity: 0.5; }
+  .word-row .txt { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .filter-row { display: flex; gap: 8px; margin-bottom: 4px; }
+  .chip {
+    padding: 8px 14px; border-radius: 999px; border: 1px solid var(--border); background: var(--panel-2);
+    color: var(--text-dim); font-size: 0.85rem; cursor: pointer; user-select: none;
+    touch-action: manipulation; transition: transform 0.15s cubic-bezier(.2,.9,.3,1.1);
+  }
+  .chip:active { transform: scale(0.94); }
+  .chip.selected { background: var(--accent); color: #2b2000; border-color: var(--accent); font-weight: 600; }
+  .warn { color: var(--accent-2); font-size: 0.85rem; }
+  .ok { color: var(--good); }
+  code { background: var(--panel-2); padding: 2px 6px; border-radius: 6px; font-size: 0.85em; }
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="page-head">
+    <h1>Record the <span>voice</span></h1>
+    <div class="subtitle">Say each word once &middot; <a class="top-link" href="./oddoneout.html">back to the game</a></div>
+  </div>
+
+  <!-- START -->
+  <div class="screen active" id="screen-start">
+    <div class="card">
+      <div id="start-status" class="status-line">Getting the list of words…</div>
+    </div>
+    <div class="card" id="start-card" style="display:none">
+      <label>What happens</label>
+      <p style="margin:0 0 10px; font-size:0.92rem; line-height:1.5;">
+        A word appears. You tap the big button, say it, and it moves on by itself
+        when you stop talking. That's the whole job, <b id="start-count">305</b> times —
+        about twenty minutes.
+      </p>
+      <p style="margin:0 0 10px; font-size:0.92rem; line-height:1.5;">
+        Say them the way you'd say them to him: clearly, not in a hurry.
+        Nothing is uploaded anywhere — it stays on this device until you're
+        done, so you can stop and come back.
+      </p>
+      <small class="hint">Somewhere quiet, please. Whatever the microphone hears
+        ends up in the game.</small>
+    </div>
+    <button class="primary" id="btn-begin" type="button" style="display:none">Start</button>
+    <div id="resume-line" class="status-line"></div>
+    <div class="card" id="unsupported" style="display:none">
+      <div class="warn" id="unsupported-text"></div>
+    </div>
+  </div>
+
+  <!-- RECORDING -->
+  <div class="screen" id="screen-record">
+    <div class="card">
+      <div class="bar"><i id="progress-bar"></i></div>
+      <div class="counts"><span id="progress-count"></span><span id="progress-left"></span></div>
+    </div>
+
+    <div class="card word-card">
+      <div class="the-word" id="the-word">apple</div>
+      <div class="word-note" id="word-note"></div>
+    </div>
+
+    <div class="rec-wrap">
+      <button class="side-btn" id="btn-prev" type="button" aria-label="Previous word">◀</button>
+      <button class="rec-btn" id="btn-record" type="button">Tap<br>and say it</button>
+      <button class="side-btn" id="btn-next" type="button" aria-label="Skip this word">▶</button>
+    </div>
+
+    <div class="meter"><i id="level-meter"></i></div>
+    <div class="status-line" id="rec-status">&nbsp;</div>
+
+    <div class="row">
+      <button class="secondary" id="btn-play" type="button">Hear it back</button>
+      <button class="secondary" id="btn-list" type="button">All words</button>
+    </div>
+    <button class="primary" id="btn-finish" type="button">Finish and save</button>
+    <button class="link" id="btn-quit" type="button">Stop for now — keeps what you've done</button>
+  </div>
+
+  <!-- THE WHOLE LIST -->
+  <div class="screen" id="screen-list">
+    <div class="card">
+      <div class="filter-row">
+        <div class="chip selected" id="chip-all">Everything</div>
+        <div class="chip" id="chip-todo">Still to do</div>
+      </div>
+      <div class="word-list" id="word-list"></div>
+    </div>
+    <button class="primary" id="btn-list-back" type="button">Back</button>
+  </div>
+
+  <!-- FINISHED -->
+  <div class="screen" id="screen-done">
+    <div class="card center">
+      <div style="font-size:3rem">🎤</div>
+      <div id="done-summary" style="margin-top:8px"></div>
+    </div>
+    <div class="card">
+      <label>Save these two files</label>
+      <button class="primary" id="btn-save-audio" type="button">Save the recording</button>
+      <button class="secondary" id="btn-save-index" type="button" style="margin-top:8px">Save the small list</button>
+      <small class="hint">Then upload <b>these two files and nothing else</b> to
+        GitHub, in the same place as <code>oddoneout.html</code>, and the game
+        starts using your voice. Uploading anything else from your computer
+        alongside them can overwrite the game itself.</small>
+    </div>
+    <button class="secondary" id="btn-back-record" type="button">Go back and fix a word</button>
+    <button class="link" id="btn-scrap" type="button">Delete everything and start again</button>
+  </div>
+</div>
+
+<script type="module">
+// =========================================================================
+// Recording a real person saying every word the game speaks.
+//
+// The shape of what comes out is exactly what the game already plays: one
+// audio file with every word laid end to end, and a small index saying where
+// each one sits. Nothing in the game has to understand where it came from.
+//
+// Words are captured as plain samples rather than as compressed clips. That
+// matters for three reasons: any single word can be re-recorded without
+// disturbing the rest, the work survives being interrupted, and the finished
+// file can be assembled here with exact positions. It also sidesteps the trap
+// that browsers record in different formats — Safari's and Chrome's compressed
+// output aren't interchangeable, and a file recorded in one can be refused by
+// the other. Samples are samples, so what gets built plays everywhere.
+// =========================================================================
+
+var $ = function (id) { return document.getElementById(id); };
+
+// What the finished audio is written at. Speech needs far less than music,
+// and the file has to be downloaded by a phone before the game can talk.
+var OUT_RATE = 22050;
+// Silence between words, so seeking to one can never clip the start of it.
+var GAP_SECONDS = 0.2;
+// How long a quiet patch has to last before a word counts as finished.
+var HUSH_SECONDS = 0.9;
+// Nothing is kept beyond this, so a cough into an open microphone can't
+// swallow the rest of the session.
+var MAX_WORD_SECONDS = 12;
+
+var words = [];          // every line to be said, in a fixed order
+var at = 0;              // which one is on screen
+var takes = {};          // word -> Float32Array of what was said
+var audioCtx = null, micStream = null, micNode = null, procNode = null;
+var listening = false, settling = false, chunks = [], quietFor = 0, heardAnything = false;
+var noiseFloor = 0.004;  // raised to suit the room during the first take
+var levelRaf = 0, lastLevel = 0, hitTheCap = false;
+var listFilter = "all";
+
+function showScreen(id) {
+  var all = document.querySelectorAll(".screen");
+  for (var i = 0; i < all.length; i++) all[i].classList.remove("active");
+  $(id).classList.add("active");
+  window.scrollTo(0, 0);
+}
+
+// ---------- The word list ----------
+// Read out of the game itself so the two can never disagree. A word added to
+// the game and not to this list would be the one word in the robot voice.
+function parseGame(src) {
+  var block = src.match(/var GROUPS = \{([\s\S]*?)\n\};/);
+  if (!block) return null;
+  var names = [], seen = {};
+  var pair = /\["([^"]+)","([^"]+)"\]/g, m;
+  while ((m = pair.exec(block[1]))) {
+    if (!seen[m[2]]) { seen[m[2]] = 1; names.push(m[2]); }
+  }
+  var groups = [], gseen = {};
+  var many = /many:\s*"([^"]+)"/g;
+  while ((m = many.exec(block[1]))) {
+    if (!gseen[m[1]]) { gseen[m[1]] = 1; groups.push(m[1]); }
+  }
+  function konst(name) {
+    var r = src.match(new RegExp('var ' + name + ' = "((?:[^"\\\\]|\\\\.)*)"'));
+    return r ? r[1].replace(/\\"/g, '"').replace(/\\'/g, "'") : null;
+  }
+  var lines = [];
+  ["ASK_IN_FULL", "ASK_BRIEFLY", "TRY_AGAIN", "ALL_DONE"].forEach(function (k) {
+    var v = konst(k);
+    if (v) lines.push(v);
+  });
+  var praise = src.match(/var PRAISE = \[([\s\S]*?)\];/);
+  if (praise) {
+    var one = /"((?:[^"\\]|\\.)*)"/g;
+    while ((m = one.exec(praise[1]))) {
+      var t = m[1].replace(/\\"/g, '"').replace(/\\'/g, "'");
+      if (lines.indexOf(t) === -1) lines.push(t);
+    }
+  }
+  if (!names.length || !groups.length) return null;
+  var all = names.slice();
+  groups.forEach(function (g) { all.push("The others are all " + g + "."); });
+  lines.forEach(function (l) { all.push(l); });
+  // Sorted, so the same set always comes out in the same order — which is
+  // what lets a half-finished session line back up with itself.
+  var uniq = {}, out = [];
+  all.forEach(function (t) { if (!uniq[t]) { uniq[t] = 1; out.push(t); } });
+  return out.sort();
+}
+
+// ---------- Keeping the work safe between sittings ----------
+// Twenty minutes of talking is far too much to lose to a locked screen, so
+// every take is written away the moment it is made.
+var DB_NAME = "oddoneout-voice", STORE = "takes";
+var db = null;
+
+function openDb() {
+  return new Promise(function (resolve) {
+    if (!window.indexedDB) { resolve(null); return; }
+    var req;
+    try { req = indexedDB.open(DB_NAME, 1); } catch (e) { resolve(null); return; }
+    req.onupgradeneeded = function () {
+      if (!req.result.objectStoreNames.contains(STORE)) req.result.createObjectStore(STORE);
+    };
+    req.onsuccess = function () { resolve(req.result); };
+    req.onerror = function () { resolve(null); };
+  });
+}
+
+function dbPut(key, value) {
+  return new Promise(function (resolve) {
+    if (!db) { resolve(); return; }
+    try {
+      var tx = db.transaction(STORE, "readwrite");
+      tx.objectStore(STORE).put(value, key);
+      tx.oncomplete = function () { resolve(); };
+      tx.onerror = function () { resolve(); };
+    } catch (e) { resolve(); }
+  });
+}
+
+function dbDelete(key) {
+  return new Promise(function (resolve) {
+    if (!db) { resolve(); return; }
+    try {
+      var tx = db.transaction(STORE, "readwrite");
+      tx.objectStore(STORE)["delete"](key);
+      tx.oncomplete = function () { resolve(); };
+      tx.onerror = function () { resolve(); };
+    } catch (e) { resolve(); }
+  });
+}
+
+function dbAll() {
+  return new Promise(function (resolve) {
+    if (!db) { resolve({}); return; }
+    var out = {};
+    try {
+      var tx = db.transaction(STORE, "readonly");
+      var cur = tx.objectStore(STORE).openCursor();
+      cur.onsuccess = function () {
+        var c = cur.result;
+        if (!c) { resolve(out); return; }
+        out[c.key] = c.value;
+        c["continue"]();
+      };
+      cur.onerror = function () { resolve(out); };
+    } catch (e) { resolve(out); }
+  });
+}
+
+function dbClear() {
+  return new Promise(function (resolve) {
+    if (!db) { resolve(); return; }
+    try {
+      var tx = db.transaction(STORE, "readwrite");
+      tx.objectStore(STORE).clear();
+      tx.oncomplete = function () { resolve(); };
+      tx.onerror = function () { resolve(); };
+    } catch (e) { resolve(); }
+  });
+}
+
+// ---------- Trimming ----------
+// A take starts when the button is tapped and ends a beat after the talking
+// stops, so there is dead air at both ends. Cutting it makes the words snap
+// out promptly in the game, and takes a good chunk off the file.
+function trim(samples, floor) {
+  var n = samples.length;
+  var thresh = Math.max(floor * 2.2, 0.012);
+  var win = Math.round(OUT_RATE * 0.02) || 1;   // look in 20ms pieces
+  function loud(i) {
+    var end = Math.min(n, i + win), s = 0;
+    for (var k = i; k < end; k++) s += samples[k] * samples[k];
+    return Math.sqrt(s / Math.max(1, end - i));
+  }
+  var start = 0, stop = n;
+  for (var i = 0; i < n; i += win) { if (loud(i) > thresh) { start = i; break; } }
+  for (var j = n - win; j >= 0; j -= win) { if (loud(j) > thresh) { stop = j + win; break; } }
+  // Leave a little air either side rather than clipping a soft consonant.
+  start = Math.max(0, start - Math.round(OUT_RATE * 0.06));
+  stop = Math.min(n, stop + Math.round(OUT_RATE * 0.09));
+  if (stop - start < OUT_RATE * 0.08) return null;   // nothing was said
+  return samples.subarray(start, stop);
+}
+
+// ---------- The microphone ----------
+async function startMic() {
+  if (audioCtx) return true;
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+    return "This browser won't let a web page use the microphone.";
+  }
+  try {
+    micStream = await navigator.mediaDevices.getUserMedia({
+      audio: {
+        channelCount: 1,
+        // The game is listened to on a phone speaker, so let the browser do
+        // the cleaning up it is good at.
+        echoCancellation: true, noiseSuppression: true, autoGainControl: true
+      }
+    });
+  } catch (e) {
+    return "The microphone wasn't allowed. Check the address bar or Settings, then try again.";
+  }
+  var Ctx = window.AudioContext || window.webkitAudioContext;
+  if (!Ctx) return "This browser is missing the audio support this page needs.";
+  try {
+    audioCtx = new Ctx({ sampleRate: OUT_RATE });
+  } catch (e) {
+    audioCtx = new Ctx();     // some browsers refuse a chosen rate; resample later
+  }
+  if (audioCtx.state === "suspended") { try { await audioCtx.resume(); } catch (e) {} }
+  micNode = audioCtx.createMediaStreamSource(micStream);
+  // ScriptProcessor is old, but it is the one thing every browser here still
+  // runs, iPads included. It hands over the raw samples, which is all this
+  // needs.
+  procNode = audioCtx.createScriptProcessor(4096, 1, 1);
+  procNode.onaudioprocess = onAudio;
+  micNode.connect(procNode);
+  // It only runs while connected onward, so send it somewhere silent — the
+  // page must never play the microphone back into the room.
+  var mute = audioCtx.createGain();
+  mute.gain.value = 0;
+  procNode.connect(mute);
+  mute.connect(audioCtx.destination);
+  return true;
+}
+
+function onAudio(ev) {
+  var input = ev.inputBuffer.getChannelData(0);
+  var sum = 0;
+  for (var i = 0; i < input.length; i++) sum += input[i] * input[i];
+  var level = Math.sqrt(sum / input.length);
+  lastLevel = level;
+
+  if (!listening) return;
+
+  chunks.push(new Float32Array(input));
+  var secs = input.length / audioCtx.sampleRate;
+
+  if (level > Math.max(noiseFloor * 2.2, 0.012)) {
+    heardAnything = true;
+    quietFor = 0;
+  } else if (heardAnything) {
+    quietFor += secs;
+    if (quietFor >= HUSH_SECONDS) { stopListening(true); return; }
+  }
+  var total = chunks.length * input.length / audioCtx.sampleRate;
+  if (total > MAX_WORD_SECONDS) { hitTheCap = true; stopListening(true); }
+}
+
+function paintLevel() {
+  var pct = Math.min(100, Math.round(lastLevel * 600));
+  $("level-meter").style.width = pct + "%";
+  levelRaf = requestAnimationFrame(paintLevel);
+}
+
+function startListening() {
+  chunks = [];
+  quietFor = 0;
+  heardAnything = false;
+  hitTheCap = false;
+  listening = true;
+  $("btn-record").classList.add("listening");
+  $("btn-record").innerHTML = "Listening…<br>tap when done";
+  $("rec-status").textContent = "Say it now.";
+}
+
+async function stopListening(keep) {
+  if (!listening) return;
+  listening = false;
+  settling = true;
+  try {
+    await settle(keep);
+  } finally {
+    settling = false;
+  }
+}
+
+async function settle(keep) {
+  $("btn-record").classList.remove("listening");
+  $("btn-record").innerHTML = "Tap<br>and say it";
+
+  var take = chunks;
+  chunks = [];
+  if (!keep || !take.length) { paintWord(); return; }
+
+  var n = 0, i;
+  for (i = 0; i < take.length; i++) n += take[i].length;
+  var joined = new Float32Array(n);
+  var off = 0;
+  for (i = 0; i < take.length; i++) { joined.set(take[i], off); off += take[i].length; }
+
+  var atRate = audioCtx.sampleRate;
+  var samples = atRate === OUT_RATE ? joined : await resample(joined, atRate, OUT_RATE);
+
+  // The first take doubles as a listen to the room, so the hush that ends a
+  // word is judged against this room and not an imagined quiet one.
+  if (!heardAnything) {
+    noiseFloor = Math.max(0.002, Math.min(0.05, quietLevel(samples)));
+    $("rec-status").textContent = "Didn't hear anything — have another go.";
+    paintWord();
+    return;
+  }
+
+  var cut = trim(samples, noiseFloor);
+  if (!cut) {
+    $("rec-status").textContent = "That came out silent — have another go.";
+    paintWord();
+    return;
+  }
+  var word = words[at];
+  takes[word] = cut;
+  await dbPut(word, cut);
+  $("rec-status").textContent = hitTheCap
+    ? "That one ran long — check it with Hear it back."
+    : "Got it.";
+  // Move along by itself: 305 words is only bearable if it flows.
+  if (at < words.length - 1) { at++; paintWord(); }
+  else { paintWord(); $("rec-status").textContent = "That's every word. Tap Finish and save."; }
+}
+
+function quietLevel(samples) {
+  var win = Math.round(OUT_RATE * 0.02) || 1, best = 1;
+  for (var i = 0; i + win < samples.length; i += win) {
+    var s = 0;
+    for (var k = i; k < i + win; k++) s += samples[k] * samples[k];
+    var r = Math.sqrt(s / win);
+    if (r < best) best = r;
+  }
+  return best;
+}
+
+function resample(samples, from, to) {
+  var Off = window.OfflineAudioContext || window.webkitOfflineAudioContext;
+  var length = Math.max(1, Math.round(samples.length * to / from));
+  if (!Off) return Promise.resolve(samples);
+  var ctx;
+  try { ctx = new Off(1, length, to); } catch (e) { return Promise.resolve(samples); }
+  var buf = ctx.createBuffer(1, samples.length, from);
+  buf.getChannelData(0).set(samples);
+  var src = ctx.createBufferSource();
+  src.buffer = buf;
+  src.connect(ctx.destination);
+  src.start();
+  return ctx.startRendering().then(function (rendered) {
+    return rendered.getChannelData(0);
+  }).catch(function () { return samples; });
+}
+
+// ---------- Screen painting ----------
+function paintWord() {
+  var w = words[at] || "";
+  var el = $("the-word");
+  el.textContent = w;
+  el.className = "the-word" + (w.length > 16 ? " long" : "");
+  $("word-note").textContent = takes[w] ? "✓ already recorded — say it again to replace it" : "";
+  $("btn-play").disabled = !takes[w];
+  $("btn-prev").disabled = at === 0;
+  $("btn-next").disabled = at >= words.length - 1;
+  paintProgress();
+}
+
+function doneCount() {
+  var n = 0;
+  for (var i = 0; i < words.length; i++) if (takes[words[i]]) n++;
+  return n;
+}
+
+function paintProgress() {
+  var done = doneCount();
+  $("progress-bar").style.width = (words.length ? done / words.length * 100 : 0) + "%";
+  $("progress-count").textContent = "Word " + (at + 1) + " of " + words.length;
+  $("progress-left").textContent = done + " recorded";
+  $("btn-finish").disabled = done === 0;
+}
+
+function paintList() {
+  var host = $("word-list");
+  host.innerHTML = "";
+  words.forEach(function (w, i) {
+    var have = !!takes[w];
+    if (listFilter === "todo" && have) return;
+    var row = document.createElement("button");
+    row.type = "button";
+    row.className = "word-row " + (have ? "done" : "todo");
+    var tick = document.createElement("span");
+    tick.className = "tick";
+    tick.textContent = have ? "✓" : "•";
+    var txt = document.createElement("span");
+    txt.className = "txt";
+    txt.textContent = w;
+    row.appendChild(tick);
+    row.appendChild(txt);
+    row.addEventListener("click", function () {
+      at = i;
+      showScreen("screen-record");
+      paintWord();
+    });
+    host.appendChild(row);
+  });
+  if (!host.children.length) {
+    var p = document.createElement("div");
+    p.className = "status-line";
+    p.style.padding = "16px 0";
+    p.textContent = "Nothing left — every word is recorded.";
+    host.appendChild(p);
+  }
+}
+
+// ---------- Building the two files ----------
+// The same arrangement the game already expects: silence, word, silence, word,
+// and an index in milliseconds saying where each one starts.
+function build() {
+  var said = words.filter(function (w) { return takes[w]; });
+  var gap = Math.round(GAP_SECONDS * OUT_RATE);
+  var total = gap;
+  said.forEach(function (w) { total += takes[w].length + gap; });
+
+  var pcm = new Int16Array(total);
+  var index = {};
+  var pos = gap;
+  said.forEach(function (w) {
+    var s = takes[w];
+    for (var i = 0; i < s.length; i++) {
+      var v = Math.max(-1, Math.min(1, s[i]));
+      pcm[pos + i] = v < 0 ? v * 0x8000 : v * 0x7FFF;
+    }
+    // Start a shade early, inside the silence, so nothing gets clipped.
+    var lead = Math.round(0.05 * OUT_RATE);
+    var startMs = Math.round((pos - lead) / OUT_RATE * 1000);
+    var lenMs = Math.round((s.length + lead) / OUT_RATE * 1000);
+    index[w] = [startMs, lenMs];
+    pos += s.length + gap;
+  });
+
+  return { wav: wavFile(pcm, OUT_RATE), index: index, said: said.length, samples: total };
+}
+
+function wavFile(pcm, rate) {
+  var bytes = pcm.length * 2;
+  var buf = new ArrayBuffer(44 + bytes);
+  var v = new DataView(buf);
+  function str(off, s) { for (var i = 0; i < s.length; i++) v.setUint8(off + i, s.charCodeAt(i)); }
+  str(0, "RIFF");
+  v.setUint32(4, 36 + bytes, true);
+  str(8, "WAVE");
+  str(12, "fmt ");
+  v.setUint32(16, 16, true);
+  v.setUint16(20, 1, true);         // plain uncompressed samples
+  v.setUint16(22, 1, true);         // one channel
+  v.setUint32(24, rate, true);
+  v.setUint32(28, rate * 2, true);
+  v.setUint16(32, 2, true);
+  v.setUint16(34, 16, true);
+  str(36, "data");
+  v.setUint32(40, bytes, true);
+  new Int16Array(buf, 44).set(pcm);
+  return new Blob([buf], { type: "audio/wav" });
+}
+
+function save(blob, name) {
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement("a");
+  a.href = url;
+  a.download = name;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(function () { URL.revokeObjectURL(url); }, 4000);
+}
+
+var built = null;
+
+function paintDone() {
+  built = build();
+  var mb = built.wav.size / 1024 / 1024;
+  var secs = built.samples / OUT_RATE;
+  // A short session used to read "0.0 minutes, 0.0 MB", which looks broken
+  // rather than small.
+  var whole = Math.max(1, Math.round(secs));
+  var howLong = secs < 90 ? whole + (whole === 1 ? " second" : " seconds")
+                          : (secs / 60).toFixed(1) + " minutes";
+  var howBig = mb < 1 ? Math.max(1, Math.round(mb * 1024)) + " KB" : mb.toFixed(1) + " MB";
+  var missing = words.length - built.said;
+  $("done-summary").innerHTML =
+    "<b>" + built.said + "</b> of " + words.length + " words recorded<br>" +
+    "<span class='status-line'>" + howLong + " &middot; " + howBig + "</span>" +
+    (missing ? "<br><span class='warn'>" + missing + " still to do — the game " +
+      "reads those in its own voice.</span>" : "<br><span class='ok'>Every word done.</span>");
+}
+
+// ---------- Wiring ----------
+$("btn-begin").addEventListener("click", async function () {
+  $("btn-begin").disabled = true;
+  var ok = await startMic();
+  $("btn-begin").disabled = false;
+  if (ok !== true) {
+    $("unsupported").style.display = "";
+    $("unsupported-text").textContent = ok;
+    return;
+  }
+  if (!levelRaf) paintLevel();
+  showScreen("screen-record");
+  paintWord();
+});
+
+$("btn-record").addEventListener("click", function () {
+  if (settling) return;          // still putting the last one away
+  if (listening) stopListening(true);
+  else startListening();
+});
+
+$("btn-prev").addEventListener("click", function () {
+  if (listening) stopListening(false);
+  if (at > 0) { at--; paintWord(); $("rec-status").innerHTML = "&nbsp;"; }
+});
+$("btn-next").addEventListener("click", function () {
+  if (listening) stopListening(false);
+  if (at < words.length - 1) { at++; paintWord(); $("rec-status").innerHTML = "&nbsp;"; }
+});
+
+$("btn-play").addEventListener("click", function () {
+  var s = takes[words[at]];
+  if (!s || !audioCtx) return;
+  var buf = audioCtx.createBuffer(1, s.length, OUT_RATE);
+  buf.getChannelData(0).set(s);
+  var src = audioCtx.createBufferSource();
+  src.buffer = buf;
+  src.connect(audioCtx.destination);
+  src.start();
+});
+
+$("btn-list").addEventListener("click", function () {
+  if (listening) stopListening(false);
+  paintList();
+  showScreen("screen-list");
+});
+$("btn-list-back").addEventListener("click", function () { showScreen("screen-record"); paintWord(); });
+$("chip-all").addEventListener("click", function () {
+  listFilter = "all";
+  $("chip-all").classList.add("selected");
+  $("chip-todo").classList.remove("selected");
+  paintList();
+});
+$("chip-todo").addEventListener("click", function () {
+  listFilter = "todo";
+  $("chip-todo").classList.add("selected");
+  $("chip-all").classList.remove("selected");
+  paintList();
+});
+
+$("btn-finish").addEventListener("click", function () {
+  if (listening) stopListening(false);
+  paintDone();
+  showScreen("screen-done");
+});
+$("btn-quit").addEventListener("click", function () {
+  if (listening) stopListening(false);
+  $("resume-line").textContent = doneCount() + " words saved on this device. Come back any time.";
+  showScreen("screen-start");
+});
+$("btn-back-record").addEventListener("click", function () { showScreen("screen-record"); paintWord(); });
+
+$("btn-save-audio").addEventListener("click", function () {
+  if (!built) paintDone();
+  save(built.wav, "oddoneout-voice.wav");
+});
+$("btn-save-index").addEventListener("click", function () {
+  if (!built) paintDone();
+  var body = JSON.stringify({
+    voice: "recorded by hand",
+    audio: "oddoneout-voice.wav",
+    // Everything below is in milliseconds; this is how long one unit lasts.
+    frameSeconds: 0.001,
+    clips: built.index
+  }, null, 1);
+  save(new Blob([body], { type: "application/json" }), "oddoneout-voice.json");
+});
+
+$("btn-scrap").addEventListener("click", async function () {
+  if (!window.confirm("Delete every word you've recorded and start again?")) return;
+  await dbClear();
+  takes = {};
+  at = 0;
+  built = null;
+  showScreen("screen-record");
+  paintWord();
+});
+
+// ---------- Getting going ----------
+(async function boot() {
+  db = await openDb();
+  var src = null;
+  try {
+    var r = await fetch("./oddoneout.html", { cache: "no-cache" });
+    if (r.ok) src = await r.text();
+  } catch (e) {}
+  words = src ? (parseGame(src) || []) : [];
+  if (!words.length) {
+    $("start-status").innerHTML = "<span class='warn'>Couldn't read the word list " +
+      "from the game. Reload the page, and if it keeps happening tell Claude.</span>";
+    return;
+  }
+  var saved = await dbAll();
+  Object.keys(saved).forEach(function (k) {
+    if (words.indexOf(k) !== -1 && saved[k] && saved[k].length) takes[k] = saved[k];
+  });
+  var done = doneCount();
+  // Start where the work stopped, not back at the beginning.
+  at = 0;
+  for (var i = 0; i < words.length; i++) { if (!takes[words[i]]) { at = i; break; } }
+
+  $("start-status").style.display = "none";
+  $("start-card").style.display = "";
+  $("start-count").textContent = String(words.length);
+  $("btn-begin").style.display = "";
+  if (done) {
+    $("btn-begin").textContent = "Carry on — " + done + " of " + words.length + " done";
+    $("resume-line").textContent = "Picking up where you left off.";
+  }
+  window.__rec = {           // for the tests that drive this page
+    get words() { return words; }, get takes() { return takes; },
+    get at() { return at; }, set at(v) { at = v; },
+    build: build, parseGame: parseGame, trim: trim
+  };
+})();
+</script>
+</body>
+</html>
