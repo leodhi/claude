@@ -6,13 +6,19 @@ Standing context for anyone (or any Claude session) working in this repo.
 
 This single repo hosts multiple unrelated projects, all served from one GitHub Pages site:
 
-- **Root** — four self-contained party games, each a single HTML file with both local pass-and-play mode and Firebase-backed multiplayer mode in one `<script type="module">`:
+- **Root** — five self-contained party games, each a single HTML file with both local pass-and-play mode and Firebase-backed multiplayer mode in one `<script type="module">`:
   - `index.html` — Chameleon
   - `firsttoworst.html` — First to Worst (no AI player option here — deliberately removed, don't re-add it)
   - `trivia.html` — Trivia Party
   - `doodle.html` — Doodle & Guess
+  - `spillit.html` — Spill It! (family trivia about each other; kid-safe prompt bank only, no adult content)
 - **`docs/packing-list/index.html`** — a family packing-list app (open access, no login).
 - **`docs/subscriptions/index.html`** — a subscription tracker, login-protected (see Firebase section below).
+- **Home utilities**, all login-protected and all stored under `homeApps/` in the same Firebase project as the packing list:
+  - `docs/medicine/index.html` — Medicine Timer, a shared log of who has had what and when. It is a **log, not medical advice**: it never suggests an amount (no mg, no ml, no weight-based dosing), only the gap between doses and the 24-hour maximum that are printed on the packet.
+  - `docs/renewals/index.html` — passports, MOT, insurance and the like, each with its own notice period.
+  - `docs/returns/index.html` — things that need sending back before a deadline.
+  - The last two are checked daily by `.github/workflows/home-deadline-alerts.yml` and push ntfy alerts.
 - **Other branches** in this repo contain unrelated side projects (bombsweeper, bowling, mr-bendy, stock tracking, etc.) started in other sessions. Don't assume they share context with the above, and don't merge them into `main` without understanding what they touch first.
 
 ## Deployment
@@ -36,6 +42,14 @@ This single repo hosts multiple unrelated projects, all served from one GitHub P
 - Never push directly to `main`. Branch off fresh `origin/main` → commit → push → open a PR → squash-merge via the GitHub MCP tools.
 - Other branches/sessions may merge into `main` between your edits — always `git fetch origin main` and branch fresh from `origin/main` before starting new work rather than reusing a stale local branch or continuing on an already-merged branch.
 - Before shipping any change to the game/app HTML files, run `node --check` on the extracted `<script type="module">` contents, and where feasible simulate the actual flow with jsdom plus hand-written mocks for Firebase calls, rather than assuming the code works from a read-through. Several real bugs here were only caught this way (an `id="input-name"` scope bug, a falsy-zero rotation bug, a duplicated-header bug, a corrupted `createElement("localCanvas")` typo, and more).
+
+## Before building anything new, read the existing apps first
+
+Whenever you're building a new app or game — or adding a new screen to an existing one — go and **read the other apps and games in this repo in full first**, and copy anything relevant. Don't work from memory, and don't assume this file captures everything: the apps themselves carry accumulated preferences and quirks that were never written down here. If something in them is relevant and copyable, copy it.
+
+That means layout and wording conventions, the shape of forms, how sheets open and close, sign-in flows, empty states, safety notes, control patterns, the native-feel rules below — all of it.
+
+This is not hypothetical; it has already cost a rebuild. The Medicine Timer's medicines editor was built as a cramped row of unlabelled number boxes plus a `prompt()`, and the user's reaction was "I don't even know what it means, and it's confusing." Meanwhile `docs/renewals/index.html` already had exactly the right pattern sitting in the repo: an add/edit sheet with a plain-English `<label>` above every single field, an example placeholder in each input, and a short note in ordinary words next to any number explaining what the number does. Copying that from the start would have avoided the whole thing.
 
 ## Making web apps in this repo feel native (mobile)
 
